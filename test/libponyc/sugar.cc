@@ -187,7 +187,7 @@ TEST_F(SugarTest, ClassWithInitializedFieldsAndDocString)
       case TK_NEW:
       {
         AST_GET_CHILDREN(member, cap, id, type_params, params, return_type,
-          error, body, docstring);
+          guard, error, body, docstring);
 
         ASSERT_EQ(ast_id(docstring), TK_STRING) <<
           "docstring has not been extracted from the constructor body";
@@ -277,7 +277,7 @@ TEST_F(SugarTest, ActorWithInitializedFieldsAndDocString)
       case TK_NEW:
       {
         AST_GET_CHILDREN(member, cap, id, type_params, params, return_type,
-          error, body, docstring);
+          guard, error, body, docstring);
 
         ASSERT_EQ(ast_id(docstring), TK_STRING) <<
           "docstring has not been extracted from the constructor body";

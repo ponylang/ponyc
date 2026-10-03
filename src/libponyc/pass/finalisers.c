@@ -79,7 +79,8 @@ static int check_call_send(pass_opt_t* opt, ast_t* ast, bool in_final)
   ast_t* fun = method_ref->ast;
   ast_t* def = (ast_t*)ast_data(type);
 
-  AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error, body);
+  AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, guard, can_error,
+    body);
 
   // If the receiver type has type arguments and the entity has type parameters,
   // reify the method body so generic type parameters are replaced with their
@@ -195,10 +196,36 @@ static bool entity_finaliser(pass_opt_t* opt, ast_t* entity, const char* final)
   if(ast == NULL)
     return true;
 
+  if(ast_id(ast) == TK_METHODGROUP)
+  {
+    bool ok = true;
+    ast_t* child = ast_child(ast);
+    while(child != NULL)
+    {
+      if(ast_id(child) == TK_FUN)
+      {
+        AST_GET_CHILDREN(child, c_cap, c_id, c_typeparams, c_params, c_result,
+          c_guard, c_can_error, c_body);
+        int r = check_body_send(opt, c_body, true);
+
+        if((r & FINAL_CAN_SEND) != 0 || (r & FINAL_MAY_SEND) != 0)
+        {
+          ast_error(opt->check.errors, child,
+            "_final cannot create actors or send messages");
+          show_send(opt, c_body);
+          ok = false;
+        }
+      }
+      child = ast_sibling(child);
+    }
+    return ok;
+  }
+
   if(ast_id(ast) != TK_FUN)
     return true;
 
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, guard, can_error,
+    body);
   int r = check_body_send(opt, body, true);
 
   if((r & FINAL_CAN_SEND) != 0 || (r & FINAL_MAY_SEND) != 0)

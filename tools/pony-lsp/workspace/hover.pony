@@ -347,10 +347,10 @@ primitive HoverFormatter
             ""
           end
 
-        // Extract docstring from child 7
+        // Extract docstring from child 8
         let docstring: String =
           try
-            let doc_node = ast(7)?
+            let doc_node = ast(8)?
             if doc_node.id() == TokenIds.tk_string() then
               doc_node.token_value() as String
             else

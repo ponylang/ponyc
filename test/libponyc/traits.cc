@@ -449,7 +449,7 @@ TEST_F(TraitsTest, ClassBodyNotOverriddenByTrait)
   ast_t* f = lookup_member("C", "f");
   ASSERT_ID(TK_FUN, f);
 
-  lexint_t* value = ast_int(ast_child(ast_childidx(f, 6)));
+  lexint_t* value = ast_int(ast_child(ast_childidx(f, 7)));
 
   ASSERT_EQ(0, value->high);
   ASSERT_EQ(2, value->low);
@@ -733,4 +733,22 @@ TEST_F(TraitsTest, TypeParamRefBeforeTypeParam)
     "class C is T";
 
   TEST_COMPILE(src);
+}
+
+
+TEST_F(TraitsTest, InterfaceStructuralMissingSpecializations)
+{
+  const char* src =
+    "interface Describable[A: Any val]\n"
+    "  fun describe(): None\n"
+    "  fun describe(): None iftype A <: Stringable val\n"
+
+    "class Container[A: Any val]\n"
+    "  fun describe(): None => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: Describable[U32] = Container[U32]";
+
+  TEST_ERROR(src);
 }

@@ -5,6 +5,7 @@
 #include "../type/compattype.h"
 #include "../type/lookup.h"
 #include "../type/subtype.h"
+#include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
 
@@ -29,7 +30,13 @@ static bool verify_calls_runtime_override(pass_opt_t* opt, ast_t* ast)
     // safely.
     deferred_reify_free(method_def);
 
-    if(ast_id(ast_parent(ast_parent(method_ast))) != TK_PRIMITIVE)
+    ast_t* method_parent = ast_parent(method_ast);
+    ast_t* method_entity = ast_parent(method_parent);
+
+    if(ast_id(method_parent) == TK_METHODGROUP)
+      method_entity = ast_parent(method_entity);
+
+    if(ast_id(method_entity) != TK_PRIMITIVE)
     {
       ast_error(opt->check.errors, ast,
         "the runtime_override_defaults method of the Main actor can only call functions on primitives");
@@ -66,8 +73,13 @@ static bool verify_main_runtime_override_defaults(pass_opt_t* opt, ast_t* ast)
   if(strcmp(ast_name(type_id), "Main"))
     return true;
 
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
-  ast_t* type = ast_parent(ast_parent(ast));
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, guard, can_error,
+    body);
+  ast_t* parent = ast_parent(ast);
+  ast_t* type = ast_parent(parent);
+
+  if(ast_id(parent) == TK_METHODGROUP)
+    type = ast_parent(type);
 
   if(strcmp(ast_name(id), "runtime_override_defaults"))
     return true;
@@ -149,8 +161,12 @@ static bool verify_main_create(pass_opt_t* opt, ast_t* ast)
   if(strcmp(ast_name(type_id), "Main"))
     return true;
 
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
-  ast_t* type = ast_parent(ast_parent(ast));
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, guard, can_error);
+  ast_t* mparent = ast_parent(ast);
+  ast_t* type = ast_parent(mparent);
+
+  if(ast_id(mparent) == TK_METHODGROUP)
+    type = ast_parent(type);
 
   if(strcmp(ast_name(id), "create"))
     return true;
@@ -205,7 +221,7 @@ static bool verify_primitive_init(pass_opt_t* opt, ast_t* ast)
   if(ast_id(opt->check.frame->type) != TK_PRIMITIVE)
     return true;
 
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, guard, can_error);
 
   if(strcmp(ast_name(id), "_init"))
     return true;
@@ -266,7 +282,8 @@ static bool verify_primitive_init(pass_opt_t* opt, ast_t* ast)
 
 static bool verify_any_final(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, guard, can_error,
+    body);
 
   if(strcmp(ast_name(id), "_final"))
     return true;
@@ -462,6 +479,10 @@ bool verify_fields_are_defined_in_constructor(pass_opt_t* opt, ast_t* ast)
     return result;
 
   ast_t* members = ast_parent(ast);
+
+  if(ast_id(members) == TK_METHODGROUP)
+    members = ast_parent(members);
+
   ast_t* member = ast_child(members);
 
   while(member != NULL)
@@ -503,7 +524,8 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert((ast_id(ast) == TK_BE) || (ast_id(ast) == TK_FUN) ||
     (ast_id(ast) == TK_NEW));
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, guard, can_error,
+    body);
 
   // Run checks tailored to specific kinds of methods, if any apply.
   if(!verify_main_create(opt, ast) ||
@@ -578,6 +600,350 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
       show_partiality(opt, body);
       return false;
     }
+  }
+
+  return true;
+}
+
+static bool guards_same_subtype(ast_t* a, ast_t* b)
+{
+  if(ast_id(a) != ast_id(b))
+    return false;
+
+  if(ast_id(a) == TK_NOMINAL)
+    return ast_name(ast_childidx(a, 1)) == ast_name(ast_childidx(b, 1));
+
+  if(ast_id(a) == TK_TYPEPARAMREF)
+    return ast_name(ast_child(a)) == ast_name(ast_child(b));
+
+  if(ast_id(a) == TK_TUPLETYPE)
+  {
+    if(ast_childcount(a) != ast_childcount(b))
+      return false;
+
+    ast_t* ca = ast_child(a);
+    ast_t* cb = ast_child(b);
+    while(ca != NULL)
+    {
+      if(!guards_same_subtype(ca, cb))
+        return false;
+      ca = ast_sibling(ca);
+      cb = ast_sibling(cb);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+static bool single_guard_shadows(ast_t* earlier, ast_t* later,
+  pass_opt_t* opt)
+{
+  pony_assert(ast_id(earlier) == TK_IFTYPEGUARD);
+  pony_assert(ast_id(later) == TK_IFTYPEGUARD);
+
+  ast_t* e_sub = ast_child(earlier);
+  ast_t* e_super = ast_sibling(e_sub);
+  ast_t* l_sub = ast_child(later);
+  ast_t* l_super = ast_sibling(l_sub);
+
+  return guards_same_subtype(e_sub, l_sub) &&
+    is_subtype(l_super, e_super, NULL, opt);
+}
+
+static bool guard_shadows(ast_t* earlier, ast_t* later, pass_opt_t* opt)
+{
+  // Simple case: both are single guards.
+  if((ast_id(earlier) == TK_IFTYPEGUARD) &&
+    (ast_id(later) == TK_IFTYPEGUARD))
+    return single_guard_shadows(earlier, later, opt);
+
+  // If later is an OR, it's shadowed if every branch is individually shadowed
+  // by earlier.
+  if(ast_id(later) == TK_IFTYPEGUARD_OR)
+  {
+    ast_t* l_child = ast_child(later);
+    while(l_child != NULL)
+    {
+      if(!guard_shadows(earlier, l_child, opt))
+        return false;
+      l_child = ast_sibling(l_child);
+    }
+    return true;
+  }
+
+  // If earlier is an OR, it shadows later if any branch shadows later.
+  if(ast_id(earlier) == TK_IFTYPEGUARD_OR)
+  {
+    ast_t* e_child = ast_child(earlier);
+    while(e_child != NULL)
+    {
+      if(guard_shadows(e_child, later, opt))
+        return true;
+      e_child = ast_sibling(e_child);
+    }
+    return false;
+  }
+
+  // Both are AND guards. Earlier shadows later if every constraint in earlier
+  // has a matching constraint in later on the same type parameter where the
+  // later supertype is at least as narrow (l_super <: e_super). This means
+  // earlier is at least as broad as later — anything matching later also
+  // matches earlier.
+  if((ast_id(earlier) == TK_IFTYPEGUARD_AND) &&
+    (ast_id(later) == TK_IFTYPEGUARD_AND))
+  {
+    ast_t* e_child = ast_child(earlier);
+    while(e_child != NULL)
+    {
+      bool found = false;
+      ast_t* l_child = ast_child(later);
+      while(l_child != NULL)
+      {
+        if(single_guard_shadows(e_child, l_child, opt))
+        {
+          found = true;
+          break;
+        }
+        l_child = ast_sibling(l_child);
+      }
+
+      if(!found)
+        return false;
+
+      e_child = ast_sibling(e_child);
+    }
+    return true;
+  }
+
+  // If later is an AND, it's shadowed if earlier (a single guard) shadows
+  // any constraint in later (since satisfying more constraints is narrower).
+  if(ast_id(later) == TK_IFTYPEGUARD_AND)
+  {
+    ast_t* l_child = ast_child(later);
+    while(l_child != NULL)
+    {
+      if(guard_shadows(earlier, l_child, opt))
+        return true;
+      l_child = ast_sibling(l_child);
+    }
+    return false;
+  }
+
+  // An AND guard is narrower than any of its individual constraints — it
+  // matches the intersection. It can never shadow a broader single guard.
+  return false;
+}
+
+bool verify_methodgroup(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_METHODGROUP);
+
+  ast_t* default_method = ast_child(ast);
+  pony_assert(default_method != NULL);
+
+  AST_GET_CHILDREN(default_method, d_cap, d_id, d_typeparams, d_params,
+    d_result, d_guard, d_can_error, d_body, d_docstring);
+
+  (void)d_guard;
+  (void)d_body;
+  (void)d_docstring;
+
+  bool d_partial = (ast_id(d_can_error) == TK_QUESTION);
+
+  ast_t* spec = ast_sibling(default_method);
+
+  while(spec != NULL)
+  {
+    AST_GET_CHILDREN(spec, s_cap, s_id, s_typeparams, s_params,
+      s_result, s_guard_s, s_can_error, s_body, s_docstring);
+
+    (void)s_guard_s;
+    (void)s_body;
+    (void)s_docstring;
+
+    if(!d_partial && (ast_id(s_can_error) == TK_QUESTION))
+    {
+      ast_error(opt->check.errors, s_can_error,
+        "specialization is partial but the default is not");
+      ast_error_continue(opt->check.errors, d_can_error,
+        "default method is defined here");
+      return false;
+    }
+
+    if(ast_id(d_cap) != ast_id(s_cap))
+    {
+      ast_error(opt->check.errors, s_cap,
+        "specialization receiver capability does not match the default");
+      ast_error_continue(opt->check.errors, d_cap,
+        "default receiver capability is defined here");
+      return false;
+    }
+
+    if(ast_id(default_method) != ast_id(spec))
+    {
+      ast_error(opt->check.errors, spec,
+        "specialization method kind does not match the default");
+      ast_error_continue(opt->check.errors, default_method,
+        "default method is defined here");
+      return false;
+    }
+
+    if(ast_childcount(d_typeparams) != ast_childcount(s_typeparams))
+    {
+      ast_error(opt->check.errors, s_typeparams,
+        "specialization has a different number of type parameters "
+        "than the default");
+      ast_error_continue(opt->check.errors, d_typeparams,
+        "default type parameters are defined here");
+      return false;
+    }
+
+    ast_t* d_tp = ast_child(d_typeparams);
+    ast_t* s_tp = ast_child(s_typeparams);
+
+    while(d_tp != NULL)
+    {
+      ast_t* d_constraint = ast_childidx(d_tp, 1);
+      ast_t* s_constraint = ast_childidx(s_tp, 1);
+
+      if(!is_eqtype(d_constraint, s_constraint, NULL, opt))
+      {
+        ast_error(opt->check.errors, s_constraint,
+          "specialization type parameter constraint does not match "
+          "the default");
+        ast_error_continue(opt->check.errors, d_constraint,
+          "default type parameter constraint is defined here");
+        return false;
+      }
+
+      d_tp = ast_sibling(d_tp);
+      s_tp = ast_sibling(s_tp);
+    }
+
+    // Link the specialization's method-level type parameters to the default's
+    // so that typeparam_root resolves to the same identity. Each method owns
+    // its own TK_TYPEPARAM nodes; without this, is_eqtype fails on pointer
+    // identity even when the type parameters are structurally identical.
+    // Save and restore the original ast_data after the comparisons.
+    size_t tp_count = ast_childcount(d_typeparams);
+    ast_t** saved_data = NULL;
+
+    if(tp_count > 0)
+    {
+      saved_data = (ast_t**)ponyint_pool_alloc_size(
+        tp_count * sizeof(ast_t*));
+
+      d_tp = ast_child(d_typeparams);
+      s_tp = ast_child(s_typeparams);
+      size_t i = 0;
+
+      while(d_tp != NULL)
+      {
+        saved_data[i] = (ast_t*)ast_data(s_tp);
+        ast_setdata(s_tp, d_tp);
+        d_tp = ast_sibling(d_tp);
+        s_tp = ast_sibling(s_tp);
+        i++;
+      }
+    }
+
+    bool params_ok = true;
+    bool result_ok = true;
+
+    if(ast_childcount(d_params) != ast_childcount(s_params))
+    {
+      ast_error(opt->check.errors, s_params,
+        "specialization has a different number of parameters than the default");
+      ast_error_continue(opt->check.errors, d_params,
+        "default parameters are defined here");
+      params_ok = false;
+    }
+
+    if(params_ok)
+    {
+      ast_t* d_param = ast_child(d_params);
+      ast_t* s_param = ast_child(s_params);
+
+      while(d_param != NULL)
+      {
+        ast_t* d_ptype = ast_childidx(d_param, 1);
+        ast_t* s_ptype = ast_childidx(s_param, 1);
+
+        if(!is_eqtype(d_ptype, s_ptype, NULL, opt))
+        {
+          ast_error(opt->check.errors, s_ptype,
+            "specialization parameter type does not match the default");
+          ast_error_continue(opt->check.errors, d_ptype,
+            "default parameter type is defined here");
+          params_ok = false;
+          break;
+        }
+
+        d_param = ast_sibling(d_param);
+        s_param = ast_sibling(s_param);
+      }
+    }
+
+    if(params_ok && !is_subtype(s_result, d_result, NULL, opt))
+    {
+      ast_error(opt->check.errors, s_result,
+        "specialization return type is not a subtype of the default return "
+        "type");
+      ast_error_continue(opt->check.errors, d_result,
+        "default return type is defined here");
+      result_ok = false;
+    }
+
+    // Restore the specialization's type parameter data pointers.
+    if(tp_count > 0)
+    {
+      s_tp = ast_child(s_typeparams);
+      size_t i = 0;
+
+      while(s_tp != NULL)
+      {
+        ast_setdata(s_tp, saved_data[i]);
+        s_tp = ast_sibling(s_tp);
+        i++;
+      }
+
+      ponyint_pool_free_size(tp_count * sizeof(ast_t*), saved_data);
+    }
+
+    if(!params_ok || !result_ok)
+      return false;
+
+    spec = ast_sibling(spec);
+  }
+
+  // A later specialization is unreachable when an earlier guard's constraint
+  // is a supertype — everything matching later already matches earlier.
+  ast_t* earlier = ast_sibling(default_method);
+
+  while(earlier != NULL)
+  {
+    ast_t* e_guard = ast_childidx(earlier, 5);
+    ast_t* later = ast_sibling(earlier);
+
+    while(later != NULL)
+    {
+      ast_t* l_guard = ast_childidx(later, 5);
+
+      if(guard_shadows(e_guard, l_guard, opt))
+      {
+        ast_error(opt->check.errors, l_guard,
+          "specialization is unreachable because a previous guard "
+          "matches all the same types");
+        ast_error_continue(opt->check.errors, e_guard,
+          "this guard shadows the unreachable specialization");
+        return false;
+      }
+
+      later = ast_sibling(later);
+    }
+
+    earlier = ast_sibling(earlier);
   }
 
   return true;

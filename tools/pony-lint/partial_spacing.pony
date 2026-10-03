@@ -27,11 +27,11 @@ primitive PartialSpacing is ASTRule
     : Array[Diagnostic val] val
   =>
     """
-    Check that the `?` partial marker (child 5) has a space before and a space
+    Check that the `?` partial marker (child 6) has a space before and a space
     or end-of-line after it.
     """
     try
-      let partial_node = node(5)?
+      let partial_node = node(6)?
       if partial_node.id() != ast.TokenIds.tk_question() then
         return recover val Array[Diagnostic val] end
       end

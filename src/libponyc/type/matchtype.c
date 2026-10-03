@@ -1101,8 +1101,13 @@ static bool single_method_interfaces_could_unify(subst_t* subst,
   if(((t_a == TK_NEW) || (t_b == TK_NEW)) && (t_a != t_b))
     goto cleanup;
 
-  AST_GET_CHILDREN(r_a, a_cap, a_id, a_tps, a_params, a_result, a_throws);
-  AST_GET_CHILDREN(r_b, b_cap, b_id, b_tps, b_params, b_result, b_throws);
+  AST_GET_CHILDREN(r_a, a_cap, a_id, a_tps, a_params, a_result, a_guard,
+    a_throws);
+  AST_GET_CHILDREN(r_b, b_cap, b_id, b_tps, b_params, b_result, b_guard,
+    b_throws);
+
+  (void)a_guard;
+  (void)b_guard;
 
   if(ast_name(a_id) != ast_name(b_id))
     goto cleanup;
@@ -1138,7 +1143,7 @@ static bool single_method_interfaces_could_unify(subst_t* subst,
     ast_free_unattached(typeargs);
 
     a_result = ast_childidx(rr_a, 4);
-    a_throws = ast_childidx(rr_a, 5);
+    a_throws = ast_childidx(rr_a, 6);
     a_params = ast_childidx(rr_a, 3);
   }
 
@@ -1727,8 +1732,16 @@ static bool structural_could_match_pattern(ast_t* operand, ast_t* pattern,
 
   while(super_member != NULL)
   {
-    ast_t* super_member_id = ast_childidx(super_member, 1);
+    ast_t* s_member = super_member;
+
+    if(ast_id(s_member) == TK_METHODGROUP)
+      s_member = ast_child(s_member);
+
+    ast_t* super_member_id = ast_childidx(s_member, 1);
     ast_t* sub_member = ast_get(sub_def, ast_name(super_member_id), NULL);
+
+    if((sub_member != NULL) && (ast_id(sub_member) == TK_METHODGROUP))
+      sub_member = ast_child(sub_member);
 
     if((sub_member == NULL) || (ast_id(sub_member) != TK_FUN &&
       ast_id(sub_member) != TK_BE && ast_id(sub_member) != TK_NEW))
@@ -1742,7 +1755,7 @@ static bool structural_could_match_pattern(ast_t* operand, ast_t* pattern,
       sub_typeargs, opt);
     pony_assert(r_sub != NULL);
 
-    ast_t* r_super = reify_method_def(super_member, super_typeparams,
+    ast_t* r_super = reify_method_def(s_member, super_typeparams,
       super_typeargs, opt);
     pony_assert(r_super != NULL);
 
@@ -1760,9 +1773,12 @@ static bool structural_could_match_pattern(ast_t* operand, ast_t* pattern,
     }
 
     AST_GET_CHILDREN(r_sub, sub_cap, sub_id, sub_tps, sub_params,
-      sub_result, sub_throws);
+      sub_result, sub_guard, sub_throws);
     AST_GET_CHILDREN(r_super, super_cap, super_id, super_tps, super_params,
-      super_result, super_throws);
+      super_result, super_guard, super_throws);
+
+    (void)sub_guard;
+    (void)super_guard;
 
     // Must have same number of type parameters and parameters.
     if(ast_childcount(sub_tps) != ast_childcount(super_tps)
@@ -1809,7 +1825,7 @@ static bool structural_could_match_pattern(ast_t* operand, ast_t* pattern,
 
       // Re-extract children from the re-reified sub method.
       sub_result = ast_childidx(rr_sub, 4);
-      sub_throws = ast_childidx(rr_sub, 5);
+      sub_throws = ast_childidx(rr_sub, 6);
       sub_params = ast_childidx(rr_sub, 3);
     }
 

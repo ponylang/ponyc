@@ -1128,7 +1128,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
     apply_cap = partial_application_cap(opt, type, receiver, positional,
       ast_id(method_ast) == TK_NEW);
 
-  token_id can_error = ast_id(ast_childidx(method_ast, 5));
+  token_id can_error = ast_id(ast_childidx(method_ast, 6));
   const char* recv_name = package_hygienic_id(t, opt);
 
   // Build lambda expression.
@@ -1431,6 +1431,9 @@ static ast_result_t constructor_path_infer(pass_opt_t* opt, ast_t* ast,
     return AST_OK;
 
   ast_t* member = ast_get(def, stringtab(opt->strtab, member_name), NULL);
+
+  if((member != NULL) && (ast_id(member) == TK_METHODGROUP))
+    member = ast_child(member);
 
   if(member == NULL || ast_id(member) != TK_NEW)
     return AST_OK;

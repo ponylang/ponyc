@@ -260,7 +260,10 @@ static bool verify_fun_field_not_referenced(pass_opt_t* opt, ast_t* ast,
 
     if(fun_def != NULL)
     {
-      token_id entity_type = ast_id(ast_parent(ast_parent(fun_def)));
+      ast_t* entity = ast_parent(ast_parent(fun_def));
+      if(ast_id(entity) == TK_METHODGROUP)
+        entity = ast_parent(entity);
+      token_id entity_type = ast_id(entity);
       if((entity_type == TK_TRAIT) || (entity_type == TK_INTERFACE))
       {
         ast_error(opt->check.errors, ast,
@@ -727,6 +730,7 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
     case TK_FUN:
     case TK_NEW:
     case TK_BE:           r = verify_fun(options, ast); break;
+    case TK_METHODGROUP:  r = verify_methodgroup(options, ast); break;
     case TK_FUNREF:
     case TK_FUNCHAIN:
     case TK_NEWREF:       r = verify_function_call(options, ast); break;

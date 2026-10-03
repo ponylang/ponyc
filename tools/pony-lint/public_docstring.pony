@@ -74,8 +74,11 @@ primitive PublicDocstring is ASTRule
         if is_method then
           // Skip methods inside private, \nodoc\, or anonymous types
           try
-            let entity =
-              (node.parent() as ast.AST).parent() as ast.AST
+            var members = node.parent() as ast.AST
+            if members.id() == ast.TokenIds.tk_methodgroup() then
+              members = members.parent() as ast.AST
+            end
+            let entity = members.parent() as ast.AST
             // Anonymous objects are local — not public API
             if entity.id() == ast.TokenIds.tk_object() then
               return recover val Array[Diagnostic val] end
@@ -99,7 +102,7 @@ primitive PublicDocstring is ASTRule
 
           // Gate 2: simple body (≤ 3 top-level expressions)
           try
-            let body = node(6)?
+            let body = node(7)?
             if body.id() != ast.TokenIds.tk_none() then
               if body.num_children() <= 3 then
                 return recover val Array[Diagnostic val] end
@@ -118,8 +121,8 @@ primitive PublicDocstring is ASTRule
         // Check docstring presence
         if is_method then
           // At PassParse, method docstrings appear in two locations:
-          // - Abstract methods: child 7 (between signature and absent body)
-          // - Concrete methods: first expression of body (child 6)
+          // - Abstract methods: child 8 (between signature and absent body)
+          // - Concrete methods: first expression of body (child 7)
           if not _method_has_docstring(node) then
             return recover val
               [ Diagnostic(
@@ -151,17 +154,17 @@ primitive PublicDocstring is ASTRule
     recover val Array[Diagnostic val] end
 
   fun _method_has_docstring(node: ast.AST box): Bool =>
-    // Check child 7: docstring for abstract methods (between signature
+    // Check child 8: docstring for abstract methods (between signature
     // and absent body, parsed by `OPT TOKEN(NULL, TK_STRING)`)
     try
-      if node(7)?.id() == ast.TokenIds.tk_string() then
+      if node(8)?.id() == ast.TokenIds.tk_string() then
         return true
       end
     end
     // Check body's first child: docstring for concrete methods
     // (first TK_STRING expression inside the TK_SEQ body)
     try
-      let body = node(6)?
+      let body = node(7)?
       if body.id() != ast.TokenIds.tk_none() then
         if body(0)?.id() == ast.TokenIds.tk_string() then
           return true

@@ -30,6 +30,10 @@ Demonstrates compile-time conditional logic with `ifdef` for platform detection 
 
 Creates and applies lambda functions with the syntax `{(a: U32, b: U32): U32 => a + b}`. Demonstrates lambdas as first-class values, function types as parameters, and error handling in functional code.
 
+### [iftype-specialization](language-features/iftype-specialization/)
+
+Multiple definitions of the same method distinguished by `iftype` guards on type parameters. The matching body is selected at reification time with zero runtime cost. Demonstrates a `Container[A]` class where `describe()` returns a generic message by default and calls `.string()` on the value when `A <: Stringable val`.
+
 ### [printargs](language-features/printargs/)
 
 Prints all command-line arguments and environment variables passed to the program. Demonstrates `Env.args` for argument access and `Env.vars` for environment variable iteration.

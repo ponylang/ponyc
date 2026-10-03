@@ -348,8 +348,8 @@ ast_t* reify_method_def(ast_t* ast, ast_t* typeparams, ast_t* typeargs,
       pony_assert(false);
   }
 
-  // Do not duplicate the body and docstring.
-  bool dup_child[9] = {true, true, true, true, true, true, false, false, true};
+  // Duplicate everything except the body and docstring (children 7-8).
+  bool dup_child[9] = {true, true, true, true, true, true, true, false, false};
   ast_t* r_ast = ast_dup_partial(ast, dup_child, true, true, true);
   return reify(r_ast, typeparams, typeargs, opt, false);
 }
@@ -433,8 +433,8 @@ ast_t* deferred_reify_method_def(deferred_reification_t* deferred, ast_t* ast,
       pony_assert(false);
   }
 
-  // Do not duplicate the body and docstring.
-  bool dup_child[9] = {true, true, true, true, true, true, false, false, true};
+  // Duplicate everything except the body and docstring (children 7-8).
+  bool dup_child[9] = {true, true, true, true, true, true, true, false, false};
   ast_t* r_ast = ast_dup_partial(ast, dup_child, true, true, true);
 
   // Must replace `this` before typeparam reification.

@@ -179,8 +179,8 @@ class ref _StringLiteralVisitor is ast.ASTVisitor
     - Child 6 of an entity (class, actor, primitive, struct, trait,
       interface)
     - Child 0 of a method body (first expression in the TK_SEQ that is
-      child 6 of a tk_fun/tk_new/tk_be)
-    - Child 7 of a method (abstract method docstring slot)
+      child 7 of a tk_fun/tk_new/tk_be)
+    - Child 8 of a method (abstract method docstring slot)
     - First child of a module (package-level docstring)
     """
     let parent =
@@ -209,8 +209,8 @@ class ref _StringLiteralVisitor is ast.ASTVisitor
         (parent_id == ast.TokenIds.tk_new()) or
         (parent_id == ast.TokenIds.tk_be())
 
-    // Abstract method docstring at child 7
-    if is_method and (idx == 7) then
+    // Abstract method docstring at child 8
+    if is_method and (idx == 8) then
       return true
     end
 

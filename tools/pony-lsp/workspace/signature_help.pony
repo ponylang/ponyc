@@ -82,7 +82,7 @@ primitive SignatureHelp
 
         let sig =
           try
-            let doc_node = def(7)?
+            let doc_node = def(8)?
             if doc_node.id() == TokenIds.tk_string() then
               let docstring = doc_node.token_value() as String
               if docstring.size() > 0 then

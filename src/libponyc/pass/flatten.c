@@ -342,8 +342,8 @@ static ast_result_t flatten_sendable_params(pass_opt_t* opt, ast_t* params)
 
 static ast_result_t flatten_constructor(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
-    docstring);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, guard, can_error,
+    body, docstring);
 
   switch(ast_id(cap))
   {
@@ -360,8 +360,8 @@ static ast_result_t flatten_constructor(pass_opt_t* opt, ast_t* ast)
 
 static ast_result_t flatten_async(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
-    docstring);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, guard, can_error,
+    body, docstring);
 
   return flatten_sendable_params(opt, params);
 }

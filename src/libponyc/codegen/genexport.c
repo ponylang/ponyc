@@ -4,6 +4,7 @@
 #include "../ast/printbuf.h"
 #include "../ast/stringtab.h"
 #include "../pkg/package.h"
+#include "../type/subtype.h"
 #include "paths.h"
 #include "ponyassert.h"
 #include <stdio.h>
@@ -71,6 +72,69 @@ static ast_t* resolve_typearg(ast_t* type, ast_t* class_typeparams,
   }
 
   return type;
+}
+
+static bool evaluate_export_guard(ast_t* guard, ast_t* class_typeparams,
+  ast_t* typeargs, pass_opt_t* opt)
+{
+  switch(ast_id(guard))
+  {
+    case TK_IFTYPEGUARD:
+    {
+      ast_t* subtype = ast_child(guard);
+      ast_t* supertype = ast_sibling(subtype);
+      ast_t* r_sub = resolve_typearg(subtype, class_typeparams, typeargs);
+      ast_t* r_super = resolve_typearg(supertype, class_typeparams, typeargs);
+      return is_subtype_constraint(r_sub, r_super, NULL, opt);
+    }
+
+    case TK_IFTYPEGUARD_AND:
+    {
+      for(ast_t* child = ast_child(guard); child != NULL;
+        child = ast_sibling(child))
+      {
+        if(!evaluate_export_guard(child, class_typeparams, typeargs, opt))
+          return false;
+      }
+      return true;
+    }
+
+    case TK_IFTYPEGUARD_OR:
+    {
+      for(ast_t* child = ast_child(guard); child != NULL;
+        child = ast_sibling(child))
+      {
+        if(evaluate_export_guard(child, class_typeparams, typeargs, opt))
+          return true;
+      }
+      return false;
+    }
+
+    default:
+      pony_assert(0);
+      return false;
+  }
+}
+
+static ast_t* select_export_specialization(ast_t* methodgroup,
+  ast_t* class_typeparams, ast_t* typeargs, pass_opt_t* opt)
+{
+  ast_t* default_method = ast_child(methodgroup);
+
+  if(class_typeparams == NULL || typeargs == NULL)
+    return default_method;
+
+  for(ast_t* spec = ast_sibling(default_method); spec != NULL;
+    spec = ast_sibling(spec))
+  {
+    ast_t* guard = ast_childidx(spec, 5);
+
+    if(ast_id(guard) != TK_NONE &&
+      evaluate_export_guard(guard, class_typeparams, typeargs, opt))
+      return spec;
+  }
+
+  return default_method;
 }
 
 static void print_c_type(printbuf_t* buf, ast_t* type,
@@ -200,7 +264,7 @@ bool should_export_method(ast_t* method, ast_t* class_typeparams,
   ast_t* cap = ast_child(method);
   ast_t* method_id = ast_childidx(method, 1);
   ast_t* method_typeparams = ast_childidx(method, 2);
-  ast_t* question = ast_childidx(method, 5);
+  ast_t* question = ast_childidx(method, 6);
   const char* method_name = ast_name(method_id);
 
   if(ast_id(cap) == TK_AT)
@@ -388,7 +452,20 @@ static bool gen_consumer_header(ast_t* exported_pkg, const char* header_name,
         for(ast_t* member = ast_child(members); member != NULL;
           member = ast_sibling(member))
         {
-          if(ast_id(member) == TK_FUN &&
+          if(ast_id(member) == TK_METHODGROUP)
+          {
+            ast_t* m = select_export_specialization(member,
+              class_typeparams, typeargs, opt);
+
+            if(ast_id(m) == TK_FUN &&
+              should_export_method(m, class_typeparams, typeargs))
+            {
+              print_method_signature(buf, type_name, m,
+                class_typeparams, typeargs, def_nid == TK_PRIMITIVE);
+              exported_count++;
+            }
+          }
+          else if(ast_id(member) == TK_FUN &&
             should_export_method(member, class_typeparams, typeargs))
           {
             print_method_signature(buf, type_name, member,

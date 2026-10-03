@@ -31,6 +31,7 @@ static ast_t* make_runtime_override_defaults(ast_t* ast, pass_opt_t* opt)
       NONE          // typeparams
       NODE(TK_PARAMS, NODE(TK_PARAM, ID("rto") NODE(TK_NOMINAL, ID("$0") ID("RuntimeOptions") NONE NONE NONE) NONE))          // params
       NONE          // return type
+      NONE          // guard
       NONE          // error
       NODE(TK_SEQ, NODE(TK_TRUE))
       NONE
@@ -63,6 +64,7 @@ static ast_t* make_create(ast_t* ast, pass_opt_t* opt)
       NONE          // typeparams
       NONE          // params
       NONE          // return type
+      NONE          // guard
       NONE          // error
       NODE(TK_SEQ, NODE(TK_TRUE))
       NONE
@@ -87,6 +89,10 @@ bool has_member(ast_t* members, const char* name, pass_opt_t* opt)
       case TK_FLET:
       case TK_EMBED:
         id = ast_child(member);
+        break;
+
+      case TK_METHODGROUP:
+        id = ast_childidx(ast_child(member), 1);
         break;
 
       default:
@@ -192,7 +198,7 @@ static void sugar_docstring(ast_t* ast)
   pony_assert(ast != NULL);
 
   AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
-    error, body, docstring);
+    guard, error, body, docstring);
 
   if(ast_id(docstring) == TK_NONE)
   {
@@ -273,7 +279,7 @@ static ast_result_t sugar_entity(pass_opt_t* opt, ast_t* ast, bool add_create,
         case TK_NEW:
         {
           AST_GET_CHILDREN(member, n_cap, n_id, n_typeparam, n_params,
-            n_result, n_partial, n_body);
+            n_result, n_guard, n_partial, n_body);
 
           pony_assert(ast_id(n_body) == TK_SEQ);
 
@@ -400,7 +406,8 @@ static ast_result_t sugar_be(pass_opt_t* opt, ast_t* ast)
 {
   (void)opt;
 
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, guard, can_error,
+    body);
   ast_setid(cap, TK_TAG);
 
   if(ast_id(result) == TK_NONE)
@@ -418,8 +425,8 @@ static ast_result_t sugar_be(pass_opt_t* opt, ast_t* ast)
 void fun_defaults(ast_t* ast, pass_opt_t* opt)
 {
   pony_assert(ast != NULL);
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
-    docstring);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, guard, can_error,
+    body, docstring);
 
   // If the receiver cap is not specified, set it to box.
   if(ast_id(cap) == TK_NONE)
@@ -1549,6 +1556,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
           TREE(apply_t_params)
           TREE(params)
           TREE(ret_type)
+          NONE  // Guard
           TREE(error)
           NONE  // Body
           NONE))// Doc string
@@ -1646,31 +1654,31 @@ ast_t* expand_location(ast_t* location, pass_opt_t* opt)
         NODE(TK_FUN, AST_SCOPE
           NODE(TK_TAG) ID("file") NONE NONE
           NODE(TK_NOMINAL, NONE ID("String") NONE NONE NONE)
-          NONE
+          NONE NONE
           NODE(TK_SEQ, STRING(file_name))
           NONE)
         NODE(TK_FUN, AST_SCOPE
           NODE(TK_TAG) ID("type_name") NONE NONE
           NODE(TK_NOMINAL, NONE ID("String") NONE NONE NONE)
-          NONE
+          NONE NONE
           NODE(TK_SEQ, STRING(type_name))
           NONE)
         NODE(TK_FUN, AST_SCOPE
           NODE(TK_TAG) ID("method_name") NONE NONE
           NODE(TK_NOMINAL, NONE ID("String") NONE NONE NONE)
-          NONE
+          NONE NONE
           NODE(TK_SEQ, STRING(method_name))
           NONE)
         NODE(TK_FUN, AST_SCOPE
           NODE(TK_TAG) ID("line") NONE NONE
           NODE(TK_NOMINAL, NONE ID("USize") NONE NONE NONE)
-          NONE
+          NONE NONE
           NODE(TK_SEQ, INT(ast_line(location)))
           NONE)
         NODE(TK_FUN, AST_SCOPE
           NODE(TK_TAG) ID("pos") NONE NONE
           NODE(TK_NOMINAL, NONE ID("USize") NONE NONE NONE)
-          NONE
+          NONE NONE
           NODE(TK_SEQ, INT(ast_pos(location)))
           NONE))));
 

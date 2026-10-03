@@ -6662,3 +6662,354 @@ TEST_F(VerifyTest, SerialiseHooksAreOrdinaryMethods)
 
   TEST_COMPILE(src);
 }
+
+
+TEST_F(VerifyTest, MethodGroupPartialityMismatch)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar ? => error";
+
+  TEST_ERRORS_1(src,
+    "specialization is partial but the default is not");
+}
+
+TEST_F(VerifyTest, MethodGroupReceiverCapMismatch)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun box foo(): None => None\n"
+    "  fun ref foo(): None iftype A <: Bar => None";
+
+  TEST_ERRORS_1(src,
+    "specialization receiver capability does not match the default");
+}
+
+TEST_F(VerifyTest, MethodGroupParamCountMismatch)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(x: U32): None => None\n"
+    "  fun foo(x: U32, y: U32): None iftype A <: Bar => None";
+
+  TEST_ERRORS_1(src,
+    "specialization has a different number of parameters than the default");
+}
+
+TEST_F(VerifyTest, MethodGroupParamTypeMismatch)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(x: U32): None => None\n"
+    "  fun foo(x: U64): None iftype A <: Bar => None";
+
+  TEST_ERRORS_1(src,
+    "specialization parameter type does not match the default");
+}
+
+TEST_F(VerifyTest, MethodGroupReturnTypeNotSubtype)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): U32 => U32(0)\n"
+    "  fun foo(): U64 iftype A <: Bar => U64(0)";
+
+  TEST_ERRORS_1(src,
+    "specialization return type is not a subtype of the default return type");
+}
+
+TEST_F(VerifyTest, MethodGroupTypeParamCountMismatch)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo[B: Any val](): None => None\n"
+    "  fun foo(): None iftype A <: Bar => None";
+
+  TEST_ERRORS_1(src,
+    "specialization has a different number of type parameters "
+    "than the default");
+}
+
+TEST_F(VerifyTest, MethodGroupTypeParamConstraintMismatch)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo[B: Bar](): None => None\n"
+    "  fun foo[B: Baz](): None iftype A <: Bar => None";
+
+  TEST_ERRORS_1(src,
+    "specialization type parameter constraint does not match "
+    "the default");
+}
+
+TEST_F(VerifyTest, MethodGroupOverlappingGuardIdentical)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar => None\n"
+    "  fun foo(): None iftype A <: Bar => None";
+
+  TEST_ERRORS_1(src,
+    "specialization is unreachable because a previous guard "
+    "matches all the same types");
+}
+
+TEST_F(VerifyTest, MethodGroupOverlappingGuardSubsumed)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz is Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar => None\n"
+    "  fun foo(): None iftype A <: Baz => None";
+
+  TEST_ERRORS_1(src,
+    "specialization is unreachable because a previous guard "
+    "matches all the same types");
+}
+
+TEST_F(VerifyTest, MethodGroupDifferentParamGuardsCompile)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz\n"
+
+    "class Foo[A: Any val, B: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar => None\n"
+    "  fun foo(): None iftype B <: Baz => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, MethodGroupCompiles)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar => None";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(VerifyTest, MethodGroupAndDoesNotShadowBroaderGuard)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz\n"
+
+    "class Foo[A: Any val, B: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar and B <: Baz"
+    " => None\n"
+    "  fun foo(): None iftype A <: Bar => None";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(VerifyTest, MethodGroupSimpleGuardShadowsAndGuard)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz\n"
+
+    "class Foo[A: Any val, B: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar => None\n"
+    "  fun foo(): None iftype A <: Bar and B <: Baz"
+    " => None";
+
+  TEST_ERRORS_1(src, "specialization is unreachable");
+}
+
+
+TEST_F(VerifyTest, MethodGroupBothPartialCompiles)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None ? => error\n"
+    "  fun foo(): None iftype A <: Bar ? => error";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, MethodGroupPartialDefaultNonPartialSpec)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None ? => error\n"
+    "  fun foo(): None iftype A <: Bar => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, MethodGroupAndGuardSameTypeParam)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar and A <: Baz => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, MethodGroupMethodLevelTypeParam)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo\n"
+    "  fun foo[A: Any val](a: A): None => None\n"
+    "  fun foo[A: Any val](a: A): None iftype A <: Bar => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, MethodGroupMethodLevelTypeParamWithClassParam)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo[B: Any val](b: B): None => None\n"
+    "  fun foo[B: Any val](b: B): None iftype A <: Bar => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, MethodGroupAndGuardShadowedByIdenticalAndGuard)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar and A <: Baz => None\n"
+    "  fun foo(): None iftype A <: Bar and A <: Baz => None";
+
+  TEST_ERRORS_1(src, "specialization is unreachable");
+}
+
+TEST_F(VerifyTest, MethodGroupAndGuardNotShadowedByNarrowerAndGuard)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz\n"
+    "trait val Qux\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar and A <: Baz and A <: Qux => None\n"
+    "  fun foo(): None iftype A <: Bar and A <: Baz => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, MethodGroupAndGuardShadowedByBroaderAndGuard)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz\n"
+    "trait val Qux\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar and A <: Baz => None\n"
+    "  fun foo(): None iftype A <: Bar and A <: Baz and A <: Qux => None";
+
+  TEST_ERRORS_1(src, "specialization is unreachable");
+}
+
+TEST_F(VerifyTest, MethodGroupOrGuardNotShadowedBySimple)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar => None\n"
+    "  fun foo(): None iftype A <: Bar or A <: Baz => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, MethodGroupOrGuardShadowedBySimple)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz is Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Bar => None\n"
+    "  fun foo(): None iftype A <: Bar or A <: Baz => None";
+
+  TEST_ERRORS_1(src, "specialization is unreachable");
+}
+
+TEST_F(VerifyTest, MethodGroupInterfaceMismatchedGuard)
+{
+  const char* src =
+    "trait val Bar\n"
+    "trait val Baz\n"
+
+    "interface Processable[A: Any val]\n"
+    "  fun process(): I32\n"
+    "  fun process(): I32 iftype A <: Bar\n"
+
+    "class Container[A: Any val] is Processable[A]\n"
+    "  fun process(): I32 => 0\n"
+    "  fun process(): I32 iftype A <: Baz => 1";
+
+  TEST_ERRORS_1(src, "type does not implement its provides list");
+}
+
+TEST_F(VerifyTest, MethodGroupInterfaceMatchingGuard)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "interface Processable[A: Any val]\n"
+    "  fun process(): I32\n"
+    "  fun process(): I32 iftype A <: Bar\n"
+
+    "class Container[A: Any val] is Processable[A]\n"
+    "  fun process(): I32 => 0\n"
+    "  fun process(): I32 iftype A <: Bar => 1";
+
+  TEST_COMPILE(src);
+}

@@ -1147,7 +1147,8 @@ static bool check_iftype_return(pass_opt_t* opt, ast_t* iftype_set,
 
 static bool check_return_type(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, guard, can_error,
+    body);
 
   // The last statement is an error, and we've already checked any return
   // expressions in the method.
@@ -1201,7 +1202,8 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
 
 bool expr_fun(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, guard, can_error,
+    body);
 
   if(ast_id(body) == TK_NONE)
     return true;

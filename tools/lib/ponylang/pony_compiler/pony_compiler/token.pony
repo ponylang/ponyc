@@ -297,17 +297,22 @@ primitive TokenIds
 
   fun tk_disposing_block(): I32 => 209
 
+  fun tk_iftypeguard(): I32 => 210
+  fun tk_iftypeguard_and(): I32 => 211
+  fun tk_iftypeguard_or(): I32 => 212
+  fun tk_methodgroup(): I32 => 213
+
   // Pseudo tokens that never actually exist
-  fun tk_newline(): I32 => 210  // Used by parser macros
-  fun tk_flatten(): I32 => 211  // Used by parser macros for tree building
+  fun tk_newline(): I32 => 214  // Used by parser macros
+  fun tk_flatten(): I32 => 215  // Used by parser macros for tree building
 
   // Token types for testing
-  fun tk_test_no_seq(): I32 => 212
-  fun tk_test_seq_scope(): I32 => 213
-  fun tk_test_try_no_check(): I32 => 214
-  fun tk_test_aliased(): I32 => 215
-  fun tk_test_updatearg(): I32 => 216
-  fun tk_test_extra(): I32 => 217
+  fun tk_test_no_seq(): I32 => 216
+  fun tk_test_seq_scope(): I32 => 217
+  fun tk_test_try_no_check(): I32 => 218
+  fun tk_test_aliased(): I32 => 219
+  fun tk_test_updatearg(): I32 => 220
+  fun tk_test_extra(): I32 => 221
 
   fun string(token_id: TokenId): String val =>
     match token_id
@@ -521,14 +526,18 @@ primitive TokenIds
     | 207 => "TK_FUNCHAIN"
     | 208 => "TK_ANNOTATION"
     | 209 => "TK_DISPOSING_BLOCK"
-    | 210 => "TK_NEWLINE"  // Used by parser macros
-    | 211 => "TK_FLATTEN"  // Used by parser macros for tree building
-    | 212 => "TK_TEST_NO_SEQ"
-    | 213 => "TK_TEST_SEQ_SCOPE"
-    | 214 => "TK_TEST_TRY_NO_CHECK"
-    | 215 => "TK_TEST_ALIASED"
-    | 216 => "TK_TEST_UPDATEARG"
-    | 217 => "TK_TEST_EXTRA"
+    | 210 => "TK_IFTYPEGUARD"
+    | 211 => "TK_IFTYPEGUARD_AND"
+    | 212 => "TK_IFTYPEGUARD_OR"
+    | 213 => "TK_METHODGROUP"
+    | 214 => "TK_NEWLINE"  // Used by parser macros
+    | 215 => "TK_FLATTEN"  // Used by parser macros for tree building
+    | 216 => "TK_TEST_NO_SEQ"
+    | 217 => "TK_TEST_SEQ_SCOPE"
+    | 218 => "TK_TEST_TRY_NO_CHECK"
+    | 219 => "TK_TEST_ALIASED"
+    | 220 => "TK_TEST_UPDATEARG"
+    | 221 => "TK_TEST_EXTRA"
     else
       "TK_UNKNOWN"
     end

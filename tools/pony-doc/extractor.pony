@@ -420,6 +420,40 @@ primitive Extractor
             | ast.TokenIds.tk_new()
             | ast.TokenIds.tk_fun()
             | ast.TokenIds.tk_be() => USize(1) // Method: [1] id
+            | ast.TokenIds.tk_methodgroup() =>
+              for grouped in member.children() do
+                if Filter.has_nodoc(grouped) then continue end
+                let gname =
+                  try
+                    (grouped(1)?.token_value() as String)
+                  else
+                    continue
+                  end
+                if Filter.is_internal(gname) then continue end
+                let gpriv = Filter.is_private(gname)
+                match grouped.id()
+                | ast.TokenIds.tk_new() =>
+                  if gpriv and (not include_private) then continue end
+                  constructors.push(_extract_method(grouped, package_map))
+                | ast.TokenIds.tk_be() =>
+                  if gpriv then
+                    if include_private then
+                      priv_bes.push(_extract_method(grouped, package_map))
+                    end
+                  else
+                    pub_bes.push(_extract_method(grouped, package_map))
+                  end
+                | ast.TokenIds.tk_fun() =>
+                  if gpriv then
+                    if include_private then
+                      priv_funs.push(_extract_method(grouped, package_map))
+                    end
+                  else
+                    pub_funs.push(_extract_method(grouped, package_map))
+                  end
+                end
+              end
+              continue
             else
               continue
             end
@@ -486,7 +520,7 @@ primitive Extractor
     Extracts a `DocMethod` from a method AST node.
 
     Child access (post-REORDER): [0] cap, [1] id, [2] type_params,
-    [3] params, [4] return_type, [5] error, [6] body, [7] doc.
+    [3] params, [4] return_type, [5] guard, [6] error, [7] body, [8] doc.
     """
     try
       let kind = MethodKindBuilder(method_ast.id())?
@@ -523,10 +557,10 @@ primitive Extractor
         end
 
       // Partial (?)
-      let is_partial = (method_ast(5)?.id() == ast.TokenIds.tk_question())
+      let is_partial = (method_ast(6)?.id() == ast.TokenIds.tk_question())
 
       // Doc string
-      let doc_node = method_ast(7)?
+      let doc_node = method_ast(8)?
       let doc_string: (String | None) =
         if doc_node.id() != ast.TokenIds.tk_none() then
           doc_node.token_value()

@@ -322,6 +322,11 @@ static const lextoken_t abstract[] =
 
   { "disposingblock", TK_DISPOSING_BLOCK },
 
+  { "iftypeguard", TK_IFTYPEGUARD },
+  { "iftypeguardand", TK_IFTYPEGUARD_AND },
+  { "iftypeguardor", TK_IFTYPEGUARD_OR },
+  { "methodgroup", TK_METHODGROUP },
+
   { "\\n", TK_NEWLINE },
   {NULL, (token_id)0}
 };

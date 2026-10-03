@@ -106,6 +106,10 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
       case TK_EMBED:
         break;
 
+      case TK_METHODGROUP:
+        find = ast_child(find);
+        // fallthrough
+
       case TK_NEW:
       case TK_BE:
       case TK_FUN:
@@ -162,9 +166,12 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
 
         while(member != NULL)
         {
-          if((ast_id(member) == TK_FUN) || (ast_id(member) == TK_BE))
+          if((ast_id(member) == TK_FUN) || (ast_id(member) == TK_BE) ||
+            (ast_id(member) == TK_METHODGROUP))
           {
-            ast_t* member_id = ast_childidx(member, 1);
+            ast_t* m = (ast_id(member) == TK_METHODGROUP)
+              ? ast_child(member) : member;
+            ast_t* member_id = ast_childidx(m, 1);
             const char* member_name = ast_name(member_id);
 
             if(member_name[0] != '$' && member_name[0] != '_')
