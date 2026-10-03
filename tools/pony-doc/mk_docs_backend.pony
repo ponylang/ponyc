@@ -192,7 +192,6 @@ primitive MkDocsBackend is Backend
     content.append("        name: Switch to light mode\n")
     content.append("  features:\n")
     content.append("    - navigation.top\n")
-    content.append("extra_css:\n")
     content.append("markdown_extensions:\n")
     content.append("  - pymdownx.highlight:\n")
     content.append("      anchor_linenums: true\n")
