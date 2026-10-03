@@ -2,24 +2,12 @@
 #include "actormap.h"
 #include "gc.h"
 #include "../actor/actor.h"
-#include "../sched/scheduler.h"
 #include "../mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
 #include <stdlib.h>
 
 PONY_EXTERN_C_BEGIN
-
-// Push a DCD protocol message, bypassing pony_sendv's pendingdestroy
-// assertion. A target actor can be concurrently destroyed by another
-// scheduler thread between the caller's pendingdestroy check and the
-// send — the message is drained harmlessly by the receiver's
-// post-destruction drain loop.
-static void distcd_send(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* msg)
-{
-  if(ponyint_actor_messageq_push(&to->q, msg, msg))
-    ponyint_sched_add(ctx, to);
-}
 
 static uint64_t fnv1a_init()
 {
@@ -417,7 +405,7 @@ static void send_trace_route(pony_ctx_t* ctx, pony_actor_t* to,
     count * sizeof(trace_entry_t));
   memcpy(m->entries, entries, count * sizeof(trace_entry_t));
 
-  distcd_send(ctx, to, &m->msg);
+  pony_sendv(ctx, to, &m->msg, &m->msg, false);
 }
 
 static void send_confirm_msg(pony_ctx_t* ctx, pony_actor_t* to,
@@ -436,7 +424,7 @@ static void send_confirm_msg(pony_ctx_t* ctx, pony_actor_t* to,
     count * sizeof(pony_actor_t*));
   memcpy(m->members, members, count * sizeof(pony_actor_t*));
 
-  distcd_send(ctx, to, &m->msg);
+  pony_sendv(ctx, to, &m->msg, &m->msg, false);
 }
 
 static void send_gossip(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -528,7 +516,7 @@ static void send_gossip(pony_ctx_t* ctx, pony_actor_t* actor)
         m->cycle_members);
       ponyint_pool_free(m->msg.index, m);
     } else {
-      distcd_send(ctx, comp_members[i], &m->msg);
+      pony_sendv(ctx, comp_members[i], &m->msg, &m->msg, false);
     }
   }
 
@@ -810,7 +798,10 @@ void ponyint_distcd_handle_confirmed(pony_ctx_t* ctx,
           distcd->candidate->count, actor);
       }
 
-      distcd->conf_state = DISTCD_CONF_NONE;
+      // Don't reset conf_state here — the leader's own RELEASE is
+      // still in its queue. handle_release clears it when processed.
+      // Resetting now would let try_confirm re-enter in the same
+      // scheduler pass and send to members being destroyed.
     } else {
       // Leader isn't idle — abandon this confirmation round.
       distcd->conf_state = DISTCD_CONF_NONE;
