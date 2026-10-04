@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix wrong error codes for socket operations on Windows ([PR #6231](https://github.com/ponylang/ponyc/pull/6231))
 - Fix socket option calls failing with WSAEINVAL on Windows ([PR #6236](https://github.com/ponylang/ponyc/pull/6236))
 - Fix subtype cache doing unnecessary work on every subtype check ([PR #6243](https://github.com/ponylang/ponyc/pull/6243))
+- Speed up the reach pass with method-name pre-filtering ([PR #6247](https://github.com/ponylang/ponyc/pull/6247))
 
 ### Added
 
