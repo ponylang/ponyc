@@ -65,7 +65,7 @@
       "name": "release",
       "displayName": "Release (native)",
       "inherits": "native",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "release" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "release", "PONY_USE_LTO": "ON" }
     },
     {
       "name": "x86-64-debug",
@@ -77,7 +77,7 @@
       "name": "x86-64-release",
       "displayName": "Release (x86-64)",
       "inherits": "x86-64",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "release" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "release", "PONY_USE_LTO": "ON" }
     },
     {
       "name": "armv8-debug",
@@ -89,7 +89,7 @@
       "name": "armv8-release",
       "displayName": "Release (armv8)",
       "inherits": "armv8",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "release" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "release", "PONY_USE_LTO": "ON" }
     },
     {
       "name": "armv8-a-debug",
@@ -101,7 +101,7 @@
       "name": "armv8-a-release",
       "displayName": "Release (armv8-a)",
       "inherits": "armv8-a",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "release" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "release", "PONY_USE_LTO": "ON" }
     },
     {
       "name": "debug-asan",

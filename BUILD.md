@@ -286,16 +286,18 @@ The sanitizers can't be built on OpenBSD or DragonFly BSD; see [Unsupported Open
 
 ### lto
 
-Link-time optimizations provide a performance improvement. You should strongly consider turning on LTO if you build ponyc from source. It's off by default as it comes with some caveats:
+Link-time optimization (LTO) is enabled automatically on all 64-bit release presets. On 32-bit builds, LTO is silently skipped to avoid excessive memory use during linking.
 
-- If you aren't using clang as your linker, we've seen LTO generate incorrect binaries. It's rare but it can happen. Before turning on LTO you need to be aware that it's possible.
+Caveats:
 
-- If you are on MacOS, turning on LTO means that if you upgrade your version of XCode, you will have to rebuild your Pony compiler. You won't be able to link Pony programs if there is a mismatch between the version of XCode used to build the Pony runtime and the version of XCode you currently have installed.
+- If you aren't using clang as your linker, we've seen LTO generate incorrect binaries. It's rare but it can happen.
 
-LTO is enabled by setting `PONY_USE_LTO` to `true` in the configure step like:
+- If you are on macOS, turning on LTO means that if you upgrade your version of Xcode, you will have to rebuild your Pony compiler. You won't be able to link Pony programs if there is a mismatch between the version of Xcode used to build the Pony runtime and the version of Xcode you currently have installed.
+
+To disable LTO for a release build, override the variable on the configure line:
 
 ```bash
-cmake --preset release -DPONY_USE_LTO=true
+cmake --preset release -DPONY_USE_LTO=OFF
 cmake --build --preset release
 ```
 

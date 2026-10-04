@@ -84,6 +84,30 @@ endif()
 # We require LLVM, Google Test and Google Benchmark
 if(NOT PONY_CROSS_LIBPONYRT)
     find_package(LLVM REQUIRED CONFIG PATHS "build/libs/lib/cmake/llvm" "build/libs/lib64/cmake/llvm" NO_DEFAULT_PATH)
+
+    if(PONY_USE_LTO AND CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT MSVC AND LLVM_TOOLS_BINARY_DIR)
+        set(_pony_llvm_ar "${LLVM_TOOLS_BINARY_DIR}/llvm-ar")
+        set(_pony_llvm_ranlib "${LLVM_TOOLS_BINARY_DIR}/llvm-ranlib")
+        if(EXISTS "${_pony_llvm_ar}" AND EXISTS "${_pony_llvm_ranlib}")
+            foreach(_lang C CXX)
+                set(CMAKE_${_lang}_COMPILER_AR "${_pony_llvm_ar}")
+                set(CMAKE_${_lang}_COMPILER_AR
+                    "${_pony_llvm_ar}" CACHE FILEPATH
+                    "LLVM archiver from vendored build" FORCE)
+                set(CMAKE_${_lang}_COMPILER_RANLIB "${_pony_llvm_ranlib}")
+                set(CMAKE_${_lang}_COMPILER_RANLIB
+                    "${_pony_llvm_ranlib}" CACHE FILEPATH
+                    "LLVM ranlib from vendored build" FORCE)
+                set(CMAKE_${_lang}_ARCHIVE_CREATE_IPO
+                    "\"${_pony_llvm_ar}\" qc <TARGET> <LINK_FLAGS> <OBJECTS>")
+                set(CMAKE_${_lang}_ARCHIVE_APPEND_IPO
+                    "\"${_pony_llvm_ar}\" q <TARGET> <LINK_FLAGS> <OBJECTS>")
+                set(CMAKE_${_lang}_ARCHIVE_FINISH_IPO
+                    "\"${_pony_llvm_ranlib}\" <TARGET>")
+            endforeach()
+        endif()
+    endif()
+
     find_package(LLD REQUIRED CONFIG PATHS "build/libs/lib/cmake/lld" "build/libs/lib64/cmake/lld" NO_DEFAULT_PATH)
     find_package(Clang REQUIRED CONFIG PATHS "build/libs/lib/cmake/clang" "build/libs/lib64/cmake/clang" NO_DEFAULT_PATH)
     find_package(GTest REQUIRED CONFIG PATHS "build/libs/lib/cmake/GTest" "build/libs/lib64/cmake/GTest" NO_DEFAULT_PATH)
@@ -684,8 +708,12 @@ add_compile_definitions(
 )
 
 include(CheckIPOSupported)
-if(PONY_USE_LTO)
-    check_ipo_supported(RESULT _ipo_supported OUTPUT error)
+if(PONY_USE_LTO AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    if(NOT MSVC AND _pony_llvm_ar)
+        set(_ipo_supported YES)
+    else()
+        check_ipo_supported(RESULT _ipo_supported OUTPUT error)
+    endif()
 endif()
 
 if(_ipo_supported)
