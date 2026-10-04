@@ -361,6 +361,9 @@ void subtype_cache_clear(void)
   if(!cache_initialized)
     return;
 
+  if(subtype_cache_map_size(&cache) == 0)
+    return;
+
   // Iterate-and-free everything, then reset to an empty hashmap. We
   // call destroy/init rather than removeindex per slot because that
   // path is documented for the hashmap and avoids walking the bitmap

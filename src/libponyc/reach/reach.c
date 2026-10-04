@@ -961,19 +961,45 @@ static void reach_index_type(reach_t* r, reach_type_t* t)
   }
 }
 
+static bool has_all_method_names(ast_t* sub_def, ast_t* super_def)
+{
+  ast_t* super_members = ast_childidx(super_def, 4);
+  ast_t* member = ast_child(super_members);
+
+  while(member != NULL)
+  {
+    ast_t* m = member;
+
+    if(ast_id(m) == TK_METHODGROUP)
+      m = ast_child(m);
+
+    ast_t* id = ast_childidx(m, 1);
+
+    if(ast_get(sub_def, ast_name(id), NULL) == NULL)
+      return false;
+
+    member = ast_sibling(member);
+  }
+
+  return true;
+}
+
 static void add_types_to_trait(reach_t* r, reach_type_t* t,
   pass_opt_t* opt)
 {
   size_t i;
   reach_type_t* t2;
 
+  bool nominal_interface = false;
+  ast_t* t_def = NULL;
   bool interface = false;
   switch(ast_id(t->ast))
   {
     case TK_NOMINAL:
     {
-      ast_t* def = (ast_t*)ast_data(t->ast);
-      interface = ast_id(def) == TK_INTERFACE;
+      t_def = (ast_t*)ast_data(t->ast);
+      nominal_interface = ast_id(t_def) == TK_INTERFACE;
+      interface = nominal_interface;
       break;
     }
 
@@ -1000,6 +1026,13 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
     {
       case TK_NOMINAL:
       {
+        if(nominal_interface)
+        {
+          ast_t* t2_def = (ast_t*)ast_data(t2->ast);
+          if(!has_all_method_names(t2_def, t_def))
+            break;
+        }
+
 #ifdef USE_REACH_INSTRUMENT
         reach_ct_subtype_check_calls++;
 #endif
@@ -1082,6 +1115,8 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
 {
   size_t i = HASHMAP_BEGIN;
   reach_type_t* t2;
+  bool t_is_nominal = ast_id(t->ast) == TK_NOMINAL;
+  ast_t* t_def = t_is_nominal ? (ast_t*)ast_data(t->ast) : NULL;
 
 #ifdef USE_REACH_INSTRUMENT
   reach_ct_add_traits_to_type_calls++;
@@ -1091,6 +1126,16 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
 
   while((t2 = reach_type_cache_next(&r->traits, &i)) != NULL)
   {
+    if(t_is_nominal && (ast_id(t2->ast) == TK_NOMINAL))
+    {
+      ast_t* t2_def = (ast_t*)ast_data(t2->ast);
+      if(ast_id(t2_def) == TK_INTERFACE)
+      {
+        if(!has_all_method_names(t_def, t2_def))
+          continue;
+      }
+    }
+
 #ifdef USE_REACH_INSTRUMENT
     reach_ct_subtype_check_calls++;
 #endif
