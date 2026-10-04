@@ -1697,6 +1697,183 @@ void package_group_dump(package_group_t* group)
 }
 
 
+void package_layers(ast_t* first_package, ast_t**** layers_out,
+  size_t** layer_sizes_out, size_t* layer_count_out)
+{
+  // The package dependency graph can have cycles (e.g. a library package
+  // depends on pony_test for its tests, and pony_test depends on the
+  // library). Kahn's algorithm stalls on cycles, so we first condense
+  // the graph into its strongly connected components (SCCs) — which form
+  // a DAG — then topologically layer that DAG.
+  //
+  // Packages within the same SCC are mutually dependent and land in the
+  // same layer; SCCs whose dependencies are all in earlier layers can run
+  // in parallel.
+
+  // Count packages.
+  size_t pkg_count = 0;
+  ast_t* pkg_ast = first_package;
+
+  while(pkg_ast != NULL)
+  {
+    pkg_count++;
+    pkg_ast = ast_sibling(pkg_ast);
+  }
+
+  if(pkg_count == 0)
+  {
+    *layers_out = NULL;
+    *layer_sizes_out = NULL;
+    *layer_count_out = 0;
+    return;
+  }
+
+  // Compute SCCs. This sets each package_t's group pointer and
+  // returns the groups in topological order.
+  package_group_list_t* groups = package_dependency_groups(first_package);
+
+  // Count groups.
+  size_t group_count = 0;
+  for(package_group_list_t* g = groups; g != NULL;
+      g = package_group_list_next(g))
+    group_count++;
+
+  if(group_count == 0)
+  {
+    package_group_list_free(groups);
+    *layers_out = NULL;
+    *layer_sizes_out = NULL;
+    *layer_count_out = 0;
+    return;
+  }
+
+  // Collect groups into an array and assign each an index. We store
+  // the group's array position in each member's group_index field.
+  package_group_t** grp_arr = (package_group_t**)ponyint_pool_alloc_size(
+    group_count * sizeof(package_group_t*));
+  size_t* grp_depth = (size_t*)ponyint_pool_alloc_size(
+    group_count * sizeof(size_t));
+
+  size_t gi = 0;
+  for(package_group_list_t* g = groups; g != NULL;
+      g = package_group_list_next(g))
+  {
+    grp_arr[gi] = package_group_list_data(g);
+    grp_depth[gi] = 0;
+    gi++;
+  }
+
+  // Build a map from package_t* to group index. We temporarily store
+  // the group's array index in each member's group_index field.
+  for(size_t i = 0; i < group_count; i++)
+  {
+    size_t iter = HASHMAP_BEGIN;
+    package_t* member;
+
+    while((member = package_set_next(&grp_arr[i]->members, &iter)) != NULL)
+      member->group_index = i;
+  }
+
+  // Compute layer depth for each group. A group's depth is one more than
+  // the maximum depth of any group that contains one of its dependencies.
+  // Dependencies within the same group are ignored (they're co-layered).
+  size_t max_depth = 0;
+
+  for(size_t i = 0; i < group_count; i++)
+  {
+    size_t iter = HASHMAP_BEGIN;
+    package_t* member;
+
+    while((member = package_set_next(&grp_arr[i]->members, &iter)) != NULL)
+    {
+      size_t dep_iter = HASHMAP_BEGIN;
+      package_t* dep;
+
+      while((dep = package_set_next(&member->dependencies, &dep_iter))
+        != NULL)
+      {
+        size_t dep_gi = dep->group_index;
+
+        if(dep_gi == i)
+          continue;
+
+        if(grp_depth[dep_gi] + 1 > grp_depth[i])
+          grp_depth[i] = grp_depth[dep_gi] + 1;
+      }
+    }
+
+    if(grp_depth[i] > max_depth)
+      max_depth = grp_depth[i];
+  }
+
+  size_t num_layers = max_depth + 1;
+
+  // Count packages per layer.
+  size_t* sizes = (size_t*)ponyint_pool_alloc_size(
+    num_layers * sizeof(size_t));
+  memset(sizes, 0, num_layers * sizeof(size_t));
+
+  for(size_t i = 0; i < group_count; i++)
+    sizes[grp_depth[i]] += package_set_size(&grp_arr[i]->members);
+
+  // Allocate layer arrays.
+  ast_t*** layers = (ast_t***)ponyint_pool_alloc_size(
+    num_layers * sizeof(ast_t**));
+
+  for(size_t i = 0; i < num_layers; i++)
+  {
+    layers[i] = (ast_t**)ponyint_pool_alloc_size(
+      sizes[i] * sizeof(ast_t*));
+    sizes[i] = 0;
+  }
+
+  // Fill layers. Walk the original AST child list to preserve a
+  // deterministic ordering within each layer.
+  pkg_ast = first_package;
+
+  while(pkg_ast != NULL)
+  {
+    package_t* pkg = (package_t*)ast_data(pkg_ast);
+    size_t d = grp_depth[pkg->group_index];
+    layers[d][sizes[d]++] = pkg_ast;
+    pkg_ast = ast_sibling(pkg_ast);
+  }
+
+  // Reset SCC fields so package_dependency_groups can be called again
+  // (e.g. from program_dump).
+  pkg_ast = first_package;
+
+  while(pkg_ast != NULL)
+  {
+    package_t* pkg = (package_t*)ast_data(pkg_ast);
+    pkg->group = NULL;
+    pkg->group_index = (size_t)-1;
+    pkg->low_index = 0;
+    pkg->on_stack = false;
+    pkg_ast = ast_sibling(pkg_ast);
+  }
+
+  ponyint_pool_free_size(group_count * sizeof(package_group_t*), grp_arr);
+  ponyint_pool_free_size(group_count * sizeof(size_t), grp_depth);
+  package_group_list_free(groups);
+
+  *layers_out = layers;
+  *layer_sizes_out = sizes;
+  *layer_count_out = num_layers;
+}
+
+
+void package_layers_free(ast_t*** layers, size_t* layer_sizes,
+  size_t layer_count)
+{
+  for(size_t i = 0; i < layer_count; i++)
+    ponyint_pool_free_size(layer_sizes[i] * sizeof(ast_t*), layers[i]);
+
+  ponyint_pool_free_size(layer_count * sizeof(ast_t**), layers);
+  ponyint_pool_free_size(layer_count * sizeof(size_t), layer_sizes);
+}
+
+
 void package_done(pass_opt_t* opt)
 {
   strlist_free(opt->package_search_paths);

@@ -13,7 +13,9 @@
 #include "verify.h"
 #include "finalisers.h"
 #include "timing.h"
+#include "../expr/literal.h"
 #include "../ast/ast.h"
+#include "../ast/error.h"
 #include "../ast/parser.h"
 #include "../ast/treecheck.h"
 #include "../codegen/codegen.h"
@@ -29,6 +31,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+
+#ifdef PLATFORM_IS_POSIX_BASED
+#include <unistd.h>
+#endif
 
 
 bool limit_passes(pass_opt_t* opt, const char* pass)
@@ -102,6 +108,11 @@ void pass_opt_init(pass_opt_t* options)
 {
   // Start with an empty typechecker frame.
   memset(options, 0, sizeof(pass_opt_t));
+
+  // Default to serial expr. The CLI driver overrides this to 0 (auto-detect)
+  // so that the command-line ponyc auto-detects the CPU count, while library
+  // users (tests, tools) get serial by default and must opt in to parallel.
+  options->jobs = 1;
   options->limit = PASS_ALL;
   options->verbosity = VERBOSITY_INFO;
   // The interned-string table must exist before anything that interns into it.
@@ -157,6 +168,276 @@ void pass_opt_done(pass_opt_t* options)
   // this, so nothing that holds one may be used past here.
   stringtab_free(options->strtab);
   options->strtab = NULL;
+}
+
+
+void pass_opt_clone_for_worker(pass_opt_t* dst, pass_opt_t* src)
+{
+  memcpy(dst, src, sizeof(pass_opt_t));
+
+  dst->check.frame = NULL;
+  dst->check.errors = errors_alloc();
+  memset(&dst->check.stats, 0, sizeof(typecheck_stats_t));
+
+  dst->program_pass = PASS_EXPR;
+  dst->check_tree = false;
+  // pass_timers_t is not thread-safe; parallel workers don't time.
+  dst->timers = NULL;
+
+  frame_push(&dst->check, NULL);
+}
+
+
+typedef struct expr_worker_t
+{
+  ast_t* package;
+  pass_opt_t opt;
+  ast_result_t result;
+} expr_worker_t;
+
+
+static DECLARE_THREAD_FN(expr_worker_fn)
+{
+  expr_worker_t* w = (expr_worker_t*)arg;
+
+  w->result = ast_visit(&w->package, pass_pre_expr, pass_expr, &w->opt,
+    PASS_EXPR);
+
+  ponyint_pool_thread_cleanup();
+  return NULL;
+}
+
+
+static uint32_t detect_cpu_count()
+{
+#ifdef PLATFORM_IS_POSIX_BASED
+  long n = sysconf(_SC_NPROCESSORS_ONLN);
+  return (n > 0) ? (uint32_t)n : 1;
+#elif defined(PLATFORM_IS_WINDOWS)
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return (si.dwNumberOfProcessors > 0) ? si.dwNumberOfProcessors : 1;
+#else
+  return 1;
+#endif
+}
+
+
+static bool precheck_method_default_args(ast_t* method, pass_opt_t* options)
+{
+  ast_t* params = ast_childidx(method, 3);
+  ast_t* param = ast_child(params);
+
+  while(param != NULL)
+  {
+    ast_t* def_arg = ast_childidx(param, 2);
+
+    if((ast_id(def_arg) != TK_NONE) && (ast_type(def_arg) == NULL))
+    {
+      ast_t* child = ast_child(def_arg);
+
+      if(ast_id(child) == TK_CALL)
+        ast_settype(child, ast_from(child, TK_INFERTYPE));
+
+      if(ast_visit_scope(&param, pass_pre_expr, pass_expr, options,
+        PASS_EXPR) != AST_OK)
+        return false;
+
+      def_arg = ast_childidx(param, 2);
+      ast_t* type = ast_childidx(param, 1);
+
+      if(!coerce_literals(&def_arg, type, options))
+        return false;
+    }
+
+    param = ast_sibling(param);
+  }
+
+  return true;
+}
+
+
+// Pre-typecheck all default arguments in the given packages so that
+// the parallel expr workers never trigger the lazy typechecking path
+// in lookup_nominal (which would write into shared AST nodes).
+static bool precheck_default_args(ast_t** packages, size_t count,
+  pass_opt_t* options)
+{
+  for(size_t p = 0; p < count; p++)
+  {
+    ast_t* package = packages[p];
+    ast_t* module = ast_child(package);
+
+    while(module != NULL)
+    {
+      ast_t* entity = ast_child(module);
+
+      while(entity != NULL)
+      {
+        switch(ast_id(entity))
+        {
+          case TK_ACTOR:
+          case TK_CLASS:
+          case TK_STRUCT:
+          case TK_PRIMITIVE:
+          case TK_TRAIT:
+          case TK_INTERFACE:
+          {
+            ast_t* members = ast_childidx(entity, 4);
+            ast_t* member = ast_child(members);
+
+            while(member != NULL)
+            {
+              switch(ast_id(member))
+              {
+                case TK_METHODGROUP:
+                {
+                  ast_t* grouped = ast_child(member);
+
+                  while(grouped != NULL)
+                  {
+                    if(!precheck_method_default_args(grouped, options))
+                      return false;
+
+                    grouped = ast_sibling(grouped);
+                  }
+                  break;
+                }
+
+                case TK_NEW:
+                case TK_BE:
+                case TK_FUN:
+                {
+                  if(!precheck_method_default_args(member, options))
+                    return false;
+
+                  break;
+                }
+
+                default:
+                  break;
+              }
+
+              member = ast_sibling(member);
+            }
+            break;
+          }
+
+          default:
+            break;
+        }
+
+        entity = ast_sibling(entity);
+      }
+
+      module = ast_sibling(module);
+    }
+  }
+
+  return true;
+}
+
+
+static bool parallel_expr(ast_t* program, pass_opt_t* options)
+{
+  uint32_t jobs = options->jobs;
+
+  if(jobs == 0)
+    jobs = detect_cpu_count();
+
+  ast_t* first_package = ast_child(program);
+
+  ast_t*** layers;
+  size_t* layer_sizes;
+  size_t layer_count;
+
+  package_layers(first_package, &layers, &layer_sizes, &layer_count);
+
+  if(layer_count == 0)
+  {
+    ast_pass_record(program, PASS_EXPR);
+    return true;
+  }
+
+  bool ok = true;
+
+  for(size_t l = 0; l < layer_count && ok; l++)
+  {
+    size_t width = layer_sizes[l];
+
+    if(width == 1)
+    {
+      // Single package in this layer — run it on the main thread.
+      ast_result_t r = ast_visit(&layers[l][0], pass_pre_expr, pass_expr,
+        options, PASS_EXPR);
+
+      if(r == AST_FATAL || r == AST_ERROR)
+        ok = false;
+
+      continue;
+    }
+
+    // Pre-typecheck default arguments serially so the parallel workers
+    // never trigger lookup_nominal's lazy typecheck path, which writes
+    // into shared AST nodes.
+    if(!precheck_default_args(layers[l], width, options))
+    {
+      ok = false;
+      break;
+    }
+
+    uint32_t nworkers = (width < jobs) ? (uint32_t)width : jobs;
+
+    // Process packages in batches of nworkers.
+    for(size_t batch_start = 0; batch_start < width && ok;
+        batch_start += nworkers)
+    {
+      uint32_t batch_size = (uint32_t)(width - batch_start);
+
+      if(batch_size > nworkers)
+        batch_size = nworkers;
+
+      expr_worker_t* workers = (expr_worker_t*)ponyint_pool_alloc_size(
+        batch_size * sizeof(expr_worker_t));
+      pony_thread_id_t* threads = (pony_thread_id_t*)ponyint_pool_alloc_size(
+        batch_size * sizeof(pony_thread_id_t));
+
+      for(uint32_t i = 0; i < batch_size; i++)
+      {
+        workers[i].package = layers[l][batch_start + i];
+        pass_opt_clone_for_worker(&workers[i].opt, options);
+        workers[i].result = AST_OK;
+
+        ponyint_thread_create(&threads[i], expr_worker_fn, 0, &workers[i]);
+      }
+
+      for(uint32_t i = 0; i < batch_size; i++)
+      {
+        ponyint_thread_join(threads[i]);
+
+        if(workers[i].result == AST_FATAL || workers[i].result == AST_ERROR)
+          ok = false;
+
+        options->check.stats.names_count +=
+          workers[i].opt.check.stats.names_count;
+        options->check.stats.default_caps_count +=
+          workers[i].opt.check.stats.default_caps_count;
+
+        errors_merge(options->check.errors, workers[i].opt.check.errors);
+        workers[i].opt.check.errors = NULL;
+
+        frame_pop(&workers[i].opt.check);
+        pony_assert(workers[i].opt.check.frame == NULL);
+      }
+
+      ponyint_pool_free_size(batch_size * sizeof(pony_thread_id_t), threads);
+      ponyint_pool_free_size(batch_size * sizeof(expr_worker_t), workers);
+    }
+  }
+
+  package_layers_free(layers, layer_sizes, layer_count);
+  ast_pass_record(program, PASS_EXPR);
+  return ok;
 }
 
 
@@ -305,8 +586,20 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_REFER);
 
-  if(!visit_pass(astp, options, last, &r, PASS_EXPR, pass_pre_expr, pass_expr))
-    return r;
+  if(is_program && options->jobs != 1)
+  {
+    if(!check_limit(astp, options, PASS_EXPR, last))
+      return true;
+
+    if(!parallel_expr(*astp, options))
+      return false;
+  }
+  else
+  {
+    if(!visit_pass(astp, options, last, &r, PASS_EXPR, pass_pre_expr,
+      pass_expr))
+      return r;
+  }
 
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_EXPR);

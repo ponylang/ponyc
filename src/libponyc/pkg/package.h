@@ -226,6 +226,22 @@ package_group_list_t* package_dependency_groups(ast_t* first_package);
 
 void package_group_dump(package_group_t* group);
 
+/** Compute topological layers of the package dependency graph.
+ *
+ * Returns an array of layers. Each layer is an array of package AST pointers
+ * whose dependencies all appear in earlier layers. The first layer contains
+ * packages with no dependencies (e.g. builtin).
+ *
+ * Sets *layer_count to the number of layers. Each layer's size is stored at
+ * layer_sizes[i]. Free the result with package_layers_free.
+ */
+void package_layers(ast_t* first_package, ast_t**** layers_out,
+  size_t** layer_sizes_out, size_t* layer_count_out);
+
+/// Free the layer arrays returned by package_layers.
+void package_layers_free(ast_t*** layers, size_t* layer_sizes,
+  size_t layer_count);
+
 /**
  * Cleans up the list of search directories.
  */

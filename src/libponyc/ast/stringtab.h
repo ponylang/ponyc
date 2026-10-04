@@ -13,7 +13,17 @@ typedef struct pony_ctx_t pony_ctx_t;
 
 typedef struct stringtab_entry_t stringtab_entry_t;
 
-DECLARE_HASHMAP(strtable, strtable_t, stringtab_entry_t);
+DECLARE_HASHMAP(strtable_inner, strtable_inner_t, stringtab_entry_t);
+
+typedef struct strtable_t
+{
+  strtable_inner_t map;
+#ifdef PLATFORM_IS_POSIX_BASED
+  pthread_mutex_t lock;
+#else
+  CRITICAL_SECTION lock;
+#endif
+} strtable_t;
 
 // Create a new, empty table of interned strings. Owned by the caller; free it
 // with stringtab_free when the strings it holds are no longer referenced.

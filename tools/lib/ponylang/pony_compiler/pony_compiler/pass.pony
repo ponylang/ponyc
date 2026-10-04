@@ -238,5 +238,9 @@ struct _PassOpt
   var timers: Pointer[_PassTimers] ref = timers.create()
   var lib_search_paths: Pointer[_StrList] = lib_search_paths.create()
   var fat_lto: Bool = true
+  // Number of parallel workers for the expr pass. 0 means auto-detect
+  // (number of CPU cores). 1 disables parallel expr. Mirrors
+  // pass_opt_t.jobs (pass.h).
+  var jobs: U32 = 1
 
   new ref create() => None

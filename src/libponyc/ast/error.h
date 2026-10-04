@@ -134,6 +134,10 @@ void errorframe_report(errorframe_t* frame, errors_t* errors);
 /// The frame is left empty.
 void errorframe_discard(errorframe_t* frame);
 
+/// Splice all errors from `src` onto the end of `dst`. The `src` collection
+/// is freed (shell only — its messages are now owned by `dst`).
+void errors_merge(errors_t* dst, errors_t* src);
+
 PONY_EXTERN_C_END
 
 #endif

@@ -86,6 +86,25 @@ void errors_free(errors_t* errors)
   POOL_FREE(errors_t, errors);
 }
 
+void errors_merge(errors_t* dst, errors_t* src)
+{
+  if(src->head == NULL)
+  {
+    POOL_FREE(errors_t, src);
+    return;
+  }
+
+  if(dst->tail != NULL)
+    dst->tail->next = src->head;
+  else
+    dst->head = src->head;
+
+  dst->tail = src->tail;
+  dst->count += src->count;
+
+  POOL_FREE(errors_t, src);
+}
+
 errormsg_t* errors_get_first(errors_t* errors)
 {
   return errors->head;

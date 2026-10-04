@@ -64,6 +64,8 @@ enum
   OPT_FAT_LTO,
   OPT_THIN_LTO,
 
+  OPT_JOBS,
+
   OPT_BNF,
   OPT_ANTLR,
   OPT_ANTLRRAW
@@ -96,6 +98,7 @@ static opt_arg_t std_args[] =
   {"plugin", '\0', OPT_ARG_REQUIRED, OPT_PLUGIN},
   {"fat-lto", '\0', OPT_ARG_NONE, OPT_FAT_LTO},
   {"thin-lto", '\0', OPT_ARG_NONE, OPT_THIN_LTO},
+  {"jobs", 'j', OPT_ARG_REQUIRED, OPT_JOBS},
   {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
@@ -179,6 +182,9 @@ static void usage(void)
     "  --fat-lto        Use full LTO (default; best optimisation, slower compile).\n"
     "  --thin-lto       Use ThinLTO (faster compile, slightly less\n"
     "                   optimisation).\n"
+    "  --jobs, -j       Number of parallel workers for expression type\n"
+    "    =N             checking. 0 means auto-detect (number of CPU\n"
+    "                   cores). Default: auto-detect. Use 1 for serial.\n"
     "  --define, -D     Set a compile time definition.\n"
 #ifndef NDEBUG
     "  --llvm-args      Pass LLVM-specific arguments.\n"
@@ -349,6 +355,18 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         break;
       case OPT_FAT_LTO: opt->fat_lto = true; break;
       case OPT_THIN_LTO: opt->fat_lto = false; break;
+      case OPT_JOBS:
+        {
+          int j = atoi(s->arg_val);
+          if(j >= 0)
+          {
+            opt->jobs = (uint32_t)j;
+          } else {
+            printf("--jobs must be >= 0, got %s\n", s->arg_val);
+            exit_code = EXIT_255;
+          }
+        }
+        break;
       case OPT_AST: *print_program_ast = true; break;
       case OPT_ASTPACKAGE: *print_package_ast = true; break;
       case OPT_TRACE: opt->parse_trace = true; break;

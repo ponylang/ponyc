@@ -350,6 +350,10 @@ typedef struct pass_opt_t
   strlist_t* lib_search_paths;
 
   bool fat_lto;
+
+  // Number of parallel worker threads for the expr pass. 0 means auto-detect
+  // (number of CPU cores). 1 disables parallel expr.
+  uint32_t jobs;
 } pass_opt_t;
 
 /** Limit processing to the specified pass. All passes up to and including the
@@ -378,6 +382,16 @@ void pass_opt_init(pass_opt_t* options);
 /** Finish with pass options.
  */
 void pass_opt_done(pass_opt_t* options);
+
+/** Create a worker clone of pass_opt_t for parallel expr.
+ *
+ * Shares read-only fields and the mutex-protected strtab with the original.
+ * Gets its own frame stack, error collection, and program_pass set to
+ * PASS_EXPR. Callers must not use pass_opt_done on the clone — it would
+ * double-free shared resources. Instead, merge errors with errors_merge,
+ * pop the frame, and discard the struct.
+ */
+void pass_opt_clone_for_worker(pass_opt_t* dst, pass_opt_t* src);
 
 /** Apply the per module passes to the given source.
  * Returns true on success, false on failure.

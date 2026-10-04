@@ -75,6 +75,7 @@ int main(int argc, char* argv[])
   pass_opt_t opt;
   pass_opt_init(&opt);
 
+  opt.jobs = 0;
   opt.release = true;
   opt.output = ".";
   opt.ast_print_width = get_width();

@@ -37,13 +37,36 @@ static void stringtab_entry_free(stringtab_entry_t* a)
   POOL_FREE(stringtab_entry_t, a);
 }
 
-DEFINE_HASHMAP(strtable, strtable_t, stringtab_entry_t, stringtab_hash,
-  stringtab_cmp, stringtab_entry_free);
+DEFINE_HASHMAP(strtable_inner, strtable_inner_t, stringtab_entry_t,
+  stringtab_hash, stringtab_cmp, stringtab_entry_free);
+
+static void strtable_lock(strtable_t* table)
+{
+#ifdef PLATFORM_IS_POSIX_BASED
+  pthread_mutex_lock(&table->lock);
+#else
+  EnterCriticalSection(&table->lock);
+#endif
+}
+
+static void strtable_unlock(strtable_t* table)
+{
+#ifdef PLATFORM_IS_POSIX_BASED
+  pthread_mutex_unlock(&table->lock);
+#else
+  LeaveCriticalSection(&table->lock);
+#endif
+}
 
 strtable_t* stringtab_new()
 {
   strtable_t* table = POOL_ALLOC(strtable_t);
-  strtable_init(table, 4096);
+  strtable_inner_init(&table->map, 4096);
+#ifdef PLATFORM_IS_POSIX_BASED
+  pthread_mutex_init(&table->lock, NULL);
+#else
+  InitializeCriticalSection(&table->lock);
+#endif
   return table;
 }
 
@@ -52,7 +75,12 @@ void stringtab_free(strtable_t* table)
   if(table == NULL)
     return;
 
-  strtable_destroy(table);
+  strtable_inner_destroy(&table->map);
+#ifdef PLATFORM_IS_POSIX_BASED
+  pthread_mutex_destroy(&table->lock);
+#else
+  DeleteCriticalSection(&table->lock);
+#endif
   POOL_FREE(strtable_t, table);
 }
 
@@ -71,10 +99,17 @@ const char* stringtab_len(strtable_t* table, const char* string, size_t len)
 
   stringtab_entry_t key = {string, len, 0};
   size_t index = HASHMAP_UNKNOWN;
-  stringtab_entry_t* n = strtable_get(table, &key, &index);
+
+  strtable_lock(table);
+
+  stringtab_entry_t* n = strtable_inner_get(&table->map, &key, &index);
 
   if(n != NULL)
-    return n->str;
+  {
+    const char* result = n->str;
+    strtable_unlock(table);
+    return result;
+  }
 
   char* dst = (char*)ponyint_pool_alloc_size(len + 1);
   memcpy(dst, string, len);
@@ -85,9 +120,8 @@ const char* stringtab_len(strtable_t* table, const char* string, size_t len)
   n->len = len;
   n->buf_size = len + 1;
 
-  // didn't find it in the map but index is where we can put the
-  // new one without another search
-  strtable_putindex(table, n, index);
+  strtable_inner_putindex(&table->map, n, index);
+  strtable_unlock(table);
   return n->str;
 }
 
@@ -100,12 +134,17 @@ const char* stringtab_consume(strtable_t* table, const char* string,
   size_t len = strlen(string);
   stringtab_entry_t key = {string, len, 0};
   size_t index = HASHMAP_UNKNOWN;
-  stringtab_entry_t* n = strtable_get(table, &key, &index);
+
+  strtable_lock(table);
+
+  stringtab_entry_t* n = strtable_inner_get(&table->map, &key, &index);
 
   if(n != NULL)
   {
+    const char* result = n->str;
+    strtable_unlock(table);
     ponyint_pool_free_size(buf_size, (void*)string);
-    return n->str;
+    return result;
   }
 
   n = POOL_ALLOC(stringtab_entry_t);
@@ -113,8 +152,7 @@ const char* stringtab_consume(strtable_t* table, const char* string,
   n->len = len;
   n->buf_size = buf_size;
 
-  // didn't find it in the map but index is where we can put the
-  // new one without another search
-  strtable_putindex(table, n, index);
+  strtable_inner_putindex(&table->map, n, index);
+  strtable_unlock(table);
   return n->str;
 }
