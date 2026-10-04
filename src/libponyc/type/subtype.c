@@ -2108,7 +2108,14 @@ static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   //       workload but is absent from the reach pass that drives the
   //       SCC compile-time DoS the cache exists to fix. Bypassing
   //       costs nothing on the path the cache is meant to help.
-  const bool cache_lookup_allowed = (errorf == NULL);
+  //
+  // Also skip the cache at shallow recursion depths. The cache's
+  // fingerprinting walks the AST and hashes it on every lookup and
+  // insert; normal subtype checks are shallow (depth < 4) and almost
+  // never hit the cache, so the fingerprint cost dominates. Depth 8
+  // is above normal check depth and well below the SCC pathological
+  // range.
+  const bool cache_lookup_allowed = (errorf == NULL) && (my_depth >= 8);
   if(cache_lookup_allowed)
   {
     subtype_cache_value_t hit;
@@ -2241,13 +2248,14 @@ static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   // Categorize and cache. Errorf-bearing calls skip insertion (same
   // reason as the lookup bypass above). Poisoned subtrees skip
   // insertion (the divergence-guard bail is conservative, not a real
-  // subtype refutation). Intermediate min_match_idx (in the open range
-  // (0, my_depth)) is intentionally not cached: the entry would depend
-  // on an intermediate assumption with no clean invalidation hook. SCC
-  // reach-pass workloads collapse entirely to {INT_MAX, 0, >= my_depth};
-  // the intermediate case matters only for nested-top-level scenarios
-  // and is parked.
-  if((errorf == NULL) && !my_poisoned)
+  // subtype refutation). Shallow depths skip insertion (same reason
+  // as the lookup bypass). Intermediate min_match_idx (in the open
+  // range (0, my_depth)) is intentionally not cached: the entry would
+  // depend on an intermediate assumption with no clean invalidation
+  // hook. SCC reach-pass workloads collapse entirely to
+  // {INT_MAX, 0, >= my_depth}; the intermediate case matters only for
+  // nested-top-level scenarios and is parked.
+  if((errorf == NULL) && !my_poisoned && (my_depth >= 8))
   {
     if((my_min == INT_MAX) || (my_min >= (int)my_depth))
     {
