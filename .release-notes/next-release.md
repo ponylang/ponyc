@@ -277,3 +277,7 @@ This PR adds the darkmode toggle to documentation created by `pony-doc`.  It add
 
 The compiler's subtype cache bounds the cost of deeply recursive type alias networks. It ran its most expensive step on every subtype check, even though normal checks are shallow and never benefit from the cache. The cache now activates only at the recursion depths where it helps, eliminating the overhead for the common case. Measured improvement: ~3% overall compilation time on stdlib.
 
+## Speed up the reach pass with method-name pre-filtering
+
+The compiler's reach pass checks every concrete type against every interface to find subtype relationships. Most of these checks are obviously false — a `U8` doesn't implement `Iterator` — but each one entered the full subtype machinery before failing. The reach pass now checks whether the concrete type has all the interface's method names before running the full structural comparison, rejecting most non-matching pairs with a single hash lookup instead of a full signature analysis. On the stdlib debug build, the reach pass is about 10% faster.
+
