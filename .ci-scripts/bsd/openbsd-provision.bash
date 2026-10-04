@@ -67,7 +67,7 @@ echo "::endgroup::"
 echo "::group::Boot OpenBSD VM"
 qemu-system-x86_64 \
   -machine pc,accel=kvm \
-  -cpu host \
+  -cpu Skylake-Server-v4 \
   -smp 4 \
   -m 12G \
   -drive file="$VM_ARTIFACTS/openbsd.qcow2",format=qcow2,if=virtio \
