@@ -301,18 +301,19 @@ primitive TokenIds
   fun tk_iftypeguard_and(): I32 => 211
   fun tk_iftypeguard_or(): I32 => 212
   fun tk_methodgroup(): I32 => 213
+  fun tk_overloadref(): I32 => 214
 
   // Pseudo tokens that never actually exist
-  fun tk_newline(): I32 => 214  // Used by parser macros
-  fun tk_flatten(): I32 => 215  // Used by parser macros for tree building
+  fun tk_newline(): I32 => 215  // Used by parser macros
+  fun tk_flatten(): I32 => 216  // Used by parser macros for tree building
 
   // Token types for testing
-  fun tk_test_no_seq(): I32 => 216
-  fun tk_test_seq_scope(): I32 => 217
-  fun tk_test_try_no_check(): I32 => 218
-  fun tk_test_aliased(): I32 => 219
-  fun tk_test_updatearg(): I32 => 220
-  fun tk_test_extra(): I32 => 221
+  fun tk_test_no_seq(): I32 => 217
+  fun tk_test_seq_scope(): I32 => 218
+  fun tk_test_try_no_check(): I32 => 219
+  fun tk_test_aliased(): I32 => 220
+  fun tk_test_updatearg(): I32 => 221
+  fun tk_test_extra(): I32 => 222
 
   fun string(token_id: TokenId): String val =>
     match token_id
@@ -530,14 +531,15 @@ primitive TokenIds
     | 211 => "TK_IFTYPEGUARD_AND"
     | 212 => "TK_IFTYPEGUARD_OR"
     | 213 => "TK_METHODGROUP"
-    | 214 => "TK_NEWLINE"  // Used by parser macros
-    | 215 => "TK_FLATTEN"  // Used by parser macros for tree building
-    | 216 => "TK_TEST_NO_SEQ"
-    | 217 => "TK_TEST_SEQ_SCOPE"
-    | 218 => "TK_TEST_TRY_NO_CHECK"
-    | 219 => "TK_TEST_ALIASED"
-    | 220 => "TK_TEST_UPDATEARG"
-    | 221 => "TK_TEST_EXTRA"
+    | 214 => "TK_OVERLOADREF"
+    | 215 => "TK_NEWLINE"  // Used by parser macros
+    | 216 => "TK_FLATTEN"  // Used by parser macros for tree building
+    | 217 => "TK_TEST_NO_SEQ"
+    | 218 => "TK_TEST_SEQ_SCOPE"
+    | 219 => "TK_TEST_TRY_NO_CHECK"
+    | 220 => "TK_TEST_ALIASED"
+    | 221 => "TK_TEST_UPDATEARG"
+    | 222 => "TK_TEST_EXTRA"
     else
       "TK_UNKNOWN"
     end

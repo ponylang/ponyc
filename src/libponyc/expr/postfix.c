@@ -139,7 +139,7 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
   return false;
 }
 
-static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
+bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
 {
   AST_GET_CHILDREN(method, cap, id, typeparams, params, result);
 
@@ -271,6 +271,51 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
       break;
     }
 
+    case TK_METHODGROUP:
+    {
+      ast_t* first_child = ast_child(r_find);
+      pony_assert(first_child != NULL);
+
+      if(ast_id(first_child) == TK_NEW)
+      {
+        // Constructor group — handle like a single TK_NEW.
+        ast_setid(ast, TK_OVERLOADREF);
+        ast_setdata(ast, find);
+        return true;
+      }
+
+      // Non-constructor group: insert a default constructor call,
+      // same as single methods above.
+      if(!strcmp(ast_name(right), "create"))
+      {
+        ast_error(opt->check.errors, right,
+          "create is not a constructor on this type");
+        deferred_reify_free(find);
+        return false;
+      }
+
+      ast_t* dot = ast_from(ast, TK_DOT);
+      ast_add(dot, ast_from_string(ast, "create", opt->strtab));
+      ast_swap(left, dot);
+      ast_add(dot, left);
+
+      ast_t* call = ast_from(ast, TK_CALL);
+      ast_swap(dot, call);
+      ast_add(call, ast_from(ast, TK_NONE));
+      ast_add(call, ast_from(ast, TK_NONE));
+      ast_add(call, ast_from(ast, TK_NONE));
+      ast_add(call, dot);
+
+      if(!expr_dot(opt, &dot))
+        return false;
+
+      if(!expr_call(opt, &call))
+        return false;
+
+      ret = expr_dot(opt, astp);
+      break;
+    }
+
     default:
       pony_assert(0);
       ret = false;
@@ -380,6 +425,9 @@ static bool member_access(pass_opt_t* opt, ast_t* ast)
       r_find = deferred_reify_method_def(find, r_find, opt);
       break;
 
+    case TK_METHODGROUP:
+      break;
+
     default:
       break;
   }
@@ -414,6 +462,13 @@ static bool member_access(pass_opt_t* opt, ast_t* ast)
     case TK_FUN:
       ret = method_access(opt, ast, r_find);
       break;
+
+    case TK_METHODGROUP:
+    {
+      ast_setid(ast, TK_OVERLOADREF);
+      ast_setdata(ast, find);
+      return true;
+    }
 
     default:
       pony_assert(0);
@@ -603,6 +658,11 @@ bool expr_tilde(pass_opt_t* opt, ast_t** astp)
         "can't do partial application of a tuple element");
       return false;
 
+    case TK_OVERLOADREF:
+      ast_error(opt->check.errors, ast,
+        "can't do partial application of an overloaded method");
+      return false;
+
     default: {}
   }
 
@@ -649,6 +709,10 @@ bool expr_chain(pass_opt_t* opt, ast_t** astp)
       ast_error(opt->check.errors, ast,
         "can't do method chaining on a tuple element");
       return false;
+
+    case TK_OVERLOADREF:
+      ast_setflag(ast, AST_FLAG_OVERLOAD_CHAIN);
+      return true;
 
     default: {}
   }

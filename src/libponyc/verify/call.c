@@ -38,10 +38,29 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(call_error) == TK_QUESTION ||
     ast_id(call_error) == TK_NONE || ast_id(call_error) == TK_DONTCARE);
 
-  // Look up the original method definition for this method call.
-  deferred_reification_t* method_def = lookup_try(opt, receiver, ast_type(receiver),
-    ast_name(method), true); // allow private types
+  const char* type_suffix = NULL;
+  const char* lookup_name = overload_name_parse(ast_name(method),
+    &type_suffix, opt);
+
+  deferred_reification_t* method_def = lookup_try(opt, receiver,
+    ast_type(receiver), lookup_name, true);
+
+  if(method_def == NULL)
+    return false;
+
   ast_t* method_ast = method_def->ast;
+
+  if(ast_id(method_ast) == TK_METHODGROUP)
+  {
+    if(type_suffix != NULL)
+      method_ast = methodgroup_select_by_suffix(method_ast, type_suffix,
+        method_def, opt);
+    else
+      method_ast = ast_child(method_ast);
+
+    pony_assert(method_ast != NULL);
+  }
+
   deferred_reify_free(method_def);
 
   pony_assert(ast_id(method_ast) == TK_FUN || ast_id(method_ast) == TK_BE ||

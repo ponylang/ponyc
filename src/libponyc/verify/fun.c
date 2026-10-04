@@ -768,6 +768,117 @@ static void narrow_type_from_guard(ast_t* type, ast_t* guard)
   }
 }
 
+static bool types_same_ignoring_cap(ast_t* a, ast_t* b)
+{
+  if(ast_id(a) != ast_id(b))
+    return false;
+
+  switch(ast_id(a))
+  {
+    case TK_NOMINAL:
+    {
+      // Compare package, id, typeargs; skip cap and ephemeral.
+      ast_t* a_pkg = ast_child(a);
+      ast_t* b_pkg = ast_child(b);
+      if(ast_id(a_pkg) != ast_id(b_pkg))
+        return false;
+
+      if(ast_id(a_pkg) != TK_NONE)
+      {
+        ast_t* a_pkg_id = ast_child(a_pkg);
+        ast_t* b_pkg_id = ast_child(b_pkg);
+
+        if(a_pkg_id != NULL && b_pkg_id != NULL)
+        {
+          if(ast_name(a_pkg_id) != ast_name(b_pkg_id))
+            return false;
+        }
+        else if(a_pkg_id != b_pkg_id)
+        {
+          return false;
+        }
+      }
+
+      ast_t* a_id = ast_sibling(a_pkg);
+      ast_t* b_id = ast_sibling(b_pkg);
+
+      if(ast_name(a_id) != ast_name(b_id))
+        return false;
+
+      ast_t* a_targs = ast_sibling(a_id);
+      ast_t* b_targs = ast_sibling(b_id);
+
+      if(ast_childcount(a_targs) != ast_childcount(b_targs))
+        return false;
+
+      ast_t* at = ast_child(a_targs);
+      ast_t* bt = ast_child(b_targs);
+
+      while(at != NULL && bt != NULL)
+      {
+        if(!types_same_ignoring_cap(at, bt))
+          return false;
+
+        at = ast_sibling(at);
+        bt = ast_sibling(bt);
+      }
+
+      return true;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      if(ast_childcount(a) != ast_childcount(b))
+        return false;
+
+      ast_t* ac = ast_child(a);
+      ast_t* bc = ast_child(b);
+
+      while(ac != NULL && bc != NULL)
+      {
+        if(!types_same_ignoring_cap(ac, bc))
+          return false;
+
+        ac = ast_sibling(ac);
+        bc = ast_sibling(bc);
+      }
+
+      return true;
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* a_id = ast_child(a);
+      ast_t* b_id = ast_child(b);
+      return ast_name(a_id) == ast_name(b_id);
+    }
+
+    case TK_ARROW:
+    {
+      ast_t* ac = ast_child(a);
+      ast_t* bc = ast_child(b);
+
+      while(ac != NULL && bc != NULL)
+      {
+        if(!types_same_ignoring_cap(ac, bc))
+          return false;
+
+        ac = ast_sibling(ac);
+        bc = ast_sibling(bc);
+      }
+
+      return ac == NULL && bc == NULL;
+    }
+
+    default:
+      break;
+  }
+
+  return false;
+}
+
 bool verify_methodgroup(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_METHODGROUP);
@@ -793,6 +904,12 @@ bool verify_methodgroup(pass_opt_t* opt, ast_t* ast)
 
     (void)s_body;
     (void)s_docstring;
+
+    if(ast_id(s_guard_s) == TK_NONE)
+    {
+      spec = ast_sibling(spec);
+      continue;
+    }
 
     if(!d_partial && (ast_id(s_can_error) == TK_QUESTION))
     {
@@ -1002,6 +1119,361 @@ bool verify_methodgroup(pass_opt_t* opt, ast_t* ast)
     }
 
     earlier = ast_sibling(earlier);
+  }
+
+  // Type overload validation: collect unguarded definitions and check
+  // consistency rules across the overload set.
+  ast_t* first_overload = NULL;
+  ast_t* child = ast_child(ast);
+  int overload_count = 0;
+
+  while(child != NULL)
+  {
+    if(ast_id(ast_childidx(child, 5)) == TK_NONE)
+    {
+      if(first_overload == NULL)
+        first_overload = child;
+
+      overload_count++;
+    }
+    child = ast_sibling(child);
+  }
+
+  if(overload_count > 1)
+  {
+    // Overloads must differ in nominal type, not just capability.
+    ast_t* outer = ast_child(ast);
+
+    while(outer != NULL)
+    {
+      if(ast_id(ast_childidx(outer, 5)) != TK_NONE)
+      {
+        outer = ast_sibling(outer);
+        continue;
+      }
+
+      ast_t* inner = ast_sibling(outer);
+
+      while(inner != NULL)
+      {
+        if(ast_id(ast_childidx(inner, 5)) != TK_NONE)
+        {
+          inner = ast_sibling(inner);
+          continue;
+        }
+
+        ast_t* o_params = ast_childidx(outer, 3);
+        ast_t* i_params = ast_childidx(inner, 3);
+
+        if(ast_childcount(o_params) == ast_childcount(i_params))
+        {
+          bool all_same = true;
+          ast_t* op = ast_child(o_params);
+          ast_t* ip = ast_child(i_params);
+
+          while(op != NULL && ip != NULL)
+          {
+            ast_t* ot = ast_childidx(op, 1);
+            ast_t* it = ast_childidx(ip, 1);
+
+            if(!types_same_ignoring_cap(ot, it))
+            {
+              all_same = false;
+              break;
+            }
+
+            op = ast_sibling(op);
+            ip = ast_sibling(ip);
+          }
+
+          if(all_same)
+          {
+            ast_error(opt->check.errors, inner,
+              "type overloads must differ in nominal type, not just "
+              "capability");
+            ast_error_continue(opt->check.errors, outer,
+              "other overload is defined here");
+            return false;
+          }
+        }
+
+        inner = ast_sibling(inner);
+      }
+
+      outer = ast_sibling(outer);
+    }
+
+    // No method-level type parameters when type overloads exist.
+    child = ast_child(ast);
+
+    while(child != NULL)
+    {
+      if(ast_id(ast_childidx(child, 5)) == TK_NONE)
+      {
+        ast_t* tps = ast_childidx(child, 2);
+
+        if(ast_childcount(tps) > 0)
+        {
+          ast_error(opt->check.errors, tps,
+            "type-overloaded methods cannot have method-level type "
+            "parameters");
+          return false;
+        }
+      }
+      child = ast_sibling(child);
+    }
+
+    // All overloads must use the same receiver capability and method kind.
+    ast_t* first_cap = ast_child(first_overload);
+    token_id first_kind = ast_id(first_overload);
+    child = ast_child(ast);
+
+    while(child != NULL)
+    {
+      if(ast_id(ast_childidx(child, 5)) == TK_NONE && child != first_overload)
+      {
+        if(ast_id(child) != first_kind)
+        {
+          ast_error(opt->check.errors, child,
+            "all type overloads must be the same method kind");
+          ast_error_continue(opt->check.errors, first_overload,
+            "first overload is defined here");
+          return false;
+        }
+
+        ast_t* c_cap = ast_child(child);
+
+        if(ast_id(c_cap) != ast_id(first_cap))
+        {
+          ast_error(opt->check.errors, c_cap,
+            "all type overloads must have the same receiver capability");
+          ast_error_continue(opt->check.errors, first_cap,
+            "first overload's receiver capability is defined here");
+          return false;
+        }
+      }
+      child = ast_sibling(child);
+    }
+
+    // When default arguments cause two overloads to accept the same call
+    // shape, and neither is strictly more specific at shared positions, reject.
+    outer = ast_child(ast);
+
+    while(outer != NULL)
+    {
+      if(ast_id(ast_childidx(outer, 5)) != TK_NONE)
+      {
+        outer = ast_sibling(outer);
+        continue;
+      }
+
+      ast_t* o_params = ast_childidx(outer, 3);
+      size_t o_total = ast_childcount(o_params);
+      size_t o_required = o_total;
+      ast_t* op = ast_child(o_params);
+      while(op != NULL)
+      {
+        if(ast_id(ast_childidx(op, 2)) != TK_NONE)
+        {
+          o_required = o_total - 1;
+          ast_t* rest = ast_sibling(op);
+          while(rest != NULL)
+          {
+            if(ast_id(ast_childidx(rest, 2)) != TK_NONE)
+              o_required--;
+            rest = ast_sibling(rest);
+          }
+          break;
+        }
+        op = ast_sibling(op);
+      }
+
+      ast_t* inner = ast_sibling(outer);
+
+      while(inner != NULL)
+      {
+        if(ast_id(ast_childidx(inner, 5)) != TK_NONE)
+        {
+          inner = ast_sibling(inner);
+          continue;
+        }
+
+        ast_t* i_params = ast_childidx(inner, 3);
+        size_t i_total = ast_childcount(i_params);
+        size_t i_required = i_total;
+        ast_t* ip = ast_child(i_params);
+        while(ip != NULL)
+        {
+          if(ast_id(ast_childidx(ip, 2)) != TK_NONE)
+          {
+            i_required = i_total - 1;
+            ast_t* rest = ast_sibling(ip);
+            while(rest != NULL)
+            {
+              if(ast_id(ast_childidx(rest, 2)) != TK_NONE)
+                i_required--;
+              rest = ast_sibling(rest);
+            }
+            break;
+          }
+          ip = ast_sibling(ip);
+        }
+
+        // Check if the arity ranges overlap.
+        size_t shared_min = (o_required > i_required) ? o_required : i_required;
+        size_t shared_max = (o_total < i_total) ? o_total : i_total;
+
+        if(shared_min <= shared_max && o_total != i_total)
+        {
+          // Ranges overlap and arities differ — check if one is strictly more
+          // specific at the shared positions.
+          bool outer_sub_inner = true;
+          bool inner_sub_outer = true;
+          bool outer_proper = false;
+          bool inner_proper = false;
+          op = ast_child(o_params);
+          ip = ast_child(i_params);
+
+          for(size_t pos = 0; pos < shared_min; pos++)
+          {
+            ast_t* ot = ast_childidx(op, 1);
+            ast_t* it = ast_childidx(ip, 1);
+
+            bool o_sub_i = is_subtype(ot, it, NULL, opt);
+            bool i_sub_o = is_subtype(it, ot, NULL, opt);
+
+            if(!o_sub_i)
+              outer_sub_inner = false;
+            if(!i_sub_o)
+              inner_sub_outer = false;
+            if(o_sub_i && !i_sub_o)
+              outer_proper = true;
+            if(i_sub_o && !o_sub_i)
+              inner_proper = true;
+
+            op = ast_sibling(op);
+            ip = ast_sibling(ip);
+          }
+
+          // Ambiguous only when the types are comparable: if neither
+          // overload's params are subtypes of the other's, no single value
+          // can match both, so the call site can always resolve by type.
+          if(!outer_sub_inner && !inner_sub_outer)
+          {
+            inner = ast_sibling(inner);
+            continue;
+          }
+
+          bool outer_strictly = outer_sub_inner && outer_proper;
+          bool inner_strictly = inner_sub_outer && inner_proper;
+
+          if(!outer_strictly && !inner_strictly)
+          {
+            ast_error(opt->check.errors, inner,
+              "type overloads with default arguments create an ambiguous "
+              "call shape");
+            ast_error_continue(opt->check.errors, outer,
+              "other overload is defined here");
+            return false;
+          }
+        }
+
+        inner = ast_sibling(inner);
+      }
+
+      outer = ast_sibling(outer);
+    }
+
+    // Type parameter collapse: reject overload pairs where one parameter is
+    // a class-level type parameter and the other is a concrete type that
+    // satisfies the constraint, since reification could make them identical.
+    ast_t* entity = ast_parent(ast_parent(ast));
+    ast_t* class_typeparams = ast_childidx(entity, 1);
+
+    if(ast_id(class_typeparams) == TK_TYPEPARAMS)
+    {
+      outer = ast_child(ast);
+
+      while(outer != NULL)
+      {
+        if(ast_id(ast_childidx(outer, 5)) != TK_NONE)
+        {
+          outer = ast_sibling(outer);
+          continue;
+        }
+
+        ast_t* inner = ast_sibling(outer);
+
+        while(inner != NULL)
+        {
+          if(ast_id(ast_childidx(inner, 5)) != TK_NONE)
+          {
+            inner = ast_sibling(inner);
+            continue;
+          }
+
+          ast_t* o_params = ast_childidx(outer, 3);
+          ast_t* i_params = ast_childidx(inner, 3);
+
+          if(ast_childcount(o_params) == ast_childcount(i_params))
+          {
+            bool all_collapse = true;
+            ast_t* op = ast_child(o_params);
+            ast_t* ip = ast_child(i_params);
+
+            while(op != NULL && ip != NULL)
+            {
+              ast_t* ot = ast_childidx(op, 1);
+              ast_t* it = ast_childidx(ip, 1);
+
+              if(ast_id(ot) == TK_TYPEPARAMREF &&
+                ast_id(it) != TK_TYPEPARAMREF)
+              {
+                ast_t* constraint = typeparam_constraint(ot);
+
+                if(constraint == NULL || !is_subtype(it, constraint, NULL, opt))
+                  all_collapse = false;
+              }
+              else if(ast_id(it) == TK_TYPEPARAMREF &&
+                ast_id(ot) != TK_TYPEPARAMREF)
+              {
+                ast_t* constraint = typeparam_constraint(it);
+
+                if(constraint == NULL || !is_subtype(ot, constraint, NULL, opt))
+                  all_collapse = false;
+              }
+              else if(ast_id(ot) != TK_TYPEPARAMREF &&
+                ast_id(it) != TK_TYPEPARAMREF)
+              {
+                if(!is_eqtype(ot, it, NULL, opt))
+                  all_collapse = false;
+              }
+
+              if(!all_collapse)
+                break;
+
+              op = ast_sibling(op);
+              ip = ast_sibling(ip);
+            }
+
+            if(all_collapse)
+            {
+              ast_error(opt->check.errors, inner,
+                "type overload would collapse with another overload after "
+                "reification of a type parameter — use an iftype "
+                "specialization instead");
+              ast_error_continue(opt->check.errors, outer,
+                "other overload is defined here");
+              return false;
+            }
+          }
+
+          inner = ast_sibling(inner);
+        }
+
+        outer = ast_sibling(outer);
+      }
+    }
   }
 
   return true;

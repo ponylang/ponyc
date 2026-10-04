@@ -50,6 +50,7 @@ enum
   AST_FLAG_MAY_BREAK_VALUE = 0x4000000, // This loop has seen a break with a value in it.
   AST_FLAG_MAY_CONTINUE = 0x8000000, // This loop has seen a continue statement in it.
   AST_FLAG_CONST_ARRAY  = 0x10000000, // All elements are constant machine-word literals.
+  AST_FLAG_OVERLOAD_CHAIN = 0x20000000, // Overload ref used with method chaining (.>).
 };
 
 DECLARE_LIST(astlist, astlist_t, ast_t);

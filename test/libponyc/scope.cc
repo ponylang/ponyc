@@ -295,12 +295,87 @@ TEST_F(ScopeTest, CanShadowDontcare)
 }
 
 
-TEST_F(ScopeTest, MethodOverloading)
+TEST_F(ScopeTest, MethodOverloadingSameParams)
+{
+  const char* src =
+    "actor A\n"
+    "  fun foo() => None\n"
+    "  fun foo() => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, TypeOverloadDifferentParams)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply(key: String): None => None\n"
+    "  fun apply(index: USize): None => None";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ScopeTest, TypeOverloadDifferentArity)
 {
   const char* src =
     "actor A\n"
     "  fun foo() => None\n"
     "  fun foo(a: None) => None";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ScopeTest, TypeOverloadReservedMethod)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun ref _final() => None\n"
+    "  fun ref _final(x: USize) => None";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(ScopeTest, TypeOverloadReservedEventNotify)
+{
+  const char* src =
+    "actor Foo\n"
+    "  be _event_notify(event: AsioEventID, flags: U32, arg: U32) => None\n"
+    "  be _event_notify(x: USize) => None";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(ScopeTest, TypeOverloadReservedInit)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun _init() => None\n"
+    "  fun _init(x: USize) => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, TypeOverloadMixMethodKinds)
+{
+  const char* src =
+    "actor A\n"
+    "  fun foo(x: String) => None\n"
+    "  be foo(x: USize) => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, TypeOverloadBareFunction)
+{
+  const char* src =
+    "primitive P\n"
+    "  fun @foo(x: String) => None\n"
+    "  fun @foo(x: USize) => None";
 
   TEST_ERROR(src);
 }

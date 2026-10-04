@@ -12,6 +12,8 @@
 #include "../type/subtype.h"
 #include "../type/typealias.h"
 #include "../../libponyrt/mem/pool.h"
+#include "../ast/printbuf.h"
+#include "../ast/stringtab.h"
 #include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
@@ -361,8 +363,12 @@ static reach_method_name_t* add_method_name(reach_type_t* t, const char* name,
       n->cap = TK_BOX;
       n->internal = true;
     } else {
-      deferred_reification_t* fun = lookup_try(opt, NULL, t->ast, name,
-        true);
+      const char* type_suffix = NULL;
+      const char* lookup_name = overload_name_parse(name, &type_suffix,
+        opt);
+
+      deferred_reification_t* fun = lookup_try(opt, NULL, t->ast,
+        lookup_name, true);
 
       if(fun == NULL)
       {
@@ -378,6 +384,18 @@ static reach_method_name_t* add_method_name(reach_type_t* t, const char* name,
       }
 
       ast_t* fun_ast = fun->ast;
+
+      if(ast_id(fun_ast) == TK_METHODGROUP)
+      {
+        if(type_suffix != NULL)
+          fun_ast = methodgroup_select_by_suffix(fun_ast, type_suffix,
+            fun, opt);
+        else
+          fun_ast = ast_child(fun_ast);
+
+        pony_assert(fun_ast != NULL);
+      }
+
       n->id = ast_id(fun_ast);
       n->cap = ast_id(ast_child(fun_ast));
       n->internal = false;
@@ -616,8 +634,47 @@ static const char* make_full_name(reach_type_t* t, reach_method_t* m, pass_opt_t
 static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
   reach_method_name_t* n, reach_method_t* m, pass_opt_t* opt)
 {
+  const char* method_name = n->name;
+
+  // When propagating an interface method to a concrete type that has type
+  // overloads, the interface method name has no suffix but the concrete type's
+  // method group does. Compute the suffix from the interface method's
+  // parameter types so the correct overload is selected.
+  if(m->fun != NULL)
+  {
+    const char* existing_suffix = NULL;
+    overload_name_parse(method_name, &existing_suffix, opt);
+
+    if(existing_suffix == NULL)
+    {
+      deferred_reification_t* target_fun = lookup_try(opt, NULL, t->ast,
+        method_name, true);
+
+      if((target_fun != NULL) && (ast_id(target_fun->ast) == TK_METHODGROUP))
+      {
+        const char* iface_suffix = overload_type_suffix(m->fun->ast,
+          m->fun, opt);
+
+        if(iface_suffix[0] != '\0')
+        {
+          size_t base_len = strlen(method_name);
+          size_t suffix_len = strlen(iface_suffix);
+          size_t buf_len = base_len + suffix_len + 1;
+          char* buf = (char*)ponyint_pool_alloc_size(buf_len);
+          memcpy(buf, method_name, base_len);
+          memcpy(buf + base_len, iface_suffix, suffix_len + 1);
+          method_name = stringtab(opt->strtab, buf);
+          ponyint_pool_free_size(buf_len, buf);
+        }
+      }
+
+      if(target_fun != NULL)
+        deferred_reify_free(target_fun);
+    }
+  }
+
   // Add the method to the type if it isn't already there.
-  reach_method_name_t* n2 = add_method_name(t, n->name, false, opt);
+  reach_method_name_t* n2 = add_method_name(t, method_name, false, opt);
 
   if(n2 == NULL)
     return;
@@ -773,7 +830,7 @@ static ast_t* select_specialization(deferred_reification_t* fun,
   {
     ast_t* guard = ast_childidx(spec, 5);
 
-    if(evaluate_guard(fun, guard, opt))
+    if((ast_id(guard) != TK_NONE) && evaluate_guard(fun, guard, opt))
       return spec;
 
     spec = ast_sibling(spec);
@@ -816,13 +873,29 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
 
   if(!internal)
   {
+    const char* type_suffix = NULL;
+    const char* lookup_name = overload_name_parse(n->name, &type_suffix,
+      opt);
+
     ast_t* r_ast = set_cap_and_ephemeral(t->ast, cap, TK_NONE);
-    deferred_reification_t* fun = lookup(opt, NULL, r_ast, n->name);
+    deferred_reification_t* fun = lookup(opt, NULL, r_ast, lookup_name);
     pony_assert(fun != NULL);
 
     ast_t* spec = select_specialization(fun, opt);
     if(spec != NULL)
+    {
       fun->ast = spec;
+    }
+    else if(ast_id(fun->ast) == TK_METHODGROUP)
+    {
+      if(type_suffix != NULL)
+        fun->ast = methodgroup_select_by_suffix(fun->ast, type_suffix,
+          fun, opt);
+      else
+        fun->ast = ast_child(fun->ast);
+
+      pony_assert(fun->ast != NULL);
+    }
 
     // The typeargs and thistype are in the scope of r_ast but we're going to
     // free it. Change the scope to a durable AST.
@@ -1292,7 +1365,9 @@ static reach_type_t* add_reach_type(reach_t* r, ast_t* type, pass_opt_t* opt)
   memset(t, 0, sizeof(reach_type_t));
 
   t->name = genname_type(type, opt->strtab);
-  t->mangle = "o";
+
+  t->mangle = stringtab(opt->strtab, "o");
+
   t->ast = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
   t->ast_cap = ast_dup(type);
   t->type_id = (uint32_t)-1;

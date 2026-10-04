@@ -7013,3 +7013,422 @@ TEST_F(VerifyTest, MethodGroupInterfaceMatchingGuard)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(VerifyTest, TypeOverloadCapOnly)
+{
+  const char* src =
+    "class Store\n"
+    "  fun apply(s: String val): USize => 1\n"
+    "  fun apply(s: String ref): USize => 2";
+
+  TEST_ERRORS_1(src,
+    "type overloads must differ in nominal type, not just capability");
+}
+
+TEST_F(VerifyTest, TypeOverloadMixedMethodKinds)
+{
+  const char* src =
+    "actor Worker\n"
+    "  fun process(s: String): USize => 1\n"
+    "  be process(n: USize) => None";
+
+  TEST_ERRORS_1(src,
+    "can't mix method kinds in overloaded");
+}
+
+TEST_F(VerifyTest, TypeOverloadMixedReceiverCaps)
+{
+  const char* src =
+    "class Processor\n"
+    "  fun ref process(s: String): USize => 1\n"
+    "  fun box process(n: USize): USize => 2";
+
+  TEST_ERRORS_1(src,
+    "all type overloads must have the same receiver capability");
+}
+
+TEST_F(VerifyTest, TypeOverloadWithTypeParams)
+{
+  const char* src =
+    "class Processor\n"
+    "  fun process[A: Any val](a: A): USize => 1\n"
+    "  fun process(n: USize): USize => 2";
+
+  TEST_ERRORS_1(src,
+    "type-overloaded methods cannot have method-level type parameters");
+}
+
+TEST_F(VerifyTest, TypeOverloadPartialApplication)
+{
+  const char* src =
+    "class Overloaded\n"
+    "  fun apply(s: String): USize => 1\n"
+    "  fun apply(n: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Overloaded\n"
+    "    o~apply()";
+
+  TEST_ERRORS_2(src,
+    "can't do partial application of an overloaded method",
+    "no overload matches the argument types");
+}
+
+TEST_F(VerifyTest, TypeOverloadChaining)
+{
+  const char* src =
+    "class Overloaded\n"
+    "  fun apply(s: String): USize => 1\n"
+    "  fun apply(n: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Overloaded\n"
+    "    o.>apply(\"hello\")";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadMostSpecific)
+{
+  const char* src =
+    "trait Printable\n"
+    "  fun string(): String\n"
+    "\n"
+    "class Val is Printable\n"
+    "  fun string(): String => \"val\"\n"
+    "\n"
+    "class Overloaded\n"
+    "  fun apply(s: Printable): USize => 1\n"
+    "  fun apply(s: Val): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Overloaded\n"
+    "    o(Val)";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadAmbiguousCall)
+{
+  const char* src =
+    "trait val Tag1\n"
+    "trait val Tag2\n"
+    "primitive Both is (Tag1 & Tag2)\n"
+    "\n"
+    "class Overloaded\n"
+    "  fun apply(s: Tag1): USize => 1\n"
+    "  fun apply(s: Tag2): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Overloaded\n"
+    "    o(Both)";
+
+  TEST_ERRORS_1(src,
+    "ambiguous call: multiple overloads match the argument types");
+}
+
+TEST_F(VerifyTest, TypeOverloadMixedIftypeGuards)
+{
+  const char* src =
+    "trait val Bar\n"
+
+    "class Foo[A: Any val]\n"
+    "  fun apply(s: String): USize => 1\n"
+    "  fun apply(n: USize): USize => 2\n"
+    "  fun apply(s: String): USize iftype A <: Bar => 3\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Foo[String].apply(\"hello\")";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadArityDefaultAmbiguity)
+{
+  const char* src =
+    "class Logger\n"
+    "  fun log(msg: String) => None\n"
+    "  fun log(msg: String, level: USize = 0) => None\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Logger.log(\"hello\")";
+
+  TEST_ERRORS_1(src,
+    "type overloads with default arguments create an ambiguous call shape");
+}
+
+TEST_F(VerifyTest, TypeOverloadArityDefaultNoAmbiguity)
+{
+  const char* src =
+    "class Formatter\n"
+    "  fun format(s: String, width: USize = 0): None => None\n"
+    "  fun format(n: USize, width: USize = 0): None => None\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Formatter.format(\"hello\")";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadStructuralSubtype)
+{
+  const char* src =
+    "interface Callable\n"
+    "  fun apply(s: String): USize\n"
+    "\n"
+    "class Overloaded\n"
+    "  fun apply(s: String): USize => 1\n"
+    "  fun apply(n: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: Callable = Overloaded";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadUnionParam)
+{
+  const char* src =
+    "class Handler\n"
+    "  fun apply(a: (String | None)): USize => 1\n"
+    "  fun apply(a: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Handler.apply(\"hello\")";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadNoMatch)
+{
+  const char* src =
+    "class Overloaded\n"
+    "  fun apply(s: String): USize => 1\n"
+    "  fun apply(n: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Overloaded.apply(Bool(true))";
+
+  TEST_ERRORS_1(src, "no overload matches the argument types");
+}
+
+TEST_F(VerifyTest, TypeOverloadGenericClassCollapse)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  fun apply(a: A): USize => 1\n"
+    "  fun apply(n: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Foo[String].apply(\"hello\")";
+
+  TEST_ERRORS_1(src,
+    "type overload would collapse with another overload after reification");
+}
+
+TEST_F(VerifyTest, TypeOverloadGenericClassNoCollapse)
+{
+  const char* src =
+    "interface Readable\n"
+    "  fun read(): String\n"
+    "\n"
+    "class Foo[A: Readable val]\n"
+    "  fun apply(a: A): USize => 1\n"
+    "  fun apply(n: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadNamedArg)
+{
+  const char* src =
+    "class Overloaded\n"
+    "  fun apply(s: String): USize => 1\n"
+    "  fun apply(n: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Overloaded\n"
+    "    o.apply(where s = \"hello\")";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadNamedArgWrongName)
+{
+  const char* src =
+    "class Overloaded\n"
+    "  fun apply(s: String): USize => 1\n"
+    "  fun apply(n: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Overloaded\n"
+    "    o.apply(where x = \"hello\")";
+
+  TEST_ERRORS_1(src, "no overload matches the argument types");
+}
+
+TEST_F(VerifyTest, TypeOverloadNumericLiteral)
+{
+  const char* src =
+    "class Overloaded\n"
+    "  fun apply(s: String): USize => 1\n"
+    "  fun apply(n: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Overloaded\n"
+    "    o.apply(42)";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadConstructorFieldInit)
+{
+  const char* src =
+    "class Foo\n"
+    "  let _n: USize\n"
+    "  new create(s: String) =>\n"
+    "    _n = 1\n"
+    "  new create(n: USize) =>\n"
+    "    _n = n\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Foo(\"hello\")\n"
+    "    Foo(USize(42))";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadConstructorFieldUndefined)
+{
+  const char* src =
+    "class Foo\n"
+    "  let _n: USize\n"
+    "  new create(s: String) =>\n"
+    "    _n = 1\n"
+    "  new create(n: USize) =>\n"
+    "    None\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_2(src,
+    "field left undefined in constructor",
+    "constructor with undefined fields is here");
+}
+
+TEST_F(VerifyTest, TypeOverloadNumericLiteralAmbiguous)
+{
+  const char* src =
+    "class Overloaded\n"
+    "  fun apply(n: USize): USize => 1\n"
+    "  fun apply(n: U32): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Overloaded\n"
+    "    o.apply(42)";
+
+  TEST_ERRORS_1(src,
+    "ambiguous call: multiple overloads match the argument types");
+}
+
+TEST_F(VerifyTest, TypeOverloadConstructorChaining)
+{
+  const char* src =
+    "class Foo\n"
+    "  var _n: USize\n"
+    "  new create(s: String) => _n = 1\n"
+    "  new create(n: USize) => _n = n\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Foo.>create(USize(1))";
+
+  TEST_ERRORS_1(src,
+    "can't do method chaining on a constructor");
+}
+
+TEST_F(VerifyTest, TypeOverloadTupleParam)
+{
+  const char* src =
+    "class Overloaded\n"
+    "  fun apply(a: (String, USize)): USize => 1\n"
+    "  fun apply(a: String): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Overloaded\n"
+    "    o((\"hello\", USize(1)))";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadFloatLiteral)
+{
+  const char* src =
+    "class Overloaded\n"
+    "  fun apply(s: String): USize => 1\n"
+    "  fun apply(n: F64): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Overloaded\n"
+    "    o.apply(3.14)";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadTypeAlias)
+{
+  const char* src =
+    "type Name is String\n"
+    "\n"
+    "class Overloaded\n"
+    "  fun apply(a: Name): USize => 1\n"
+    "  fun apply(a: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Overloaded\n"
+    "    o(USize(42))";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TypeOverloadInterfaceOverloaded)
+{
+  const char* src =
+    "interface Handler\n"
+    "  fun apply(s: String): USize\n"
+    "  fun apply(n: USize): USize\n"
+    "\n"
+    "class MyHandler is Handler\n"
+    "  fun apply(s: String): USize => 1\n"
+    "  fun apply(n: USize): USize => 2\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let h: Handler = MyHandler";
+
+  TEST_COMPILE(src);
+}

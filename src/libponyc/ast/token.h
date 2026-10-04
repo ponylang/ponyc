@@ -268,6 +268,7 @@ typedef enum token_id
   TK_IFTYPEGUARD_AND,
   TK_IFTYPEGUARD_OR,
   TK_METHODGROUP,
+  TK_OVERLOADREF,
 
   // Pseudo tokens that never actually exist
   TK_NEWLINE,  // Used by parser macros

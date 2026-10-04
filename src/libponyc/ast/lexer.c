@@ -326,6 +326,7 @@ static const lextoken_t abstract[] =
   { "iftypeguardand", TK_IFTYPEGUARD_AND },
   { "iftypeguardor", TK_IFTYPEGUARD_OR },
   { "methodgroup", TK_METHODGROUP },
+  { "overloadref", TK_OVERLOADREF },
 
   { "\\n", TK_NEWLINE },
   {NULL, (token_id)0}

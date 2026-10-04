@@ -8,6 +8,8 @@
 #include "reference.h"
 #include "../ast/astbuild.h"
 #include "../ast/lexer.h"
+#include "../ast/printbuf.h"
+#include "../ast/stringtab.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
 #include "../pass/sugar.h"
@@ -22,6 +24,7 @@
 #include "../type/typealias.h"
 #include "../type/viewpoint.h"
 #include "ponyassert.h"
+#include <string.h>
 
 static bool type_contains_thistype(ast_t* ast)
 {
@@ -1564,7 +1567,8 @@ ast_result_t expr_pre_call(pass_opt_t* opt, ast_t** astp)
   if(r == AST_FATAL)
     return AST_FATAL;
 
-  if(r == AST_ERROR || is_typecheck_error(ast_type(lhs)))
+  if(r == AST_ERROR ||
+    (ast_id(lhs) != TK_OVERLOADREF && is_typecheck_error(ast_type(lhs))))
     return AST_ERROR;
 
   ast_t* type = ast_type(lhs);
@@ -1667,9 +1671,348 @@ ast_result_t expr_pre_call(pass_opt_t* opt, ast_t** astp)
   return AST_OK;
 }
 
+static bool resolve_overload(pass_opt_t* opt, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
+
+  deferred_reification_t* find = (deferred_reification_t*)ast_data(lhs);
+  ast_t* group = find->ast;
+  pony_assert(ast_id(group) == TK_METHODGROUP);
+
+  size_t pos_count = ast_childcount(positional);
+  bool has_named = (ast_id(namedargs) != TK_NONE) &&
+    (ast_childcount(namedargs) > 0);
+
+  // Collect all matching overloads.
+  #define MAX_OVERLOADS 64
+  #define MAX_PARAMS 64
+  ast_t* matches[MAX_OVERLOADS];
+  int match_count = 0;
+
+  ast_t* candidate = ast_child(group);
+
+  while(candidate != NULL)
+  {
+    ast_t* guard = ast_childidx(candidate, 5);
+
+    if(ast_id(guard) != TK_NONE)
+    {
+      candidate = ast_sibling(candidate);
+      continue;
+    }
+
+    ast_t* params = ast_childidx(candidate, 3);
+    size_t param_count = ast_childcount(params);
+
+    // Map named args to positional slots for this candidate.
+    // named_slots[i] holds the named arg AST whose expression maps to
+    // parameter position i, or NULL.
+    ast_t* named_slots[MAX_PARAMS];
+    memset(named_slots, 0, sizeof(named_slots));
+    bool named_ok = true;
+
+    if(has_named)
+    {
+      if(param_count > MAX_PARAMS)
+      {
+        candidate = ast_sibling(candidate);
+        continue;
+      }
+
+      for(ast_t* na = ast_child(namedargs); na != NULL; na = ast_sibling(na))
+      {
+        ast_t* na_id = ast_child(na);
+        const char* na_name = ast_name(na_id);
+
+        ast_t* p = ast_child(params);
+        size_t pidx = 0;
+        bool found = false;
+
+        while(p != NULL)
+        {
+          if(ast_name(ast_child(p)) == na_name)
+          {
+            // Check position isn't already filled by a positional arg.
+            if(pidx < pos_count &&
+              ast_id(ast_childidx(positional, pidx)) != TK_NONE)
+            {
+              named_ok = false;
+              break;
+            }
+
+            named_slots[pidx] = na;
+            found = true;
+            break;
+          }
+
+          p = ast_sibling(p);
+          pidx++;
+        }
+
+        if(!found || !named_ok)
+        {
+          named_ok = false;
+          break;
+        }
+      }
+    }
+
+    if(!named_ok)
+    {
+      candidate = ast_sibling(candidate);
+      continue;
+    }
+
+    // Count effective arguments (positional + named).
+    size_t effective_count = pos_count;
+
+    for(size_t i = 0; i < param_count; i++)
+    {
+      if(named_slots[i] != NULL && i >= pos_count)
+        effective_count++;
+    }
+
+    size_t required_count = 0;
+    ast_t* p = ast_child(params);
+    while(p != NULL)
+    {
+      if(ast_id(ast_childidx(p, 2)) == TK_NONE)
+        required_count++;
+      p = ast_sibling(p);
+    }
+
+    if(effective_count < required_count || effective_count > param_count)
+    {
+      candidate = ast_sibling(candidate);
+      continue;
+    }
+
+    // Type-check positional args and named-arg-mapped positions.
+    bool type_matches = true;
+    ast_t* param = ast_child(params);
+    size_t idx = 0;
+
+    while(param != NULL)
+    {
+      ast_t* arg_expr = NULL;
+
+      if(idx < pos_count)
+      {
+        ast_t* pos_arg = ast_childidx(positional, idx);
+
+        if(ast_id(pos_arg) != TK_NONE)
+          arg_expr = pos_arg;
+      }
+
+      if(arg_expr == NULL && has_named && idx < MAX_PARAMS &&
+        named_slots[idx] != NULL)
+        arg_expr = ast_childidx(named_slots[idx], 1);
+
+      if(arg_expr != NULL)
+      {
+        ast_t* arg_type = ast_type(arg_expr);
+
+        if(arg_type == NULL || is_typecheck_error(arg_type))
+        {
+          type_matches = false;
+          break;
+        }
+
+        ast_t* param_type = ast_childidx(param, 1);
+        ast_t* r_param_type = deferred_reify(find, param_type, opt);
+
+        bool ok;
+
+        if(ast_id(arg_type) == TK_LITERAL ||
+          ast_id(arg_type) == TK_OPERATORLITERAL)
+        {
+          ok = is_integer(r_param_type) || is_float(r_param_type);
+        }
+        else
+        {
+          ok = is_subtype(arg_type, r_param_type, NULL, opt);
+        }
+
+        ast_free_unattached(r_param_type);
+
+        if(!ok)
+        {
+          type_matches = false;
+          break;
+        }
+      }
+
+      param = ast_sibling(param);
+      idx++;
+    }
+
+    if(type_matches)
+    {
+      if(match_count >= MAX_OVERLOADS)
+      {
+        ast_error(opt->check.errors, lhs,
+          "too many overloads to resolve (limit is %d)", MAX_OVERLOADS);
+        deferred_reify_free(find);
+        ast_setdata(lhs, NULL);
+        return false;
+      }
+
+      matches[match_count] = candidate;
+      match_count++;
+    }
+
+    candidate = ast_sibling(candidate);
+  }
+
+  if(match_count == 0)
+  {
+    ast_error(opt->check.errors, lhs,
+      "no overload matches the argument types");
+    deferred_reify_free(find);
+    ast_setdata(lhs, NULL);
+    return false;
+  }
+
+  ast_t* best = matches[0];
+
+  if(match_count > 1)
+  {
+    // Select the most specific overload: one whose parameter types are
+    // subtypes of every other candidate's parameter types at each position.
+    for(int i = 0; i < match_count; i++)
+    {
+      bool most_specific = true;
+
+      for(int j = 0; j < match_count; j++)
+      {
+        if(i == j)
+          continue;
+
+        ast_t* i_params = ast_childidx(matches[i], 3);
+        ast_t* j_params = ast_childidx(matches[j], 3);
+        ast_t* ip = ast_child(i_params);
+        ast_t* jp = ast_child(j_params);
+
+        while(ip != NULL && jp != NULL)
+        {
+          ast_t* i_type = ast_childidx(ip, 1);
+          ast_t* j_type = ast_childidx(jp, 1);
+          ast_t* ri = deferred_reify(find, i_type, opt);
+          ast_t* rj = deferred_reify(find, j_type, opt);
+
+          bool i_sub_j = is_subtype(ri, rj, NULL, opt);
+          ast_free_unattached(ri);
+          ast_free_unattached(rj);
+
+          if(!i_sub_j)
+          {
+            most_specific = false;
+            break;
+          }
+
+          ip = ast_sibling(ip);
+          jp = ast_sibling(jp);
+        }
+
+        if(!most_specific)
+          break;
+      }
+
+      if(most_specific)
+      {
+        best = matches[i];
+        goto found_best;
+      }
+    }
+
+    ast_error(opt->check.errors, lhs,
+      "ambiguous call: multiple overloads match the argument types");
+    deferred_reify_free(find);
+    ast_setdata(lhs, NULL);
+    return false;
+  }
+
+  found_best:
+  ;
+  // Compute the type-based suffix before freeing the deferred_reification,
+  // since reification of parameter types requires it.
+  const char* suffix = overload_type_suffix(best, find, opt);
+
+  ast_t* r_method = deferred_reify_method_def(find, best, opt);
+  deferred_reify_free(find);
+  ast_setdata(lhs, NULL);
+
+  if(!method_access(opt, lhs, r_method))
+  {
+    ast_free_unattached(r_method);
+    return false;
+  }
+
+  // Rename the method in the FUNREF/BEREF/NEWREF so the reach pass and
+  // codegen see a unique name per overload. The suffix encodes the
+  // parameter types deterministically (e.g., "apply$6_String").
+  {
+    ast_t* method_id = ast_childidx(lhs, 1);
+    const char* base_name = ast_name(method_id);
+    printbuf_t* buf = printbuf_new();
+    printbuf(buf, "%s%s", base_name, suffix);
+    ast_set_name(method_id, buf->m, opt->strtab);
+    printbuf_free(buf);
+  }
+
+  // Normalize named args against the selected overload's parameters.
+  if(has_named)
+  {
+    ast_t* best_params = ast_childidx(r_method, 3);
+
+    if(!normalise_args(opt, best_params, positional, namedargs))
+    {
+      ast_free_unattached(r_method);
+      return false;
+    }
+  }
+
+  bool ok;
+
+  if(ast_checkflag(lhs, AST_FLAG_OVERLOAD_CHAIN))
+  {
+    switch(ast_id(lhs))
+    {
+      case TK_FUNREF: ast_setid(lhs, TK_FUNCHAIN); break;
+      case TK_BEREF: ast_setid(lhs, TK_BECHAIN); break;
+      case TK_NEWREF:
+      case TK_NEWBEREF:
+        ast_error(opt->check.errors, lhs,
+          "can't do method chaining on a constructor");
+        ast_free_unattached(r_method);
+        return false;
+      default: break;
+    }
+    ok = method_chain(opt, ast);
+  }
+  else
+  {
+    ok = method_call(opt, ast);
+  }
+
+  ast_free_unattached(r_method);
+  return ok;
+}
+
+#undef MAX_OVERLOADS
+#undef MAX_PARAMS
+
 bool expr_call(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
+
+  // Check for overload ref early, before literal_call which expects a type
+  // on the receiver.
+  {
+    ast_t* first = ast_child(ast);
+    if((first != NULL) && (ast_id(first) == TK_OVERLOADREF))
+      return resolve_overload(opt, ast);
+  }
 
   if(!literal_call(ast, opt))
     return false;

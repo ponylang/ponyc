@@ -1143,7 +1143,10 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
     ast_t* sub_raw = ast_get(sub_def, ast_name(super_member_id), NULL);
 
     ast_t* sub_default = sub_raw;
-    if(sub_default != NULL && ast_id(sub_default) == TK_METHODGROUP)
+    bool sub_is_group = (sub_default != NULL) &&
+      (ast_id(sub_default) == TK_METHODGROUP);
+
+    if(sub_is_group)
       sub_default = ast_child(sub_default);
 
     // If we don't provide a method, we aren't a subtype.
@@ -1163,19 +1166,49 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
       continue;
     }
 
-    // Reify the default on the subtype.
-    ast_t* r_sub_member = reify_method_def(sub_default, sub_typeparams,
-      sub_typeargs, opt);
-    pony_assert(r_sub_member != NULL);
-
     // Reify the default on the supertype.
     ast_t* r_super_member = reify_method_def(super_default, super_typeparams,
       super_typeargs, opt);
     pony_assert(r_super_member != NULL);
 
-    // Check the reified default methods.
-    bool ok = is_fun_sub_fun(r_sub_member, r_super_member, errorf, opt);
-    ast_free_unattached(r_sub_member);
+    // For type-overloaded methods, find any unguarded overload that satisfies
+    // the interface requirement. For single methods, pass through errorf.
+    bool ok = false;
+
+    if(sub_is_group)
+    {
+      ast_t* candidate = sub_default;
+      while(candidate != NULL)
+      {
+        if(ast_id(ast_childidx(candidate, 5)) == TK_NONE)
+        {
+          ast_t* r_sub_member = reify_method_def(candidate, sub_typeparams,
+            sub_typeargs, opt);
+          pony_assert(r_sub_member != NULL);
+
+          if(is_fun_sub_fun(r_sub_member, r_super_member, NULL, opt))
+          {
+            ast_free_unattached(r_sub_member);
+            ok = true;
+            sub_default = candidate;
+            break;
+          }
+
+          ast_free_unattached(r_sub_member);
+        }
+        candidate = ast_sibling(candidate);
+      }
+    }
+    else
+    {
+      ast_t* r_sub_member = reify_method_def(sub_default, sub_typeparams,
+        sub_typeargs, opt);
+      pony_assert(r_sub_member != NULL);
+
+      ok = is_fun_sub_fun(r_sub_member, r_super_member, errorf, opt);
+      ast_free_unattached(r_sub_member);
+    }
+
     ast_free_unattached(r_super_member);
 
     if(!ok)
@@ -1192,7 +1225,7 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
       }
     }
 
-    // If the super has specializations, check them against the sub.
+    // If the super has additional overloads or specializations, check them.
     if((super_group != NULL) && (ast_sibling(super_default) != NULL))
     {
       if((sub_raw == NULL) || (ast_id(sub_raw) != TK_METHODGROUP))
@@ -1200,8 +1233,8 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
         if(errorf != NULL)
         {
           ast_error_frame(errorf, sub,
-            "%s is not a subtype of %s: method '%s' requires "
-            "specializations",
+            "%s is not a subtype of %s: method '%s' has multiple "
+            "overloads or specializations",
             ast_print_type(sub, opt->strtab),
             ast_print_type(super, opt->strtab),
             ast_name(super_member_id));
@@ -1210,48 +1243,83 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
       }
       else
       {
-        ast_t* super_spec = ast_sibling(super_default);
-        while(super_spec != NULL)
+        ast_t* super_extra = ast_sibling(super_default);
+        while(super_extra != NULL)
         {
-          ast_t* r_super_spec = reify_method_def(super_spec,
+          ast_t* r_super_extra = reify_method_def(super_extra,
             super_typeparams, super_typeargs, opt);
-          pony_assert(r_super_spec != NULL);
+          pony_assert(r_super_extra != NULL);
 
-          ast_t* sub_spec = ast_sibling(ast_child(sub_raw));
+          bool is_type_overload =
+            ast_id(ast_childidx(super_extra, 5)) == TK_NONE;
+
+          // Type overloads: search all unguarded sub overloads.
+          // Specializations: search sub's non-default members for
+          // matching guards.
+          ast_t* sub_candidate = is_type_overload ?
+            ast_child(sub_raw) : ast_sibling(ast_child(sub_raw));
+
           bool found = false;
-          while(sub_spec != NULL)
+          while(sub_candidate != NULL)
           {
-            ast_t* r_sub_spec = reify_method_def(sub_spec,
+            if(is_type_overload &&
+              ast_id(ast_childidx(sub_candidate, 5)) != TK_NONE)
+            {
+              sub_candidate = ast_sibling(sub_candidate);
+              continue;
+            }
+
+            ast_t* r_sub_candidate = reify_method_def(sub_candidate,
               sub_typeparams, sub_typeargs, opt);
-            pony_assert(r_sub_spec != NULL);
+            pony_assert(r_sub_candidate != NULL);
 
-            if(is_fun_sub_fun(r_sub_spec, r_super_spec, NULL, opt) &&
-              guards_equivalent(ast_childidx(r_sub_spec, 5),
-                ast_childidx(r_super_spec, 5), opt))
-              found = true;
+            if(is_type_overload)
+            {
+              if(is_fun_sub_fun(r_sub_candidate, r_super_extra, NULL, opt))
+                found = true;
+            }
+            else
+            {
+              if(is_fun_sub_fun(r_sub_candidate, r_super_extra, NULL, opt) &&
+                guards_equivalent(ast_childidx(r_sub_candidate, 5),
+                  ast_childidx(r_super_extra, 5), opt))
+                found = true;
+            }
 
-            ast_free_unattached(r_sub_spec);
+            ast_free_unattached(r_sub_candidate);
             if(found)
               break;
-            sub_spec = ast_sibling(sub_spec);
+            sub_candidate = ast_sibling(sub_candidate);
           }
 
           if(!found)
           {
             if(errorf != NULL)
             {
-              ast_error_frame(errorf, sub,
-                "%s is not a subtype of %s: method '%s' is missing a "
-                "required specialization",
-                ast_print_type(sub, opt->strtab),
-                ast_print_type(super, opt->strtab),
-                ast_name(super_member_id));
+              if(is_type_overload)
+              {
+                ast_error_frame(errorf, sub,
+                  "%s is not a subtype of %s: "
+                  "method '%s' has an incompatible signature",
+                  ast_print_type(sub, opt->strtab),
+                  ast_print_type(super, opt->strtab),
+                  ast_name(super_member_id));
+              }
+              else
+              {
+                ast_error_frame(errorf, sub,
+                  "%s is not a subtype of %s: method '%s' is missing a "
+                  "required specialization",
+                  ast_print_type(sub, opt->strtab),
+                  ast_print_type(super, opt->strtab),
+                  ast_name(super_member_id));
+              }
             }
             ret = false;
           }
 
-          ast_free_unattached(r_super_spec);
-          super_spec = ast_sibling(super_spec);
+          ast_free_unattached(r_super_extra);
+          super_extra = ast_sibling(super_extra);
         }
       }
     }

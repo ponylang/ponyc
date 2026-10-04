@@ -4,6 +4,7 @@
 #include "../ast/printbuf.h"
 #include "../ast/stringtab.h"
 #include "../pkg/package.h"
+#include "../type/lookup.h"
 #include "../type/subtype.h"
 #include "paths.h"
 #include "ponyassert.h"
@@ -116,26 +117,6 @@ static bool evaluate_export_guard(ast_t* guard, ast_t* class_typeparams,
   }
 }
 
-static ast_t* select_export_specialization(ast_t* methodgroup,
-  ast_t* class_typeparams, ast_t* typeargs, pass_opt_t* opt)
-{
-  ast_t* default_method = ast_child(methodgroup);
-
-  if(class_typeparams == NULL || typeargs == NULL)
-    return default_method;
-
-  for(ast_t* spec = ast_sibling(default_method); spec != NULL;
-    spec = ast_sibling(spec))
-  {
-    ast_t* guard = ast_childidx(spec, 5);
-
-    if(ast_id(guard) != TK_NONE &&
-      evaluate_export_guard(guard, class_typeparams, typeargs, opt))
-      return spec;
-  }
-
-  return default_method;
-}
 
 static void print_c_type(printbuf_t* buf, ast_t* type,
   ast_t* class_typeparams, ast_t* typeargs)
@@ -286,7 +267,8 @@ bool should_export_method(ast_t* method, ast_t* class_typeparams,
 }
 
 static void print_method_signature(printbuf_t* buf, const char* type_name,
-  ast_t* method, ast_t* class_typeparams, ast_t* typeargs, bool is_primitive)
+  ast_t* method, const char* name_suffix,
+  ast_t* class_typeparams, ast_t* typeargs, bool is_primitive)
 {
   if(!should_export_method(method, class_typeparams, typeargs))
     return;
@@ -294,7 +276,11 @@ static void print_method_signature(printbuf_t* buf, const char* type_name,
   ast_t* method_id = ast_childidx(method, 1);
   ast_t* params = ast_childidx(method, 3);
   ast_t* return_type = ast_childidx(method, 4);
-  const char* method_name = ast_name(method_id);
+
+  printbuf_t* namebuf = printbuf_new();
+  printbuf(namebuf, "%s%s", ast_name(method_id),
+    name_suffix != NULL ? name_suffix : "");
+  const char* method_name = namebuf->m;
   bool first_param = true;
 
   char sanitized_method[256];
@@ -339,6 +325,7 @@ static void print_method_signature(printbuf_t* buf, const char* type_name,
     printbuf(buf, "void");
 
   printbuf(buf, ");\n");
+  printbuf_free(namebuf);
 }
 
 void sanitize_c_name(char* name)
@@ -454,21 +441,34 @@ static bool gen_consumer_header(ast_t* exported_pkg, const char* header_name,
         {
           if(ast_id(member) == TK_METHODGROUP)
           {
-            ast_t* m = select_export_specialization(member,
-              class_typeparams, typeargs, opt);
-
-            if(ast_id(m) == TK_FUN &&
-              should_export_method(m, class_typeparams, typeargs))
+            for(ast_t* gm = ast_child(member); gm != NULL;
+              gm = ast_sibling(gm))
             {
-              print_method_signature(buf, type_name, m,
-                class_typeparams, typeargs, def_nid == TK_PRIMITIVE);
-              exported_count++;
+              ast_t* guard = ast_childidx(gm, 5);
+
+              if(ast_id(guard) != TK_NONE)
+              {
+                if(class_typeparams == NULL || typeargs == NULL ||
+                  !evaluate_export_guard(guard, class_typeparams, typeargs,
+                    opt))
+                  continue;
+              }
+
+              if(ast_id(gm) == TK_FUN &&
+                should_export_method(gm, class_typeparams, typeargs))
+              {
+                const char* suffix = (ast_id(guard) == TK_NONE) ?
+                  overload_type_suffix(gm, NULL, opt) : NULL;
+                print_method_signature(buf, type_name, gm, suffix,
+                  class_typeparams, typeargs, def_nid == TK_PRIMITIVE);
+                exported_count++;
+              }
             }
           }
           else if(ast_id(member) == TK_FUN &&
             should_export_method(member, class_typeparams, typeargs))
           {
-            print_method_signature(buf, type_name, member,
+            print_method_signature(buf, type_name, member, NULL,
               class_typeparams, typeargs, def_nid == TK_PRIMITIVE);
             exported_count++;
           }

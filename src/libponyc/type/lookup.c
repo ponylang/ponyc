@@ -7,10 +7,14 @@
 #include "subtype.h"
 #include "../ast/token.h"
 #include "../ast/id.h"
+#include "../ast/printbuf.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
 #include "../expr/literal.h"
+#include "../ast/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
+#include <stdlib.h>
 #include <string.h>
 
 static deferred_reification_t* lookup_base(pass_opt_t* opt, ast_t* from,
@@ -115,6 +119,29 @@ static bool lookup_evaluate_guard(deferred_reification_t* fun, ast_t* guard,
   }
 }
 
+static bool methodgroup_has_type_overloads(ast_t* group)
+{
+  pony_assert(ast_id(group) == TK_METHODGROUP);
+
+  int unguarded_count = 0;
+  ast_t* child = ast_child(group);
+
+  while(child != NULL)
+  {
+    ast_t* guard = ast_childidx(child, 5);
+
+    if(ast_id(guard) == TK_NONE)
+      unguarded_count++;
+
+    if(unguarded_count > 1)
+      return true;
+
+    child = ast_sibling(child);
+  }
+
+  return false;
+}
+
 static ast_t* lookup_select_specialization(ast_t* default_method,
   ast_t* typeparams, ast_t* typeargs, ast_t* thistype, pass_opt_t* opt)
 {
@@ -196,6 +223,12 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
 
       case TK_METHODGROUP:
       {
+        if(methodgroup_has_type_overloads(find))
+        {
+          // Type overloads: return the group for call-site resolution.
+          break;
+        }
+
         ast_t* default_method = ast_child(find);
         ast_t* typeargs = ast_childidx(type, 2);
 
@@ -315,6 +348,7 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
         }
         break;
 
+      case TK_METHODGROUP:
       case TK_NEW:
       case TK_BE:
       case TK_FUN:
@@ -498,6 +532,22 @@ static bool param_names_match(ast_t* from, ast_t* prev_fun, ast_t* cur_fun,
   return true;
 }
 
+static void methodgroup_collapse_to_unguarded(deferred_reification_t* r)
+{
+  pony_assert(ast_id(r->ast) == TK_METHODGROUP);
+
+  ast_t* ug = ast_child(r->ast);
+  while(ug != NULL)
+  {
+    if(ast_id(ast_childidx(ug, 5)) == TK_NONE)
+      break;
+    ug = ast_sibling(ug);
+  }
+
+  if(ug != NULL)
+    r->ast = ug;
+}
+
 static deferred_reification_t* lookup_union(pass_opt_t* opt, ast_t* from,
   ast_t* type, const char* name, bool errors, bool allow_private)
 {
@@ -522,6 +572,9 @@ static deferred_reification_t* lookup_union(pass_opt_t* opt, ast_t* from,
 
       ok = false;
     } else {
+      if(ast_id(r->ast) == TK_METHODGROUP)
+        methodgroup_collapse_to_unguarded(r);
+
       switch(ast_id(r->ast))
       {
         case TK_FVAR:
@@ -634,6 +687,9 @@ static deferred_reification_t* lookup_isect(pass_opt_t* opt, ast_t* from,
 
     if(r != NULL)
     {
+      if(ast_id(r->ast) == TK_METHODGROUP)
+        methodgroup_collapse_to_unguarded(r);
+
       switch(ast_id(r->ast))
       {
         case TK_FVAR:
@@ -779,4 +835,207 @@ deferred_reification_t* lookup_try(pass_opt_t* opt, ast_t* from, ast_t* type,
   const char* name, bool allow_private)
 {
   return lookup_base(opt, from, type, type, name, false, allow_private);
+}
+
+static void overload_encode_type(printbuf_t* buf, ast_t* type);
+
+static void overload_encode_cap(printbuf_t* buf, ast_t* node)
+{
+  switch(ast_id(node))
+  {
+    case TK_ISO: printbuf(buf, "ci"); break;
+    case TK_TRN: printbuf(buf, "ct"); break;
+    case TK_REF: printbuf(buf, "cr"); break;
+    case TK_VAL: printbuf(buf, "cv"); break;
+    case TK_BOX: printbuf(buf, "cb"); break;
+    case TK_TAG: printbuf(buf, "cg"); break;
+    case TK_THISTYPE: printbuf(buf, "cs"); break;
+
+    default:
+      overload_encode_type(buf, node);
+      break;
+  }
+}
+
+static void overload_encode_type(printbuf_t* buf, ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    {
+      AST_GET_CHILDREN(type, package, id, typeargs);
+      const char* pkg_name = ast_name(package);
+      const char* name = ast_name(id);
+
+      if(pkg_name[0] != '\0')
+      {
+        size_t pkg_len = strlen(pkg_name);
+        printbuf(buf, "%zu_%s_", pkg_len, pkg_name);
+      }
+
+      size_t len = strlen(name);
+      printbuf(buf, "%zu_%s", len, name);
+
+      ast_t* ta = ast_child(typeargs);
+      if(ta != NULL)
+      {
+        printbuf(buf, "_A");
+        while(ta != NULL)
+        {
+          printbuf(buf, "_");
+          overload_encode_type(buf, ta);
+          ta = ast_sibling(ta);
+        }
+        printbuf(buf, "_E");
+      }
+      break;
+    }
+
+    case TK_UNIONTYPE:
+    {
+      printbuf(buf, "U%d", ast_childcount(type));
+      ast_t* child = ast_child(type);
+      while(child != NULL)
+      {
+        printbuf(buf, "_");
+        overload_encode_type(buf, child);
+        child = ast_sibling(child);
+      }
+      break;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      printbuf(buf, "I%d", ast_childcount(type));
+      ast_t* child = ast_child(type);
+      while(child != NULL)
+      {
+        printbuf(buf, "_");
+        overload_encode_type(buf, child);
+        child = ast_sibling(child);
+      }
+      break;
+    }
+
+    case TK_TUPLETYPE:
+    {
+      printbuf(buf, "T%d", ast_childcount(type));
+      ast_t* child = ast_child(type);
+      while(child != NULL)
+      {
+        printbuf(buf, "_");
+        overload_encode_type(buf, child);
+        child = ast_sibling(child);
+      }
+      break;
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      AST_GET_CHILDREN(type, id);
+      const char* name = ast_name(id);
+      size_t len = strlen(name);
+      printbuf(buf, "%zu_%s", len, name);
+      break;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      pony_assert(unfolded != NULL);
+      overload_encode_type(buf, unfolded);
+      ast_free_unattached(unfolded);
+      break;
+    }
+
+    case TK_ARROW:
+    {
+      AST_GET_CHILDREN(type, left, right);
+      printbuf(buf, "V");
+      overload_encode_cap(buf, left);
+      printbuf(buf, "_");
+      overload_encode_type(buf, right);
+      break;
+    }
+
+    default:
+      pony_assert(0);
+      break;
+  }
+}
+
+const char* overload_type_suffix(ast_t* method,
+  deferred_reification_t* reify, pass_opt_t* opt)
+{
+  ast_t* params = ast_childidx(method, 3);
+  printbuf_t* buf = printbuf_new();
+  printbuf(buf, "$");
+
+  ast_t* p = ast_child(params);
+  bool first = true;
+
+  while(p != NULL)
+  {
+    ast_t* p_type = ast_childidx(p, 1);
+    ast_t* r_type = (reify != NULL)
+      ? deferred_reify(reify, p_type, opt) : p_type;
+
+    if(!first)
+      printbuf(buf, "$");
+    first = false;
+
+    overload_encode_type(buf, r_type);
+
+    if(reify != NULL)
+      ast_free_unattached(r_type);
+
+    p = ast_sibling(p);
+  }
+
+  const char* result = stringtab(opt->strtab, buf->m);
+  printbuf_free(buf);
+  return result;
+}
+
+const char* overload_name_parse(const char* name, const char** out_suffix,
+  pass_opt_t* opt)
+{
+  const char* dollar = strchr(name, '$');
+
+  if(dollar == NULL)
+  {
+    *out_suffix = NULL;
+    return name;
+  }
+
+  size_t base_len = (size_t)(dollar - name);
+  char* base = (char*)ponyint_pool_alloc_size(base_len + 1);
+  memcpy(base, name, base_len);
+  base[base_len] = '\0';
+  const char* result = stringtab(opt->strtab, base);
+  *out_suffix = stringtab(opt->strtab, dollar);
+  ponyint_pool_free_size(base_len + 1, base);
+  return result;
+}
+
+ast_t* methodgroup_select_by_suffix(ast_t* group, const char* suffix,
+  deferred_reification_t* reify, pass_opt_t* opt)
+{
+  pony_assert(ast_id(group) == TK_METHODGROUP);
+
+  ast_t* child = ast_child(group);
+
+  while(child != NULL)
+  {
+    if(ast_id(ast_childidx(child, 5)) == TK_NONE)
+    {
+      const char* child_suffix = overload_type_suffix(child, reify, opt);
+
+      if(child_suffix == suffix)
+        return child;
+    }
+    child = ast_sibling(child);
+  }
+
+  return NULL;
 }

@@ -110,6 +110,88 @@ static bool has_guard(ast_t* method)
   return ast_id(ast_childidx(method, 5)) != TK_NONE;
 }
 
+static bool type_asts_equal(ast_t* a, ast_t* b)
+{
+  if(a == b)
+    return true;
+
+  if((a == NULL) || (b == NULL))
+    return false;
+
+  if(ast_id(a) != ast_id(b))
+    return false;
+
+  switch(ast_id(a))
+  {
+    case TK_ID:
+    case TK_STRING:
+      return ast_name(a) == ast_name(b);
+
+    default:
+      break;
+  }
+
+  if(ast_childcount(a) != ast_childcount(b))
+    return false;
+
+  ast_t* ca = ast_child(a);
+  ast_t* cb = ast_child(b);
+
+  while(ca != NULL)
+  {
+    if(!type_asts_equal(ca, cb))
+      return false;
+
+    ca = ast_sibling(ca);
+    cb = ast_sibling(cb);
+  }
+
+  return true;
+}
+
+static bool params_same_type(ast_t* a, ast_t* b)
+{
+  ast_t* params_a = ast_childidx(a, 3);
+  ast_t* params_b = ast_childidx(b, 3);
+
+  if(ast_childcount(params_a) != ast_childcount(params_b))
+    return false;
+
+  ast_t* pa = ast_child(params_a);
+  ast_t* pb = ast_child(params_b);
+
+  while(pa != NULL)
+  {
+    if(ast_id(pa) != ast_id(pb))
+      return false;
+
+    if(ast_id(pa) == TK_PARAM)
+    {
+      if(!type_asts_equal(ast_childidx(pa, 1), ast_childidx(pb, 1)))
+        return false;
+    }
+
+    pa = ast_sibling(pa);
+    pb = ast_sibling(pb);
+  }
+
+  return true;
+}
+
+static bool is_type_overload_reserved(pass_opt_t* opt, const char* name)
+{
+  return (name == stringtab(opt->strtab, "_final")) ||
+    (name == stringtab(opt->strtab, "_event_notify")) ||
+    (name == stringtab(opt->strtab, "_init"));
+}
+
+static void detach_member(ast_t* member)
+{
+  ast_t* placeholder = ast_from(member, TK_NONE);
+  ast_swap(member, placeholder);
+  ast_remove(placeholder);
+}
+
 static bool scope_method(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* id = ast_childidx(ast, 1);
@@ -169,27 +251,57 @@ static ast_result_t scope_entity(pass_opt_t* opt, ast_t* ast)
 
           if(!has_guard(member))
           {
-            ast_error(opt->check.errors, member,
-              "duplicate default for overloaded '%s'", name);
+            // Check whether a default with the same parameter types
+            // already exists in the group.
             ast_t* child = ast_child(existing);
+
             while(child != NULL)
             {
-              if(!has_guard(child))
+              if(!has_guard(child) && params_same_type(member, child))
               {
+                ast_error(opt->check.errors, member,
+                  "duplicate default for overloaded '%s'", name);
                 ast_error_continue(opt->check.errors, child,
                   "previous default is here");
-                break;
+                return AST_ERROR;
               }
+
               child = ast_sibling(child);
             }
-            return AST_ERROR;
+
+            // New type overload. Validate constraints.
+            if(is_type_overload_reserved(opt, name))
+            {
+              ast_error(opt->check.errors, member,
+                "cannot type-overload reserved method '%s'; "
+                "compiler requires a single definition", name);
+              return AST_ERROR;
+            }
+
+            if(ast_id(ast_child(member)) == TK_AT)
+            {
+              ast_error(opt->check.errors, member,
+                "cannot overload bare function '%s'; bare functions "
+                "use C calling convention and would produce "
+                "duplicate symbols", name);
+              return AST_ERROR;
+            }
+
+            ast_t* first = ast_child(existing);
+
+            if(ast_id(ast_child(first)) == TK_AT)
+            {
+              ast_error(opt->check.errors, member,
+                "cannot overload bare function '%s'; bare functions "
+                "use C calling convention and would produce "
+                "duplicate symbols", name);
+              ast_error_continue(opt->check.errors, first,
+                "bare function defined here");
+              return AST_ERROR;
+            }
           }
 
-          // Detach member from the members list without freeing it.
-          ast_t* placeholder = ast_from(member, TK_NONE);
-          ast_swap(member, placeholder);
-          ast_remove(placeholder);
-
+          detach_member(member);
           ast_append(existing, member);
         }
         else
@@ -201,58 +313,103 @@ static ast_result_t scope_entity(pass_opt_t* opt, ast_t* ast)
 
           if(!existing_has_guard && !member_has_guard)
           {
-            ast_error(opt->check.errors, member,
-              "can't reuse name '%s'", name);
-            ast_error_continue(opt->check.errors, existing,
-              "previous use of '%s'", name);
-            return AST_ERROR;
-          }
-
-          if(ast_id(member) != ast_id(existing))
-          {
-            ast_error(opt->check.errors, member,
-              "can't mix method kinds in overloaded '%s'", name);
-            ast_error_continue(opt->check.errors, existing,
-              "first definition is here");
-            return AST_ERROR;
-          }
-
-          ast_t* group = ast_from(existing, TK_METHODGROUP);
-
-          if(existing_has_guard)
-          {
-            if(member_has_guard)
+            if(params_same_type(existing, member))
             {
-              ast_free_unattached(group);
               ast_error(opt->check.errors, member,
-                "overloaded '%s' has no default method "
-                "(without a guard)", name);
+                "can't reuse name '%s'", name);
               ast_error_continue(opt->check.errors, existing,
-                "other definition is here");
+                "previous use of '%s'", name);
               return AST_ERROR;
             }
-            // member is the default, existing is a specialization.
-            // Default goes first.
-            ast_t* placeholder = ast_from(member, TK_NONE);
-            ast_swap(member, placeholder);
-            ast_remove(placeholder);
-            ast_append(group, member);
+
+            // Type overload: different parameter types, no guards.
+            if(ast_id(member) != ast_id(existing))
+            {
+              ast_error(opt->check.errors, member,
+                "can't mix method kinds in overloaded '%s'", name);
+              ast_error_continue(opt->check.errors, existing,
+                "first definition is here");
+              return AST_ERROR;
+            }
+
+            if(is_type_overload_reserved(opt, name))
+            {
+              ast_error(opt->check.errors, member,
+                "cannot type-overload reserved method '%s'; "
+                "compiler requires a single definition", name);
+              return AST_ERROR;
+            }
+
+            if((ast_id(ast_child(member)) == TK_AT) ||
+              (ast_id(ast_child(existing)) == TK_AT))
+            {
+              ast_t* bare =
+                (ast_id(ast_child(member)) == TK_AT) ? member : existing;
+              ast_error(opt->check.errors, member,
+                "cannot overload bare function '%s'; bare functions "
+                "use C calling convention and would produce "
+                "duplicate symbols", name);
+
+              if(bare != member)
+                ast_error_continue(opt->check.errors, bare,
+                  "bare function defined here");
+
+              return AST_ERROR;
+            }
+
+            ast_t* group = ast_from(existing, TK_METHODGROUP);
+
+            detach_member(member);
             ast_swap(existing, group);
             ast_append(group, existing);
+            ast_append(group, member);
+
+            symtab_t* symtab = ast_get_symtab(ast);
+            symtab_replace(symtab, name, group);
           }
           else
           {
-            // existing is the default, member is a specialization.
-            ast_t* placeholder = ast_from(member, TK_NONE);
-            ast_swap(member, placeholder);
-            ast_remove(placeholder);
-            ast_swap(existing, group);
-            ast_append(group, existing);
-            ast_append(group, member);
-          }
+            // At least one has a guard: iftype specialization.
+            if(ast_id(member) != ast_id(existing))
+            {
+              ast_error(opt->check.errors, member,
+                "can't mix method kinds in overloaded '%s'", name);
+              ast_error_continue(opt->check.errors, existing,
+                "first definition is here");
+              return AST_ERROR;
+            }
 
-          symtab_t* symtab = ast_get_symtab(ast);
-          symtab_replace(symtab, name, group);
+            ast_t* group = ast_from(existing, TK_METHODGROUP);
+
+            if(existing_has_guard)
+            {
+              if(member_has_guard)
+              {
+                ast_free_unattached(group);
+                ast_error(opt->check.errors, member,
+                  "overloaded '%s' has no default method "
+                  "(without a guard)", name);
+                ast_error_continue(opt->check.errors, existing,
+                  "other definition is here");
+                return AST_ERROR;
+              }
+
+              detach_member(member);
+              ast_append(group, member);
+              ast_swap(existing, group);
+              ast_append(group, existing);
+            }
+            else
+            {
+              detach_member(member);
+              ast_swap(existing, group);
+              ast_append(group, existing);
+              ast_append(group, member);
+            }
+
+            symtab_t* symtab = ast_get_symtab(ast);
+            symtab_replace(symtab, name, group);
+          }
         }
         break;
       }
