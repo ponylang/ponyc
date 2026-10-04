@@ -238,7 +238,7 @@ jobs:
       - name: Configure
         run: |
           $version = (Get-Content .\VERSION)
-          cmake --preset windows-x86-64 -DPONY_INSTALL_SYMLINKS=OFF "-DPONYC_VERSION=$version"
+          cmake --preset windows-x86-64 -DPONY_USE_LTO=ON -DPONY_INSTALL_SYMLINKS=OFF "-DPONYC_VERSION=$version"
       - name: Build
         run: cmake --build --preset windows-x86-64-release
       - name: Install
@@ -290,7 +290,7 @@ jobs:
       - name: Configure
         run: |
           $version = (Get-Content .\VERSION)
-          cmake --preset windows-arm64 -DPONY_INSTALL_SYMLINKS=OFF "-DPONYC_VERSION=$version"
+          cmake --preset windows-arm64 -DPONY_USE_LTO=ON -DPONY_INSTALL_SYMLINKS=OFF "-DPONYC_VERSION=$version"
       - name: Build
         run: cmake --build --preset windows-arm64-release
       - name: Install
