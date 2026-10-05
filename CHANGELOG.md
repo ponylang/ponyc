@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix socket option calls failing with WSAEINVAL on Windows ([PR #6236](https://github.com/ponylang/ponyc/pull/6236))
 - Fix subtype cache doing unnecessary work on every subtype check ([PR #6243](https://github.com/ponylang/ponyc/pull/6243))
 - Speed up the reach pass with method-name pre-filtering ([PR #6247](https://github.com/ponylang/ponyc/pull/6247))
+- Fix compilation failure when LLVM detects a CPU name invalid for the target ([PR #6252](https://github.com/ponylang/ponyc/pull/6252))
 
 ### Added
 
