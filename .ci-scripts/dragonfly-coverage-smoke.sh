@@ -28,9 +28,9 @@ set -eu
 # is not rebuilt. A from-scratch
 # configure is required because the coverage capture and instrumentation flags
 # differ from the plain debug build the job already made.
-rm -rf build/build_debug
-cmake --preset debug -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" -DPONY_USES=coverage
-cmake --build --preset debug
+rm -rf build/build_x86-64-debug
+cmake --preset x86-64-debug -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" -DPONY_USES=coverage
+cmake --build --preset x86-64-debug
 
 # use=coverage sets PONY_OUTPUT_SUFFIX to -coverage, so the build output lands in
 # build/debug-coverage. Derive it rather than hardcoding (the suffix is

@@ -19,12 +19,12 @@ set -eu
 # is not rebuilt. A from-scratch configure is required because the coverage
 # instrumentation flags differ from the plain debug build the job already made.
 # This runs after the sanitizer smoke, which performs the same clean+reconfigure.
-rm -rf build/build_debug
-cmake --preset debug -DPONY_USES=coverage
+rm -rf build/build_x86-64-debug
+cmake --preset x86-64-debug -DPONY_USES=coverage
 # The `cmake --build` below is itself the first assertion: it compiles the
 # instrumented ponyc and links the self-hosted tools (pony-lsp/pony-lint/
 # pony-doc). A coverage build that can't link them fails here, at build time.
-cmake --build --preset debug
+cmake --build --preset x86-64-debug
 
 # use=coverage sets PONY_OUTPUT_SUFFIX to -coverage, so the build output lands in
 # build/debug-coverage. Derive it rather than hardcoding (the suffix is

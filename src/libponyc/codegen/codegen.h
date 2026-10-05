@@ -242,6 +242,8 @@ void codegen_pass_cleanup(pass_opt_t* opt);
 
 LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt);
 
+bool codegen_host_cpu_is_valid(const char* triple, const char* cpu);
+
 bool codegen(ast_t* program, pass_opt_t* opt);
 
 bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,

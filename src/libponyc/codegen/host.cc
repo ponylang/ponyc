@@ -8,9 +8,11 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Linker/Linker.h>
+#include <llvm/MC/MCSubtargetInfo.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Target/TargetOptions.h>
+#include <llvm/TargetParser/X86TargetParser.h>
 
 #include "llvm_config_end.h"
 
@@ -43,6 +45,29 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt)
     opt->features, options, reloc, std::nullopt, opt_level, false);
 
   return reinterpret_cast<LLVMTargetMachineRef>(m);
+}
+
+bool codegen_host_cpu_is_valid(const char* triple_str, const char* cpu)
+{
+  Triple triple(triple_str);
+
+  if(triple.getArch() == Triple::x86_64)
+    return X86::parseArchX86(cpu, true) != X86::CK_None;
+
+  if(triple.getArch() == Triple::x86)
+    return X86::parseArchX86(cpu, false) != X86::CK_None;
+
+  std::string error;
+  const Target* t = TargetRegistry::lookupTarget(triple, error);
+  if(t == nullptr)
+    return false;
+
+  std::unique_ptr<MCSubtargetInfo> sti(
+    t->createMCSubtargetInfo(triple, cpu, ""));
+  if(sti == nullptr)
+    return false;
+
+  return sti->isCPUStringValid(cpu);
 }
 
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst)
