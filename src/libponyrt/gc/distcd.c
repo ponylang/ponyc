@@ -9,33 +9,6 @@
 
 PONY_EXTERN_C_BEGIN
 
-static uint64_t fnv1a_init()
-{
-  return 14695981039346656037ULL;
-}
-
-static uint64_t fnv1a_update(uint64_t hash, const void* data, size_t len)
-{
-  const uint8_t* bytes = (const uint8_t*)data;
-  for(size_t i = 0; i < len; i++)
-  {
-    hash ^= bytes[i];
-    hash *= 1099511628211ULL;
-  }
-  return hash;
-}
-
-static uint64_t chain_hash(trace_entry_t* entries, size_t count)
-{
-  uint64_t h = fnv1a_init();
-  for(size_t i = 0; i < count; i++)
-  {
-    h = fnv1a_update(h, &entries[i].actor, sizeof(pony_actor_t*));
-    h = fnv1a_update(h, &entries[i].epoch, sizeof(uint32_t));
-  }
-  return h;
-}
-
 static int ptr_cmp(const void* a, const void* b)
 {
   pony_actor_t* pa = *(pony_actor_t**)a;
@@ -160,7 +133,7 @@ static void invalidate_component_cache(distcd_t* distcd)
 }
 
 static bool dedup_check_and_add(distcd_t* distcd, pony_actor_t* target,
-  uint64_t hash)
+  pony_actor_t* originator, uint32_t orig_epoch)
 {
   dedup_conn_t* conn = distcd->trace_dedup;
   while(conn != NULL)
@@ -170,13 +143,14 @@ static bool dedup_check_and_add(distcd_t* distcd, pony_actor_t* target,
       dedup_chain_t* chain = conn->chains;
       while(chain != NULL)
       {
-        if(chain->hash == hash)
+        if(chain->originator == originator && chain->epoch == orig_epoch)
           return true;
         chain = chain->next;
       }
       dedup_chain_t* new_chain = (dedup_chain_t*)ponyint_pool_alloc_size(
         sizeof(dedup_chain_t));
-      new_chain->hash = hash;
+      new_chain->originator = originator;
+      new_chain->epoch = orig_epoch;
       new_chain->next = conn->chains;
       conn->chains = new_chain;
       return false;
@@ -189,7 +163,8 @@ static bool dedup_check_and_add(distcd_t* distcd, pony_actor_t* target,
   new_conn->target = target;
   dedup_chain_t* new_chain = (dedup_chain_t*)ponyint_pool_alloc_size(
     sizeof(dedup_chain_t));
-  new_chain->hash = hash;
+  new_chain->originator = originator;
+  new_chain->epoch = orig_epoch;
   new_chain->next = NULL;
   new_conn->chains = new_chain;
   new_conn->next = distcd->trace_dedup;
@@ -653,6 +628,7 @@ void ponyint_distcd_connection_lost(pony_actor_t* actor, pony_actor_t* target)
     return;
 
   distcd->epoch++;
+  distcd->retrace_needed = true;
 
   dedup_conn_t** dedup_prev = &distcd->trace_dedup;
   dedup_conn_t* dedup_cur = distcd->trace_dedup;
@@ -755,6 +731,22 @@ void ponyint_distcd_on_block(pony_ctx_t* ctx, pony_actor_t* actor)
     distcd->gossip_pending = false;
     send_gossip(ctx, actor);
   }
+
+  if(distcd->retrace_needed)
+  {
+    distcd->retrace_needed = false;
+    gc_t* gc = ponyint_actor_gc(actor);
+    trace_entry_t entry;
+    entry.actor = actor;
+    entry.epoch = distcd->epoch;
+    size_t idx = HASHMAP_BEGIN;
+    actorref_t* aref;
+    while((aref = ponyint_actormap_next(&gc->foreign, &idx)) != NULL)
+    {
+      aref->traced = true;
+      send_trace_route(ctx, aref->actor, &entry, 1);
+    }
+  }
 }
 
 void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
@@ -830,13 +822,14 @@ void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
   augmented[m->count].actor = actor;
   augmented[m->count].epoch = distcd->epoch;
 
-  uint64_t aug_hash = chain_hash(augmented, new_count);
+  pony_actor_t* originator = m->entries[0].actor;
+  uint32_t orig_epoch = m->entries[0].epoch;
 
   size_t idx = HASHMAP_BEGIN;
   actorref_t* aref;
   while((aref = ponyint_actormap_next(&gc->foreign, &idx)) != NULL)
   {
-    if(!dedup_check_and_add(distcd, aref->actor, aug_hash))
+    if(!dedup_check_and_add(distcd, aref->actor, originator, orig_epoch))
     {
       send_trace_route(ctx, aref->actor, augmented, new_count);
     }

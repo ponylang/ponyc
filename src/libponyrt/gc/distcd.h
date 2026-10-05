@@ -32,7 +32,8 @@ typedef enum distcd_conf_state_t
 
 typedef struct dedup_chain_t
 {
-  uint64_t hash;
+  pony_actor_t* originator;
+  uint32_t epoch;
   struct dedup_chain_t* next;
 } dedup_chain_t;
 
@@ -54,6 +55,7 @@ typedef struct distcd_t
   uint32_t epoch;
   bool released;
   bool gossip_pending;
+  bool retrace_needed;
   uint32_t cycles_generation;
   uint32_t cached_generation;
   pony_actor_t** cached_comp_members;
@@ -108,7 +110,8 @@ void ponyint_distcd_connection_lost(pony_actor_t* actor, pony_actor_t* target);
 bool ponyint_distcd_on_acquire(pony_ctx_t* ctx, pony_actor_t* actor,
   pony_actor_t* target);
 
-// On block, flush pending gossip.
+// On block, flush pending gossip and re-trace surviving edges after
+// topology changes.
 void ponyint_distcd_on_block(pony_ctx_t* ctx, pony_actor_t* actor);
 
 // Process a TRACE_ROUTE. Frees m->entries.
