@@ -523,9 +523,15 @@ static void send_gossip(pony_ctx_t* ctx, pony_actor_t* actor)
     cur = cur->next;
   }
 
+  gc_t* gc = ponyint_actor_gc(actor);
+
   for(size_t i = 0; i < comp_count; i++)
   {
     if(comp_members[i] == actor)
+      continue;
+
+    size_t index = HASHMAP_UNKNOWN;
+    if(ponyint_actormap_getactor(&gc->foreign, comp_members[i], &index) == NULL)
       continue;
 
     inform_cycles_msg_t* m = (inform_cycles_msg_t*)pony_alloc_msg(
@@ -562,15 +568,7 @@ static void send_gossip(pony_ctx_t* ctx, pony_actor_t* actor)
       cur = cur->next;
     }
 
-    if(ponyint_actor_pendingdestroy(comp_members[i]))
-    {
-      ponyint_pool_free_size(m->num_cycles * sizeof(size_t), m->cycle_sizes);
-      ponyint_pool_free_size(m->total_members * sizeof(pony_actor_t*),
-        m->cycle_members);
-      ponyint_pool_free(m->msg.index, m);
-    } else {
-      pony_sendv(ctx, comp_members[i], &m->msg, &m->msg, false);
-    }
+    pony_sendv(ctx, comp_members[i], &m->msg, &m->msg, false);
   }
 
   ponyint_pool_free_size(comp_count * sizeof(pony_actor_t*), comp_members);
