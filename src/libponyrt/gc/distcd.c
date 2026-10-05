@@ -826,13 +826,12 @@ void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
   uint32_t orig_epoch = m->entries[0].epoch;
 
   size_t idx = HASHMAP_BEGIN;
-  actorref_t* aref;
-  while((aref = ponyint_actormap_next(&gc->foreign, &idx)) != NULL)
+  actorref_t* aref = ponyint_actormap_next(&gc->foreign, &idx);
+  pony_assert(aref != NULL);
+
+  if(!dedup_check_and_add(distcd, aref->actor, originator, orig_epoch))
   {
-    if(!dedup_check_and_add(distcd, aref->actor, originator, orig_epoch))
-    {
-      send_trace_route(ctx, aref->actor, augmented, new_count);
-    }
+    send_trace_route(ctx, aref->actor, augmented, new_count);
   }
 
   ponyint_pool_free_size(new_count * sizeof(trace_entry_t), augmented);
