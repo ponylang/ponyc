@@ -483,9 +483,52 @@ static void send_confirm_msg(pony_ctx_t* ctx, pony_actor_t* to,
   pony_sendv(ctx, to, &m->msg, &m->msg, false);
 }
 
+static void prune_unreachable_cycles(pony_actor_t* actor, distcd_t* distcd)
+{
+  gc_t* gc = ponyint_actor_gc(actor);
+  cycle_record_t** prev = &distcd->known_cycles;
+  cycle_record_t* cur = distcd->known_cycles;
+  bool pruned = false;
+
+  while(cur != NULL)
+  {
+    bool has_reachable = false;
+    for(size_t i = 0; i < cur->count; i++)
+    {
+      if(cur->members[i] == actor)
+        continue;
+      size_t index = HASHMAP_UNKNOWN;
+      if(ponyint_actormap_getactor(&gc->foreign, cur->members[i], &index)
+        != NULL)
+      {
+        has_reachable = true;
+        break;
+      }
+    }
+
+    if(!has_reachable)
+    {
+      *prev = cur->next;
+      cycle_record_free(cur);
+      cur = *prev;
+      pruned = true;
+    } else {
+      prev = &cur->next;
+      cur = cur->next;
+    }
+  }
+
+  if(pruned)
+    distcd->cycles_generation++;
+}
+
 static void send_gossip(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   distcd_t* distcd = actor->distcd;
+  if(distcd->known_cycles == NULL)
+    return;
+
+  prune_unreachable_cycles(actor, distcd);
   if(distcd->known_cycles == NULL)
     return;
 
@@ -820,8 +863,26 @@ void ponyint_distcd_handle_inform_cycles(pony_ctx_t* ctx,
   for(size_t i = 0; i < m->num_cycles; i++)
   {
     size_t sz = m->cycle_sizes[i];
-    if(add_cycle_if_new(distcd, &m->cycle_members[offset], sz))
-      changed = true;
+
+    // Gossip members are sorted, so we can break early when we pass
+    // this actor's address.
+    bool contains_self = false;
+    for(size_t j = 0; j < sz; j++)
+    {
+      if(m->cycle_members[offset + j] == actor)
+      {
+        contains_self = true;
+        break;
+      }
+      if(m->cycle_members[offset + j] > actor)
+        break;
+    }
+
+    if(contains_self)
+    {
+      if(add_cycle_if_new(distcd, &m->cycle_members[offset], sz))
+        changed = true;
+    }
     offset += sz;
   }
 
@@ -1116,6 +1177,8 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
     distcd->conf_state = DISTCD_CONF_LEADER_WAITING;
     return;
   }
+
+  prune_unreachable_cycles(actor, distcd);
 
   // If we're naturally the leader of a component, try to confirm
   if(distcd->conf_state != DISTCD_CONF_NONE || distcd->known_cycles == NULL)
