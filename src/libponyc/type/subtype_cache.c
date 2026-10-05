@@ -373,6 +373,27 @@ void subtype_cache_clear(void)
 }
 
 
+void subtype_cache_done(void)
+{
+  min_match_idx = INT_MAX;
+  subtree_poisoned = false;
+
+  if(cache_initialized)
+  {
+    subtype_cache_map_destroy(&cache);
+    cache_initialized = false;
+  }
+
+  if(fp_scratch != NULL)
+  {
+    ponyint_pool_free_size(fp_scratch_cap, fp_scratch);
+    fp_scratch = NULL;
+    fp_scratch_cap = 0;
+    fp_scratch_len = 0;
+  }
+}
+
+
 bool subtype_cache_lookup(ast_t* sub, ast_t* super, uint8_t check_cap,
   subtype_cache_value_t* out)
 {

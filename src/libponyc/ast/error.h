@@ -134,6 +134,11 @@ void errorframe_report(errorframe_t* frame, errors_t* errors);
 /// The frame is left empty.
 void errorframe_discard(errorframe_t* frame);
 
+/// Move all errors from src into dst (appended to dst's tail).
+/// After this call, src is empty. The errors themselves are not copied;
+/// ownership transfers to dst.
+void errors_append(errors_t* dst, errors_t* src);
+
 PONY_EXTERN_C_END
 
 #endif

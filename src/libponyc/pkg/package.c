@@ -1697,6 +1697,162 @@ void package_group_dump(package_group_t* group)
 }
 
 
+package_layers_t* package_compute_layers(ast_t* program)
+{
+  pony_assert(ast_id(program) == TK_PROGRAM);
+  ast_t* first_package = ast_child(program);
+
+  if(first_package == NULL)
+    return NULL;
+
+  package_group_list_t* groups = package_dependency_groups(first_package);
+
+  if(groups == NULL)
+    return NULL;
+
+  // Count the groups and build an indexable array.
+  size_t group_count = 0;
+  package_group_list_t* g = groups;
+
+  while(g != NULL)
+  {
+    group_count++;
+    g = package_group_list_next(g);
+  }
+
+  package_group_t** group_array =
+    (package_group_t**)ponyint_pool_alloc_size(
+      group_count * sizeof(package_group_t*));
+  size_t* group_layer =
+    (size_t*)ponyint_pool_alloc_size(group_count * sizeof(size_t));
+
+  g = groups;
+
+  for(size_t i = 0; i < group_count; i++)
+  {
+    group_array[i] = package_group_list_data(g);
+    group_layer[i] = 0;
+    g = package_group_list_next(g);
+  }
+
+  // Compute layer for each group: 1 + max layer of dependency groups.
+  // Groups are in topological order, so all dependencies have lower indices.
+  size_t num_layers = 0;
+
+  for(size_t i = 0; i < group_count; i++)
+  {
+    package_group_t* group = group_array[i];
+    size_t max_dep_layer = 0;
+    bool has_dep = false;
+
+    size_t mi = HASHMAP_BEGIN;
+    package_t* member;
+
+    while((member = package_set_next(&group->members, &mi)) != NULL)
+    {
+      size_t di = HASHMAP_BEGIN;
+      package_t* dep;
+
+      while((dep = package_set_next(&member->dependencies, &di)) != NULL)
+      {
+        if(dep->group == group)
+          continue;
+
+        // Find this dep's group index.
+        for(size_t j = 0; j < i; j++)
+        {
+          if(group_array[j] == dep->group)
+          {
+            has_dep = true;
+
+            if(group_layer[j] + 1 > max_dep_layer)
+              max_dep_layer = group_layer[j] + 1;
+
+            break;
+          }
+        }
+      }
+    }
+
+    group_layer[i] = has_dep ? max_dep_layer : 0;
+
+    if(group_layer[i] >= num_layers)
+      num_layers = group_layer[i] + 1;
+  }
+
+  // Build the result. First, count packages per layer.
+  size_t* layer_counts =
+    (size_t*)ponyint_pool_alloc_size(num_layers * sizeof(size_t));
+  memset(layer_counts, 0, num_layers * sizeof(size_t));
+
+  for(size_t i = 0; i < group_count; i++)
+  {
+    size_t mi = HASHMAP_BEGIN;
+    package_t* member;
+
+    while((member = package_set_next(&group_array[i]->members, &mi)) != NULL)
+    {
+      (void)member;
+      layer_counts[group_layer[i]]++;
+    }
+  }
+
+  package_layers_t* result = POOL_ALLOC(package_layers_t);
+  result->count = num_layers;
+  result->layers = (package_layer_t*)ponyint_pool_alloc_size(
+    num_layers * sizeof(package_layer_t));
+
+  for(size_t i = 0; i < num_layers; i++)
+  {
+    result->layers[i].count = 0;
+
+    if(layer_counts[i] > 0)
+      result->layers[i].packages = (ast_t**)ponyint_pool_alloc_size(
+        layer_counts[i] * sizeof(ast_t*));
+    else
+      result->layers[i].packages = NULL;
+  }
+
+  for(size_t i = 0; i < group_count; i++)
+  {
+    size_t layer = group_layer[i];
+    size_t mi = HASHMAP_BEGIN;
+    package_t* member;
+
+    while((member = package_set_next(&group_array[i]->members, &mi)) != NULL)
+    {
+      package_layer_t* l = &result->layers[layer];
+      l->packages[l->count] = member->ast;
+      l->count++;
+    }
+  }
+
+  ponyint_pool_free_size(num_layers * sizeof(size_t), layer_counts);
+  ponyint_pool_free_size(group_count * sizeof(size_t), group_layer);
+  ponyint_pool_free_size(group_count * sizeof(package_group_t*), group_array);
+  package_group_list_free(groups);
+
+  return result;
+}
+
+
+void package_layers_free(package_layers_t* pl)
+{
+  if(pl == NULL)
+    return;
+
+  for(size_t i = 0; i < pl->count; i++)
+  {
+    if(pl->layers[i].packages != NULL)
+      ponyint_pool_free_size(
+        pl->layers[i].count * sizeof(ast_t*), pl->layers[i].packages);
+  }
+
+  ponyint_pool_free_size(pl->count * sizeof(package_layer_t), pl->layers);
+  POOL_FREE(package_layers_t, pl);
+}
+
+
 void package_done(pass_opt_t* opt)
 {
   strlist_free(opt->package_search_paths);

@@ -79,6 +79,11 @@ typedef struct
  */
 void subtype_cache_clear(void);
 
+/// Release all TLS resources owned by the subtype cache on this thread.
+/// Call from spawned threads before exit to avoid leaking the cache map
+/// and scratch buffer.
+void subtype_cache_done(void);
+
 /**
  * Look up a cached result for (sub, super, check_cap).
  *

@@ -227,6 +227,28 @@ package_group_list_t* package_dependency_groups(ast_t* first_package);
 void package_group_dump(package_group_t* group);
 
 /**
+ * Topological layers for parallel pass dispatch. Packages within a layer
+ * have all their dependencies satisfied by earlier layers and can be
+ * processed concurrently. Each layer owns its package-pointer array;
+ * free the whole structure with package_layers_free.
+ */
+typedef struct package_layer_t
+{
+  ast_t** packages;
+  size_t count;
+} package_layer_t;
+
+typedef struct package_layers_t
+{
+  package_layer_t* layers;
+  size_t count;
+} package_layers_t;
+
+package_layers_t* package_compute_layers(ast_t* program);
+
+void package_layers_free(package_layers_t* pl);
+
+/**
  * Cleans up the list of search directories.
  */
 void package_done(pass_opt_t* opt);

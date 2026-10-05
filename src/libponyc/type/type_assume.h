@@ -212,6 +212,10 @@ size_t type_assume_depth(type_assume_op_t op);
 size_t type_assume_same_def_count(type_assume_op_t op, void* a_data,
   void* b_data);
 
+/// Release all TLS resources owned by the type-assume stacks on this thread.
+/// Call from spawned threads before exit to avoid leaking the stack buffers.
+void type_assume_done(void);
+
 PONY_EXTERN_C_END
 
 #endif

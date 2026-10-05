@@ -33,6 +33,18 @@ const char* stringtab_len(strtable_t* table, const char* string, size_t len);
 const char* stringtab_consume(strtable_t* table, const char* string,
   size_t buf_size);
 
+// Set a read-only fallback table for the current thread. When set, all
+// stringtab lookup functions check the fallback table first (read-only)
+// before inserting into the table passed as the first argument.
+void stringtab_set_fallback(strtable_t* fallback);
+void stringtab_clear_fallback(void);
+
+// Merge all entries from src into dst. Non-conflicting entries are moved
+// (pointer preserved); conflicting entries keep their string buffer alive
+// because AST nodes may still hold the pointer. After this call, use
+// stringtab_free(src) to clean up the hashmap structure.
+void stringtab_merge(strtable_t* dst, strtable_t* src);
+
 PONY_EXTERN_C_END
 
 #endif

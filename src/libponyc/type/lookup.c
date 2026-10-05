@@ -228,6 +228,10 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
           {
             AST_GET_CHILDREN(param, name, type, def_arg);
 
+            // Coupled to pass/parallel.c:typecheck_method_defaults, which
+            // mirrors this block and runs it eagerly before the parallel expr
+            // pass. If this guard or the typecheck logic changes, that
+            // pre-pass must match, or threads will write to dependency ASTs.
             if((ast_id(def_arg) != TK_NONE) && (ast_type(def_arg) == NULL))
             {
               ast_t* child = ast_child(def_arg);

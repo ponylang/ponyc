@@ -7,6 +7,11 @@
 
 #include <platform.h>
 
+// Thread-local fallback table for parallel string interning.
+// When non-NULL, lookup functions check this table (read-only) before
+// inserting into the table passed as the first argument.
+static __pony_thread_local strtable_t* strtab_fallback = NULL;
+
 static bool ptr_cmp(const char* a, const char* b)
 {
   return a == b;
@@ -70,6 +75,18 @@ const char* stringtab_len(strtable_t* table, const char* string, size_t len)
     return NULL;
 
   stringtab_entry_t key = {string, len, 0};
+
+  strtable_t* fb = strtab_fallback;
+
+  if(fb != NULL)
+  {
+    size_t fb_index = HASHMAP_UNKNOWN;
+    stringtab_entry_t* found = strtable_get(fb, &key, &fb_index);
+
+    if(found != NULL)
+      return found->str;
+  }
+
   size_t index = HASHMAP_UNKNOWN;
   stringtab_entry_t* n = strtable_get(table, &key, &index);
 
@@ -99,6 +116,21 @@ const char* stringtab_consume(strtable_t* table, const char* string,
 
   size_t len = strlen(string);
   stringtab_entry_t key = {string, len, 0};
+
+  strtable_t* fb = strtab_fallback;
+
+  if(fb != NULL)
+  {
+    size_t fb_index = HASHMAP_UNKNOWN;
+    stringtab_entry_t* found = strtable_get(fb, &key, &fb_index);
+
+    if(found != NULL)
+    {
+      ponyint_pool_free_size(buf_size, (void*)string);
+      return found->str;
+    }
+  }
+
   size_t index = HASHMAP_UNKNOWN;
   stringtab_entry_t* n = strtable_get(table, &key, &index);
 
@@ -117,4 +149,53 @@ const char* stringtab_consume(strtable_t* table, const char* string,
   // new one without another search
   strtable_putindex(table, n, index);
   return n->str;
+}
+
+
+void stringtab_set_fallback(strtable_t* fallback)
+{
+  strtab_fallback = fallback;
+}
+
+void stringtab_clear_fallback(void)
+{
+  strtab_fallback = NULL;
+}
+
+
+void stringtab_merge(strtable_t* dst, strtable_t* src)
+{
+  size_t i = HASHMAP_BEGIN;
+  stringtab_entry_t* entry;
+
+  while((entry = strtable_next(src, &i)) != NULL)
+  {
+    size_t dst_index = HASHMAP_UNKNOWN;
+    stringtab_entry_t* existing = strtable_get(dst, entry, &dst_index);
+
+    if(existing != NULL)
+    {
+      // Duplicate: string already in dst. AST nodes in the thread's
+      // package may hold this pointer, so keep it alive. Replace the
+      // src entry with a dummy so stringtab_free(src) doesn't free it.
+      entry->str = (const char*)ponyint_pool_alloc_size(1);
+      entry->buf_size = 1;
+      ((char*)entry->str)[0] = '\0';
+      continue;
+    }
+
+    // Non-duplicate: move to dst. Replace src's pointer with a dummy
+    // so stringtab_free(src) frees only the dummy, not the string
+    // AST nodes hold.
+    stringtab_entry_t* moved = POOL_ALLOC(stringtab_entry_t);
+    moved->str = entry->str;
+    moved->len = entry->len;
+    moved->buf_size = entry->buf_size;
+
+    strtable_putindex(dst, moved, dst_index);
+
+    entry->str = (const char*)ponyint_pool_alloc_size(1);
+    entry->buf_size = 1;
+    ((char*)entry->str)[0] = '\0';
+  }
 }

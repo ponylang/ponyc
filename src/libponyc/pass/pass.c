@@ -12,6 +12,7 @@
 #include "completeness.h"
 #include "verify.h"
 #include "finalisers.h"
+#include "parallel.h"
 #include "timing.h"
 #include "../ast/ast.h"
 #include "../ast/parser.h"
@@ -305,8 +306,32 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_REFER);
 
-  if(!visit_pass(astp, options, last, &r, PASS_EXPR, pass_pre_expr, pass_expr))
-    return r;
+  if(is_program && check_limit(astp, options, PASS_EXPR, last))
+  {
+    parallel_result_t pr = parallel_expr(astp, options);
+
+    switch(pr)
+    {
+      case PARALLEL_OK:
+        break;
+
+      case PARALLEL_ERROR:
+      case PARALLEL_FATAL:
+        return false;
+
+      case PARALLEL_FALLBACK:
+        if(!visit_pass(astp, options, last, &r, PASS_EXPR, pass_pre_expr,
+          pass_expr))
+          return r;
+        break;
+    }
+  }
+  else
+  {
+    if(!visit_pass(astp, options, last, &r, PASS_EXPR, pass_pre_expr,
+      pass_expr))
+      return r;
+  }
 
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_EXPR);

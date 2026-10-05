@@ -232,6 +232,24 @@ size_t type_assume_depth(type_assume_op_t op)
 }
 
 
+void type_assume_done(void)
+{
+  for(size_t i = 0; i < TYPE_ASSUME_OP_COUNT; i++)
+  {
+    assume_stack_t* stack = &assume_stacks[i];
+
+    if(stack->entries != NULL)
+    {
+      ponyint_pool_free_size(stack->cap * sizeof(assume_entry_t),
+        stack->entries);
+      stack->entries = NULL;
+      stack->len = 0;
+      stack->cap = 0;
+    }
+  }
+}
+
+
 size_t type_assume_same_def_count(type_assume_op_t op, void* a_data,
   void* b_data)
 {

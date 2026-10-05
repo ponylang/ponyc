@@ -62,6 +62,7 @@ add_library(libponyc STATIC
     pass/flatten.c
     pass/import.c
     pass/names.c
+    pass/parallel.c
     pass/pass.c
     pass/refer.c
     pass/scope.c

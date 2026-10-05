@@ -423,3 +423,24 @@ void errorframe_discard(errorframe_t* frame)
   error_free(*frame);
   *frame = NULL;
 }
+
+void errors_append(errors_t* dst, errors_t* src)
+{
+  if(src->head == NULL)
+    return;
+
+  if(dst->head == NULL)
+  {
+    dst->head = src->head;
+    dst->tail = src->tail;
+  } else {
+    dst->tail->next = src->head;
+    dst->tail = src->tail;
+  }
+
+  dst->count += src->count;
+
+  src->head = NULL;
+  src->tail = NULL;
+  src->count = 0;
+}
