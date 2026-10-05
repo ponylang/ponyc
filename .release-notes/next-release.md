@@ -281,3 +281,7 @@ The compiler's subtype cache bounds the cost of deeply recursive type alias netw
 
 The compiler's reach pass checks every concrete type against every interface to find subtype relationships. Most of these checks are obviously false — a `U8` doesn't implement `Iterator` — but each one entered the full subtype machinery before failing. The reach pass now checks whether the concrete type has all the interface's method names before running the full structural comparison, rejecting most non-matching pairs with a single hash lookup instead of a full signature analysis. On the stdlib debug build, the reach pass is about 10% faster.
 
+## Fix compilation failure when LLVM detects a CPU name invalid for the target
+
+When running ponyc under QEMU with `-cpu host`, the emulated CPUID could map to a CPU name that only exists for a narrower target — for example, `athlon-xp` (32-bit only) on an x86-64 host — causing compilation to fail. ponyc now validates the detected CPU name against the compile target and falls back to the target's baseline when it is not recognized.
+
