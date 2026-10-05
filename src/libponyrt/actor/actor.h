@@ -14,7 +14,16 @@
 
 PONY_EXTERN_C_BEGIN
 
-#define ACTORMSG_APPLICATION_START (UINT32_MAX - 9)
+#define ACTORMSG_APPLICATION_START (UINT32_MAX - 16)
+
+#define ACTORMSG_TRACE_ROUTE_DCD     (UINT32_MAX - 15)
+#define ACTORMSG_INFORM_CYCLES_DCD   (UINT32_MAX - 14)
+#define ACTORMSG_CONFIRM_BLOCKED_DCD (UINT32_MAX - 13)
+#define ACTORMSG_CONFIRMED_DCD       (UINT32_MAX - 12)
+#define ACTORMSG_DENIED_DCD          (UINT32_MAX - 11)
+#define ACTORMSG_DELEGATE_DCD        (UINT32_MAX - 10)
+#define ACTORMSG_RELEASE_DCD         (UINT32_MAX - 9)
+
 #define ACTORMSG_CHECKBLOCKED (UINT32_MAX - 8)
 #define ACTORMSG_ISBLOCKED (UINT32_MAX - 7)
 #define ACTORMSG_BLOCK (UINT32_MAX - 6)
@@ -100,6 +109,7 @@ typedef struct pony_actor_t
   uint64_t systematic_testing_id;
 #endif
   gc_t gc; // 48/88 bytes
+  struct distcd_t* distcd;
   // if you add more members here, you need to update the PONY_ACTOR_PAD_SIZE
   // calculation below and the pony_static_assert at the top of actor.c, to
   // reference the final member, its offset, and size
@@ -110,7 +120,7 @@ typedef struct pony_actor_t
  * Size of pony_actor_t minus the padding at the end and the pony_type_t* at the beginning.
  *
  */
-#define PONY_ACTOR_PAD_SIZE (offsetof(pony_actor_t, gc) + sizeof(gc_t) - sizeof(pony_type_t*))
+#define PONY_ACTOR_PAD_SIZE (offsetof(pony_actor_t, distcd) + sizeof(struct distcd_t*) - sizeof(pony_type_t*))
 
 typedef struct pony_actor_pad_t
 {
@@ -199,6 +209,10 @@ void ponyint_actor_setsystem(pony_actor_t* actor);
 void ponyint_actor_setnoblock(bool state);
 
 bool ponyint_actor_getnoblock();
+
+void ponyint_actor_setdistributedcd(bool state);
+
+bool ponyint_actor_getdistributedcd();
 
 PONY_API void pony_apply_backpressure();
 

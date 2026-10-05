@@ -1,4 +1,5 @@
 #include "gc.h"
+#include "distcd.h"
 #include "../actor/actor.h"
 #include "../sched/scheduler.h"
 #include "../mem/pagemap.h"
@@ -14,6 +15,16 @@
 #define GC_IMMUT_HEAP_EQUIV 1024
 
 DEFINE_STACK(ponyint_gcstack, gcstack_t, void);
+
+static void distcd_check_acquire(pony_ctx_t* ctx, pony_actor_t* owner,
+  actorref_t* aref)
+{
+  if(!aref->traced && ponyint_actor_getdistributedcd())
+  {
+    if(ponyint_distcd_on_acquire(ctx, owner, aref->actor))
+      aref->traced = true;
+  }
+}
 
 static bool might_reference_actor(pony_type_t* t)
 {
@@ -83,8 +94,7 @@ static void send_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
     aref->rc--;
   }
 
-  // only update if cycle detector is enabled
-  if(!ponyint_actor_getnoblock())
+  if(!ponyint_actor_getnoblock() && !ponyint_actor_getdistributedcd())
     gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
 }
 
@@ -102,8 +112,7 @@ static void recv_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
   aref->mark = gc->mark;
   aref->rc++;
 
-  // only update if cycle detector is enabled
-  if(!ponyint_actor_getnoblock())
+  if(!ponyint_actor_getnoblock() && !ponyint_actor_getdistributedcd())
     gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
 }
 
@@ -123,8 +132,7 @@ static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
     aref->rc += GC_INC_MORE;
     acquire_actor(ctx, aref->actor);
 
-    // only update if cycle detector is enabled
-    if(!ponyint_actor_getnoblock())
+    if(!ponyint_actor_getnoblock() && !ponyint_actor_getdistributedcd())
       gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
   }
 }
@@ -204,6 +212,7 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
+  distcd_check_acquire(ctx, ctx->current, aref);
 #ifdef USE_RUNTIMESTATS
   size_t mem_used_before = ponyint_objectmap_total_mem_size(&aref->map);
   size_t mem_allocated_before = ponyint_objectmap_total_alloc_size(&aref->map);
@@ -284,6 +293,7 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
+  distcd_check_acquire(ctx, ctx->current, aref);
 #ifdef USE_RUNTIMESTATS
   size_t mem_used_before = ponyint_objectmap_total_mem_size(&aref->map);
   size_t mem_allocated_before = ponyint_objectmap_total_alloc_size(&aref->map);
@@ -352,6 +362,7 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
+  distcd_check_acquire(ctx, ctx->current, aref);
 #ifdef USE_RUNTIMESTATS
   size_t mem_used_before = ponyint_objectmap_total_mem_size(&aref->map);
   size_t mem_allocated_before = ponyint_objectmap_total_alloc_size(&aref->map);
@@ -488,6 +499,7 @@ void ponyint_gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor)
   } else {
     actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor,
       gc->mark);
+    distcd_check_acquire(ctx, ctx->current, aref);
     send_remote_actor(ctx, gc, aref);
   }
 }
@@ -502,6 +514,7 @@ void ponyint_gc_recvactor(pony_ctx_t* ctx, pony_actor_t* actor)
   } else {
     actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor,
       gc->mark);
+    distcd_check_acquire(ctx, ctx->current, aref);
     recv_remote_actor(ctx, gc, aref);
   }
 }
@@ -513,17 +526,19 @@ void ponyint_gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor)
 
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
+  distcd_check_acquire(ctx, ctx->current, aref);
   mark_remote_actor(ctx, gc, aref);
 }
 
-void ponyint_gc_createactor(pony_actor_t* current, pony_actor_t* actor)
+void ponyint_gc_createactor(pony_ctx_t* ctx, pony_actor_t* current,
+  pony_actor_t* actor)
 {
   gc_t* gc = ponyint_actor_gc(current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
+  distcd_check_acquire(ctx, current, aref);
   aref->rc = GC_INC_MORE;
 
-  // only update if cycle detector is enabled
-  if(!ponyint_actor_getnoblock())
+  if(!ponyint_actor_getnoblock() && !ponyint_actor_getdistributedcd())
     gc->delta = ponyint_deltamap_update(gc->delta, actor, aref->rc);
 
   // Increase apparent used memory to provoke GC.
@@ -586,12 +601,13 @@ void ponyint_gc_sweep(pony_ctx_t* ctx, gc_t* gc)
 
   TRACING_ACTOR_GC_ACTORMAP_SWEEP_START(ctx->current);
 
+  bool skip_delta = ponyint_actor_getnoblock() || ponyint_actor_getdistributedcd();
   gc->delta = ponyint_actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta,
 #ifdef USE_RUNTIMESTATS
-    ponyint_actor_getnoblock(), &objectmap_mem_used_freed,
+    skip_delta, &objectmap_mem_used_freed,
     &objectmap_mem_allocated_freed);
 #else
-    ponyint_actor_getnoblock());
+    skip_delta);
 #endif
 
 #ifdef USE_RUNTIMESTATS
@@ -759,12 +775,19 @@ void ponyint_gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
   size_t objectmap_mem_allocated_freed = 0;
 #endif
 
+  // DCD mode: every foreign entry must release its full rc during cycle
+  // destruction. Advancing mark makes the sweep treat all entries as
+  // unreachable.
+  if(ponyint_actor_getdistributedcd())
+    gc->mark++;
+
+  bool skip_delta = ponyint_actor_getnoblock() || ponyint_actor_getdistributedcd();
   gc->delta = ponyint_actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta,
 #ifdef USE_RUNTIMESTATS
-    ponyint_actor_getnoblock(), &objectmap_mem_used_freed,
+    skip_delta, &objectmap_mem_used_freed,
     &objectmap_mem_allocated_freed);
 #else
-    ponyint_actor_getnoblock());
+    skip_delta);
 #endif
 
 #ifdef USE_RUNTIMESTATS

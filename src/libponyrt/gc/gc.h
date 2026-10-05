@@ -42,7 +42,8 @@ void ponyint_gc_recvactor(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void ponyint_gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor);
 
-void ponyint_gc_createactor(pony_actor_t* current, pony_actor_t* actor);
+void ponyint_gc_createactor(pony_ctx_t* ctx, pony_actor_t* current,
+  pony_actor_t* actor);
 
 void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc);
 

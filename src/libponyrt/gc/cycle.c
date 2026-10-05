@@ -138,10 +138,9 @@
 // around the time of Pony 0.38.0 that introduced race conditions.
 //
 // We feel the additional complexity is worth it because the performance gains
-// have been so large. However, we are looking at doing away with the cycle
-// detector entirely and coming up with a decentralized approach to detecting
-// actor cycles and reaping them. Until that time, we have the current cycle
-// detector that has evolved to this state over time.
+// have been so large. The --ponydistributedcd flag enables a distributed
+// protocol where actors detect cycles among themselves via message passing,
+// bypassing this centralized detector entirely.
 
 typedef struct block_msg_t
 {

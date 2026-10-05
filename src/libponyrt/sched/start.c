@@ -29,6 +29,7 @@ typedef struct options_t
   double gc_factor;
   bool noyield;
   bool noblock;
+  bool distributedcd;
   bool pin;
   bool pinasio;
   bool pinpat;
@@ -73,6 +74,7 @@ enum
   OPT_GCFACTOR,
   OPT_NOYIELD,
   OPT_NOBLOCK,
+  OPT_DISTRIBUTEDCD,
   OPT_PIN,
   OPT_PINASIO,
   OPT_PINPAT,
@@ -104,6 +106,7 @@ static opt_arg_t args[] =
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
   {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
   {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
+  {"ponydistributedcd", 0, OPT_ARG_NONE, OPT_DISTRIBUTEDCD},
   {"ponypin", 0, OPT_ARG_NONE, OPT_PIN},
   {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
   {"ponypinpinnedactorthread", 0, OPT_ARG_NONE, OPT_PINPAT},
@@ -238,6 +241,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_GCFACTOR: if(parse_udouble(&opt->gc_factor, 1.0, s.arg_val)) err_out(id, "can't be less than 1.0"); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
+      case OPT_DISTRIBUTEDCD: opt->distributedcd = true; break;
       case OPT_PIN: opt->pin = true; break;
       case OPT_PINASIO: opt->pinasio = true; break;
       case OPT_PINPAT: opt->pinpat = true; break;
@@ -281,6 +285,12 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       exit(BAD_OPTION_EXIT_CODE);
     }
     opt->min_threads = opt->threads;
+  }
+
+  if (opt->noblock && opt->distributedcd)
+  {
+    printf("--%s & --%s are mutually exclusive\n", arg_name(OPT_NOBLOCK), arg_name(OPT_DISTRIBUTEDCD));
+    exit(BAD_OPTION_EXIT_CODE);
   }
 
   argv[argc] = NULL;
@@ -379,6 +389,7 @@ PONY_API int pony_init(int argc, char** argv)
   ponyint_heap_setinitialgc(opt.gc_initial);
   ponyint_heap_setnextgcfactor(opt.gc_factor);
   ponyint_actor_setnoblock(opt.noblock);
+  ponyint_actor_setdistributedcd(opt.distributedcd);
 
   pony_exitcode(0);
 

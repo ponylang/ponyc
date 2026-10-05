@@ -6,6 +6,7 @@
 #include "../sched/cpu.h"
 #include "../mem/pool.h"
 #include "../gc/cycle.h"
+#include "../gc/distcd.h"
 #include "../gc/trace.h"
 #include "../tracing/tracing.h"
 #include "ponyassert.h"
@@ -26,10 +27,11 @@
 PONY_EXTERN_C_BEGIN
 
 // Ignore padding at the end of the type.
-pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
+pony_static_assert((offsetof(pony_actor_t, distcd) + sizeof(struct distcd_t*)) ==
    sizeof(pony_actor_pad_t), "Wrong actor pad size!");
 
 static bool actor_noblock = false;
+static bool actor_distributedcd = false;
 
 #ifdef USE_SYSTEMATIC_TESTING
 // Monotonic source of stable, creation-order actor ids
@@ -293,7 +295,8 @@ static void maybe_unblock(pony_actor_t* actor)
   if(has_internal_flag(actor, ACTOR_FLAG_BLOCKED)) {
     if(has_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT)) {
       unset_internal_flag(actor, ACTOR_FLAG_BLOCKED | ACTOR_FLAG_BLOCKED_SENT);
-      ponyint_cycle_unblock(actor);
+      if(!actor_distributedcd)
+        ponyint_cycle_unblock(actor);
     } else {
       unset_internal_flag(actor, ACTOR_FLAG_BLOCKED);
     }
@@ -303,6 +306,9 @@ static void maybe_unblock(pony_actor_t* actor)
 
 static void send_block(pony_actor_t* actor)
 {
+  if(actor_distributedcd)
+    return;
+
   // We're blocked, send block message.
   set_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT);
   set_internal_flag(actor, ACTOR_FLAG_CD_CONTACTED);
@@ -460,6 +466,84 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
       pony_assert(ponyint_is_cycle(actor));
       actor->type->dispatch(ctx, actor, msg);
+      return false;
+    }
+
+    case ACTORMSG_TRACE_ROUTE_DCD:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(trace_route_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(trace_route_msg_t);
+#endif
+      pony_assert(!ponyint_is_cycle(actor));
+      ponyint_distcd_handle_trace_route(ctx, actor, (trace_route_msg_t*)msg);
+      return false;
+    }
+
+    case ACTORMSG_INFORM_CYCLES_DCD:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(inform_cycles_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(inform_cycles_msg_t);
+#endif
+      pony_assert(!ponyint_is_cycle(actor));
+      ponyint_distcd_handle_inform_cycles(ctx, actor,
+        (inform_cycles_msg_t*)msg);
+      return false;
+    }
+
+    case ACTORMSG_CONFIRM_BLOCKED_DCD:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(confirm_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(confirm_msg_t);
+#endif
+      pony_assert(!ponyint_is_cycle(actor));
+      ponyint_distcd_handle_confirm_blocked(ctx, actor, (confirm_msg_t*)msg);
+      return false;
+    }
+
+    case ACTORMSG_CONFIRMED_DCD:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(confirm_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(confirm_msg_t);
+#endif
+      pony_assert(!ponyint_is_cycle(actor));
+      ponyint_distcd_handle_confirmed(ctx, actor, (confirm_msg_t*)msg);
+      return false;
+    }
+
+    case ACTORMSG_DENIED_DCD:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(confirm_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(confirm_msg_t);
+#endif
+      pony_assert(!ponyint_is_cycle(actor));
+      ponyint_distcd_handle_denied(ctx, actor, (confirm_msg_t*)msg);
+      return false;
+    }
+
+    case ACTORMSG_DELEGATE_DCD:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(confirm_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(confirm_msg_t);
+#endif
+      pony_assert(!ponyint_is_cycle(actor));
+      ponyint_distcd_handle_delegate(ctx, actor, (confirm_msg_t*)msg);
+      return false;
+    }
+
+    case ACTORMSG_RELEASE_DCD:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(confirm_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(confirm_msg_t);
+#endif
+      pony_assert(!ponyint_is_cycle(actor));
+      ponyint_distcd_handle_release(ctx, actor, (confirm_msg_t*)msg);
       return false;
     }
 
@@ -639,10 +723,43 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
   {
     set_internal_flag(actor, ACTOR_FLAG_BLOCKED);
     TRACING_ACTOR_BLOCKED(actor);
+
+    if(actor_distributedcd)
+    {
+      ponyint_distcd_on_block(ctx, actor);
+    }
   }
 
   if (has_internal_flag(actor, ACTOR_FLAG_BLOCKED))
   {
+    // DCD released actors should be destroyed regardless of rc.
+    // Their cycle has been confirmed — the remaining rc is from
+    // other cycle members that are also being destroyed.
+    if(actor_distributedcd && ponyint_distcd_released(actor->distcd))
+    {
+      if(!ponyint_actor_pendingdestroy(actor))
+      {
+        ponyint_actor_setpendingdestroy(actor);
+        ponyint_actor_final(ctx, actor);
+        ponyint_actor_sendrelease(ctx, actor);
+      }
+
+      // Drain any stale messages that arrive after pendingdestroy.
+      // Once the queue is truly empty, mark it empty and stop. The
+      // actor struct leaks but the process exits when all schedulers
+      // are idle.
+      if(ponyint_messageq_isempty(&actor->q))
+      {
+        ponyint_messageq_markempty(&actor->q);
+        TRACING_THREAD_ACTOR_RUN_STOP(actor);
+        return false;
+      }
+
+      // Queue not empty — reschedule to drain remaining messages.
+      TRACING_THREAD_ACTOR_RUN_STOP(actor);
+      return true;
+    }
+
     if (actor->gc.rc == 0)
     {
       pony_assert(actor->live_asio_events == 0);
@@ -653,12 +770,19 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
       // - there's no references to this actor
       //
 
-      if (actor_noblock || !has_internal_flag(actor, ACTOR_FLAG_RC_OVER_ZERO_SEEN))
+      if (actor_noblock
+        || (actor_distributedcd
+          && ponyint_distcd_can_self_reap(actor->distcd))
+        || !has_internal_flag(actor, ACTOR_FLAG_RC_OVER_ZERO_SEEN))
       {
         // When 'actor_noblock` is true, the cycle detector isn't running.
         // this means actors won't be garbage collected unless we take special
         // action. Therefore if `noblock` is on, we should garbage collect the
-        // actor
+        // actor.
+        //
+        // When `actor_distributedcd` is true, the centralized CD isn't
+        // running. Self-reap when distcd says it's safe: the actor
+        // hasn't been released (released actors use the RELEASE path).
         //
         // When the cycle detector is running, it is still safe to locally
         // delete if our RC has never been above 0 because the cycle detector
@@ -725,13 +849,15 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
       // This is only safe to do if we have not sent a block message to the
       // cycle detector because the cycle detector could concurrently reap us
       // if we have and then we could have use-after-free issues.
-      if (actor_noblock || !has_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT))
+      if (actor_noblock || actor_distributedcd
+        || !has_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT))
       {
         pony_triggergc(ctx);
         try_gc(ctx, actor);
       }
 
-      if (!actor_noblock && !has_internal_flag(actor, ACTOR_FLAG_CD_CONTACTED))
+      if (!actor_noblock && !actor_distributedcd
+        && !has_internal_flag(actor, ACTOR_FLAG_CD_CONTACTED))
       {
         // The cycle detector is running and we've never contacted it ourselves,
         // so let it know we exist in case it is unaware.
@@ -739,6 +865,9 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
       }
     }
   }
+
+  if(actor_distributedcd && has_internal_flag(actor, ACTOR_FLAG_BLOCKED))
+    ponyint_distcd_try_confirm(ctx, actor);
 
   TRACING_THREAD_ACTOR_RUN_STOP(actor);
 
@@ -771,6 +900,7 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
   ponyint_messageq_destroy(&actor->q, false);
   ponyint_gc_destroy(&actor->gc);
   ponyint_heap_destroy(&actor->heap);
+  ponyint_distcd_destroy(actor->distcd);
 
 #ifdef USE_RUNTIMESTATS
   pony_ctx_t* ctx = pony_ctx();
@@ -851,6 +981,16 @@ bool ponyint_actor_getnoblock()
   return actor_noblock;
 }
 
+void ponyint_actor_setdistributedcd(bool state)
+{
+  actor_distributedcd = state;
+}
+
+bool ponyint_actor_getdistributedcd()
+{
+  return actor_distributedcd;
+}
+
 PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   bool orphaned)
 {
@@ -886,7 +1026,7 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
     // there are no references to this actor. By not setting a non-zero RC, we
     // will GC the actor sooner and lower overall memory usage.
     actor->gc.rc = GC_INC_MORE;
-    ponyint_gc_createactor(ctx->current, actor);
+    ponyint_gc_createactor(ctx, ctx->current, actor);
   } else {
     // no creator, so the actor isn't referenced by anything
     actor->gc.rc = 0;

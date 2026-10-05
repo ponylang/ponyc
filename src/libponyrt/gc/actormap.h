@@ -14,6 +14,7 @@ typedef struct actorref_t
   pony_actor_t* actor;
   size_t rc;
   uint32_t mark;
+  bool traced;
   objectmap_t map;
 } actorref_t;
 

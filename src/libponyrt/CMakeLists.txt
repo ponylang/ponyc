@@ -18,6 +18,7 @@ set(_c_src
     gc/actormap.c
     gc/cycle.c
     gc/delta.c
+    gc/distcd.c
     gc/gc.c
     gc/objectmap.c
     gc/trace.c
