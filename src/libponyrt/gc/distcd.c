@@ -497,101 +497,6 @@ static void prune_unreachable_cycles(pony_actor_t* actor, distcd_t* distcd)
     distcd->cycles_generation++;
 }
 
-static void send_gossip(pony_ctx_t* ctx, pony_actor_t* actor)
-{
-  distcd_t* distcd = actor->distcd;
-  if(distcd->known_cycles == NULL)
-    return;
-
-  prune_unreachable_cycles(actor, distcd);
-  if(distcd->known_cycles == NULL)
-    return;
-
-  pony_actor_t** comp_members;
-  size_t comp_count;
-
-  get_component_and_leader(distcd, actor, &comp_members, &comp_count, NULL);
-
-  if(comp_count <= 1)
-  {
-    ponyint_pool_free_size(comp_count * sizeof(pony_actor_t*), comp_members);
-    return;
-  }
-
-  // Count total member entries across all component cycles
-  size_t total_members = 0;
-  size_t num_cycles = 0;
-  cycle_record_t* cur = distcd->known_cycles;
-  while(cur != NULL)
-  {
-    bool in_comp = false;
-    for(size_t i = 0; i < comp_count; i++)
-    {
-      if(actor_in_cycle(comp_members[i], cur))
-      {
-        in_comp = true;
-        break;
-      }
-    }
-    if(in_comp)
-    {
-      total_members += cur->count;
-      num_cycles++;
-    }
-    cur = cur->next;
-  }
-
-  gc_t* gc = ponyint_actor_gc(actor);
-
-  for(size_t i = 0; i < comp_count; i++)
-  {
-    if(comp_members[i] == actor)
-      continue;
-
-    size_t index = HASHMAP_UNKNOWN;
-    if(ponyint_actormap_getactor(&gc->foreign, comp_members[i], &index) == NULL)
-      continue;
-
-    inform_cycles_msg_t* m = (inform_cycles_msg_t*)pony_alloc_msg(
-      POOL_INDEX(sizeof(inform_cycles_msg_t)), ACTORMSG_INFORM_CYCLES_DCD);
-
-    m->num_cycles = num_cycles;
-    m->total_members = total_members;
-    m->cycle_sizes = (size_t*)ponyint_pool_alloc_size(
-      num_cycles * sizeof(size_t));
-    m->cycle_members = (pony_actor_t**)ponyint_pool_alloc_size(
-      total_members * sizeof(pony_actor_t*));
-
-    size_t ci = 0;
-    size_t mi = 0;
-    cur = distcd->known_cycles;
-    while(cur != NULL)
-    {
-      bool in_comp = false;
-      for(size_t j = 0; j < comp_count; j++)
-      {
-        if(actor_in_cycle(comp_members[j], cur))
-        {
-          in_comp = true;
-          break;
-        }
-      }
-      if(in_comp)
-      {
-        m->cycle_sizes[ci++] = cur->count;
-        memcpy(&m->cycle_members[mi], cur->members,
-          cur->count * sizeof(pony_actor_t*));
-        mi += cur->count;
-      }
-      cur = cur->next;
-    }
-
-    pony_sendv(ctx, comp_members[i], &m->msg, &m->msg, false);
-  }
-
-  ponyint_pool_free_size(comp_count * sizeof(pony_actor_t*), comp_members);
-}
-
 distcd_t* ponyint_distcd_create()
 {
   distcd_t* distcd = (distcd_t*)ponyint_pool_alloc_size(sizeof(distcd_t));
@@ -726,12 +631,6 @@ void ponyint_distcd_on_block(pony_ctx_t* ctx, pony_actor_t* actor)
   if(distcd->released)
     return;
 
-  if(distcd->gossip_pending)
-  {
-    distcd->gossip_pending = false;
-    send_gossip(ctx, actor);
-  }
-
   if(distcd->retrace_needed)
   {
     distcd->retrace_needed = false;
@@ -803,14 +702,10 @@ void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
     for(size_t i = 0; i < cycle_len; i++)
       cycle_members[i] = m->entries[(size_t)self_pos + i].actor;
 
-    bool changed = add_cycle_if_new(distcd, cycle_members, cycle_len);
+    add_cycle_if_new(distcd, cycle_members, cycle_len);
 
     ponyint_pool_free_size(cycle_len * sizeof(pony_actor_t*), cycle_members);
     ponyint_pool_free_size(m->count * sizeof(trace_entry_t), m->entries);
-
-    if(changed)
-      distcd->gossip_pending = true;
-
     return;
   }
 
@@ -836,54 +731,6 @@ void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
 
   ponyint_pool_free_size(new_count * sizeof(trace_entry_t), augmented);
   ponyint_pool_free_size(m->count * sizeof(trace_entry_t), m->entries);
-}
-
-void ponyint_distcd_handle_inform_cycles(pony_ctx_t* ctx,
-  pony_actor_t* actor, inform_cycles_msg_t* m)
-{
-  (void)ctx;
-  distcd_t* distcd = actor->distcd;
-
-  if(distcd == NULL)
-  {
-    actor->distcd = ponyint_distcd_create();
-    distcd = actor->distcd;
-  }
-
-  bool changed = false;
-  size_t offset = 0;
-  for(size_t i = 0; i < m->num_cycles; i++)
-  {
-    size_t sz = m->cycle_sizes[i];
-
-    // Gossip members are sorted, so we can break early when we pass
-    // this actor's address.
-    bool contains_self = false;
-    for(size_t j = 0; j < sz; j++)
-    {
-      if(m->cycle_members[offset + j] == actor)
-      {
-        contains_self = true;
-        break;
-      }
-      if(m->cycle_members[offset + j] > actor)
-        break;
-    }
-
-    if(contains_self)
-    {
-      if(add_cycle_if_new(distcd, &m->cycle_members[offset], sz))
-        changed = true;
-    }
-    offset += sz;
-  }
-
-  ponyint_pool_free_size(m->num_cycles * sizeof(size_t), m->cycle_sizes);
-  ponyint_pool_free_size(m->total_members * sizeof(pony_actor_t*),
-    m->cycle_members);
-
-  if(changed)
-    distcd->gossip_pending = true;
 }
 
 void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,

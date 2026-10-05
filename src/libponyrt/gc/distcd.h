@@ -54,7 +54,6 @@ typedef struct distcd_t
 {
   uint32_t epoch;
   bool released;
-  bool gossip_pending;
   bool retrace_needed;
   uint32_t cycles_generation;
   uint32_t cached_generation;
@@ -73,15 +72,6 @@ typedef struct trace_route_msg_t
   size_t count;
   trace_entry_t* entries;
 } trace_route_msg_t;
-
-typedef struct inform_cycles_msg_t
-{
-  pony_msg_t msg;
-  size_t num_cycles;
-  size_t* cycle_sizes;
-  pony_actor_t** cycle_members;
-  size_t total_members;
-} inform_cycles_msg_t;
 
 // Used for CONFIRM_BLOCKED, CONFIRMED, DENIED, DELEGATE, and RELEASE.
 // The leader field is the reply destination in CONFIRM_BLOCKED, the
@@ -110,17 +100,12 @@ void ponyint_distcd_connection_lost(pony_actor_t* actor, pony_actor_t* target);
 bool ponyint_distcd_on_acquire(pony_ctx_t* ctx, pony_actor_t* actor,
   pony_actor_t* target);
 
-// On block, flush pending gossip and re-trace surviving edges after
-// topology changes.
+// On block, re-trace surviving edges after topology changes.
 void ponyint_distcd_on_block(pony_ctx_t* ctx, pony_actor_t* actor);
 
 // Process a TRACE_ROUTE. Frees m->entries.
 void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
   trace_route_msg_t* m);
-
-// Process an INFORM_CYCLES. Frees m->cycle_sizes and m->cycle_members.
-void ponyint_distcd_handle_inform_cycles(pony_ctx_t* ctx,
-  pony_actor_t* actor, inform_cycles_msg_t* m);
 
 // Process CONFIRM_BLOCKED. Responds CONFIRMED or DENIED. Frees m->members.
 void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,

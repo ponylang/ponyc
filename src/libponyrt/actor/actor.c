@@ -480,18 +480,6 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       return false;
     }
 
-    case ACTORMSG_INFORM_CYCLES_DCD:
-    {
-#ifdef USE_RUNTIMESTATS_MESSAGES
-      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(inform_cycles_msg_t);
-      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(inform_cycles_msg_t);
-#endif
-      pony_assert(!ponyint_is_cycle(actor));
-      ponyint_distcd_handle_inform_cycles(ctx, actor,
-        (inform_cycles_msg_t*)msg);
-      return false;
-    }
-
     case ACTORMSG_CONFIRM_BLOCKED_DCD:
     {
 #ifdef USE_RUNTIMESTATS_MESSAGES
