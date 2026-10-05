@@ -2,6 +2,7 @@
 #include "actormap.h"
 #include "gc.h"
 #include "../actor/actor.h"
+#include "../ds/fun.h"
 #include "../mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
@@ -813,8 +814,11 @@ void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
   pony_actor_t* originator = m->entries[0].actor;
   uint32_t orig_epoch = m->entries[0].epoch;
 
+  size_t target_idx = ponyint_hash_ptr(originator) % foreign_count;
   size_t idx = HASHMAP_BEGIN;
-  actorref_t* aref = ponyint_actormap_next(&gc->foreign, &idx);
+  actorref_t* aref = NULL;
+  for(size_t i = 0; i <= target_idx; i++)
+    aref = ponyint_actormap_next(&gc->foreign, &idx);
   pony_assert(aref != NULL);
 
   if(!dedup_check_and_add(distcd, aref->actor, originator, orig_epoch))
