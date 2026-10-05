@@ -18,9 +18,12 @@ typedef struct cycle_record_t
 typedef struct candidate_record_t
 {
   pony_actor_t** members;
+  size_t* appearances;
   size_t count;
   pony_actor_t* leader;
-  size_t confirmed_count;
+  uint64_t confirmed_bits;
+  bool denied;
+  pony_actor_t* denier;
 } candidate_record_t;
 
 typedef enum distcd_conf_state_t
@@ -73,23 +76,41 @@ typedef struct trace_route_msg_t
   trace_entry_t* entries;
 } trace_route_msg_t;
 
-// Used for CONFIRM_BLOCKED, CONFIRMED, DENIED, DELEGATE, and RELEASE.
-// The leader field is the reply destination in CONFIRM_BLOCKED, the
-// delegation target in DELEGATE, the authorizing leader in RELEASE,
-// and passed through unchanged in CONFIRMED and DENIED.
-// The appearances field carries the recipient's expected rc from cycle
-// membership, set by the leader in CONFIRM_BLOCKED and RELEASE.
-// The sender field identifies the responding actor in CONFIRMED and DENIED
-// so the leader can delegate to the actual denier.
-typedef struct confirm_msg_t
+// Chained confirmation message. Accumulates confirmations as it walks the
+// cycle topology. Each hop is to an actor in the sender's foreign map.
+typedef struct confirm_chain_msg_t
+{
+  pony_msg_t msg;
+  pony_actor_t** members;
+  size_t* appearances;
+  size_t count;
+  pony_actor_t* leader;
+  uint64_t confirmed_bits;
+  bool denied;
+  pony_actor_t* denier;
+} confirm_chain_msg_t;
+
+// Chained delegation message. Routes through the component until it reaches
+// the denier, who becomes the new leader.
+typedef struct delegate_chain_msg_t
 {
   pony_msg_t msg;
   pony_actor_t** members;
   size_t count;
+  pony_actor_t* denier;
+  uint64_t visited_bits;
+} delegate_chain_msg_t;
+
+// Chained release message. Each member re-verifies, marks released, and
+// forwards to its outgoing connections in the member list.
+typedef struct release_chain_msg_t
+{
+  pony_msg_t msg;
+  pony_actor_t** members;
+  size_t* appearances;
+  size_t count;
   pony_actor_t* leader;
-  size_t appearances;
-  pony_actor_t* sender;
-} confirm_msg_t;
+} release_chain_msg_t;
 
 // Create a distcd_t with default initial state.
 distcd_t* ponyint_distcd_create();
@@ -113,26 +134,17 @@ void ponyint_distcd_on_block(pony_ctx_t* ctx, pony_actor_t* actor);
 void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
   trace_route_msg_t* m);
 
-// Process CONFIRM_BLOCKED. Responds CONFIRMED or DENIED. Frees m->members.
+// Process chained CONFIRM_BLOCKED. Checks self, accumulates result, forwards.
 void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
-  pony_actor_t* actor, confirm_msg_t* m);
+  pony_actor_t* actor, confirm_chain_msg_t* m);
 
-// Process CONFIRMED from a cycle member. Frees m->members.
-void ponyint_distcd_handle_confirmed(pony_ctx_t* ctx,
-  pony_actor_t* actor, confirm_msg_t* m);
-
-// Process DENIED from a cycle member. Delegates leadership. Frees m->members.
-void ponyint_distcd_handle_denied(pony_ctx_t* ctx,
-  pony_actor_t* actor, confirm_msg_t* m);
-
-// Process DELEGATE. Takes ownership of m->members for the candidate.
+// Process chained DELEGATE. Forwards until reaching the denier.
 void ponyint_distcd_handle_delegate(pony_ctx_t* ctx,
-  pony_actor_t* actor, confirm_msg_t* m);
+  pony_actor_t* actor, delegate_chain_msg_t* m);
 
-// Process RELEASE. Marks the actor as released and frees protocol state.
-// Frees m->members.
+// Process chained RELEASE. Re-verifies, marks released, forwards.
 void ponyint_distcd_handle_release(pony_ctx_t* ctx,
-  pony_actor_t* actor, confirm_msg_t* m);
+  pony_actor_t* actor, release_chain_msg_t* m);
 
 // Returns false if released. Otherwise frees stale cycle state and returns true.
 bool ponyint_distcd_can_self_reap(distcd_t* distcd);

@@ -439,23 +439,106 @@ static void send_trace_route(pony_ctx_t* ctx, pony_actor_t* to,
   pony_sendv(ctx, to, &m->msg, &m->msg, false);
 }
 
-static void send_confirm_msg(pony_ctx_t* ctx, pony_actor_t* to,
-  uint32_t msg_id, pony_actor_t** members, size_t count,
-  pony_actor_t* leader, size_t appearances, pony_actor_t* sender)
+static size_t find_member_index(pony_actor_t* actor,
+  pony_actor_t** members, size_t count)
+{
+  for(size_t i = 0; i < count; i++)
+  {
+    if(members[i] == actor)
+      return i;
+  }
+  return SIZE_MAX;
+}
+
+static size_t find_outgoing_members(pony_actor_t* actor,
+  pony_actor_t** members, size_t count, uint64_t exclude_bits,
+  pony_actor_t** out_targets)
+{
+  gc_t* gc = ponyint_actor_gc(actor);
+  size_t found = 0;
+  for(size_t i = 0; i < count; i++)
+  {
+    if(members[i] == actor)
+      continue;
+    if(exclude_bits & ((uint64_t)1 << i))
+      continue;
+    size_t index = HASHMAP_UNKNOWN;
+    if(ponyint_actormap_getactor(&gc->foreign, members[i], &index) != NULL)
+      out_targets[found++] = members[i];
+  }
+  return found;
+}
+
+static void free_confirm_chain_arrays(confirm_chain_msg_t* m)
+{
+  ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+  ponyint_pool_free_size(m->count * sizeof(size_t), m->appearances);
+}
+
+static void send_confirm_chain(pony_ctx_t* ctx, pony_actor_t* to,
+  pony_actor_t** members, size_t* appearances, size_t count,
+  pony_actor_t* leader, uint64_t confirmed_bits,
+  bool denied, pony_actor_t* denier)
 {
   if(ponyint_actor_pendingdestroy(to))
     return;
 
-  confirm_msg_t* m = (confirm_msg_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(confirm_msg_t)), msg_id);
+  confirm_chain_msg_t* m = (confirm_chain_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(confirm_chain_msg_t)), ACTORMSG_CONFIRM_BLOCKED_DCD);
 
   m->count = count;
   m->leader = leader;
-  m->appearances = appearances;
-  m->sender = sender;
+  m->confirmed_bits = confirmed_bits;
+  m->denied = denied;
+  m->denier = denier;
   m->members = (pony_actor_t**)ponyint_pool_alloc_size(
     count * sizeof(pony_actor_t*));
   memcpy(m->members, members, count * sizeof(pony_actor_t*));
+  m->appearances = (size_t*)ponyint_pool_alloc_size(
+    count * sizeof(size_t));
+  memcpy(m->appearances, appearances, count * sizeof(size_t));
+
+  pony_sendv(ctx, to, &m->msg, &m->msg, false);
+}
+
+static void send_delegate_chain(pony_ctx_t* ctx, pony_actor_t* to,
+  pony_actor_t** members, size_t count,
+  pony_actor_t* denier, uint64_t visited_bits)
+{
+  if(ponyint_actor_pendingdestroy(to))
+    return;
+
+  delegate_chain_msg_t* m = (delegate_chain_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(delegate_chain_msg_t)), ACTORMSG_DELEGATE_DCD);
+
+  m->count = count;
+  m->denier = denier;
+  m->visited_bits = visited_bits;
+  m->members = (pony_actor_t**)ponyint_pool_alloc_size(
+    count * sizeof(pony_actor_t*));
+  memcpy(m->members, members, count * sizeof(pony_actor_t*));
+
+  pony_sendv(ctx, to, &m->msg, &m->msg, false);
+}
+
+static void send_release_chain(pony_ctx_t* ctx, pony_actor_t* to,
+  pony_actor_t** members, size_t* appearances, size_t count,
+  pony_actor_t* leader)
+{
+  if(ponyint_actor_pendingdestroy(to))
+    return;
+
+  release_chain_msg_t* m = (release_chain_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(release_chain_msg_t)), ACTORMSG_RELEASE_DCD);
+
+  m->count = count;
+  m->leader = leader;
+  m->members = (pony_actor_t**)ponyint_pool_alloc_size(
+    count * sizeof(pony_actor_t*));
+  memcpy(m->members, members, count * sizeof(pony_actor_t*));
+  m->appearances = (size_t*)ponyint_pool_alloc_size(
+    count * sizeof(size_t));
+  memcpy(m->appearances, appearances, count * sizeof(size_t));
 
   pony_sendv(ctx, to, &m->msg, &m->msg, false);
 }
@@ -522,6 +605,10 @@ void ponyint_distcd_destroy(distcd_t* distcd)
       ponyint_pool_free_size(
         distcd->candidate->count * sizeof(pony_actor_t*),
         distcd->candidate->members);
+    if(distcd->candidate->appearances != NULL)
+      ponyint_pool_free_size(
+        distcd->candidate->count * sizeof(size_t),
+        distcd->candidate->appearances);
     ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
   }
 
@@ -590,6 +677,10 @@ void ponyint_distcd_connection_lost(pony_actor_t* actor, pony_actor_t* target)
         ponyint_pool_free_size(
           distcd->candidate->count * sizeof(pony_actor_t*),
           distcd->candidate->members);
+        if(distcd->candidate->appearances != NULL)
+          ponyint_pool_free_size(
+            distcd->candidate->count * sizeof(size_t),
+            distcd->candidate->appearances);
         ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
         distcd->candidate = NULL;
         distcd->conf_state = DISTCD_CONF_NONE;
@@ -736,127 +827,254 @@ void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
 }
 
 void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
-  pony_actor_t* actor, confirm_msg_t* m)
+  pony_actor_t* actor, confirm_chain_msg_t* m)
 {
+  if(m->leader == actor)
+  {
+    distcd_t* distcd = actor->distcd;
+    if(distcd == NULL || distcd->conf_state != DISTCD_CONF_LEADER_WAITING ||
+      distcd->candidate == NULL)
+    {
+      free_confirm_chain_arrays(m);
+      return;
+    }
+
+    distcd->candidate->confirmed_bits |= m->confirmed_bits;
+    if(m->denied)
+    {
+      distcd->candidate->denied = true;
+      distcd->candidate->denier = m->denier;
+    }
+
+    uint64_t all_bits = (distcd->candidate->count == 64)
+      ? UINT64_MAX : (((uint64_t)1 << distcd->candidate->count) - 1);
+
+    if((distcd->candidate->confirmed_bits & all_bits) == all_bits)
+    {
+      if(!distcd->candidate->denied)
+      {
+        bool blocked = ponyint_messageq_isempty(&actor->q)
+          && (actor->live_asio_events == 0);
+
+        if(blocked)
+        {
+          size_t leader_idx = find_member_index(actor,
+            distcd->candidate->members, distcd->candidate->count);
+          pony_assert(leader_idx != SIZE_MAX);
+          blocked = (actor->gc.rc ==
+            distcd->candidate->appearances[leader_idx]);
+        }
+
+        if(blocked)
+        {
+          distcd->released = true;
+          free_cycle_list(distcd->known_cycles);
+          distcd->known_cycles = NULL;
+          distcd->cycles_generation++;
+
+          pony_actor_t* targets[64];
+          size_t target_count = find_outgoing_members(actor,
+            distcd->candidate->members, distcd->candidate->count,
+            0, targets);
+
+          for(size_t i = 0; i < target_count; i++)
+          {
+            send_release_chain(ctx, targets[i],
+              distcd->candidate->members, distcd->candidate->appearances,
+              distcd->candidate->count, actor);
+          }
+        }
+      }
+      else
+      {
+        size_t my_idx = find_member_index(actor,
+          distcd->candidate->members, distcd->candidate->count);
+        uint64_t visited = (my_idx != SIZE_MAX)
+          ? ((uint64_t)1 << my_idx) : 0;
+
+        pony_actor_t* targets[64];
+        size_t target_count = find_outgoing_members(actor,
+          distcd->candidate->members, distcd->candidate->count,
+          0, targets);
+
+        if(target_count > 0)
+        {
+          send_delegate_chain(ctx, targets[0],
+            distcd->candidate->members, distcd->candidate->count,
+            distcd->candidate->denier, visited);
+        }
+      }
+
+      ponyint_pool_free_size(
+        distcd->candidate->count * sizeof(pony_actor_t*),
+        distcd->candidate->members);
+      ponyint_pool_free_size(
+        distcd->candidate->count * sizeof(size_t),
+        distcd->candidate->appearances);
+      ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
+      distcd->candidate = NULL;
+      distcd->conf_state = DISTCD_CONF_NONE;
+    }
+
+    free_confirm_chain_arrays(m);
+    return;
+  }
+
   if(actor->distcd == NULL)
     actor->distcd = ponyint_distcd_create();
 
   distcd_t* distcd = actor->distcd;
   if(distcd->released)
   {
-    ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+    free_confirm_chain_arrays(m);
     return;
   }
 
-  bool blocked = ponyint_messageq_isempty(&actor->q)
-    && (actor->live_asio_events == 0);
-
-  if(blocked)
-    blocked = (actor->gc.rc == m->appearances);
-
-  if(blocked)
+  size_t my_idx = find_member_index(actor, m->members, m->count);
+  if(my_idx == SIZE_MAX)
   {
-    send_confirm_msg(ctx, m->leader, ACTORMSG_CONFIRMED_DCD,
-      m->members, m->count, m->leader, 0, actor);
-  } else {
-    send_confirm_msg(ctx, m->leader, ACTORMSG_DENIED_DCD,
-      m->members, m->count, m->leader, 0, actor);
-  }
-
-  ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
-}
-
-void ponyint_distcd_handle_confirmed(pony_ctx_t* ctx,
-  pony_actor_t* actor, confirm_msg_t* m)
-{
-  distcd_t* distcd = actor->distcd;
-
-  if(distcd == NULL || distcd->conf_state != DISTCD_CONF_LEADER_WAITING ||
-    distcd->candidate == NULL)
-  {
-    ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+    free_confirm_chain_arrays(m);
     return;
   }
 
-  distcd->candidate->confirmed_count++;
+  uint64_t my_bit = (uint64_t)1 << my_idx;
 
-  // All members except leader confirmed?
-  if(distcd->candidate->confirmed_count >= distcd->candidate->count - 1)
+  if(m->confirmed_bits & my_bit)
   {
-    // Re-verify leader's conditions before sending RELEASE
+    gc_t* gc = ponyint_actor_gc(actor);
+    size_t index = HASHMAP_UNKNOWN;
+    if(ponyint_actormap_getactor(&gc->foreign, m->leader, &index) != NULL)
+    {
+      send_confirm_chain(ctx, m->leader, m->members, m->appearances,
+        m->count, m->leader, m->confirmed_bits, m->denied, m->denier);
+    }
+    else
+    {
+      pony_actor_t* targets[64];
+      size_t target_count = find_outgoing_members(actor, m->members,
+        m->count, 0, targets);
+      if(target_count > 0)
+      {
+        send_confirm_chain(ctx, targets[0], m->members, m->appearances,
+          m->count, m->leader, m->confirmed_bits, m->denied, m->denier);
+      }
+    }
+    free_confirm_chain_arrays(m);
+    return;
+  }
+
+  uint64_t bits = m->confirmed_bits | my_bit;
+  bool denied = m->denied;
+  pony_actor_t* denier = m->denier;
+
+  if(!denied)
+  {
     bool blocked = ponyint_messageq_isempty(&actor->q)
       && (actor->live_asio_events == 0);
 
     if(blocked)
+      blocked = (actor->gc.rc == m->appearances[my_idx]);
+
+    if(!blocked)
     {
-      size_t appearances = count_appearances_in_component(
-        actor, distcd->known_cycles, distcd->candidate->members,
-        distcd->candidate->count);
-      blocked = (actor->gc.rc == appearances);
+      denied = true;
+      denier = actor;
     }
-
-    if(blocked)
-    {
-      for(size_t i = 0; i < distcd->candidate->count; i++)
-      {
-        size_t member_app = count_appearances_in_component(
-          distcd->candidate->members[i], distcd->known_cycles,
-          distcd->candidate->members, distcd->candidate->count);
-        send_confirm_msg(ctx, distcd->candidate->members[i],
-          ACTORMSG_RELEASE_DCD, distcd->candidate->members,
-          distcd->candidate->count, actor, member_app, NULL);
-      }
-
-      // Don't reset conf_state here — the leader's own RELEASE is
-      // still in its queue. handle_release clears it when processed.
-      // Resetting now would let try_confirm re-enter in the same
-      // scheduler pass and send to members being destroyed.
-    } else {
-      // Leader isn't idle — abandon this confirmation round.
-      distcd->conf_state = DISTCD_CONF_NONE;
-    }
-
-    ponyint_pool_free_size(
-      distcd->candidate->count * sizeof(pony_actor_t*),
-      distcd->candidate->members);
-    ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
-    distcd->candidate = NULL;
   }
 
-  ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+  pony_actor_t* targets[64];
+  size_t target_count = find_outgoing_members(actor, m->members,
+    m->count, bits, targets);
+
+  if(target_count > 0)
+  {
+    for(size_t i = 0; i < target_count; i++)
+    {
+      send_confirm_chain(ctx, targets[i], m->members, m->appearances,
+        m->count, m->leader, bits, denied, denier);
+    }
+  }
+  else
+  {
+    gc_t* gc = ponyint_actor_gc(actor);
+    size_t index = HASHMAP_UNKNOWN;
+    if(ponyint_actormap_getactor(&gc->foreign, m->leader, &index) != NULL)
+    {
+      send_confirm_chain(ctx, m->leader, m->members, m->appearances,
+        m->count, m->leader, bits, denied, denier);
+    }
+    else
+    {
+      pony_actor_t* any_targets[64];
+      size_t any_count = find_outgoing_members(actor, m->members,
+        m->count, 0, any_targets);
+      if(any_count > 0)
+      {
+        send_confirm_chain(ctx, any_targets[0], m->members, m->appearances,
+          m->count, m->leader, bits, denied, denier);
+      }
+    }
+  }
+
+  free_confirm_chain_arrays(m);
 }
 
-void ponyint_distcd_handle_denied(pony_ctx_t* ctx,
-  pony_actor_t* actor, confirm_msg_t* m)
+void ponyint_distcd_handle_delegate(pony_ctx_t* ctx,
+  pony_actor_t* actor, delegate_chain_msg_t* m)
 {
-  distcd_t* distcd = actor->distcd;
-
-  if(distcd == NULL || distcd->conf_state != DISTCD_CONF_LEADER_WAITING ||
-    distcd->candidate == NULL)
+  if(actor == m->denier)
   {
+    distcd_t* distcd = actor->distcd;
+    if(distcd == NULL)
+    {
+      actor->distcd = ponyint_distcd_create();
+      distcd = actor->distcd;
+    }
+
+    distcd->conf_state = DISTCD_CONF_MEMBER_PENDING;
     ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
     return;
   }
 
-  send_confirm_msg(ctx, m->sender, ACTORMSG_DELEGATE_DCD,
-    distcd->candidate->members, distcd->candidate->count, m->sender,
-    0, NULL);
+  size_t my_idx = find_member_index(actor, m->members, m->count);
+  uint64_t visited = m->visited_bits;
+  if(my_idx != SIZE_MAX)
+    visited |= ((uint64_t)1 << my_idx);
 
-  ponyint_pool_free_size(
-    distcd->candidate->count * sizeof(pony_actor_t*),
-    distcd->candidate->members);
-  ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
-  distcd->candidate = NULL;
-  distcd->conf_state = DISTCD_CONF_NONE;
+  pony_actor_t* targets[64];
+  size_t target_count = find_outgoing_members(actor, m->members,
+    m->count, visited, targets);
+
+  if(target_count > 0)
+  {
+    send_delegate_chain(ctx, targets[0], m->members, m->count,
+      m->denier, visited);
+  }
+  else
+  {
+    pony_actor_t* any_targets[64];
+    size_t any_count = find_outgoing_members(actor, m->members,
+      m->count, 0, any_targets);
+    if(any_count > 0)
+    {
+      send_delegate_chain(ctx, any_targets[0], m->members, m->count,
+        m->denier, visited);
+    }
+  }
 
   ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
 }
 
-void ponyint_distcd_handle_delegate(pony_ctx_t* ctx,
-  pony_actor_t* actor, confirm_msg_t* m)
+void ponyint_distcd_handle_release(pony_ctx_t* ctx,
+  pony_actor_t* actor, release_chain_msg_t* m)
 {
-  (void)ctx;
   distcd_t* distcd = actor->distcd;
+  if(distcd != NULL && distcd->released)
+  {
+    ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+    ponyint_pool_free_size(m->count * sizeof(size_t), m->appearances);
+    return;
+  }
 
   if(distcd == NULL)
   {
@@ -864,72 +1082,57 @@ void ponyint_distcd_handle_delegate(pony_ctx_t* ctx,
     distcd = actor->distcd;
   }
 
-  // Store the candidate for re-confirmation on next scheduler run
+  size_t my_idx = find_member_index(actor, m->members, m->count);
+  bool blocked = (my_idx != SIZE_MAX);
+
+  if(blocked)
+  {
+    blocked = ponyint_messageq_isempty(&actor->q)
+      && (actor->live_asio_events == 0);
+  }
+
+  if(blocked)
+    blocked = (actor->gc.rc == m->appearances[my_idx]);
+
+  if(!blocked)
+  {
+    distcd->conf_state = DISTCD_CONF_NONE;
+    ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+    ponyint_pool_free_size(m->count * sizeof(size_t), m->appearances);
+    return;
+  }
+
+  distcd->released = true;
+  free_cycle_list(distcd->known_cycles);
+  distcd->known_cycles = NULL;
+  distcd->cycles_generation++;
+
   if(distcd->candidate != NULL)
   {
     ponyint_pool_free_size(
       distcd->candidate->count * sizeof(pony_actor_t*),
       distcd->candidate->members);
-    ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
-  }
-
-  distcd->candidate = (candidate_record_t*)ponyint_pool_alloc_size(
-    sizeof(candidate_record_t));
-  distcd->candidate->members = m->members;
-  distcd->candidate->count = m->count;
-  distcd->candidate->leader = actor;
-  distcd->candidate->confirmed_count = 0;
-
-  distcd->conf_state = DISTCD_CONF_MEMBER_PENDING;
-  // Don't free m->members — ownership transferred to candidate
-}
-
-void ponyint_distcd_handle_release(pony_ctx_t* ctx,
-  pony_actor_t* actor, confirm_msg_t* m)
-{
-  (void)ctx;
-
-  distcd_t* distcd = actor->distcd;
-  if(distcd != NULL)
-  {
-    if(distcd->released)
-    {
-      ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
-      return;
-    }
-
-    bool blocked = ponyint_messageq_isempty(&actor->q)
-      && (actor->live_asio_events == 0);
-
-    if(blocked)
-      blocked = (actor->gc.rc == m->appearances);
-
-    ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
-
-    if(!blocked)
-    {
-      distcd->conf_state = DISTCD_CONF_NONE;
-      return;
-    }
-
-    distcd->released = true;
-
-    free_cycle_list(distcd->known_cycles);
-    distcd->known_cycles = NULL;
-    distcd->cycles_generation++;
-
-    if(distcd->candidate != NULL)
-    {
+    if(distcd->candidate->appearances != NULL)
       ponyint_pool_free_size(
-        distcd->candidate->count * sizeof(pony_actor_t*),
-        distcd->candidate->members);
-      ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
-      distcd->candidate = NULL;
-    }
-    distcd->conf_state = DISTCD_CONF_NONE;
-  } else {
-    ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+        distcd->candidate->count * sizeof(size_t),
+        distcd->candidate->appearances);
+    ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
+    distcd->candidate = NULL;
   }
+  distcd->conf_state = DISTCD_CONF_NONE;
+
+  pony_actor_t* targets[64];
+  size_t target_count = find_outgoing_members(actor, m->members,
+    m->count, 0, targets);
+
+  for(size_t i = 0; i < target_count; i++)
+  {
+    send_release_chain(ctx, targets[i], m->members, m->appearances,
+      m->count, m->leader);
+  }
+
+  ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+  ponyint_pool_free_size(m->count * sizeof(size_t), m->appearances);
 }
 
 bool ponyint_distcd_can_self_reap(distcd_t* distcd)
@@ -953,6 +1156,10 @@ bool ponyint_distcd_can_self_reap(distcd_t* distcd)
       ponyint_pool_free_size(
         distcd->candidate->count * sizeof(pony_actor_t*),
         distcd->candidate->members);
+    if(distcd->candidate->appearances != NULL)
+      ponyint_pool_free_size(
+        distcd->candidate->count * sizeof(size_t),
+        distcd->candidate->appearances);
     ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
     distcd->candidate = NULL;
   }
@@ -979,31 +1186,18 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
   if(distcd->released)
     return;
 
-  // If we have a pending delegate, recompute the component from our own
-  // cycle knowledge and re-enter confirmation as leader.
-  if(distcd->conf_state == DISTCD_CONF_MEMBER_PENDING &&
-    distcd->candidate != NULL)
+  if(distcd->conf_state == DISTCD_CONF_MEMBER_PENDING)
   {
-    ponyint_pool_free_size(
-      distcd->candidate->count * sizeof(pony_actor_t*),
-      distcd->candidate->members);
-    ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
-    distcd->candidate = NULL;
     distcd->conf_state = DISTCD_CONF_NONE;
-
     if(distcd->known_cycles == NULL)
       return;
-    // Fall through to the normal confirmation path below
   }
 
   prune_unreachable_cycles(actor, distcd);
 
-  // If we're naturally the leader of a component, try to confirm
   if(distcd->conf_state != DISTCD_CONF_NONE || distcd->known_cycles == NULL)
     return;
 
-  // Don't initiate confirmation if we have live ASIO events — we're
-  // waiting for I/O, not truly idle.
   if(actor->live_asio_events > 0)
     return;
 
@@ -1019,39 +1213,51 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
   if(comp_count == 0)
     return;
 
+  pony_assert(comp_count <= 64);
+
   if(leader != actor)
   {
     ponyint_pool_free_size(comp_count * sizeof(pony_actor_t*), comp_members);
     return;
   }
 
-  size_t appearances = count_appearances_in_component(
-    actor, distcd->known_cycles, comp_members, comp_count);
-  if(actor->gc.rc != appearances)
+  size_t* appearances = (size_t*)ponyint_pool_alloc_size(
+    comp_count * sizeof(size_t));
+  for(size_t i = 0; i < comp_count; i++)
+  {
+    appearances[i] = count_appearances_in_component(
+      comp_members[i], distcd->known_cycles, comp_members, comp_count);
+  }
+
+  size_t leader_idx = find_member_index(actor, comp_members, comp_count);
+  pony_assert(leader_idx != SIZE_MAX);
+  if(actor->gc.rc != appearances[leader_idx])
   {
     ponyint_pool_free_size(comp_count * sizeof(pony_actor_t*), comp_members);
+    ponyint_pool_free_size(comp_count * sizeof(size_t), appearances);
     return;
   }
 
-  // We're the leader and conditions hold — initiate confirmation
   distcd->candidate = (candidate_record_t*)ponyint_pool_alloc_size(
     sizeof(candidate_record_t));
   distcd->candidate->members = comp_members;
+  distcd->candidate->appearances = appearances;
   distcd->candidate->count = comp_count;
   distcd->candidate->leader = actor;
-  distcd->candidate->confirmed_count = 0;
+  distcd->candidate->confirmed_bits = (uint64_t)1 << leader_idx;
+  distcd->candidate->denied = false;
+  distcd->candidate->denier = NULL;
 
   distcd->conf_state = DISTCD_CONF_LEADER_WAITING;
 
-  for(size_t i = 0; i < comp_count; i++)
+  pony_actor_t* targets[64];
+  size_t target_count = find_outgoing_members(actor, comp_members,
+    comp_count, distcd->candidate->confirmed_bits, targets);
+
+  for(size_t i = 0; i < target_count; i++)
   {
-    if(comp_members[i] != actor)
-    {
-      size_t member_app = count_appearances_in_component(
-        comp_members[i], distcd->known_cycles, comp_members, comp_count);
-      send_confirm_msg(ctx, comp_members[i], ACTORMSG_CONFIRM_BLOCKED_DCD,
-        comp_members, comp_count, actor, member_app, NULL);
-    }
+    send_confirm_chain(ctx, targets[i], comp_members, appearances,
+      comp_count, actor, distcd->candidate->confirmed_bits, false, NULL);
   }
 }
 

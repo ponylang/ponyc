@@ -483,55 +483,36 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
     case ACTORMSG_CONFIRM_BLOCKED_DCD:
     {
 #ifdef USE_RUNTIMESTATS_MESSAGES
-      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(confirm_msg_t);
-      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(confirm_msg_t);
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(confirm_chain_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(confirm_chain_msg_t);
 #endif
       pony_assert(!ponyint_is_cycle(actor));
-      ponyint_distcd_handle_confirm_blocked(ctx, actor, (confirm_msg_t*)msg);
-      return false;
-    }
-
-    case ACTORMSG_CONFIRMED_DCD:
-    {
-#ifdef USE_RUNTIMESTATS_MESSAGES
-      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(confirm_msg_t);
-      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(confirm_msg_t);
-#endif
-      pony_assert(!ponyint_is_cycle(actor));
-      ponyint_distcd_handle_confirmed(ctx, actor, (confirm_msg_t*)msg);
-      return false;
-    }
-
-    case ACTORMSG_DENIED_DCD:
-    {
-#ifdef USE_RUNTIMESTATS_MESSAGES
-      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(confirm_msg_t);
-      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(confirm_msg_t);
-#endif
-      pony_assert(!ponyint_is_cycle(actor));
-      ponyint_distcd_handle_denied(ctx, actor, (confirm_msg_t*)msg);
+      ponyint_distcd_handle_confirm_blocked(ctx, actor,
+        (confirm_chain_msg_t*)msg);
       return false;
     }
 
     case ACTORMSG_DELEGATE_DCD:
     {
 #ifdef USE_RUNTIMESTATS_MESSAGES
-      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(confirm_msg_t);
-      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(confirm_msg_t);
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(delegate_chain_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(delegate_chain_msg_t);
 #endif
       pony_assert(!ponyint_is_cycle(actor));
-      ponyint_distcd_handle_delegate(ctx, actor, (confirm_msg_t*)msg);
+      ponyint_distcd_handle_delegate(ctx, actor,
+        (delegate_chain_msg_t*)msg);
       return false;
     }
 
     case ACTORMSG_RELEASE_DCD:
     {
 #ifdef USE_RUNTIMESTATS_MESSAGES
-      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(confirm_msg_t);
-      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(confirm_msg_t);
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(release_chain_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(release_chain_msg_t);
 #endif
       pony_assert(!ponyint_is_cycle(actor));
-      ponyint_distcd_handle_release(ctx, actor, (confirm_msg_t*)msg);
+      ponyint_distcd_handle_release(ctx, actor,
+        (release_chain_msg_t*)msg);
       return false;
     }
 
