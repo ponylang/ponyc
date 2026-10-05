@@ -20,6 +20,7 @@ add_executable(libponyc.tests
     ffi.cc
     finalisers.cc
     flatten.cc
+    host.cc
     id.cc
     iftype.cc
     lambda.cc

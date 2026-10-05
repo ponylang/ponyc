@@ -937,7 +937,19 @@ bool codegen_pass_init(pass_opt_t* opt)
     // wanting "generic-rv64").
     opt->cpu = LLVMCreateMessage("");
   else
+  {
     opt->cpu = LLVMGetHostCPUName();
+
+    // Under QEMU -cpu host, the emulated CPUID can map to a name that is valid
+    // only for a narrower target (e.g. "athlon-xp" on x86-64). The target
+    // machine silently falls back to generic, but gencshim's embedded clang
+    // rejects the name outright.
+    if(!codegen_host_cpu_is_valid(opt->triple, opt->cpu))
+    {
+      LLVMDisposeMessage(opt->cpu);
+      opt->cpu = LLVMCreateMessage("");
+    }
+  }
 
   // The runtime's 128-bit atomics (mpmcq, pool) compile to cmpxchg16b on
   // x86-64, which requires the cx16 target feature. When ponyc merges the

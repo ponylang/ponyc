@@ -138,17 +138,21 @@ class _TestDefinitions
       try
         dir.entries()?
       else
+        dir.dispose()
         _err.print(_Colors.red() + path + ": unable to get entries" +
           _Colors.none())
         return
       end
+
+    let dir_path_str = dir.path.path
+    dir.dispose()
 
     let definitions = recover iso Array[_TestDefinition] end
     let broken = Array[_BrokenTest]
     for entry in (consume entries).values() do
       if _exclude.contains(entry) then continue end
 
-      match _get_definition(auth, dir.path.path, entry)
+      match _get_definition(auth, dir_path_str, entry)
       | let def: _TestDefinition => definitions.push(def)
       | let bt: _BrokenTest => broken.push(bt)
       end
@@ -195,8 +199,13 @@ class _TestDefinitions
       try
         dir.entries()?
       else
+        dir.dispose()
         return _BrokenTest(child, "unable to read directory entries")
       end
+
+    let dir_path = dir.path.path
+    let dir_fp = dir.path
+    dir.dispose()
 
     var has_pony_sources = false
     var expected_exit_code = I32(0)
@@ -217,7 +226,7 @@ class _TestDefinitions
 
       if entry_lower == _str_expected_exit_code() then
         try
-          let exit_code_fp = FilePath.from(dir.path, entry)?
+          let exit_code_fp = FilePath.from(dir_fp, entry)?
           match \exhaustive\ _get_expected_exit_code(exit_code_fp)
           | let code: I32 => expected_exit_code = code
           | let reason: String => config_error = reason
@@ -229,7 +238,7 @@ class _TestDefinitions
 
       if entry_lower == _str_stdin() then
         try
-          stdin_data = _get_stdin(FilePath.from(dir.path, entry)?)?
+          stdin_data = _get_stdin(FilePath.from(dir_fp, entry)?)?
         else
           config_error = "unable to read " + _str_stdin()
         end
@@ -237,7 +246,7 @@ class _TestDefinitions
 
       if entry_lower == _str_stdin_delay_seconds() then
         try
-          delay_seconds = _get_delay_seconds(FilePath.from(dir.path, entry)?)?
+          delay_seconds = _get_delay_seconds(FilePath.from(dir_fp, entry)?)?
         else
           config_error = "unable to read " + _str_stdin_delay_seconds()
         end
@@ -245,7 +254,7 @@ class _TestDefinitions
 
       if entry_lower == _str_program_args() then
         try
-          program_args = _get_program_args(FilePath.from(dir.path, entry)?)?
+          program_args = _get_program_args(FilePath.from(dir_fp, entry)?)?
         else
           config_error = "unable to read " + _str_program_args()
         end
@@ -268,7 +277,7 @@ class _TestDefinitions
       | let reason: String => _BrokenTest(child, reason)
       | None =>
         _TestDefinition(
-          child, dir.path.path, expected_exit_code, stdin, program_args)
+          child, dir_path, expected_exit_code, stdin, program_args)
       end
     end
 
