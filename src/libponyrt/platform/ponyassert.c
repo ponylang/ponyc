@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef PLATFORM_IS_WINDOWS
+#include <crtdbg.h>
+#endif
 #ifdef PLATFORM_IS_POSIX_BASED
 #if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX)
 #  include <execinfo.h>

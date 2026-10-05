@@ -103,7 +103,6 @@ static bool query_registry(HKEY key, bool query_subkeys, query_callback_fn fn,
   HKEY node;
   DWORD size = largest_subkey;
   char* name = (char*)ponyint_pool_alloc_size(largest_subkey);
-  bool r = true;
 
   for(DWORD i = 0; i < sub_keys; ++i)
   {
@@ -111,7 +110,6 @@ static bool query_registry(HKEY key, bool query_subkeys, query_callback_fn fn,
       != ERROR_SUCCESS ||
       RegOpenKeyEx(key, name, 0, KEY_QUERY_VALUE, &node) != ERROR_SUCCESS)
     {
-      r = false;
       break;
     }
 

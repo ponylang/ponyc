@@ -101,7 +101,7 @@ if (MSVC)
     )
 
     set_source_files_properties(main.c PROPERTIES LANGUAGE CXX)
-    set_property(TARGET libponyc.tests PROPERTY LINK_OPTIONS "/WHOLEARCHIVE:libponyrt.lib")
+    set_property(TARGET libponyc.tests PROPERTY LINK_OPTIONS "/WHOLEARCHIVE:$<TARGET_FILE:libponyrt>")
 else()
     if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
         target_link_libraries(libponyc.tests PRIVATE

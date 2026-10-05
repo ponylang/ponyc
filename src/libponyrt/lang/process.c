@@ -95,7 +95,7 @@ PONY_API uint32_t ponyint_win_pipe_create(uint32_t* near_fd, uint32_t* far_fd, b
 PONY_API size_t ponyint_win_process_create(
     char* appname,
     char* cmdline,
-    char* environ,
+    char* envp,
     char* wdir,
     uint32_t stdin_fd,
     uint32_t stdout_fd,
@@ -121,7 +121,7 @@ PONY_API size_t ponyint_win_process_create(
         NULL,        // primary thread security attributes
         TRUE,        // handles are inherited
         0,           // creation flags
-        environ,     // environment to use
+        envp,        // environment to use
         wdir,        // current directory of the process
         &si,         // STARTUPINFO pointer
         &pi);        // receives PROCESS_INFORMATION

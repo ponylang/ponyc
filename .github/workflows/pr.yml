@@ -222,7 +222,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    name: 'ponyc: x86-64 Windows MSVC'
+    name: 'ponyc: x86-64 Windows'
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2

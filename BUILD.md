@@ -1,10 +1,10 @@
 # Building ponyc from source
 
-First of all, you need a compiler with decent C11 support. We officially support Clang on Unix and MSVC on Windows; the following are known to work:
+First of all, you need a compiler with decent C11 support. We officially support Clang on Unix and clang-cl on Windows; the following are known to work:
 
 - Clang >= 3.4
 - XCode Clang >= 6.0
-- MSVC >= 2017
+- clang-cl >= 12.0
 - GCC >= 4.7
 
 You also need [CMake](https://cmake.org/download/) version 3.25 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM. On Unix systems, you need the zlib development headers and library installed (e.g. `zlib-dev`, `zlib1g-dev`, or `zlib-devel` depending on your distribution). You also need an SSL development library — either OpenSSL or LibreSSL — because the standard library's `net` package requires it. CMake detects the installed library and version automatically at configure time. If it can't find your SSL installation (for example, a keg-only Homebrew formula on macOS, or a non-standard install path), point CMake at it with `-DOPENSSL_ROOT_DIR=/path/to/ssl` at the configure step.
@@ -188,6 +188,7 @@ Building on Windows requires the following:
 - Visual Studio 2022 or 2019 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2022 or 2019 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)).
   - If using Visual Studio, install the `Desktop Development with C++` workload.
   - If using Visual C++ Build Tools, install the `Visual C++ build tools` workload, and the `Visual Studio C++ core features` individual component.
+  - Install the `C++ Clang Compiler for Windows` component (under Individual Components). The build uses clang-cl, not MSVC's cl.exe, so that LTO-compiled libraries are compatible with the LLVM linker ponyc uses internally.
   - Install the latest `Windows 11 SDK (11.x.x.x) for Desktop` component.
 
 In a PowerShell prompt, run:
@@ -206,7 +207,7 @@ Note that you only need to run `cmake -P lib/build-libs.cmake` once the first ti
 
 ### ARM64 Windows
 
-On an ARM64 host, use the `windows-arm64` presets and `-DPRESET=libs-windows-arm64`. The LLVM libs build uses clang-cl on this platform; install the **C++ Clang Compiler for Windows** component in Visual Studio (it is not included in the default `Desktop Development with C++` workload).
+On an ARM64 host, use the `windows-arm64` presets and `-DPRESET=libs-windows-arm64`.
 
 ```powershell
 cmake -DPRESET=libs-windows-arm64 -P lib/build-libs.cmake
@@ -216,7 +217,7 @@ cmake --build --preset windows-arm64-release
 
 ### Unsupported Windows build options
 
-Several `use=` build options aren't supported on Windows (MSVC). The supported ones are `systematic_testing`, `pool_classic`, `pool_retain`, `pooltrack`, `runtimestats`, and `runtimestats_messages`. The rest depend on POSIX interfaces or Clang/GCC toolchain features MSVC doesn't provide: `pool_memalign` needs `posix_memalign`, the sanitizers and `coverage` need the Clang/GCC `-fsanitize=`/`-fprofile-arcs` interfaces. `cmake --preset windows-x86-64 -DPONY_USES=...` rejects the unsupported options with a clear error rather than failing partway through the build.
+Several `use=` build options aren't supported on Windows. The supported ones are `systematic_testing`, `pool_classic`, `pool_retain`, `pooltrack`, `runtimestats`, and `runtimestats_messages`. The rest depend on POSIX interfaces not available on Windows: `pool_memalign` needs `posix_memalign`, the sanitizers need `-fsanitize=` runtimes that aren't shipped for Windows, and `coverage` needs `-fprofile-arcs` support. `cmake --preset windows-x86-64 -DPONY_USES=...` rejects the unsupported options with a clear error rather than failing partway through the build.
 
 Supported doesn't mean each one builds alone: `pool_retain` and `pooltrack` need `pool_classic` alongside them, on Windows as on every other platform. See the runtime allocator section below.
 
@@ -303,7 +304,7 @@ cmake --build --preset release
 
 ### runtime-bitcode
 
-On clang builds, `PONY_RUNTIME_BITCODE` defaults to `ON`. The build compiles every libponyrt source file to LLVM bitcode and links them into `libponyrt.bc` with `llvm-link` (built by `cmake -P lib/build-libs.cmake`). At compile time, ponyc looks for `libponyrt.bc` in its search paths and merges it into the program's IR before optimisation, enabling interprocedural optimisation between Pony code and the runtime. When `libponyrt.bc` is not found (e.g. on Windows/MSVC builds), ponyc links `libponyrt.a` as usual.
+On clang builds, `PONY_RUNTIME_BITCODE` defaults to `ON`. The build compiles every libponyrt source file to LLVM bitcode and links them into `libponyrt.bc` with `llvm-link` (built by `cmake -P lib/build-libs.cmake`). At compile time, ponyc looks for `libponyrt.bc` in its search paths and merges it into the program's IR before optimisation, enabling interprocedural optimisation between Pony code and the runtime. When `libponyrt.bc` is not found (e.g. on Windows builds), ponyc links `libponyrt.a` as usual.
 
 To disable runtime bitcode on a clang build:
 

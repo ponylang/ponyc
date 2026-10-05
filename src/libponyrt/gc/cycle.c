@@ -202,7 +202,7 @@ enum
   COLOR_BLACK,
   COLOR_GREY,
   COLOR_WHITE
-} ponyint_color_t;
+};
 
 struct view_t
 {

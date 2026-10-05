@@ -214,7 +214,7 @@ bool HeapToStack::runOnInstruction(IRBuilder<> &builder, Instruction *inst,
   auto invoke = dyn_cast<InvokeInst>(static_cast<Instruction*>(&call));
   if(invoke)
   {
-    BranchInst::Create(invoke->getNormalDest(), invoke->getIterator());
+    UncondBrInst::Create(invoke->getNormalDest(), invoke->getIterator());
     invoke->getUnwindDest()->removePredecessor(call.getParent());
   }
 

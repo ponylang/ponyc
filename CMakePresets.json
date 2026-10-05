@@ -129,7 +129,7 @@
       "displayName": "Windows x86-64 (multi-config)",
       "inherits": "windows-base",
       "architecture": { "value": "x64", "strategy": "set" },
-      "toolset": { "value": "host=x64", "strategy": "set" },
+      "toolset": { "value": "ClangCL,host=x64", "strategy": "set" },
       "cacheVariables": { "PONY_CPU": "x86-64" }
     },
     {
@@ -137,7 +137,7 @@
       "displayName": "Windows arm64 (multi-config)",
       "inherits": "windows-base",
       "architecture": { "value": "ARM64", "strategy": "set" },
-      "toolset": { "value": "host=ARM64", "strategy": "set" },
+      "toolset": { "value": "ClangCL,host=ARM64", "strategy": "set" },
       "cacheVariables": { "PONY_CPU": "generic" }
     }
   ],
