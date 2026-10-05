@@ -131,9 +131,11 @@ namespace ponyint_atomics
     alignas(sizeof(PONY_ABA_PROTECTED_PTR(T))) PONY_ABA_PROTECTED_PTR(T)
 
 #ifdef PONY_WANT_ATOMIC_DEFS
-// Same cl.exe-vs-clang distinction as the two blocks above: clang-targeting-
-// MSVC takes the GCC-builtin big-atomic path in the #else, keeping the whole
-// header coherent (clang-MSVC behaves as clang throughout).
+// cl.exe has no C11 atomics so it uses C++ templates with the MSVC
+// _InterlockedCompareExchange128 intrinsic.  clang-cl supports
+// _InterlockedCompareExchange128 as a builtin but uses the C-union ABA type,
+// so it gets its own macro set that casts through long long* directly.
+// Non-MSVC clang/GCC use __atomic_* builtins with __int128_t.
 #  if defined(_MSC_VER) && !defined(__clang__)
 #    pragma warning(push)
 #    pragma warning(disable:4164)
@@ -181,6 +183,29 @@ namespace ponyint_atomics
       ponyint_atomics::big_cas(PTR, EXP, DES)
 
 #    pragma warning(pop)
+#  elif defined(_MSC_VER) && defined(__clang__)
+#    define bigatomic_load_explicit(PTR, MO) \
+      ({ \
+        __typeof__(*(PTR)) _ret = {0}; \
+        _InterlockedCompareExchange128((long long*)(PTR), 0, 0, \
+          (long long*)&_ret); \
+        _ret; \
+      })
+
+#    define bigatomic_store_explicit(PTR, VAL, MO) \
+      ({ \
+        __typeof__(*(PTR)) _tmp; \
+        _tmp.object = (PTR)->object; \
+        _tmp.counter = (PTR)->counter; \
+        while(!_InterlockedCompareExchange128((long long*)(PTR), \
+          (long long)(VAL).counter, (long long)(VAL).object, \
+          (long long*)&_tmp)) \
+        {} \
+      })
+
+#    define bigatomic_compare_exchange_strong_explicit(PTR, EXP, DES, SUCC, FAIL) \
+      _InterlockedCompareExchange128((long long*)(PTR), \
+        (long long)(DES).counter, (long long)(DES).object, (long long*)(EXP))
 #  else
 #    define bigatomic_load_explicit(PTR, MO) \
       ({ \

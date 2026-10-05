@@ -275,7 +275,7 @@ add_compile_options(${PONY_RUNTIME_DEFINES})
 # into the program's IR before optimisation, enabling cross-module
 # interprocedural optimisation between Pony code and the runtime.
 if(NOT DEFINED PONY_RUNTIME_BITCODE)
-    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
         set(PONY_RUNTIME_BITCODE ON)
     else()
         set(PONY_RUNTIME_BITCODE OFF)
@@ -709,7 +709,10 @@ add_compile_definitions(
 
 include(CheckIPOSupported)
 if(PONY_USE_LTO AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-    if(NOT MSVC AND _pony_llvm_ar)
+    if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+        # cl.exe's /GL produces LTCG bitcode that lld-link can't read;
+        # use the ClangCL toolset for LTO on Windows.
+    elseif(_pony_llvm_ar)
         set(_ipo_supported YES)
     else()
         check_ipo_supported(RESULT _ipo_supported OUTPUT error)
@@ -742,6 +745,19 @@ if(MSVC)
         _CRT_SECURE_NO_WARNINGS
         $<$<CONFIG:Debug>:_ITERATOR_DEBUG_LEVEL=0>
     )
+
+    # The runtime and compiler .c files are compiled as C++ on Windows
+    # (LANGUAGE CXX in libponyrt/libponyc CMakeLists) for correct symbol
+    # linkage.  clang-cl warns about valid C patterns that C++ is stricter
+    # about; cl.exe accepted them silently.
+    if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
+        add_compile_options(
+            -Wno-writable-strings
+            -Wno-microsoft-cast
+            -Wno-atomic-alignment
+            -mcx16
+        )
+    endif()
 else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -Werror -Wconversion -Wno-sign-conversion -Wextra -Wall ${PONY_PIC_FLAG} -fexceptions")
     if(CMAKE_C_COMPILER_ID MATCHES "Clang")

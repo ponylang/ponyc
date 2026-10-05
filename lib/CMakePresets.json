@@ -27,10 +27,10 @@
     },
     {
       "name": "libs-windows-x86-64",
-      "displayName": "Vendored LLVM + support libraries (Windows x86-64, MSVC)",
+      "displayName": "Vendored LLVM + support libraries (Windows x86-64, clang-cl)",
       "inherits": "libs-base",
       "architecture": { "value": "x64", "strategy": "set" },
-      "toolset": { "value": "host=x64", "strategy": "set" }
+      "toolset": { "value": "ClangCL,host=x64", "strategy": "set" }
     },
     {
       "name": "libs-windows-arm64",

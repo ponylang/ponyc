@@ -1093,6 +1093,7 @@ static bool single_method_interfaces_could_unify(subst_t* subst,
   }
 
   bool result = false;
+  ast_t* rr_a = r_a;
 
   // Structural shape checks.
   token_id t_a = ast_id(r_a);
@@ -1123,7 +1124,6 @@ static bool single_method_interfaces_could_unify(subst_t* subst,
 
   // If method-level type params exist, reify a's method with b's type params
   // so both are in the same variable space (mirrors structural_could_match_pattern).
-  ast_t* rr_a = r_a;
   if(ast_id(b_tps) != TK_NONE)
   {
     BUILD(typeargs, b_tps, NODE(TK_TYPEARGS));
