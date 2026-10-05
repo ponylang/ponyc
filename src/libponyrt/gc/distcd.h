@@ -77,12 +77,15 @@ typedef struct trace_route_msg_t
 // The leader field is the reply destination in CONFIRM_BLOCKED, the
 // delegation target in DELEGATE, the authorizing leader in RELEASE,
 // and passed through unchanged in CONFIRMED and DENIED.
+// The appearances field carries the recipient's expected rc from cycle
+// membership, set by the leader in CONFIRM_BLOCKED and RELEASE.
 typedef struct confirm_msg_t
 {
   pony_msg_t msg;
   pony_actor_t** members;
   size_t count;
   pony_actor_t* leader;
+  size_t appearances;
 } confirm_msg_t;
 
 // Create a distcd_t with default initial state.

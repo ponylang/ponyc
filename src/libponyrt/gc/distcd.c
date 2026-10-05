@@ -441,7 +441,7 @@ static void send_trace_route(pony_ctx_t* ctx, pony_actor_t* to,
 
 static void send_confirm_msg(pony_ctx_t* ctx, pony_actor_t* to,
   uint32_t msg_id, pony_actor_t** members, size_t count,
-  pony_actor_t* leader)
+  pony_actor_t* leader, size_t appearances)
 {
   if(ponyint_actor_pendingdestroy(to))
     return;
@@ -451,6 +451,7 @@ static void send_confirm_msg(pony_ctx_t* ctx, pony_actor_t* to,
 
   m->count = count;
   m->leader = leader;
+  m->appearances = appearances;
   m->members = (pony_actor_t**)ponyint_pool_alloc_size(
     count * sizeof(pony_actor_t*));
   memcpy(m->members, members, count * sizeof(pony_actor_t*));
@@ -750,19 +751,15 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
     && (actor->live_asio_events == 0);
 
   if(blocked)
-  {
-    size_t appearances = count_appearances_in_component(
-      actor, distcd->known_cycles, m->members, m->count);
-    blocked = (actor->gc.rc == appearances);
-  }
+    blocked = (actor->gc.rc == m->appearances);
 
   if(blocked)
   {
     send_confirm_msg(ctx, m->leader, ACTORMSG_CONFIRMED_DCD,
-      m->members, m->count, m->leader);
+      m->members, m->count, m->leader, 0);
   } else {
     send_confirm_msg(ctx, m->leader, ACTORMSG_DENIED_DCD,
-      m->members, m->count, m->leader);
+      m->members, m->count, m->leader, 0);
   }
 
   ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
@@ -801,9 +798,12 @@ void ponyint_distcd_handle_confirmed(pony_ctx_t* ctx,
     {
       for(size_t i = 0; i < distcd->candidate->count; i++)
       {
+        size_t member_app = count_appearances_in_component(
+          distcd->candidate->members[i], distcd->known_cycles,
+          distcd->candidate->members, distcd->candidate->count);
         send_confirm_msg(ctx, distcd->candidate->members[i],
           ACTORMSG_RELEASE_DCD, distcd->candidate->members,
-          distcd->candidate->count, actor);
+          distcd->candidate->count, actor, member_app);
       }
 
       // Don't reset conf_state here — the leader's own RELEASE is
@@ -852,7 +852,7 @@ void ponyint_distcd_handle_denied(pony_ctx_t* ctx,
   if(delegate_to != NULL)
   {
     send_confirm_msg(ctx, delegate_to, ACTORMSG_DELEGATE_DCD,
-      distcd->candidate->members, distcd->candidate->count, delegate_to);
+      distcd->candidate->members, distcd->candidate->count, delegate_to, 0);
   }
 
   ponyint_pool_free_size(
@@ -915,11 +915,7 @@ void ponyint_distcd_handle_release(pony_ctx_t* ctx,
       && (actor->live_asio_events == 0);
 
     if(blocked)
-    {
-      size_t appearances = count_appearances_in_component(
-        actor, distcd->known_cycles, m->members, m->count);
-      blocked = (actor->gc.rc == appearances);
-    }
+      blocked = (actor->gc.rc == m->appearances);
 
     ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
 
@@ -996,25 +992,21 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
   if(distcd->released)
     return;
 
-  // If we have a pending delegate, try to become leader
+  // If we have a pending delegate, recompute the component from our own
+  // cycle knowledge and re-enter confirmation as leader.
   if(distcd->conf_state == DISTCD_CONF_MEMBER_PENDING &&
     distcd->candidate != NULL)
   {
-    if(!ponyint_messageq_isempty(&actor->q))
-      return;
+    ponyint_pool_free_size(
+      distcd->candidate->count * sizeof(pony_actor_t*),
+      distcd->candidate->members);
+    ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
+    distcd->candidate = NULL;
+    distcd->conf_state = DISTCD_CONF_NONE;
 
-    for(size_t i = 0; i < distcd->candidate->count; i++)
-    {
-      if(distcd->candidate->members[i] != actor)
-      {
-        send_confirm_msg(ctx, distcd->candidate->members[i],
-          ACTORMSG_CONFIRM_BLOCKED_DCD, distcd->candidate->members,
-          distcd->candidate->count, actor);
-      }
-    }
-    distcd->candidate->confirmed_count = 0;
-    distcd->conf_state = DISTCD_CONF_LEADER_WAITING;
-    return;
+    if(distcd->known_cycles == NULL)
+      return;
+    // Fall through to the normal confirmation path below
   }
 
   prune_unreachable_cycles(actor, distcd);
@@ -1068,8 +1060,10 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
   {
     if(comp_members[i] != actor)
     {
+      size_t member_app = count_appearances_in_component(
+        comp_members[i], distcd->known_cycles, comp_members, comp_count);
       send_confirm_msg(ctx, comp_members[i], ACTORMSG_CONFIRM_BLOCKED_DCD,
-        comp_members, comp_count, actor);
+        comp_members, comp_count, actor, member_app);
     }
   }
 }
