@@ -7,6 +7,7 @@
 #include "ponyassert.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 PONY_EXTERN_C_BEGIN
 
@@ -924,19 +925,18 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
     {
       if(!distcd->candidate->denied)
       {
-        bool blocked = ponyint_messageq_isempty(&actor->q)
-          && (actor->live_asio_events == 0);
+        bool safe = (actor->live_asio_events == 0);
 
-        if(blocked)
+        if(safe)
         {
           size_t leader_idx = find_member_index(actor,
             distcd->candidate->members, distcd->candidate->count);
           pony_assert(leader_idx != SIZE_MAX);
-          blocked = (actor->gc.rc ==
+          safe = (actor->gc.rc ==
             distcd->candidate->appearances[leader_idx]);
         }
 
-        if(blocked)
+        if(safe)
         {
           distcd->released = true;
           free_cycle_list(distcd->known_cycles);
@@ -982,9 +982,11 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
       ponyint_pool_free_size(
         distcd->candidate->count * sizeof(size_t),
         distcd->candidate->appearances);
+      bool was_denied = distcd->candidate->denied;
       ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
       distcd->candidate = NULL;
-      distcd->conf_state = DISTCD_CONF_NONE;
+      distcd->conf_state = was_denied
+        ? DISTCD_CONF_MEMBER_PENDING : DISTCD_CONF_NONE;
     }
 
     free_confirm_chain_arrays(m);
@@ -1083,13 +1085,7 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
 
   if(!denied)
   {
-    bool blocked = ponyint_messageq_isempty(&actor->q)
-      && (actor->live_asio_events == 0);
-
-    if(blocked)
-      blocked = (actor->gc.rc == m->appearances[my_idx]);
-
-    if(!blocked)
+    if(actor->live_asio_events > 0 || actor->gc.rc != m->appearances[my_idx])
     {
       denied = true;
       denier = actor;
@@ -1313,8 +1309,9 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
 
   if(distcd->conf_state == DISTCD_CONF_MEMBER_PENDING)
   {
-    distcd->conf_state = DISTCD_CONF_NONE;
-    if(distcd->known_cycles == NULL && distcd->delegated_cycles == NULL)
+    if(distcd->delegated_cycles != NULL)
+      distcd->conf_state = DISTCD_CONF_NONE;
+    else
       return;
   }
 
@@ -1348,9 +1345,6 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
     return;
 
   if(actor->live_asio_events > 0)
-    return;
-
-  if(!ponyint_messageq_isempty(&actor->q))
     return;
 
   pony_actor_t** comp_members;
