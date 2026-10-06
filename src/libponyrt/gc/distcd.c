@@ -636,6 +636,7 @@ distcd_t* ponyint_distcd_create()
 {
   distcd_t* distcd = (distcd_t*)ponyint_pool_alloc_size(sizeof(distcd_t));
   memset(distcd, 0, sizeof(distcd_t));
+  distcd->retrace_needed = true;
   distcd->cached_generation = UINT32_MAX;
   return distcd;
 }
@@ -763,6 +764,8 @@ void ponyint_distcd_connection_lost(pony_actor_t* actor, pony_actor_t* target)
 bool ponyint_distcd_on_acquire(pony_ctx_t* ctx, pony_actor_t* actor,
   pony_actor_t* target)
 {
+  (void)ctx;
+  (void)target;
   gc_t* gc = ponyint_actor_gc(actor);
   if(gc->rc == 0)
     return false;
@@ -777,11 +780,6 @@ bool ponyint_distcd_on_acquire(pony_ctx_t* ctx, pony_actor_t* actor,
   if(distcd->released)
     return false;
 
-  trace_entry_t entry;
-  entry.actor = actor;
-  entry.epoch = distcd->epoch;
-
-  send_trace_route(ctx, target, &entry, 1);
   return true;
 }
 
@@ -794,10 +792,9 @@ void ponyint_distcd_on_block(pony_ctx_t* ctx, pony_actor_t* actor)
   if(distcd->released)
     return;
 
-  if(distcd->retrace_needed || !distcd->initial_trace_done)
+  if(distcd->retrace_needed)
   {
     distcd->retrace_needed = false;
-    distcd->initial_trace_done = true;
     gc_t* gc = ponyint_actor_gc(actor);
     trace_entry_t entry;
     entry.actor = actor;
