@@ -7,7 +7,6 @@
 #include "ponyassert.h"
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 PONY_EXTERN_C_BEGIN
 
