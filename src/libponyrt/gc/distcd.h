@@ -58,6 +58,7 @@ typedef struct distcd_t
   uint32_t epoch;
   bool released;
   bool retrace_needed;
+  bool initial_trace_done;
   uint32_t cycles_generation;
   uint32_t cached_generation;
   pony_actor_t** cached_comp_members;

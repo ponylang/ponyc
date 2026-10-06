@@ -794,9 +794,10 @@ void ponyint_distcd_on_block(pony_ctx_t* ctx, pony_actor_t* actor)
   if(distcd->released)
     return;
 
-  if(distcd->retrace_needed)
+  if(distcd->retrace_needed || !distcd->initial_trace_done)
   {
     distcd->retrace_needed = false;
+    distcd->initial_trace_done = true;
     gc_t* gc = ponyint_actor_gc(actor);
     trace_entry_t entry;
     entry.actor = actor;
