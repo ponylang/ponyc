@@ -775,12 +775,6 @@ void ponyint_gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
   size_t objectmap_mem_allocated_freed = 0;
 #endif
 
-  // DCD mode: every foreign entry must release its full rc during cycle
-  // destruction. Advancing mark makes the sweep treat all entries as
-  // unreachable.
-  if(ponyint_actor_getdistributedcd())
-    gc->mark++;
-
   bool skip_delta = ponyint_actor_getnoblock() || ponyint_actor_getdistributedcd();
   gc->delta = ponyint_actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta,
 #ifdef USE_RUNTIMESTATS

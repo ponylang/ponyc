@@ -706,17 +706,6 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
     // other cycle members that are also being destroyed.
     if(actor_distributedcd && ponyint_distcd_released(actor->distcd))
     {
-      if(!ponyint_actor_pendingdestroy(actor))
-      {
-        ponyint_actor_setpendingdestroy(actor);
-        ponyint_actor_final(ctx, actor);
-        ponyint_actor_sendrelease(ctx, actor);
-      }
-
-      // Drain any stale messages that arrive after pendingdestroy.
-      // Once the queue is truly empty, mark it empty and stop. The
-      // actor struct leaks but the process exits when all schedulers
-      // are idle.
       if(ponyint_messageq_isempty(&actor->q))
       {
         ponyint_messageq_markempty(&actor->q);
@@ -724,7 +713,6 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
         return false;
       }
 
-      // Queue not empty — reschedule to drain remaining messages.
       TRACING_THREAD_ACTOR_RUN_STOP(actor);
       return true;
     }
@@ -744,33 +732,13 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
           && ponyint_distcd_can_self_reap(actor->distcd))
         || !has_internal_flag(actor, ACTOR_FLAG_RC_OVER_ZERO_SEEN))
       {
-        // When 'actor_noblock` is true, the cycle detector isn't running.
-        // this means actors won't be garbage collected unless we take special
-        // action. Therefore if `noblock` is on, we should garbage collect the
-        // actor.
-        //
-        // When `actor_distributedcd` is true, the centralized CD isn't
-        // running. Self-reap when distcd says it's safe: the actor
-        // hasn't been released (released actors use the RELEASE path).
-        //
-        // When the cycle detector is running, it is still safe to locally
-        // delete if our RC has never been above 0 because the cycle detector
-        // can't possibly know about the actor's existence so, if it's message
-        // queue is empty, doing a local delete is safe.
         if(ponyint_messageq_isempty(&actor->q))
         {
-          // The actors queue is empty which means this actor is a zombie
-          // and can be reaped.
-
-          // mark the queue as empty or else destroy will hang
           bool empty = ponyint_messageq_markempty(&actor->q);
-
-          // make sure the queue is actually empty as expected
           pony_assert(empty);
 
           TRACING_THREAD_ACTOR_RUN_STOP(actor);
 
-          // "Locally delete" the actor.
           ponyint_actor_setpendingdestroy(actor);
           ponyint_actor_final(ctx, actor);
           ponyint_actor_sendrelease(ctx, actor);

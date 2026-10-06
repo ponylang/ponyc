@@ -666,6 +666,15 @@ void ponyint_distcd_destroy(distcd_t* distcd)
   if(distcd->delegated_cycles != NULL)
     free_cycle_list(distcd->delegated_cycles);
 
+  pending_trace_t* pt = distcd->pending_traces;
+  while(pt != NULL)
+  {
+    pending_trace_t* next = pt->next;
+    ponyint_pool_free_size(pt->count * sizeof(trace_entry_t), pt->entries);
+    ponyint_pool_free_size(sizeof(pending_trace_t), pt);
+    pt = next;
+  }
+
   ponyint_pool_free_size(sizeof(distcd_t), distcd);
 }
 
@@ -780,6 +789,8 @@ bool ponyint_distcd_on_acquire(pony_ctx_t* ctx, pony_actor_t* actor,
   if(distcd->released)
     return false;
 
+  distcd->retrace_needed = true;
+
   return true;
 }
 
@@ -807,6 +818,27 @@ void ponyint_distcd_on_block(pony_ctx_t* ctx, pony_actor_t* actor)
       send_trace_route(ctx, aref->actor, &entry, 1);
     }
   }
+
+  if(distcd->pending_traces != NULL)
+  {
+    gc_t* gc = ponyint_actor_gc(actor);
+    size_t foreign_count = ponyint_actormap_size(&gc->foreign);
+    if(foreign_count > 0)
+    {
+      pending_trace_t* pt = distcd->pending_traces;
+      distcd->pending_traces = NULL;
+      while(pt != NULL)
+      {
+        pending_trace_t* next = pt->next;
+        trace_route_msg_t pending_msg;
+        pending_msg.entries = pt->entries;
+        pending_msg.count = pt->count;
+        ponyint_distcd_handle_trace_route(ctx, actor, &pending_msg);
+        ponyint_pool_free_size(sizeof(pending_trace_t), pt);
+        pt = next;
+      }
+    }
+  }
 }
 
 void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
@@ -818,7 +850,25 @@ void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
 
   if(foreign_count == 0)
   {
-    ponyint_pool_free_size(m->count * sizeof(trace_entry_t), m->entries);
+    distcd_t* distcd = actor->distcd;
+    if(distcd == NULL)
+    {
+      actor->distcd = ponyint_distcd_create();
+      distcd = actor->distcd;
+    }
+
+    if(distcd->released)
+    {
+      ponyint_pool_free_size(m->count * sizeof(trace_entry_t), m->entries);
+      return;
+    }
+
+    pending_trace_t* pt = (pending_trace_t*)ponyint_pool_alloc_size(
+      sizeof(pending_trace_t));
+    pt->entries = m->entries;
+    pt->count = m->count;
+    pt->next = distcd->pending_traces;
+    distcd->pending_traces = pt;
     return;
   }
 
@@ -976,17 +1026,20 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
         }
       }
 
-      ponyint_pool_free_size(
-        distcd->candidate->count * sizeof(pony_actor_t*),
-        distcd->candidate->members);
-      ponyint_pool_free_size(
-        distcd->candidate->count * sizeof(size_t),
-        distcd->candidate->appearances);
-      bool was_denied = distcd->candidate->denied;
-      ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
-      distcd->candidate = NULL;
-      distcd->conf_state = was_denied
-        ? DISTCD_CONF_MEMBER_PENDING : DISTCD_CONF_NONE;
+      if(!distcd->released)
+      {
+        ponyint_pool_free_size(
+          distcd->candidate->count * sizeof(pony_actor_t*),
+          distcd->candidate->members);
+        ponyint_pool_free_size(
+          distcd->candidate->count * sizeof(size_t),
+          distcd->candidate->appearances);
+        bool was_denied = distcd->candidate->denied;
+        ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
+        distcd->candidate = NULL;
+        distcd->conf_state = was_denied
+          ? DISTCD_CONF_MEMBER_PENDING : DISTCD_CONF_NONE;
+      }
     }
 
     free_confirm_chain_arrays(m);
@@ -1259,33 +1312,16 @@ bool ponyint_distcd_can_self_reap(distcd_t* distcd)
     return false;
 
   if(distcd->known_cycles != NULL)
-  {
-    free_cycle_list(distcd->known_cycles);
-    distcd->known_cycles = NULL;
-    distcd->cycles_generation++;
-  }
+    return false;
 
   if(distcd->candidate != NULL)
-  {
-    if(distcd->candidate->members != NULL)
-      ponyint_pool_free_size(
-        distcd->candidate->count * sizeof(pony_actor_t*),
-        distcd->candidate->members);
-    if(distcd->candidate->appearances != NULL)
-      ponyint_pool_free_size(
-        distcd->candidate->count * sizeof(size_t),
-        distcd->candidate->appearances);
-    ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
-    distcd->candidate = NULL;
-  }
+    return false;
 
   if(distcd->delegated_cycles != NULL)
-  {
-    free_cycle_list(distcd->delegated_cycles);
-    distcd->delegated_cycles = NULL;
-  }
+    return false;
 
-  distcd->conf_state = DISTCD_CONF_NONE;
+  if(distcd->conf_state != DISTCD_CONF_NONE)
+    return false;
 
   return true;
 }
@@ -1298,6 +1334,20 @@ bool ponyint_distcd_released(distcd_t* distcd)
   return distcd->released;
 }
 
+bool ponyint_distcd_finalised(distcd_t* distcd)
+{
+  if(distcd == NULL)
+    return false;
+
+  return distcd->finalised;
+}
+
+void ponyint_distcd_set_finalised(distcd_t* distcd)
+{
+  if(distcd != NULL)
+    distcd->finalised = true;
+}
+
 void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   distcd_t* distcd = actor->distcd;
@@ -1306,23 +1356,6 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
 
   if(distcd->released)
     return;
-
-  if(distcd->retrace_needed)
-  {
-    distcd->retrace_needed = false;
-    gc_t* gc = ponyint_actor_gc(actor);
-    trace_entry_t entry;
-    entry.actor = actor;
-    entry.epoch = distcd->epoch;
-    size_t idx = HASHMAP_BEGIN;
-    actorref_t* aref;
-    while((aref = ponyint_actormap_next(&gc->foreign, &idx)) != NULL)
-    {
-      aref->traced = true;
-      send_trace_route(ctx, aref->actor, &entry, 1);
-    }
-    return;
-  }
 
   if(distcd->conf_state == DISTCD_CONF_MEMBER_PENDING)
   {
@@ -1423,5 +1456,6 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
       comp_count, actor, distcd->candidate->confirmed_bits, false, NULL);
   }
 }
+
 
 PONY_EXTERN_C_END

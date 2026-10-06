@@ -53,10 +53,18 @@ typedef struct trace_entry_t
   uint32_t epoch;
 } trace_entry_t;
 
+typedef struct pending_trace_t
+{
+  trace_entry_t* entries;
+  size_t count;
+  struct pending_trace_t* next;
+} pending_trace_t;
+
 typedef struct distcd_t
 {
   uint32_t epoch;
   bool released;
+  bool finalised;
   bool retrace_needed;
   uint32_t cycles_generation;
   uint32_t cached_generation;
@@ -68,6 +76,7 @@ typedef struct distcd_t
   candidate_record_t* candidate;
   distcd_conf_state_t conf_state;
   cycle_record_t* delegated_cycles;
+  pending_trace_t* pending_traces;
 } distcd_t;
 
 typedef struct trace_route_msg_t
@@ -153,6 +162,9 @@ bool ponyint_distcd_can_self_reap(distcd_t* distcd);
 
 // RELEASE has been received.
 bool ponyint_distcd_released(distcd_t* distcd);
+
+bool ponyint_distcd_finalised(distcd_t* distcd);
+void ponyint_distcd_set_finalised(distcd_t* distcd);
 
 // If this actor is the natural leader of a cycle component and not already
 // in a confirmation round, initiate one.
