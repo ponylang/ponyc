@@ -758,8 +758,10 @@ if(MSVC)
             -Wno-writable-strings
             -Wno-microsoft-cast
             -Wno-atomic-alignment
-            -mcx16
         )
+        if(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "x86")
+            add_compile_options(-mcx16)
+        endif()
     endif()
 else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -Werror -Wconversion -Wno-sign-conversion -Wextra -Wall ${PONY_PIC_FLAG} -fexceptions")
