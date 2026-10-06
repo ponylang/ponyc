@@ -925,18 +925,19 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
     {
       if(!distcd->candidate->denied)
       {
-        bool safe = (actor->live_asio_events == 0);
+        bool blocked = ponyint_messageq_isempty(&actor->q)
+          && (actor->live_asio_events == 0);
 
-        if(safe)
+        if(blocked)
         {
           size_t leader_idx = find_member_index(actor,
             distcd->candidate->members, distcd->candidate->count);
           pony_assert(leader_idx != SIZE_MAX);
-          safe = (actor->gc.rc ==
+          blocked = (actor->gc.rc ==
             distcd->candidate->appearances[leader_idx]);
         }
 
-        if(safe)
+        if(blocked)
         {
           distcd->released = true;
           free_cycle_list(distcd->known_cycles);
@@ -1307,6 +1308,23 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
   if(distcd->released)
     return;
 
+  if(distcd->retrace_needed)
+  {
+    distcd->retrace_needed = false;
+    gc_t* gc = ponyint_actor_gc(actor);
+    trace_entry_t entry;
+    entry.actor = actor;
+    entry.epoch = distcd->epoch;
+    size_t idx = HASHMAP_BEGIN;
+    actorref_t* aref;
+    while((aref = ponyint_actormap_next(&gc->foreign, &idx)) != NULL)
+    {
+      aref->traced = true;
+      send_trace_route(ctx, aref->actor, &entry, 1);
+    }
+    return;
+  }
+
   if(distcd->conf_state == DISTCD_CONF_MEMBER_PENDING)
   {
     if(distcd->delegated_cycles != NULL)
@@ -1345,6 +1363,9 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
     return;
 
   if(actor->live_asio_events > 0)
+    return;
+
+  if(!ponyint_messageq_isempty(&actor->q))
     return;
 
   pony_actor_t** comp_members;
