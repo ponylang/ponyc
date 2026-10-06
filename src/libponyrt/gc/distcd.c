@@ -503,7 +503,7 @@ static void send_confirm_chain(pony_ctx_t* ctx, pony_actor_t* to,
 }
 
 static void send_delegate_chain(pony_ctx_t* ctx, pony_actor_t* to,
-  pony_actor_t** members, size_t count,
+  pony_actor_t** members, size_t* appearances, size_t count,
   pony_actor_t* denier, uint64_t visited_bits)
 {
   if(ponyint_actor_pendingdestroy(to))
@@ -518,6 +518,9 @@ static void send_delegate_chain(pony_ctx_t* ctx, pony_actor_t* to,
   m->members = (pony_actor_t**)ponyint_pool_alloc_size(
     count * sizeof(pony_actor_t*));
   memcpy(m->members, members, count * sizeof(pony_actor_t*));
+  m->appearances = (size_t*)ponyint_pool_alloc_size(
+    count * sizeof(size_t));
+  memcpy(m->appearances, appearances, count * sizeof(size_t));
 
   pony_sendv(ctx, to, &m->msg, &m->msg, false);
 }
@@ -613,6 +616,16 @@ void ponyint_distcd_destroy(distcd_t* distcd)
     ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
   }
 
+  if(distcd->delegated_members != NULL)
+  {
+    ponyint_pool_free_size(
+      distcd->delegated_count * sizeof(pony_actor_t*),
+      distcd->delegated_members);
+    ponyint_pool_free_size(
+      distcd->delegated_count * sizeof(size_t),
+      distcd->delegated_appearances);
+  }
+
   ponyint_pool_free_size(sizeof(distcd_t), distcd);
 }
 
@@ -685,6 +698,26 @@ void ponyint_distcd_connection_lost(pony_actor_t* actor, pony_actor_t* target)
         ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
         distcd->candidate = NULL;
         distcd->conf_state = DISTCD_CONF_NONE;
+        break;
+      }
+    }
+  }
+
+  if(distcd->delegated_members != NULL)
+  {
+    for(size_t i = 0; i < distcd->delegated_count; i++)
+    {
+      if(distcd->delegated_members[i] == target)
+      {
+        ponyint_pool_free_size(
+          distcd->delegated_count * sizeof(pony_actor_t*),
+          distcd->delegated_members);
+        ponyint_pool_free_size(
+          distcd->delegated_count * sizeof(size_t),
+          distcd->delegated_appearances);
+        distcd->delegated_members = NULL;
+        distcd->delegated_appearances = NULL;
+        distcd->delegated_count = 0;
         break;
       }
     }
@@ -904,8 +937,8 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
         if(target_count > 0)
         {
           send_delegate_chain(ctx, targets[0],
-            distcd->candidate->members, distcd->candidate->count,
-            distcd->candidate->denier, visited);
+            distcd->candidate->members, distcd->candidate->appearances,
+            distcd->candidate->count, distcd->candidate->denier, visited);
         }
       }
 
@@ -1035,8 +1068,20 @@ void ponyint_distcd_handle_delegate(pony_ctx_t* ctx,
       distcd = actor->distcd;
     }
 
+    if(distcd->delegated_members != NULL)
+    {
+      ponyint_pool_free_size(
+        distcd->delegated_count * sizeof(pony_actor_t*),
+        distcd->delegated_members);
+      ponyint_pool_free_size(
+        distcd->delegated_count * sizeof(size_t),
+        distcd->delegated_appearances);
+    }
+
+    distcd->delegated_members = m->members;
+    distcd->delegated_appearances = m->appearances;
+    distcd->delegated_count = m->count;
     distcd->conf_state = DISTCD_CONF_MEMBER_PENDING;
-    ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
     return;
   }
 
@@ -1051,8 +1096,8 @@ void ponyint_distcd_handle_delegate(pony_ctx_t* ctx,
 
   if(target_count > 0)
   {
-    send_delegate_chain(ctx, targets[0], m->members, m->count,
-      m->denier, visited);
+    send_delegate_chain(ctx, targets[0], m->members, m->appearances,
+      m->count, m->denier, visited);
   }
   else
   {
@@ -1061,12 +1106,13 @@ void ponyint_distcd_handle_delegate(pony_ctx_t* ctx,
       m->count, 0, any_targets);
     if(any_count > 0)
     {
-      send_delegate_chain(ctx, any_targets[0], m->members, m->count,
-        m->denier, visited);
+      send_delegate_chain(ctx, any_targets[0], m->members, m->appearances,
+        m->count, m->denier, visited);
     }
   }
 
   ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+  ponyint_pool_free_size(m->count * sizeof(size_t), m->appearances);
 }
 
 void ponyint_distcd_handle_release(pony_ctx_t* ctx,
@@ -1168,6 +1214,19 @@ bool ponyint_distcd_can_self_reap(distcd_t* distcd)
     distcd->candidate = NULL;
   }
 
+  if(distcd->delegated_members != NULL)
+  {
+    ponyint_pool_free_size(
+      distcd->delegated_count * sizeof(pony_actor_t*),
+      distcd->delegated_members);
+    ponyint_pool_free_size(
+      distcd->delegated_count * sizeof(size_t),
+      distcd->delegated_appearances);
+    distcd->delegated_members = NULL;
+    distcd->delegated_appearances = NULL;
+    distcd->delegated_count = 0;
+  }
+
   distcd->conf_state = DISTCD_CONF_NONE;
 
   return true;
@@ -1215,7 +1274,52 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
   get_component_and_leader(distcd, actor, &comp_members, &comp_count, &leader);
 
   if(comp_count == 0)
+  {
+    if(distcd->delegated_members != NULL)
+    {
+      ponyint_pool_free_size(
+        distcd->delegated_count * sizeof(pony_actor_t*),
+        distcd->delegated_members);
+      ponyint_pool_free_size(
+        distcd->delegated_count * sizeof(size_t),
+        distcd->delegated_appearances);
+      distcd->delegated_members = NULL;
+      distcd->delegated_appearances = NULL;
+      distcd->delegated_count = 0;
+    }
     return;
+  }
+
+  if(distcd->delegated_members != NULL)
+  {
+    pony_actor_t* merged[64];
+    size_t merged_count = 0;
+
+    for(size_t i = 0; i < comp_count && merged_count < 64; i++)
+      merged[merged_count++] = comp_members[i];
+
+    for(size_t i = 0; i < distcd->delegated_count && merged_count < 64; i++)
+    {
+      bool found = false;
+      for(size_t j = 0; j < comp_count; j++)
+      {
+        if(comp_members[j] == distcd->delegated_members[i])
+        {
+          found = true;
+          break;
+        }
+      }
+      if(!found)
+        merged[merged_count++] = distcd->delegated_members[i];
+    }
+
+    ponyint_pool_free_size(comp_count * sizeof(pony_actor_t*), comp_members);
+    comp_members = (pony_actor_t**)ponyint_pool_alloc_size(
+      merged_count * sizeof(pony_actor_t*));
+    memcpy(comp_members, merged, merged_count * sizeof(pony_actor_t*));
+    comp_count = merged_count;
+    leader = actor;
+  }
 
   pony_assert(comp_count <= 64);
 
@@ -1231,6 +1335,32 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
   {
     appearances[i] = count_appearances_in_component(
       comp_members[i], distcd->known_cycles, comp_members, comp_count);
+  }
+
+  if(distcd->delegated_members != NULL)
+  {
+    for(size_t i = 0; i < comp_count; i++)
+    {
+      for(size_t j = 0; j < distcd->delegated_count; j++)
+      {
+        if(comp_members[i] == distcd->delegated_members[j])
+        {
+          if(distcd->delegated_appearances[j] > appearances[i])
+            appearances[i] = distcd->delegated_appearances[j];
+          break;
+        }
+      }
+    }
+
+    ponyint_pool_free_size(
+      distcd->delegated_count * sizeof(pony_actor_t*),
+      distcd->delegated_members);
+    ponyint_pool_free_size(
+      distcd->delegated_count * sizeof(size_t),
+      distcd->delegated_appearances);
+    distcd->delegated_members = NULL;
+    distcd->delegated_appearances = NULL;
+    distcd->delegated_count = 0;
   }
 
   size_t leader_idx = find_member_index(actor, comp_members, comp_count);

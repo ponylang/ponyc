@@ -67,6 +67,9 @@ typedef struct distcd_t
   dedup_conn_t* trace_dedup;
   candidate_record_t* candidate;
   distcd_conf_state_t conf_state;
+  pony_actor_t** delegated_members;
+  size_t* delegated_appearances;
+  size_t delegated_count;
 } distcd_t;
 
 typedef struct trace_route_msg_t
@@ -96,6 +99,7 @@ typedef struct delegate_chain_msg_t
 {
   pony_msg_t msg;
   pony_actor_t** members;
+  size_t* appearances;
   size_t count;
   pony_actor_t* denier;
   uint64_t visited_bits;
