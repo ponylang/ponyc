@@ -1001,6 +1001,49 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
     return;
   }
 
+  if(distcd->conf_state == DISTCD_CONF_LEADER_WAITING &&
+    distcd->candidate != NULL &&
+    m->leader != actor)
+  {
+    bool should_defer = false;
+    if(m->count > distcd->candidate->count)
+    {
+      bool is_superset = true;
+      for(size_t i = 0; i < distcd->candidate->count && is_superset; i++)
+      {
+        bool found = false;
+        for(size_t j = 0; j < m->count; j++)
+        {
+          if(distcd->candidate->members[i] == m->members[j])
+          {
+            found = true;
+            break;
+          }
+        }
+        if(!found) is_superset = false;
+      }
+      should_defer = is_superset;
+    }
+    else if(m->count == distcd->candidate->count && m->leader < actor)
+    {
+      should_defer = true;
+    }
+
+    if(should_defer)
+    {
+      ponyint_pool_free_size(
+        distcd->candidate->count * sizeof(pony_actor_t*),
+        distcd->candidate->members);
+      if(distcd->candidate->appearances != NULL)
+        ponyint_pool_free_size(
+          distcd->candidate->count * sizeof(size_t),
+          distcd->candidate->appearances);
+      ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
+      distcd->candidate = NULL;
+      distcd->conf_state = DISTCD_CONF_NONE;
+    }
+  }
+
   size_t my_idx = find_member_index(actor, m->members, m->count);
   if(my_idx == SIZE_MAX)
   {
