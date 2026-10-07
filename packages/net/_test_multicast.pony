@@ -5,9 +5,11 @@ use "pony_test"
 class \nodoc\ iso _TestMulticastSockopt is UnitTest
   """
   IPv4 multicast TTL and loopback options round-trip through
-  `setsockopt_u32`/`getsockopt_u32` at `IPPROTO_IP` level. Setting them at
-  the wrong level (the prior `SOL_SOCKET` bug) either fails the `setsockopt`
-  or reads back the wrong value.
+  `setsockopt`/`getsockopt_u32` at `IPPROTO_IP` level. Uses the platform-aware
+  pack functions because BSD kernels require `u_char` (1-byte) values for these
+  options and reject 4-byte buffers. Setting them at the wrong level (the prior
+  `SOL_SOCKET` bug) either fails the `setsockopt` or reads back the wrong
+  value.
   """
   fun name(): String => "net/MulticastSockopt"
 
@@ -29,16 +31,27 @@ actor \nodoc\ _TestMulticastSockoptActor
   fun ref _socket(): UDPSocket => _udp
 
   fun ref _on_bound() =>
-    _udp.setsockopt_u32(
-      OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl(), 7)
+    let ttl_buf = Array[U8] .> undefined(4)
+    let ttl_size = @pony_os_pack_multicast_ttl(U8(7), ttl_buf.cpointer())
+    ttl_buf.truncate(ttl_size.usize())
+    let set_ttl_err =
+      _udp.setsockopt(
+        OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl(), ttl_buf)
+    _h.assert_eq[U32](set_ttl_err, 0, "setsockopt IP_MULTICAST_TTL failed")
     (let ttl_err, let ttl) =
       _udp.getsockopt_u32(
         OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl())
     _h.assert_eq[U32](ttl_err, 0, "getsockopt IP_MULTICAST_TTL failed")
     _h.assert_eq[U32](ttl, 7, "IP_MULTICAST_TTL did not round-trip")
 
-    _udp.setsockopt_u32(
-      OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_loop(), 0)
+    let loop_buf = Array[U8] .> undefined(4)
+    let loop_size = @pony_os_pack_multicast_loop(false, loop_buf.cpointer())
+    loop_buf.truncate(loop_size.usize())
+    let set_loop_err =
+      _udp.setsockopt(
+        OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_loop(), loop_buf)
+    _h.assert_eq[U32](
+      set_loop_err, 0, "setsockopt IP_MULTICAST_LOOP failed")
     (let loop_err, let loop') =
       _udp.getsockopt_u32(
         OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_loop())
