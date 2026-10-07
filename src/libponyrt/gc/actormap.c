@@ -1,6 +1,7 @@
 #include "actormap.h"
 #include "objectmap.h"
 #include "gc.h"
+#include "distcd.h"
 #include "../actor/actor.h"
 #include "../ds/hash.h"
 #include "../ds/fun.h"
@@ -208,11 +209,14 @@ deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
         ponyint_objectmap_total_alloc_size(&old_aref->map);
 #endif
     } else {
+      pony_actor_t* lost_target = aref->actor;
       ponyint_actormap_clearindex(map, i);
 
       // only update if cycle detector is enabled
       if(!actor_noblock)
-        delta = ponyint_deltamap_update(delta, aref->actor, 0);
+        delta = ponyint_deltamap_update(delta, lost_target, 0);
+      else
+        ponyint_distcd_on_sweep(ctx->current, lost_target);
 
       needs_optimize = true;
     }

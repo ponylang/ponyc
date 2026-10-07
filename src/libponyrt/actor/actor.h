@@ -100,6 +100,7 @@ typedef struct pony_actor_t
   uint64_t systematic_testing_id;
 #endif
   gc_t gc; // 48/88 bytes
+  void* distcd; // distcd_t*, NULL when DCD is disabled
   // if you add more members here, you need to update the PONY_ACTOR_PAD_SIZE
   // calculation below and the pony_static_assert at the top of actor.c, to
   // reference the final member, its offset, and size
@@ -110,7 +111,7 @@ typedef struct pony_actor_t
  * Size of pony_actor_t minus the padding at the end and the pony_type_t* at the beginning.
  *
  */
-#define PONY_ACTOR_PAD_SIZE (offsetof(pony_actor_t, gc) + sizeof(gc_t) - sizeof(pony_type_t*))
+#define PONY_ACTOR_PAD_SIZE (offsetof(pony_actor_t, distcd) + sizeof(void*) - sizeof(pony_type_t*))
 
 typedef struct pony_actor_pad_t
 {
@@ -209,6 +210,16 @@ PONY_API actorstats_t* pony_actor_stats();
 void ponyint_unmute_actor(pony_actor_t* actor);
 
 PONY_API void ponyint_destroy(pony_actor_t* actor);
+
+struct distcd_t;
+
+void* ponyint_actor_get_distcd(pony_actor_t* actor);
+
+void ponyint_actor_set_distcd(pony_actor_t* actor, void* dcd);
+
+void ponyint_actor_setdistributedcd(bool state);
+
+bool ponyint_actor_getdistributedcd(void);
 
 void ponyint_cycle_detector_enable_tracing(pony_actor_t* actor);
 

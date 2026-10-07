@@ -18,6 +18,7 @@ typedef struct gc_t
   uint32_t mark;
   uint32_t rc_mark;
   size_t rc;
+  PONY_ATOMIC(size_t) dcd_rc;
   // objectmap size is hashmap mem + (entry mem * num entries)
   objectmap_t local;
   actormap_t foreign;

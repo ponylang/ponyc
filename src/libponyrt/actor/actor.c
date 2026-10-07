@@ -6,6 +6,7 @@
 #include "../sched/cpu.h"
 #include "../mem/pool.h"
 #include "../gc/cycle.h"
+#include "../gc/distcd.h"
 #include "../gc/trace.h"
 #include "../tracing/tracing.h"
 #include "ponyassert.h"
@@ -26,10 +27,11 @@
 PONY_EXTERN_C_BEGIN
 
 // Ignore padding at the end of the type.
-pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
+pony_static_assert((offsetof(pony_actor_t, distcd) + sizeof(void*)) ==
    sizeof(pony_actor_pad_t), "Wrong actor pad size!");
 
 static bool actor_noblock = false;
+static bool actor_distributedcd = false;
 
 #ifdef USE_SYSTEMATIC_TESTING
 // Monotonic source of stable, creation-order actor ids
@@ -341,6 +343,8 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         maybe_unblock(actor);
       }
 
+      ponyint_distcd_on_acquire(actor);
+
       return false;
     }
 
@@ -366,6 +370,8 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         // send unblock if we've sent a block
         maybe_unblock(actor);
       }
+
+      ponyint_distcd_on_release(actor);
 
       return false;
     }
@@ -460,6 +466,66 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
       pony_assert(ponyint_is_cycle(actor));
       actor->type->dispatch(ctx, actor, msg);
+      return false;
+    }
+
+    case ACTORMSG_DCD_TRACE_ROUTE:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= POOL_SIZE(msg->index);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_SIZE(msg->index);
+#endif
+
+      ponyint_distcd_handle_trace_route(ctx, actor,
+        (dcd_trace_route_msg_t*)msg);
+      return false;
+    }
+
+    case ACTORMSG_DCD_COMPLETENESS:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= POOL_SIZE(msg->index);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_SIZE(msg->index);
+#endif
+
+      ponyint_distcd_handle_completeness(ctx, actor,
+        (dcd_completeness_msg_t*)msg);
+      return false;
+    }
+
+    case ACTORMSG_DCD_COMP_RESPONSE:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= POOL_SIZE(msg->index);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_SIZE(msg->index);
+#endif
+
+      ponyint_distcd_handle_comp_response(ctx, actor,
+        (dcd_comp_response_msg_t*)msg);
+      return false;
+    }
+
+    case ACTORMSG_DCD_CONF:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= POOL_SIZE(msg->index);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_SIZE(msg->index);
+#endif
+
+      ponyint_distcd_handle_conf(ctx, actor,
+        (dcd_conf_msg_t*)msg);
+      return false;
+    }
+
+    case ACTORMSG_DCD_CONF_RESPONSE:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= POOL_SIZE(msg->index);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_SIZE(msg->index);
+#endif
+
+      ponyint_distcd_handle_conf_response(ctx, actor,
+        (dcd_conf_response_msg_t*)msg);
       return false;
     }
 
@@ -643,6 +709,38 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
 
   if (has_internal_flag(actor, ACTOR_FLAG_BLOCKED))
   {
+    if (actor->distcd != NULL)
+    {
+      if(ponyint_distcd_on_block(ctx, actor, (distcd_t*)actor->distcd))
+      {
+        ponyint_messageq_markempty(&actor->q);
+        distcd_t* dcd_to_free = (distcd_t*)actor->distcd;
+        actor->distcd = NULL;
+        ponyint_distcd_destroy(dcd_to_free);
+        ponyint_actor_destroy(actor, ACTOR_DESTROYED_CD_NORMAL);
+
+        TRACING_THREAD_ACTOR_RUN_STOP(actor);
+        return false;
+      }
+
+      if(actor->gc.rc == 0)
+      {
+        distcd_t* dcd = (distcd_t*)actor->distcd;
+        if(dcd->num_known_cycles == 0 && dcd->candidate == NULL &&
+           dcd->conf_state == CONF_NONE && dcd->pending_traces == NULL)
+        {
+          actor->distcd = NULL;
+          ponyint_distcd_destroy(dcd);
+          // Fall through to the normal rc==0 self-reap path below
+          goto dcd_self_reap;
+        }
+      }
+
+      TRACING_THREAD_ACTOR_RUN_STOP(actor);
+      return !ponyint_messageq_markempty(&actor->q);
+    }
+
+dcd_self_reap:
     if (actor->gc.rc == 0)
     {
       pony_assert(actor->live_asio_events == 0);
@@ -768,6 +866,12 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
   ANNOTATE_HAPPENS_AFTER(&actor->q.head);
 #endif
 
+  if(actor->distcd != NULL)
+  {
+    ponyint_distcd_destroy((distcd_t*)actor->distcd);
+    actor->distcd = NULL;
+  }
+
   ponyint_messageq_destroy(&actor->q, false);
   ponyint_gc_destroy(&actor->gc);
   ponyint_heap_destroy(&actor->heap);
@@ -851,6 +955,26 @@ bool ponyint_actor_getnoblock()
   return actor_noblock;
 }
 
+void ponyint_actor_setdistributedcd(bool state)
+{
+  actor_distributedcd = state;
+}
+
+bool ponyint_actor_getdistributedcd()
+{
+  return actor_distributedcd;
+}
+
+void* ponyint_actor_get_distcd(pony_actor_t* actor)
+{
+  return actor->distcd;
+}
+
+void ponyint_actor_set_distcd(pony_actor_t* actor, void* dcd)
+{
+  actor->distcd = dcd;
+}
+
 PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   bool orphaned)
 {
@@ -880,12 +1004,16 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   ponyint_heap_init(&actor->heap);
   ponyint_gc_done(&actor->gc);
 
+  if(actor_distributedcd)
+    actor->distcd = ponyint_distcd_create();
+
   if(ctx->current != NULL && !orphaned)
   {
     // Do not set an rc if the actor is orphaned. The compiler determined that
     // there are no references to this actor. By not setting a non-zero RC, we
     // will GC the actor sooner and lower overall memory usage.
     actor->gc.rc = GC_INC_MORE;
+    atomic_store_explicit(&actor->gc.dcd_rc, 1, memory_order_relaxed);
     ponyint_gc_createactor(ctx->current, actor);
   } else {
     // no creator, so the actor isn't referenced by anything

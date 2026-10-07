@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "gc.h"
 #include "../actor/actor.h"
 #include "../sched/scheduler.h"
@@ -97,6 +99,9 @@ static void recv_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
   {
     // Increase apparent used memory to provoke GC.
     ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
+
+    gc_t* target_gc = ponyint_actor_gc(aref->actor);
+    atomic_fetch_add_explicit(&target_gc->dcd_rc, 1, memory_order_relaxed);
   }
 
   aref->mark = gc->mark;
@@ -122,6 +127,9 @@ static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
     // Invent some references to this actor and acquire it.
     aref->rc += GC_INC_MORE;
     acquire_actor(ctx, aref->actor);
+
+    gc_t* target_gc = ponyint_actor_gc(aref->actor);
+    atomic_fetch_add_explicit(&target_gc->dcd_rc, 1, memory_order_relaxed);
 
     // only update if cycle detector is enabled
     if(!ponyint_actor_getnoblock())
@@ -640,6 +648,9 @@ bool ponyint_gc_release(gc_t* gc, actorref_t* aref)
   size_t rc = aref->rc;
   pony_assert(gc->rc >= rc);
   gc->rc -= rc;
+
+  if(atomic_load_explicit(&gc->dcd_rc, memory_order_relaxed) > 0)
+    atomic_fetch_sub_explicit(&gc->dcd_rc, 1, memory_order_relaxed);
 
   objectmap_t* map = &aref->map;
   size_t i = HASHMAP_BEGIN;
