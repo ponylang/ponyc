@@ -2,11 +2,13 @@
 #include "actormap.h"
 #include "gc.h"
 #include "../actor/actor.h"
+#include "../sched/scheduler.h"
 #include "../ds/fun.h"
 #include "../mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 PONY_EXTERN_C_BEGIN
 
@@ -593,6 +595,78 @@ static void send_release_chain(pony_ctx_t* ctx, pony_actor_t* to,
   pony_sendv(ctx, to, &m->msg, &m->msg, false);
 }
 
+static void send_conf_dcd(pony_ctx_t* ctx, pony_actor_t* to,
+  pony_actor_t** members, size_t count,
+  pony_actor_t* leader, uint32_t round)
+{
+  conf_dcd_msg_t* m = (conf_dcd_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(conf_dcd_msg_t)), ACTORMSG_CONF_DCD);
+
+  m->count = count;
+  m->leader = leader;
+  m->round = round;
+  m->members = (pony_actor_t**)ponyint_pool_alloc_size(
+    count * sizeof(pony_actor_t*));
+  memcpy(m->members, members, count * sizeof(pony_actor_t*));
+
+  if(ponyint_actor_messageq_push(&to->q, &m->msg, &m->msg))
+    ponyint_sched_add(ctx, to);
+}
+
+static void send_ack_dcd(pony_ctx_t* ctx, pony_actor_t* to,
+  pony_actor_t* leader, size_t member_index, uint32_t round, bool ack)
+{
+  ack_dcd_msg_t* m = (ack_dcd_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(ack_dcd_msg_t)), ACTORMSG_ACK_DCD);
+
+  m->leader = leader;
+  m->member_index = member_index;
+  m->round = round;
+  m->ack = ack;
+
+  if(ponyint_actor_messageq_push(&to->q, &m->msg, &m->msg))
+    ponyint_sched_add(ctx, to);
+}
+
+
+static void start_conf_round(pony_ctx_t* ctx, pony_actor_t* leader,
+  distcd_t* distcd, uint32_t round)
+{
+  candidate_record_t* c = distcd->candidate;
+  c->ack_bits = 0;
+
+  // Leader checks itself first — abort before sending if not quiescent
+  size_t leader_idx = find_member_index(leader, c->members, c->count);
+  pony_assert(leader_idx != SIZE_MAX);
+
+  bool blocked = ponyint_messageq_isempty(&leader->q)
+    && (leader->live_asio_events == 0)
+    && (leader->gc.rc == c->appearances[leader_idx]);
+
+  if(!blocked)
+  {
+    ponyint_pool_free_size(
+      c->count * sizeof(pony_actor_t*), c->members);
+    ponyint_pool_free_size(
+      c->count * sizeof(size_t), c->appearances);
+    ponyint_pool_free_size(sizeof(candidate_record_t), c);
+    distcd->candidate = NULL;
+    distcd->conf_state = DISTCD_CONF_NONE;
+    return;
+  }
+
+  c->ack_bits = (uint64_t)1 << leader_idx;
+
+  for(size_t i = 0; i < c->count; i++)
+  {
+    if(c->members[i] == leader)
+      continue;
+
+    send_conf_dcd(ctx, c->members[i], c->members, c->appearances,
+      c->count, leader, i, round);
+  }
+}
+
 static void prune_unreachable_cycles(pony_actor_t* actor, distcd_t* distcd)
 {
   gc_t* gc = ponyint_actor_gc(actor);
@@ -988,22 +1062,8 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
 
         if(blocked)
         {
-          distcd->released = true;
-          free_cycle_list(distcd->known_cycles);
-          distcd->known_cycles = NULL;
-          distcd->cycles_generation++;
-
-          pony_actor_t* targets[64];
-          size_t target_count = find_outgoing_members(actor,
-            distcd->candidate->members, distcd->candidate->count,
-            0, targets);
-
-          for(size_t i = 0; i < target_count; i++)
-          {
-            send_release_chain(ctx, targets[i],
-              distcd->candidate->members, distcd->candidate->appearances,
-              distcd->candidate->count, actor);
-          }
+          distcd->conf_state = DISTCD_CONF_LEADER_CONF_ROUND1;
+          start_conf_round(ctx, actor, distcd, 1);
         }
       }
       else
@@ -1026,7 +1086,10 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
         }
       }
 
-      if(!distcd->released)
+      if(!distcd->released
+        && distcd->conf_state != DISTCD_CONF_LEADER_CONF_ROUND1
+        && distcd->conf_state != DISTCD_CONF_LEADER_CONF_ROUND2
+        && distcd->candidate != NULL)
       {
         ponyint_pool_free_size(
           distcd->candidate->count * sizeof(pony_actor_t*),
@@ -1303,27 +1366,110 @@ void ponyint_distcd_handle_release(pony_ctx_t* ctx,
   ponyint_pool_free_size(m->count * sizeof(size_t), m->appearances);
 }
 
+void ponyint_distcd_handle_conf(pony_ctx_t* ctx,
+  pony_actor_t* actor, conf_dcd_msg_t* m)
+{
+  bool q_empty = ponyint_messageq_isempty(&actor->q);
+  bool no_asio = (actor->live_asio_events == 0);
+  bool rc_match = (actor->gc.rc == m->appearances[m->my_index]);
+  bool blocked = q_empty && no_asio && rc_match;
+
+  send_ack_dcd(ctx, m->leader, m->leader, m->my_index, m->round, blocked);
+
+  ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+  ponyint_pool_free_size(m->count * sizeof(size_t), m->appearances);
+}
+
+void ponyint_distcd_handle_ack(pony_ctx_t* ctx,
+  pony_actor_t* actor, ack_dcd_msg_t* m)
+{
+  if(m->leader != actor)
+    return;
+
+  distcd_t* distcd = actor->distcd;
+  if(distcd == NULL)
+    return;
+
+  uint32_t expected_round =
+    (distcd->conf_state == DISTCD_CONF_LEADER_CONF_ROUND1) ? 1 :
+    (distcd->conf_state == DISTCD_CONF_LEADER_CONF_ROUND2) ? 2 : 0;
+
+  if(expected_round == 0 || m->round != expected_round)
+    return;
+
+  if(distcd->candidate == NULL)
+    return;
+
+  if(!m->ack)
+  {
+    ponyint_pool_free_size(
+      distcd->candidate->count * sizeof(pony_actor_t*),
+      distcd->candidate->members);
+    ponyint_pool_free_size(
+      distcd->candidate->count * sizeof(size_t),
+      distcd->candidate->appearances);
+    ponyint_pool_free_size(sizeof(candidate_record_t), distcd->candidate);
+    distcd->candidate = NULL;
+    distcd->conf_state = DISTCD_CONF_NONE;
+    return;
+  }
+
+  distcd->candidate->ack_bits |= ((uint64_t)1 << m->member_index);
+
+  uint64_t all_bits = (distcd->candidate->count == 64)
+    ? UINT64_MAX : (((uint64_t)1 << distcd->candidate->count) - 1);
+
+  if((distcd->candidate->ack_bits & all_bits) != all_bits)
+    return;
+
+  if(distcd->conf_state == DISTCD_CONF_LEADER_CONF_ROUND1)
+  {
+    distcd->conf_state = DISTCD_CONF_LEADER_CONF_ROUND2;
+    start_conf_round(ctx, actor, distcd, 2);
+    return;
+  }
+
+  candidate_record_t* c = distcd->candidate;
+
+  fprintf(stderr, "DCD DESTROY: leader=%p count=%zu members=[",
+    (void*)actor, c->count);
+  for(size_t i = 0; i < c->count; i++)
+  {
+    fprintf(stderr, "%s%p(rc=%zu,app=%zu,q=%s,pd=%d)",
+      i ? "," : "",
+      (void*)c->members[i],
+      c->members[i]->gc.rc,
+      c->appearances[i],
+      ponyint_messageq_isempty(&c->members[i]->q) ? "empty" : "NOTEMPTY",
+      ponyint_actor_pendingdestroy(c->members[i]));
+  }
+  fprintf(stderr, "]\n");
+
+  for(size_t i = 0; i < c->count; i++)
+    ponyint_actor_setpendingdestroy(c->members[i]);
+
+  for(size_t i = 0; i < c->count; i++)
+  {
+    if(c->members[i] == actor)
+      continue;
+
+    ponyint_actor_final(ctx, c->members[i]);
+    ponyint_actor_sendrelease(ctx, c->members[i]);
+    ponyint_actor_destroy(c->members[i], ACTOR_DESTROYED_MANUAL);
+  }
+
+  distcd->released = true;
+  free_cycle_list(distcd->known_cycles);
+  distcd->known_cycles = NULL;
+  distcd->cycles_generation++;
+  distcd->conf_state = DISTCD_CONF_NONE;
+}
+
+
 bool ponyint_distcd_can_self_reap(distcd_t* distcd)
 {
-  if(distcd == NULL)
-    return true;
-
-  if(distcd->released)
-    return false;
-
-  if(distcd->known_cycles != NULL)
-    return false;
-
-  if(distcd->candidate != NULL)
-    return false;
-
-  if(distcd->delegated_cycles != NULL)
-    return false;
-
-  if(distcd->conf_state != DISTCD_CONF_NONE)
-    return false;
-
-  return true;
+  (void)distcd;
+  return false;
 }
 
 bool ponyint_distcd_released(distcd_t* distcd)

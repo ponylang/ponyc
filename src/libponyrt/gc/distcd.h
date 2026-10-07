@@ -22,6 +22,7 @@ typedef struct candidate_record_t
   size_t count;
   pony_actor_t* leader;
   uint64_t confirmed_bits;
+  uint64_t ack_bits;
   bool denied;
   pony_actor_t* denier;
 } candidate_record_t;
@@ -31,6 +32,8 @@ typedef enum distcd_conf_state_t
   DISTCD_CONF_NONE = 0,
   DISTCD_CONF_LEADER_WAITING,
   DISTCD_CONF_MEMBER_PENDING,
+  DISTCD_CONF_LEADER_CONF_ROUND1,
+  DISTCD_CONF_LEADER_CONF_ROUND2,
 } distcd_conf_state_t;
 
 typedef struct dedup_chain_t
@@ -123,6 +126,28 @@ typedef struct release_chain_msg_t
   pony_actor_t* leader;
 } release_chain_msg_t;
 
+// Point-to-point CONF message from leader to each member. The member checks
+// quiescence and replies with an ACK.
+typedef struct conf_dcd_msg_t
+{
+  pony_msg_t msg;
+  pony_actor_t** members;
+  size_t count;
+  pony_actor_t* leader;
+  uint32_t round;
+} conf_dcd_msg_t;
+
+// Point-to-point ACK from member to leader.
+typedef struct ack_dcd_msg_t
+{
+  pony_msg_t msg;
+  pony_actor_t* leader;
+  size_t member_index;
+  uint32_t round;
+  bool ack;
+} ack_dcd_msg_t;
+
+
 // Create a distcd_t with default initial state.
 distcd_t* ponyint_distcd_create();
 
@@ -157,7 +182,14 @@ void ponyint_distcd_handle_delegate(pony_ctx_t* ctx,
 void ponyint_distcd_handle_release(pony_ctx_t* ctx,
   pony_actor_t* actor, release_chain_msg_t* m);
 
-// Returns false if released. Otherwise frees stale cycle state and returns true.
+// Process point-to-point CONF from leader. Checks quiescence, sends ACK/NACK.
+void ponyint_distcd_handle_conf(pony_ctx_t* ctx,
+  pony_actor_t* actor, conf_dcd_msg_t* m);
+
+// Process point-to-point ACK from member. Tracks progress, advances rounds.
+void ponyint_distcd_handle_ack(pony_ctx_t* ctx,
+  pony_actor_t* actor, ack_dcd_msg_t* m);
+
 bool ponyint_distcd_can_self_reap(distcd_t* distcd);
 
 // RELEASE has been received.

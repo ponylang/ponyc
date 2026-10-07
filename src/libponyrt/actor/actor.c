@@ -516,6 +516,28 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       return false;
     }
 
+    case ACTORMSG_CONF_DCD:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(conf_dcd_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(conf_dcd_msg_t);
+#endif
+      pony_assert(!ponyint_is_cycle(actor));
+      ponyint_distcd_handle_conf(ctx, actor, (conf_dcd_msg_t*)msg);
+      return false;
+    }
+
+    case ACTORMSG_ACK_DCD:
+    {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(ack_dcd_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(ack_dcd_msg_t);
+#endif
+      pony_assert(!ponyint_is_cycle(actor));
+      ponyint_distcd_handle_ack(ctx, actor, (ack_dcd_msg_t*)msg);
+      return false;
+    }
+
     default:
     {
 #ifdef USE_RUNTIMESTATS_MESSAGES
@@ -701,15 +723,16 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
 
   if (has_internal_flag(actor, ACTOR_FLAG_BLOCKED))
   {
-    // DCD released actors should be destroyed regardless of rc.
-    // Their cycle has been confirmed — the remaining rc is from
-    // other cycle members that are also being destroyed.
     if(actor_distributedcd && ponyint_distcd_released(actor->distcd))
     {
       if(ponyint_messageq_isempty(&actor->q))
       {
         ponyint_messageq_markempty(&actor->q);
         TRACING_THREAD_ACTOR_RUN_STOP(actor);
+
+        ponyint_actor_final(ctx, actor);
+        ponyint_actor_sendrelease(ctx, actor);
+        ponyint_actor_destroy(actor, ACTOR_DESTROYED_MANUAL);
         return false;
       }
 
@@ -786,8 +809,9 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
       // This is only safe to do if we have not sent a block message to the
       // cycle detector because the cycle detector could concurrently reap us
       // if we have and then we could have use-after-free issues.
-      if (actor_noblock || actor_distributedcd
-        || !has_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT))
+      if (actor_noblock
+        || (!actor_distributedcd
+          && !has_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT)))
       {
         pony_triggergc(ctx);
         try_gc(ctx, actor);
