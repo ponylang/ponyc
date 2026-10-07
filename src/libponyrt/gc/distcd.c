@@ -253,29 +253,6 @@ static void send_trace_route(pony_actor_t* target,
   ponyint_sendv_inject(target, &m->msg);
 }
 
-// Hash an originator pointer to select a target from the foreign map
-static pony_actor_t* hash_select_target(pony_actor_t* originator,
-  actormap_t* foreign)
-{
-  size_t map_size = ponyint_actormap_size(foreign);
-  if(map_size == 0)
-    return NULL;
-
-  size_t idx = (size_t)originator % map_size;
-  size_t i = HASHMAP_BEGIN;
-  actorref_t* aref;
-  size_t count = 0;
-
-  while((aref = ponyint_actormap_next(foreign, &i)) != NULL)
-  {
-    if(count == idx)
-      return aref->actor;
-    count++;
-  }
-
-  return NULL;
-}
-
 // Phase 1: Send trace routes to all outgoing connections
 static void do_trace(pony_ctx_t* ctx, pony_actor_t* actor, distcd_t* dcd)
 {
@@ -848,12 +825,9 @@ void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
         qsort(cycle_members, cycle_len, sizeof(pony_actor_t*), actor_ptr_cmp);
 
         // Try to add
-        if(!add_cycle_record(dcd, cycle_members, cycle_len))
-          ponyint_pool_free_size(cycle_len * sizeof(pony_actor_t*),
-            cycle_members);
-        else
-          ponyint_pool_free_size(cycle_len * sizeof(pony_actor_t*),
-            cycle_members);
+        add_cycle_record(dcd, cycle_members, cycle_len);
+        ponyint_pool_free_size(cycle_len * sizeof(pony_actor_t*),
+          cycle_members);
       }
       // else: stale, discard
 
@@ -862,7 +836,13 @@ void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
     }
   }
 
-  // Self does not appear — forward
+  // Forward the trace. Cap length to prevent unbounded growth.
+  if(count >= 64)
+  {
+    ponyint_pool_free_size(count * sizeof(trace_entry_t), entries);
+    return;
+  }
+
   actormap_t* foreign = &actor->gc.foreign;
   size_t map_size = ponyint_actormap_size(foreign);
 
@@ -877,25 +857,19 @@ void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
     return;
   }
 
-  // Append (self, self.epoch) to entries
-  trace_entry_t* new_entries = (trace_entry_t*)ponyint_pool_alloc_size(
-    (count + 1) * sizeof(trace_entry_t));
-  memcpy(new_entries, entries, count * sizeof(trace_entry_t));
-  new_entries[count].actor = actor;
-  new_entries[count].epoch = dcd->epoch;
+  // Hash the originator to pick one target from the foreign map
+  pony_actor_t* originator = entries[0].actor;
+  uint32_t originator_epoch = entries[0].epoch;
+  size_t hash = (size_t)originator * 2654435761u;
+  size_t target_idx = hash % map_size;
 
-  ponyint_pool_free_size(count * sizeof(trace_entry_t), entries);
+  size_t fi = HASHMAP_BEGIN;
+  actorref_t* fwd_aref = NULL;
+  for(size_t n = 0; n <= target_idx; n++)
+    fwd_aref = ponyint_actormap_next(foreign, &fi);
 
-  // Hash originator to select target
-  pony_actor_t* originator = new_entries[0].actor;
-  uint32_t originator_epoch = new_entries[0].epoch;
-  pony_actor_t* target = hash_select_target(originator, foreign);
-
-  if(target == NULL)
-  {
-    ponyint_pool_free_size((count + 1) * sizeof(trace_entry_t), new_entries);
-    return;
-  }
+  pony_assert(fwd_aref != NULL);
+  pony_actor_t* target = fwd_aref->actor;
 
   // Check trace_dedup
   trace_dedup_key_t lookup_key;
@@ -909,30 +883,33 @@ void ponyint_distcd_handle_trace_route(pony_ctx_t* ctx, pony_actor_t* actor,
 
   if(existing != NULL)
   {
-    // Check if epoch matches — if different, replace (lazy update)
-    if(existing->epoch != originator_epoch)
+    if(existing->epoch == originator_epoch)
     {
-      existing->epoch = originator_epoch;
-      // Forward with new epoch
-      send_trace_route(target, new_entries, count + 1);
+      // Already forwarded this trace
+      ponyint_pool_free_size(count * sizeof(trace_entry_t), entries);
+      return;
     }
-    else
-    {
-      // Already forwarded this exact trace, discard
-      ponyint_pool_free_size((count + 1) * sizeof(trace_entry_t), new_entries);
-    }
+    existing->epoch = originator_epoch;
   }
   else
   {
-    // Not found, record and forward
     trace_dedup_key_t* key = POOL_ALLOC(trace_dedup_key_t);
     key->target = target;
     key->originator = originator;
     key->epoch = originator_epoch;
     ponyint_trace_dedup_put(&dcd->trace_dedup, key);
-
-    send_trace_route(target, new_entries, count + 1);
   }
+
+  // Extend entries with self and forward
+  trace_entry_t* new_entries = (trace_entry_t*)ponyint_pool_alloc_size(
+    (count + 1) * sizeof(trace_entry_t));
+  memcpy(new_entries, entries, count * sizeof(trace_entry_t));
+  new_entries[count].actor = actor;
+  new_entries[count].epoch = dcd->epoch;
+
+  send_trace_route(target, new_entries, count + 1);
+
+  ponyint_pool_free_size(count * sizeof(trace_entry_t), entries);
 }
 
 void ponyint_distcd_handle_completeness(pony_ctx_t* ctx, pony_actor_t* actor,
@@ -983,7 +960,68 @@ void ponyint_distcd_handle_completeness(pony_ctx_t* ctx, pony_actor_t* actor,
     }
   }
 
-  // Send response to leader with credit info
+  // Collect extra cycle records the member knows about that aren't in the
+  // leader's component records. These help the leader discover transitively
+  // overlapping cycles.
+  distcd_t* dcd = ponyint_actor_get_distcd(actor);
+  cycle_record_t* extra_records = NULL;
+  size_t num_extra = 0;
+
+  if(dcd != NULL && dcd->num_known_cycles > 0)
+  {
+    // Count records not already in the leader's set
+    for(size_t r = 0; r < dcd->num_known_cycles; r++)
+    {
+      bool found_in_leader = false;
+      for(size_t lr = 0; lr < msg->num_records; lr++)
+      {
+        if(records_equal(dcd->known_cycles[r].members,
+           dcd->known_cycles[r].count,
+           msg->cycle_records[lr].members,
+           msg->cycle_records[lr].count))
+        {
+          found_in_leader = true;
+          break;
+        }
+      }
+      if(!found_in_leader)
+        num_extra++;
+    }
+
+    if(num_extra > 0)
+    {
+      extra_records = (cycle_record_t*)ponyint_pool_alloc_size(
+        num_extra * sizeof(cycle_record_t));
+      size_t ei = 0;
+      for(size_t r = 0; r < dcd->num_known_cycles; r++)
+      {
+        bool found_in_leader = false;
+        for(size_t lr = 0; lr < msg->num_records; lr++)
+        {
+          if(records_equal(dcd->known_cycles[r].members,
+             dcd->known_cycles[r].count,
+             msg->cycle_records[lr].members,
+             msg->cycle_records[lr].count))
+          {
+            found_in_leader = true;
+            break;
+          }
+        }
+        if(!found_in_leader)
+        {
+          extra_records[ei].count = dcd->known_cycles[r].count;
+          extra_records[ei].members =
+            (pony_actor_t**)ponyint_pool_alloc_size(
+              dcd->known_cycles[r].count * sizeof(pony_actor_t*));
+          memcpy(extra_records[ei].members, dcd->known_cycles[r].members,
+            dcd->known_cycles[r].count * sizeof(pony_actor_t*));
+          ei++;
+        }
+      }
+    }
+  }
+
+  // Send response to leader with credit info and extra records
   dcd_comp_response_msg_t* resp = (dcd_comp_response_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(dcd_comp_response_msg_t)),
     ACTORMSG_DCD_COMP_RESPONSE);
@@ -993,6 +1031,8 @@ void ponyint_distcd_handle_completeness(pony_ctx_t* ctx, pony_actor_t* actor,
   resp->gc_rc = actor->gc.rc;
   resp->outgoing = outgoing;
   resp->num_outgoing = num_outgoing;
+  resp->extra_records = extra_records;
+  resp->num_extra_records = num_extra;
 
   ponyint_sendv_inject(msg->leader, &resp->msg);
 }
@@ -1016,8 +1056,26 @@ void ponyint_distcd_handle_comp_response(pony_ctx_t* ctx, pony_actor_t* actor,
     if(msg->outgoing != NULL)
       ponyint_pool_free_size(
         msg->num_outgoing * sizeof(dcd_outgoing_credit_t), msg->outgoing);
+    for(size_t i = 0; i < msg->num_extra_records; i++)
+      free_cycle_record(&msg->extra_records[i]);
+    if(msg->extra_records != NULL)
+      ponyint_pool_free_size(
+        msg->num_extra_records * sizeof(cycle_record_t), msg->extra_records);
     return;
   }
+
+  // Merge extra records into our known_cycles
+  bool merged_any = false;
+  for(size_t i = 0; i < msg->num_extra_records; i++)
+  {
+    if(add_cycle_record(dcd, msg->extra_records[i].members,
+       msg->extra_records[i].count))
+      merged_any = true;
+    free_cycle_record(&msg->extra_records[i]);
+  }
+  if(msg->extra_records != NULL)
+    ponyint_pool_free_size(
+      msg->num_extra_records * sizeof(cycle_record_t), msg->extra_records);
 
   // Store this member's credit info
   pony_assert(msg->member_index < dcd->candidate->count);
@@ -1043,6 +1101,18 @@ void ponyint_distcd_handle_comp_response(pony_ctx_t* ctx, pony_actor_t* actor,
 
   if((dcd->candidate->ack_bitmask & expected) != expected)
     return;
+
+  // If we merged new records, the component may have grown.
+  // Restart the completeness check with the expanded component.
+  if(merged_any)
+  {
+    free_candidate(dcd->candidate);
+    dcd->candidate = NULL;
+    dcd->conf_state = CONF_NONE;
+    // try_confirm will re-compute with the expanded known_cycles
+    try_confirm(actor, dcd);
+    return;
+  }
 
   // All members responded. Cross-check: for each member M, the sum of
   // credits held by other cycle members must equal M's gc.rc.
@@ -1082,7 +1152,7 @@ void ponyint_distcd_handle_comp_response(pony_ctx_t* ctx, pony_actor_t* actor,
     return;
   }
 
-  // All members passed completeness, proceed to phase 3
+  // All members passed completeness, proceed to confirmation round 1
   dcd->conf_state = CONF_ROUND1;
   dcd->candidate->ack_bitmask = 0;
 
@@ -1147,7 +1217,6 @@ void ponyint_distcd_handle_conf_response(pony_ctx_t* ctx, pony_actor_t* actor,
 
   if(!msg->ack)
   {
-    // NACK: abort
     dcd->conf_state = CONF_NONE;
     free_candidate(dcd->candidate);
     dcd->candidate = NULL;
@@ -1215,22 +1284,27 @@ void ponyint_distcd_on_acquire(pony_actor_t* actor)
     {
       pending_trace_t* next = pt->next;
 
-      // Re-inject these traces
+      // Re-inject pending trace to one target (hash-selected)
       actormap_t* foreign = &actor->gc.foreign;
-      pony_actor_t* originator = pt->entries[0].actor;
-      pony_actor_t* target = hash_select_target(originator, foreign);
+      size_t fmap_size = ponyint_actormap_size(foreign);
+      pony_actor_t* pt_originator = pt->entries[0].actor;
+      size_t pt_hash = (size_t)pt_originator * 2654435761u;
+      size_t pt_target_idx = pt_hash % fmap_size;
 
-      if(target != NULL)
-      {
-        // Append self
-        trace_entry_t* new_entries = (trace_entry_t*)ponyint_pool_alloc_size(
-          (pt->count + 1) * sizeof(trace_entry_t));
-        memcpy(new_entries, pt->entries, pt->count * sizeof(trace_entry_t));
-        new_entries[pt->count].actor = actor;
-        new_entries[pt->count].epoch = dcd->epoch;
+      size_t fi = HASHMAP_BEGIN;
+      actorref_t* fwd_aref = NULL;
+      for(size_t n = 0; n <= pt_target_idx; n++)
+        fwd_aref = ponyint_actormap_next(foreign, &fi);
 
-        send_trace_route(target, new_entries, pt->count + 1);
-      }
+      pony_assert(fwd_aref != NULL);
+
+      trace_entry_t* new_entries = (trace_entry_t*)ponyint_pool_alloc_size(
+        (pt->count + 1) * sizeof(trace_entry_t));
+      memcpy(new_entries, pt->entries, pt->count * sizeof(trace_entry_t));
+      new_entries[pt->count].actor = actor;
+      new_entries[pt->count].epoch = dcd->epoch;
+
+      send_trace_route(fwd_aref->actor, new_entries, pt->count + 1);
 
       ponyint_pool_free_size(pt->count * sizeof(trace_entry_t), pt->entries);
       POOL_FREE(pending_trace_t, pt);

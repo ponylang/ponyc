@@ -118,6 +118,8 @@ typedef struct dcd_comp_response_msg_t
   size_t gc_rc;
   dcd_outgoing_credit_t* outgoing;
   size_t num_outgoing;
+  cycle_record_t* extra_records;
+  size_t num_extra_records;
 } dcd_comp_response_msg_t;
 
 typedef struct dcd_conf_msg_t
