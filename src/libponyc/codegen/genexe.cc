@@ -3102,6 +3102,8 @@ bool genexe(compile_t* c, ast_t* program)
     return true;
   }
 
+  codegen_dispose_modules(c);
+
   if(!link_exe(c, program, bc_files, bc_count))
   {
     cleanup_bc_files(bc_files, bc_count);
