@@ -11,6 +11,7 @@
 #include <llvm/Analysis/ProfileSummaryInfo.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Transforms/Utils/AssignGUID.h>
 
 #include "llvm_config_end.h"
 
@@ -50,6 +51,8 @@ static bool write_module_bitcode(compile_t* c, Module& mod,
   }
   else
   {
+    AssignGUIDPass::runOnModule(mod);
+
     ProfileSummaryInfo PSI(mod);
     ModuleSummaryIndex index = buildModuleSummaryIndex(
       mod,
