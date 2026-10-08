@@ -285,3 +285,7 @@ The compiler's reach pass checks every concrete type against every interface to 
 
 When running ponyc under QEMU with `-cpu host`, the emulated CPUID could map to a CPU name that only exists for a narrower target — for example, `athlon-xp` (32-bit only) on an x86-64 host — causing compilation to fail. ponyc now validates the detected CPU name against the compile target and falls back to the target's baseline when it is not recognized.
 
+## Fix --thin-lto crash
+
+Compiling with `--thin-lto` crashed with an LLVM fatal error during bitcode emission.
+
