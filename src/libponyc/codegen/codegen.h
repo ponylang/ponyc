@@ -251,6 +251,8 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
 
 void codegen_cleanup(compile_t* c);
 
+void codegen_dispose_modules(compile_t* c);
+
 void codegen_stamp_target_attrs(compile_t* c);
 
 void codegen_switch_module(compile_t* c, size_t index);

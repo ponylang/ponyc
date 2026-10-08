@@ -1087,6 +1087,45 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
   return true;
 }
 
+void codegen_dispose_modules(compile_t* c)
+{
+  if(c->per_module_count > 0)
+  {
+    per_module_state_t* cur = &c->per_module_states[c->current_module_index];
+    cur->module = c->module;
+    cur->di = c->di;
+    cur->di_unit = c->di_unit;
+    cur->strings = c->strings;
+    cur->ffi_decls = c->ffi_decls;
+
+    for(size_t i = 0; i < c->per_module_count; i++)
+    {
+      per_module_state_t* s = &c->per_module_states[i];
+      LLVMDIBuilderDestroy(s->di);
+      LLVMDisposeModule(s->module);
+      genned_strings_destroy(&s->strings);
+      ffi_decls_destroy(&s->ffi_decls);
+    }
+
+    ponyint_pool_free_size(
+      c->per_module_count * sizeof(per_module_state_t),
+      c->per_module_states);
+
+    c->per_module_count = 0;
+    c->per_module_states = NULL;
+  }
+  else if(c->module != NULL)
+  {
+    LLVMDIBuilderDestroy(c->di);
+    LLVMDisposeModule(c->module);
+    genned_strings_destroy(&c->strings);
+    ffi_decls_destroy(&c->ffi_decls);
+  }
+
+  c->module = NULL;
+  c->di = NULL;
+}
+
 void codegen_cleanup(compile_t* c)
 {
   while(c->frame != NULL)
@@ -1115,7 +1154,7 @@ void codegen_cleanup(compile_t* c)
       c->per_module_count * sizeof(per_module_state_t),
       c->per_module_states);
   }
-  else
+  else if(c->module != NULL)
   {
     LLVMDIBuilderDestroy(c->di);
     LLVMDisposeModule(c->module);
