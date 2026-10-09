@@ -1247,7 +1247,9 @@ class \nodoc\ iso _TestChildClosesOutputKeepsRunning is UnitTest
         h.fail("StartProcess failed: " + err.string())
         h.complete(false)
       end
-      h.long_test(10_000_000_000)
+      ifdef haiku then h.long_test(30_000_000_000)
+      else h.long_test(10_000_000_000)
+      end
     end
 
 class \nodoc\ iso _TestBackpressureAppliedThenReleased is UnitTest
