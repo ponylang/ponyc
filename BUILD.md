@@ -120,6 +120,7 @@ CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, openssl-d
 Fedora | clang, cmake, libatomic, libstdc++-static, make, openssl-devel, zlib-devel
 Fedora 41 | clang, cmake, libatomic, libstdc++-static, make, openssl-devel, zlib-devel
 OpenSuse Leap | cmake, libopenssl-devel, zlib-devel
+openSUSE Tumbleweed | clang, cmake, findutils, gcc-c++, libopenssl-devel, make, zlib-devel
 Raspbian 32-bit | cmake, libssl-dev, zlib1g-dev
 Raspbian 64-bit | cmake, clang, libssl-dev, zlib1g-dev
 Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, openssl-devel, zlib-devel

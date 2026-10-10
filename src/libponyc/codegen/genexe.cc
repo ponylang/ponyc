@@ -788,7 +788,7 @@ static const char* find_gcc_lib_dir(const char* sysroot,
   // Debian/Ubuntu cross-compiler packages install to /usr/lib/gcc-cross/
   // rather than /usr/lib/gcc/. Custom GCC cross-compiler builds (e.g. the
   // arm/armhf CI containers) install to /usr/local/lib/gcc/.
-  const char* base_patterns[8];
+  const char* base_patterns[9];
   int pattern_count = 0;
 
   char sysroot_rel[PATH_MAX];
@@ -796,6 +796,7 @@ static const char* find_gcc_lib_dir(const char* sysroot,
   char sysroot_parent_rel[PATH_MAX];
   char sysroot_parent_rel_cross[PATH_MAX];
 
+  base_patterns[pattern_count++] = "/usr/lib64/gcc";
   base_patterns[pattern_count++] = "/usr/lib/gcc";
   base_patterns[pattern_count++] = "/usr/lib/gcc-cross";
   base_patterns[pattern_count++] = "/usr/local/lib/gcc";
