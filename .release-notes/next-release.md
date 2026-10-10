@@ -289,3 +289,7 @@ When running ponyc under QEMU with `-cpu host`, the emulated CPUID could map to 
 
 Compiling with `--thin-lto` crashed with an LLVM fatal error during bitcode emission.
 
+## Fix linking Pony programs on openSUSE Tumbleweed
+
+Pony programs now link successfully on openSUSE Tumbleweed. Previously, compilation failed at the linking step because the GCC runtime libraries could not be found.
+
