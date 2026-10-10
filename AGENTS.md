@@ -54,7 +54,7 @@ Two environment variables control Pony compilation features at test time:
 - `PONY_DEBUG=1` — compile Pony sources with `-d` (debug codegen)
 - `PONY_THIN_LTO=1` — compile Pony sources with `--thin-lto`
 
-These apply to stdlib tests, full-program tests, examples, and tool builds. Set them as command-line prefixes (`PONY_DEBUG=1 ctest ...`) or `export` them. CI runs tests in both codegen modes — the first `ctest` pass sets `PONY_DEBUG=1`, the second runs only the Pony-compilation tests (`stdlib`, `full-programs`) without it. PR builds run only debug codegen; release-mode-checks, weekly-checks, and tier-3 run both.
+These apply to stdlib tests, full-program tests, examples, and tool builds. Set them as command-line prefixes (`PONY_DEBUG=1 ctest ...`) or `export` them. CI runs tests in both codegen modes — the first `ctest` pass sets `PONY_DEBUG=1`, the second runs only the Pony-compilation tests (`stdlib`, `full-programs`) without it. PR builds run only debug codegen; release-mode-checks, weekly-checks, tier-3, and rolling-releases run both.
 
 Run individual tests by name:
 

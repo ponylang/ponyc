@@ -1,0 +1,166 @@
+name: "ponyc: Rolling Releases"
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+
+concurrency:
+  group: "ponyc-rolling-releases"
+
+permissions:
+  packages: write
+
+jobs:
+  rebuild-arch-builder:
+    name: Update Arch builder
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build and Push
+        id: build
+        run: |
+          bash .ci-dockerfiles/x86-64-unknown-linux-arch-builder/build-and-push.bash
+          image=$(docker image inspect --format '{{index .RepoDigests 0}}' ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-arch-builder:latest)
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  build-and-test-arch:
+    needs: rebuild-arch-builder
+
+    name: Build and Test ponyc on Arch
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.rebuild-arch-builder.outputs.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build Libs
+        run: cmake -DJOBS=4 -P lib/build-libs.cmake
+      - name: Build Debug Runtime
+        run: |
+          cmake --preset debug
+          cmake --build --preset debug
+      - name: Test with Debug Runtime
+        run: |
+          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
+          export PONY_TEST_DEBUGGER
+          PONY_DEBUG=1 ctest --preset debug -L ci-core
+          ctest --preset debug -R "^(stdlib|full-programs)$"
+      - name: Build Release Runtime
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+      - name: Test with Release Runtime
+        run: |
+          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
+          export PONY_TEST_DEBUGGER
+          PONY_DEBUG=1 ctest --preset release -L ci-core
+          ctest --preset release -R "^(stdlib|full-programs)$"
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  rebuild-tumbleweed-builder:
+    name: Update Tumbleweed builder
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build and Push
+        id: build
+        run: |
+          bash .ci-dockerfiles/x86-64-unknown-linux-tumbleweed-builder/build-and-push.bash
+          image=$(docker image inspect --format '{{index .RepoDigests 0}}' ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-tumbleweed-builder:latest)
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  build-and-test-tumbleweed:
+    needs: rebuild-tumbleweed-builder
+
+    name: Build and Test ponyc on Tumbleweed
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.rebuild-tumbleweed-builder.outputs.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build Libs
+        run: cmake -DJOBS=4 -P lib/build-libs.cmake
+      - name: Build Debug Runtime
+        run: |
+          cmake --preset debug
+          cmake --build --preset debug
+      - name: Test with Debug Runtime
+        run: |
+          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
+          export PONY_TEST_DEBUGGER
+          PONY_DEBUG=1 ctest --preset debug -L ci-core
+          ctest --preset debug -R "^(stdlib|full-programs)$"
+      - name: Build Release Runtime
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+      - name: Test with Release Runtime
+        run: |
+          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
+          export PONY_TEST_DEBUGGER
+          PONY_DEBUG=1 ctest --preset release -L ci-core
+          ctest --preset release -R "^(stdlib|full-programs)$"
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
