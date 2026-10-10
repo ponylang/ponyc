@@ -14,6 +14,7 @@ RUN sed -i 's|http://download.opensuse.org|https://download.opensuse.org|g' \
       git \
       libopenssl-devel \
       lldb \
+      llvm-gold \
       make \
       python3 \
       python3-lldb \
