@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Speed up the reach pass with method-name pre-filtering ([PR #6247](https://github.com/ponylang/ponyc/pull/6247))
 - Fix compilation failure when LLVM detects a CPU name invalid for the target ([PR #6252](https://github.com/ponylang/ponyc/pull/6252))
 - Fix --thin-lto crash ([PR #6261](https://github.com/ponylang/ponyc/pull/6261))
+- Fix linking Pony programs on openSUSE Tumbleweed ([PR #6266](https://github.com/ponylang/ponyc/pull/6266))
 
 ### Added
 
