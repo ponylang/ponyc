@@ -75,7 +75,7 @@ ExternalProject_Add(googletest
 
 find_package(Git)
 
-set(LLVM_DESIRED_HASH "85ac560262434c9ccfc0c183ec22d4138ed647fb")
+set(LLVM_DESIRED_HASH "0d261d1ca552c95a8f007e061c787ac7132fbcbc")
 set(PATCHES_DESIRED_HASH "87eb9c62b0b6c9284c90eb06283de61ee04c4d337ca820bf499a5574fefe6984")
 
 if(GIT_FOUND)
