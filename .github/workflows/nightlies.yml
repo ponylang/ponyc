@@ -272,12 +272,11 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Install Dependencies
         run: |
-          # Pin cloudsmith-cli below 1.18.0 on arm64 Windows:
-          # - 1.18.0 added mcp==1.9.1 which imports a pydantic internal
-          #   that was removed in pydantic 2.14.
-          # - 1.19.0 added PyJWT[crypto] which pulls in cryptography,
-          #   which has no prebuilt win_arm64 wheel.
-          python.exe -m pip install --upgrade "cloudsmith-cli<1.18.0"
+          # Keep pydantic below 2.14 because mcp 1.9.1 imports an internal
+          # pydantic function removed in 2.14.
+          # Keep cloudsmith-cli below 1.19 because it adds PyJWT[crypto],
+          # which depends on cryptography without a prebuilt win_arm64 wheel.
+          python.exe -m pip install --upgrade "cloudsmith-cli<1.19.0" "pydantic<2.14.0"
       - name: Install LibreSSL
         run: .\.ci-scripts\windows-install-libressl.ps1
       - name: Build libs
