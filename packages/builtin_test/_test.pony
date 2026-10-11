@@ -1,8 +1,8 @@
 """
 # Builtin Tests
 
-This module contains the unit tests for the `builtin` module. These are here
-so `builtin` doesn't have to depend on the `PonyTest` module.
+This package contains the unit tests for the `builtin` package. These are here
+so `builtin` doesn't have to depend on the `PonyTest` package.
 """
 
 use @pony_ctx[Pointer[None]]()

@@ -1,12 +1,12 @@
 """
-# Ini module
+# Ini package
 
-The Ini module parses [INI file](https://en.wikipedia.org/wiki/INI_file)
+The Ini package parses [INI file](https://en.wikipedia.org/wiki/INI_file)
 formatted text. There is no single INI standard; implementations disagree on
 comment characters, escaping, case sensitivity, and more. The dialect this
-module parses is documented below.
+package parses is documented below.
 
-There are two ways to use the module. `IniParse` is the common case: hand it
+There are two ways to use the package. `IniParse` is the common case: hand it
 lines of text and get back a nested map of sections to key/value pairs. `Ini`
 is the streaming parser that sits underneath `IniParse`; use it directly when
 you want to handle entries as they are parsed, react to errors, or stop early.

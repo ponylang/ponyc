@@ -16,11 +16,11 @@ Creates 100 circles with radii from 1 to 100, calculating and printing each circ
 
 ### [commandline](language-features/commandline/)
 
-An echo program that accepts words as arguments and optionally converts them to uppercase. Demonstrates command-line parsing with the `cli` module, including `CommandSpec.leaf()`, `OptionSpec.bool()`, and `ArgSpec.string_seq()`.
+An echo program that accepts words as arguments and optionally converts them to uppercase. Demonstrates command-line parsing with the `cli` package, including `CommandSpec.leaf()`, `OptionSpec.bool()`, and `ArgSpec.string_seq()`.
 
 ### [constrained_type](language-features/constrained_type/)
 
-Validates a username against business rules (6-12 lowercase ASCII characters) using the `constrained_types` module. Demonstrates making illegal states unrepresentable by validating at the construction boundary with `Constrained`, `MakeConstrained`, and a custom `Validator` primitive.
+Validates a username against business rules (6-12 lowercase ASCII characters) using the `constrained_types` package. Demonstrates making illegal states unrepresentable by validating at the construction boundary with `Constrained`, `MakeConstrained`, and a custom `Validator` primitive.
 
 ### [ifdef](language-features/ifdef/)
 
@@ -66,7 +66,7 @@ Builds a binary tree of actors to a specified depth, then counts the total nodes
 
 ### [timers](actors/timers/)
 
-Schedules periodic timer callbacks, tracks invocation counts, and cancels a timer early. Demonstrates the `time` module's `Timers`, `Timer`, and `TimerNotify` interfaces, including timer creation with initial delay and repeat interval.
+Schedules periodic timer callbacks, tracks invocation counts, and cancels a timer early. Demonstrates the `time` package's `Timers`, `Timer`, and `TimerNotify` interfaces, including timer creation with initial delay and repeat interval.
 
 ### [yield](actors/yield/)
 
@@ -76,7 +76,7 @@ Demonstrates converting infinite loops in behaviors to tail-recursive behavior c
 
 ### [echo-server](networking/echo-server/)
 
-Minimal TCP echo server demonstrating the `net` module's core pattern. Shows the three building blocks: `TCPListenerActor` for accepting connections, `TCPConnectionActor` for event plumbing, and `ServerLifecycleEventReceiver` for application callbacks.
+Minimal TCP echo server demonstrating the `net` package's core pattern. Shows the three building blocks: `TCPListenerActor` for accepting connections, `TCPConnectionActor` for event plumbing, and `ServerLifecycleEventReceiver` for application callbacks.
 
 ### [connection-timeout](networking/connection-timeout/)
 
@@ -170,13 +170,13 @@ Floods a single `Receiver` actor with messages from multiple senders to demonstr
 
 #### [backpressure](networking/backpressure/backpressure/)
 
-A flood client sends 200 chunks of 64KB as fast as possible to a sink server, demonstrating the `net` module's backpressure handling. When the OS send buffer fills, `send()` returns `SendErrorNotWriteable` and `_on_throttled` fires. The client stops sending and resumes on `_on_unthrottled`, with `_on_sent` confirming each chunk reached the OS.
+A flood client sends 200 chunks of 64KB as fast as possible to a sink server, demonstrating the `net` package's backpressure handling. When the OS send buffer fills, `send()` returns `SendErrorNotWriteable` and `_on_throttled` fires. The client stops sending and resumes on `_on_unthrottled`, with `_on_sent` confirming each chunk reached the OS.
 
 ### HTTP Client
 
 #### [basic](networking/http-client/basic/)
 
-Connects to `example.com:80`, sends an HTTP GET for `/`, and prints the response status, headers, and body. Demonstrates the full `HTTPClientConnectionActor` lifecycle: `on_connected` to send the request, streaming body accumulation via `ResponseCollector`, exhaustive `ConnectionFailureReason` matching, and connection close after completion. Start here if you're new to the `http_client` module.
+Connects to `example.com:80`, sends an HTTP GET for `/`, and prints the response status, headers, and body. Demonstrates the full `HTTPClientConnectionActor` lifecycle: `on_connected` to send the request, streaming body accumulation via `ResponseCollector`, exhaustive `ConnectionFailureReason` matching, and connection close after completion. Start here if you're new to the `http_client` package.
 
 #### [query-params](networking/http-client/query-params/)
 
@@ -214,7 +214,7 @@ Parses a full URI and prints each component (scheme, authority, host, port, path
 
 #### [building](networking/uri/building/)
 
-Constructs a URI from scratch using `URIBuilder`'s fluent API, chaining `set_scheme()`, `set_host()`, `append_path_segment()`, `add_query_param()`, and `set_fragment()`. Also demonstrates modifying an existing URI with `URIBuilder.from()` and error handling for invalid schemes via `URIBuildError`. Start here if you're new to the `uri` module.
+Constructs a URI from scratch using `URIBuilder`'s fluent API, chaining `set_scheme()`, `set_host()`, `append_path_segment()`, `add_query_param()`, and `set_fragment()`. Also demonstrates modifying an existing URI with `URIBuilder.from()` and error handling for invalid schemes via `URIBuildError`. Start here if you're new to the `uri` package.
 
 #### [iri](networking/uri/iri/)
 
@@ -240,23 +240,23 @@ Reads a file specified as a command-line argument and prints its path and conten
 
 ### [readline](io/readline/)
 
-An interactive command-line prompt with tab completion and command history. Demonstrates the `term` module's `Readline` and `ReadlineNotify` interfaces, and `Promise`-based prompt control where rejecting the promise exits the loop.
+An interactive command-line prompt with tab completion and command history. Demonstrates the `term` package's `Readline` and `ReadlineNotify` interfaces, and `Promise`-based prompt control where rejecting the promise exits the loop.
 
 ### [signals](io/signals/)
 
-Registers two handlers for SIGINT, raises the signal programmatically, and unsubscribes by returning false from the notifies. Demonstrates the `signals` module's capability-secured API: `SignalAuth` for authorization, `MakeHandleableSignal` for signal validation via constrained types, `SignalHandler` for subscription, and `SignalNotify` for callbacks. Shows that multiple handlers can subscribe to the same signal, what the runtime does and does not guarantee about delivery ordering, and that a `wait = true` handler keeps the program alive until it is disposed.
+Registers two handlers for SIGINT, raises the signal programmatically, and unsubscribes by returning false from the notifies. Demonstrates the `signals` package's capability-secured API: `SignalAuth` for authorization, `MakeHandleableSignal` for signal validation via constrained types, `SignalHandler` for subscription, and `SignalNotify` for callbacks. Shows that multiple handlers can subscribe to the same signal, what the runtime does and does not guarantee about delivery ordering, and that a `wait = true` handler keeps the program alive until it is disposed.
 
 ## Data Formats
 
 ### [json](data-formats/json/)
 
-Demonstrates the `json` standard library module: building JSON documents with `JsonObject` and `JsonArray`, serializing any value with `JsonPrinter`, parsing JSON text with `JsonParser`, reading nested values with `JsonNav`, composable get/set/remove with `JsonLens`, and string-based queries with `JsonPath` including filters, slicing, and function extensions (`match`, `search`, `length`, `count`).
+Demonstrates the `json` standard library package: building JSON documents with `JsonObject` and `JsonArray`, serializing any value with `JsonPrinter`, parsing JSON text with `JsonParser`, reading nested values with `JsonNav`, composable get/set/remove with `JsonLens`, and string-based queries with `JsonPath` including filters, slicing, and function extensions (`match`, `search`, `length`, `count`).
 
 ## Crypto
 
 ### [hash-fn](crypto/hash-fn/)
 
-Computes MD5, SHA1, and SHA256 hashes of a string in a single call each and prints the results. Shows the one-shot convenience functions `MD5`, `SHA1`, and `SHA256` from the `crypto` module, plus `ToHexString` for formatting the resulting `Array[U8] val`. Start here if you're new to the module.
+Computes MD5, SHA1, and SHA256 hashes of a string in a single call each and prints the results. Shows the one-shot convenience functions `MD5`, `SHA1`, and `SHA256` from the `crypto` package, plus `ToHexString` for formatting the resulting `Array[U8] val`. Start here if you're new to the package.
 
 ### [digest](crypto/digest/)
 
@@ -280,11 +280,11 @@ Passes Pony structs to C functions, showing both `embed` fields (inline like C n
 
 ### [pony_bench](testing/pony_bench/)
 
-Runs microbenchmarks using the `pony_bench` module, reporting mean, median, and deviation. Demonstrates synchronous benchmarks with the `MicroBenchmark` trait, asynchronous benchmarks with `AsyncMicroBenchmark`, and `DoNotOptimise` to prevent dead code elimination.
+Runs microbenchmarks using the `pony_bench` package, reporting mean, median, and deviation. Demonstrates synchronous benchmarks with the `MicroBenchmark` trait, asynchronous benchmarks with `AsyncMicroBenchmark`, and `DoNotOptimise` to prevent dead code elimination.
 
 ### [property_testing](testing/property_testing/)
 
-Demonstrates property-based testing with the `pony_test` module. Shows `Property` for defining properties, `test.property()` for registration, built-in and custom generators for producing test data, generator composition with `flat_map`, and async property testing over TCP using the `net/notifier` API.
+Demonstrates property-based testing with the `pony_test` package. Shows `Property` for defining properties, `test.property()` for registration, built-in and custom generators for producing test data, generator composition with `flat_map`, and async property testing over TCP using the `net/notifier` API.
 
 ## Benchmarks and Simulations
 
@@ -308,4 +308,4 @@ Simulates gravitational interaction among five planetary bodies (Sun, Jupiter, S
 
 ### [runtime_info](tracing/runtime_info/)
 
-Queries and displays runtime statistics including actor heap memory, GC metrics, CPU time, and scheduler state. Demonstrates the `runtime_info` module's `ActorStats` and `SchedulerStats` with auth-gated access via `ActorStatsAuth` and `SchedulerStatsAuth`. Requires the compiler to be built with `use=runtimestats_messages`.
+Queries and displays runtime statistics including actor heap memory, GC metrics, CPU time, and scheduler state. Demonstrates the `runtime_info` package's `ActorStats` and `SchedulerStats` with auth-gated access via `ActorStatsAuth` and `SchedulerStatsAuth`. Requires the compiler to be built with `use=runtimestats_messages`.

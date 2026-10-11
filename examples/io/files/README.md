@@ -1,6 +1,6 @@
 # files
 
-A program which shows the basic usage of the "files" module by reading the path of the file and its contents.
+A program which shows the basic usage of the "files" package by reading the path of the file and its contents.
 
 ## How to Compile
 

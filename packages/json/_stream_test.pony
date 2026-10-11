@@ -870,7 +870,7 @@ class \nodoc\ iso _StreamSplitInvariantProperty is Property[String]
 primitive \nodoc\ _JSONDocStringGen
   """
   Generates a JSON document whose root is an object or array, reusing the
-  module's value-string generator.
+  package's value-string generator.
   """
   fun apply(max_depth: USize = 3): Generator[String] =>
     Generator[String](

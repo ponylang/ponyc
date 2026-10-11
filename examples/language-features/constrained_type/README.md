@@ -1,6 +1,6 @@
 # constrained_type
 
-Demonstrates the basics of using the `constrained_types` module to encode domain type constraints such as "number less than 10" in the Pony type system.
+Demonstrates the basics of using the `constrained_types` package to encode domain type constraints such as "number less than 10" in the Pony type system.
 
 The example program implements a type for usernames that requires that a username is between 6 and 12 characters long and only contains lower case ASCII characters.
 

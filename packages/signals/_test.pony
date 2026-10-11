@@ -563,7 +563,7 @@ class \nodoc\ iso _TestDisposeRestoresIgnoredDisposition is UnitTest
   SIG_DFL. SIGPIPE is the case that matters: the runtime ignores it
   (socket.c) so a write to a closed socket fails with an error instead of a
   signal, and socket.c invites a program to handle SIGPIPE through this
-  module. Disposing that handler must return SIGPIPE to SIG_IGN; a
+  package. Disposing that handler must return SIGPIPE to SIG_IGN; a
   regression to SIG_DFL would kill the process on the next write to a closed
   socket. The disposition is read back rather than raised. SIGPIPE is not
   handleable on Windows, so this runs off Windows.

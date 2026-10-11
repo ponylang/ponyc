@@ -2,10 +2,10 @@
 Minimal echo server using the notifier API.
 
 Shows the same echo-server behavior as the `echo-server` example, but with
-notifier traits instead of the net module's class-and-trait delegation. The
+notifier traits instead of the net package's class-and-trait delegation. The
 three building blocks here are `TCPListener`, `TCPListenNotify`, and
 `ServerTCPConnectionNotify`. There are no user-defined actors — the net
-module's concrete actors handle all I/O plumbing.
+package's concrete actors handle all I/O plumbing.
 
 Connect with any TCP client (e.g. `netcat localhost 7679`) and type to see
 your input echoed back.

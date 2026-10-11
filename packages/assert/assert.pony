@@ -1,5 +1,5 @@
 """
-# Assert module
+# Assert package
 
 Contains runtime assertions. If you are looking for assertion that only run
 when your code was compiled with the `debug` flag, check out `Assert`. For

@@ -2732,7 +2732,7 @@ class \nodoc\ iso _TestJSONPathFilterFunctionValue is UnitTest
 // Regression Tests — stack-safe JSON walks (issue #5557)
 // ===================================================================
 //
-// Every value-depth walk in the module (parse, print, JSONPath recursive
+// Every value-depth walk in the package (parse, print, JSONPath recursive
 // descent, and filter `==` equality) is driven by an explicit work stack
 // rather than native recursion, so nesting depth is bounded by the heap, not
 // the scheduler thread's native stack. These tests drive each walk far past

@@ -4,7 +4,7 @@ Minimal UDP echo server using the notifier API.
 Shows the same echo-server behavior as the `udp-echo-server` example, but with
 a `UDPSocketNotify` trait instead of implementing `UDPSocketActor` and
 `UDPLifecycleEventReceiver` yourself. There are no user-defined actors — the
-net module's concrete `UDPSocket` actor handles all I/O plumbing.
+net package's concrete `UDPSocket` actor handles all I/O plumbing.
 
 Send a datagram with any UDP tool (e.g. `echo hello | nc -u localhost 7691`)
 and see it echoed back.

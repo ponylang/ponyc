@@ -1,5 +1,5 @@
 """
-# Debug module
+# Debug package
 
 Provides facilities to create output to either `STDOUT` or `STDERR` that will
 only appear when the platform is debug configured. To create a binary with

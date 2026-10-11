@@ -5,7 +5,7 @@ actor UDPSocket is (net.UDPSocketActor & net.UDPLifecycleEventReceiver)
   A UDP socket actor driven by a
   [`UDPSocketNotify`](/net/notifier-UDPSocketNotify/).
 
-  Wraps the net module's `UDPSocket` class, `UDPSocketActor` trait, and
+  Wraps the net package's `UDPSocket` class, `UDPSocketActor` trait, and
   `UDPLifecycleEventReceiver` trait into a single actor.
 
   `send_to` is synchronous and returns a `SendToResult` — use it from within

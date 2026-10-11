@@ -1,3 +1,3 @@
 """
-Validates a username using Pony's `constrained_types` module.
+Validates a username using Pony's `constrained_types` package.
 """
