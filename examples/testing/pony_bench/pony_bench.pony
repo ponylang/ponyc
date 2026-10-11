@@ -1,3 +1,3 @@
 """
-Runs micro-benchmarks using the `pony_bench` package.
+Runs micro-benchmarks using the `pony_bench` module.
 """

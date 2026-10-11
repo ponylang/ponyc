@@ -25,7 +25,7 @@ For user documentation — installation and editor configuration — see the [po
 | **[Rename][spec-rename]** | Rename a symbol and all its references across the workspace. |
 | **[Folding Range][spec-folding-range]** | Code folding ranges are provided for blocks, methods, classes, and other structured constructs. |
 | **[Selection Range][spec-selection-range]** | Smart expand/shrink selection based on the AST structure of the document. |
-| **[Type Hierarchy][spec-type-hierarchy]** | Navigate the type hierarchy of Pony entities. `prepareTypeHierarchy` identifies the entity under the cursor; `supertypes` returns the types in its `is` clause; `subtypes` returns all types across the compiled package that directly provide it. |
+| **[Type Hierarchy][spec-type-hierarchy]** | Navigate the type hierarchy of Pony entities. `prepareTypeHierarchy` identifies the entity under the cursor; `supertypes` returns the types in its `is` clause; `subtypes` returns all types across the compiled module that directly provide it. |
 | **[Call Hierarchy][spec-call-hierarchy]** | Navigate the call hierarchy of Pony methods. `prepareCallHierarchy` identifies the method under the cursor; `incomingCalls` returns all callers across the workspace with their call sites; `outgoingCalls` returns all callees with their call sites within the method. |
 
 [spec-diagnostics]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#pull-diagnostics
@@ -57,14 +57,14 @@ New features are actively being added. Contributions are welcome — we are happ
 | **Setting** | **Type** | **Example** | **Description** |
 | ------- | ---- | ------- | ----------- |
 | `defines` | `Array[String]` | `["FOO", "BAR"]` | Defines active during compilation, equivalent to the `-D` flag in `ponyc` |
-| `ponypath` | `Array[String]` | `["/path/to/pony/package"]` | Additional package search paths |
+| `ponypath` | `Array[String]` | `["/path/to/pony/module"]` | Additional module search paths |
 
 Example settings in JSON:
 
 ```json
 {
   "defines": ["FOO", "BAR"],
-  "ponypath": ["/path/to/pony/package", "/another/path"]
+  "ponypath": ["/path/to/pony/module", "/another/path"]
 }
 ```
 

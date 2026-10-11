@@ -1,9 +1,9 @@
 """
-pony-dep: A dependency manager for Pony packages.
+pony-dep: A dependency manager for Pony modules.
 
-Manages external dependencies by fetching, placing, and tracking package
+Manages external dependencies by fetching, placing, and tracking module
 archives. Dependencies are recorded in a `pony.deps` configuration file
-with content hashes so that different versions of the same package coexist
+with content hashes so that different versions of the same module coexist
 without a solver. Use `ConfigParser` to parse a `pony.deps` file into a
 `ConfigFile` containing `DepEntry` values.
 
@@ -18,5 +18,5 @@ without a solver. Use `ConfigParser` to parse a `pony.deps` file into a
   the configuration file.
 - `remove` — remove a dependency's configuration entry and its placed files.
 - `clean` — scan source for `use "ext:..."` references and remove any placed
-  package directory that nothing references.
+  module directory that nothing references.
 """

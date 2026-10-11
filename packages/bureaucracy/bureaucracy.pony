@@ -1,5 +1,5 @@
 """
-# Bureaucracy package
+# Bureaucracy module
 
 It happens to almost every program. It starts small, tiny if you will, like a
 village where every actor knows every other actor and shutdown is easy. One day

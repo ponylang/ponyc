@@ -355,8 +355,8 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
   if(ast == NULL)
     return NULL;
 
-  pony_assert(ast_id(ast) != TK_PROGRAM && ast_id(ast) != TK_PACKAGE &&
-    ast_id(ast) != TK_MODULE);
+  pony_assert(ast_id(ast) != TK_PROGRAM && ast_id(ast) != TK_MODULE &&
+    ast_id(ast) != TK_FILE);
 
   ast_t* n = ast_token(token_dup(ast->t));
   n->data = ast->data;
@@ -471,8 +471,8 @@ ast_t* ast_dup_partial(ast_t* ast, bool* dup_child, bool dup_type,
   if(ast == NULL)
     return NULL;
 
-  pony_assert(ast_id(ast) != TK_PROGRAM && ast_id(ast) != TK_PACKAGE &&
-    ast_id(ast) != TK_MODULE);
+  pony_assert(ast_id(ast) != TK_PROGRAM && ast_id(ast) != TK_MODULE &&
+    ast_id(ast) != TK_FILE);
 
   ast_t* n = ast_token(token_dup(ast->t));
   n->data = ast->data;
@@ -1680,11 +1680,11 @@ void ast_free(ast_t* ast)
       program_free((program_t*)ast->data);
       break;
 
-    case TK_PACKAGE:
-      package_free((package_t*)ast->data);
+    case TK_MODULE:
+      module_free((module_t*)ast->data);
       break;
 
-    case TK_MODULE:
+    case TK_FILE:
       source_close((source_t*)ast->data);
       break;
 
@@ -1793,7 +1793,7 @@ static void print_type(printbuf_t* buffer, ast_t* type, bool print_cap)
   {
     case TK_NOMINAL:
     {
-      AST_GET_CHILDREN(type, package, id, typeargs, cap, ephemeral);
+      AST_GET_CHILDREN(type, module, id, typeargs, cap, ephemeral);
       ast_t* origpkg = ast_sibling(ephemeral);
 
       if(origpkg != NULL && ast_id(origpkg) != TK_NONE)

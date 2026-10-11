@@ -1,7 +1,7 @@
 """
-# Buffered Package
+# Buffered Module
 
-The Buffered package provides two classes, `Writer` and `Reader`, for
+The Buffered module provides two classes, `Writer` and `Reader`, for
 writing and reading messages using common encodings. These classes are
 useful when dealing with things like network data and binary file
 formats.

@@ -503,17 +503,17 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
 
   switch(ast_id(def))
   {
-    case TK_PACKAGE:
+    case TK_MODULE:
     {
       // Only allowed if in a TK_DOT with a type.
       if(ast_id(ast_parent(ast)) != TK_DOT)
       {
         ast_error(opt->check.errors, ast,
-          "a package can only appear as a prefix to a type");
+          "a module can only appear as a prefix to a type");
         return false;
       }
 
-      ast_setid(ast, TK_PACKAGEREF);
+      ast_setid(ast, TK_MODULEREF);
       return true;
     }
 
@@ -528,7 +528,7 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
     {
       ast_setid(ast, TK_TYPEREF);
 
-      ast_add(ast, ast_from(ast, TK_NONE));    // 1st child: package reference
+      ast_add(ast, ast_from(ast, TK_NONE));    // 1st child: module reference
       ast_append(ast, ast_from(ast, TK_NONE)); // 3rd child: type args
 
       return true;
@@ -605,32 +605,32 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
   return false;
 }
 
-static bool refer_packageref_dot(pass_opt_t* opt, ast_t* ast)
+static bool refer_moduleref_dot(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_DOT);
   AST_GET_CHILDREN(ast, left, right);
-  pony_assert(ast_id(left) == TK_PACKAGEREF);
+  pony_assert(ast_id(left) == TK_MODULEREF);
   pony_assert(ast_id(right) == TK_ID);
 
-  // Must be a type in a package.
-  const char* package_name = ast_name(ast_child(left));
-  ast_t* package = ast_get(left, package_name, NULL);
+  // Must be a type in a module.
+  const char* module_name = ast_name(ast_child(left));
+  ast_t* module = ast_get(left, module_name, NULL);
 
-  if(package == NULL)
+  if(module == NULL)
   {
-    ast_error(opt->check.errors, right, "can't access package '%s'",
-      package_name);
+    ast_error(opt->check.errors, right, "can't access module '%s'",
+      module_name);
     return false;
   }
 
-  pony_assert(ast_id(package) == TK_PACKAGE);
+  pony_assert(ast_id(module) == TK_MODULE);
   const char* type_name = ast_name(right);
-  ast_t* def = ast_get(package, type_name, NULL);
+  ast_t* def = ast_get(module, type_name, NULL);
 
   if(def == NULL)
   {
-    ast_error(opt->check.errors, right, "can't find type '%s' in package '%s'",
-      type_name, package_name);
+    ast_error(opt->check.errors, right, "can't find type '%s' in module '%s'",
+      type_name, module_name);
     return false;
   }
 
@@ -710,7 +710,7 @@ bool refer_dot(pass_opt_t* opt, ast_t* ast)
 
   switch(ast_id(left))
   {
-    case TK_PACKAGEREF: return refer_packageref_dot(opt, ast);
+    case TK_MODULEREF: return refer_moduleref_dot(opt, ast);
     case TK_THIS:       return refer_this_dot(opt, ast);
     case TK_PARAMREF:
     case TK_VARREF:
@@ -757,12 +757,12 @@ static bool qualify_typeref(pass_opt_t* opt, ast_t* ast)
   ast_t* first_child = ast_pop(ast);
   (void)first_child;
   pony_assert(typeref == first_child);
-  ast_t* package   = ast_pop(typeref);
+  ast_t* mod_id    = ast_pop(typeref);
   ast_t* type_name = ast_pop(typeref);
   ast_free(typeref);
 
   ast_add(ast, type_name);
-  ast_add(ast, package);
+  ast_add(ast, mod_id);
 
   return true;
 }

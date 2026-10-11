@@ -1,9 +1,9 @@
 """
-Test fixture: base class in a sub-package for cross-package reference tests.
+Test fixture: base class in a sub-module for cross-module reference tests.
 """
 
 class RefBase
   """
-  Used by ref_base_user.pony to exercise cross-package WorkspaceWalk.
+  Used by ref_base_user.pony to exercise cross-module WorkspaceWalk.
   """
   fun value(): U32 => 42

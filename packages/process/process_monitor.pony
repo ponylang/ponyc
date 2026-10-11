@@ -250,7 +250,7 @@ actor ProcessMonitor is AsioEventNotify
   =>
     """
     Build a monitor around an already-running child and its pipes. Called by
-    `StartProcess` (and by the in-package test factory). Not public: a monitor
+    `StartProcess` (and by the in-module test factory). Not public: a monitor
     is only ever created around a live child.
     """
     _backpressure_auth = backpressure_auth
@@ -724,8 +724,8 @@ actor ProcessMonitor is AsioEventNotify
       end
     end
 
-  // --- test seam (package-private) ---------------------------------------
-  // These exist so a package-private test factory can drive the state machine
+  // --- test seam (module-private) ---------------------------------------
+  // These exist so a module-private test factory can drive the state machine
   // with a spy `_Process` and placeholder pipes. They have no public surface.
   be _test_trigger_exit() =>
     """

@@ -51,7 +51,7 @@ enum
   OPT_VERBOSE,
   OPT_PASSES,
   OPT_AST,
-  OPT_ASTPACKAGE,
+  OPT_ASTMODULE,
   OPT_TRACE,
   OPT_WIDTH,
   OPT_IMMERR,
@@ -99,7 +99,7 @@ static opt_arg_t std_args[] =
   {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
-  {"astpackage", '\0', OPT_ARG_NONE, OPT_ASTPACKAGE},
+  {"astmodule", '\0', OPT_ARG_NONE, OPT_ASTMODULE},
   {"trace", 't', OPT_ARG_NONE, OPT_TRACE},
   {"width", 'w', OPT_ARG_REQUIRED, OPT_WIDTH},
   {"immerr", '\0', OPT_ARG_NONE, OPT_IMMERR},
@@ -124,9 +124,9 @@ opt_arg_t* ponyc_opt_std_args(void) {
 static void usage(void)
 {
   printf("%s\n%s\n%s\n%s\n%s\n%s", // for complying with -Woverlength-strings
-    "ponyc [OPTIONS] <package directory>\n"
+    "ponyc [OPTIONS] <module directory>\n"
     ,
-    "The package directory defaults to the current directory.\n"
+    "The module directory defaults to the current directory.\n"
     ,
     "Options:\n"
     "  --version, -v    Print the version of the compiler and exit.\n"
@@ -136,7 +136,7 @@ static void usage(void)
     "    =name\n"
     "  --strip, -s      Strip debug info.\n"
     "  --path, -p       Add an additional search path.\n"
-    "    =path          Used to find packages and libraries.\n"
+    "    =path          Used to find modules and libraries.\n"
     "  --output, -o     Write output to this directory.\n"
     "    =path          Defaults to the current directory.\n"
     "  --bin-name, -b   Name of executable binary.\n"
@@ -146,8 +146,8 @@ static void usage(void)
     "  --nopic          Don't compile using position independent code.\n"
     ,
     "Rarely needed options:\n"
-    "  --safe           Allow only the listed packages to use C FFI.\n"
-    "    =package       With no packages listed, only builtin is allowed.\n"
+    "  --safe           Allow only the listed modules to use C FFI.\n"
+    "    =module        With no modules listed, only builtin is allowed.\n"
     "  --abi            Set the target ABI.\n"
     "    =name          Default is the host ABI.\n"
     "  --cpu            Set the target CPU.\n"
@@ -158,7 +158,7 @@ static void usage(void)
     "  --triple         Set the target triple.\n"
     "    =name          Defaults to the host triple.\n"
     "  --stats          Print some compiler stats.\n"
-    "  --pass-timings   Print a table of pass time by package and pass\n"
+    "  --pass-timings   Print a table of pass time by module and pass\n"
     "                   to stderr. Covers front-end passes, reach, and paint.\n"
     "  --pass-timings-json\n"
     "    =path          Write the same timings as JSON to this file. On its\n"
@@ -193,7 +193,7 @@ static void usage(void)
     "    =4             Very low-level detail.\n"
     PASS_HELP
     "  --ast, -a        Output an abstract syntax tree for the whole program.\n"
-    "  --astpackage     Output an abstract syntax tree for the main package.\n"
+    "  --astmodule      Output an abstract syntax tree for the main module.\n"
     "  --trace, -t      Enable parse trace.\n"
     "  --width, -w      Width to target when printing the AST.\n"
     "    =columns       Defaults to the terminal width.\n"
@@ -266,12 +266,12 @@ static ponyc_opt_process_t special_opt_processing(pass_opt_t *opt)
 
 ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
        /*OUT*/ bool* print_program_ast,
-       /*OUT*/ bool* print_package_ast)
+       /*OUT*/ bool* print_module_ast)
 {
   ponyc_opt_process_t exit_code = CONTINUE;
   int id;
   *print_program_ast = false;
-  *print_package_ast = false;
+  *print_module_ast = false;
 
   exit_code = special_opt_processing(opt);
   if(exit_code != CONTINUE)
@@ -303,16 +303,16 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         define_userflag(opt->user_flags, s->arg_val);
         break;
       case OPT_STRIP: opt->strip_debug = true; break;
-      case OPT_PATHS: package_add_paths(s->arg_val, opt); break;
+      case OPT_PATHS: module_add_paths(s->arg_val, opt); break;
       case OPT_OUTPUT: opt->output = s->arg_val; break;
       case OPT_BIN_NAME: opt->bin_name = s->arg_val; break;
       case OPT_STATIC: opt->staticbin = true; break;
       case OPT_PIC: opt->pic = true; break;
       case OPT_NOPIC: opt->pic = false; break;
       case OPT_SAFE:
-        if(!package_add_safe(s->arg_val, opt))
+        if(!module_add_safe(s->arg_val, opt))
         {
-          printf("Error adding safe packages: %s\n", s->arg_val);
+          printf("Error adding safe modules: %s\n", s->arg_val);
           exit_code = EXIT_255;
         }
         break;
@@ -350,7 +350,7 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_FAT_LTO: opt->fat_lto = true; break;
       case OPT_THIN_LTO: opt->fat_lto = false; break;
       case OPT_AST: *print_program_ast = true; break;
-      case OPT_ASTPACKAGE: *print_package_ast = true; break;
+      case OPT_ASTMODULE: *print_module_ast = true; break;
       case OPT_TRACE: opt->parse_trace = true; break;
       case OPT_WIDTH: opt->ast_print_width = atoi(s->arg_val); break;
       case OPT_IMMERR: errors_set_immediate(opt->check.errors, true); break;

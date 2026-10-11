@@ -697,16 +697,16 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
   c->opt = opt;
 
-  // Get the first package and the builtin package.
-  ast_t* package = ast_child(program);
-  ast_t* builtin = ast_sibling(package);
+  // Get the first module and the builtin module.
+  ast_t* module = ast_child(program);
+  ast_t* builtin = ast_sibling(module);
 
-  // If we have only one package, we are compiling builtin itself.
+  // If we have only one module, we are compiling builtin itself.
   if(builtin == NULL)
-    builtin = package;
+    builtin = module;
 
-  // The name of the first package is the name of the program.
-  c->filename = package_filename(package);
+  // The name of the first module is the name of the program.
+  c->filename = module_filename(module);
 
   // LLVM context and machine settings.
   if(target_is_ilp32(opt->triple))
@@ -741,8 +741,8 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->builder = LLVMCreateBuilderInContext(c->context);
   c->di = LLVMNewDIBuilder(c->module);
 
-  const char* filename = package_filename(package);
-  const char* dirname = package_path(package);
+  const char* filename = module_filename(module);
+  const char* dirname = module_path(module);
   const char* version = "ponyc-" PONY_VERSION;
   LLVMMetadataRef fileRef = LLVMDIBuilderCreateFile(c->di, filename,
     strlen(filename), dirname, strlen(dirname));
@@ -770,7 +770,7 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
   char path[FILENAME_MAX];
   LLVMModuleRef runtime = NULL;
 
-  for(strlist_t* p = c->opt->package_search_paths;
+  for(strlist_t* p = c->opt->module_search_paths;
     (p != NULL) && (runtime == NULL); p = strlist_next(p))
   {
     path_cat(strlist_data(p), "libponyrt.bc", path);
@@ -1035,8 +1035,8 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
     const char* main_actor = c->str_Main;
     const char* env_class = c->str_Env;
 
-    ast_t* package = ast_child(program);
-    ast_t* main_def = ast_get(package, main_actor, NULL);
+    ast_t* module = ast_child(program);
+    ast_t* main_def = ast_get(module, main_actor, NULL);
 
     if(main_def == NULL)
       return false;
@@ -1073,9 +1073,9 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
 
   if(last_pass < PASS_PAINT)
   {
-    pass_timers_start(opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_PAINT));
+    pass_timers_start(opt->timers, PASS_TIMERS_PROGRAM_MOD, pass_name(PASS_PAINT));
     paint(&c->reach->types);
-    pass_timers_stop(opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_PAINT));
+    pass_timers_stop(opt->timers, PASS_TIMERS_PROGRAM_MOD, pass_name(PASS_PAINT));
   }
 
   if(opt->limit == PASS_PAINT)
@@ -1193,8 +1193,8 @@ void codegen_switch_module(compile_t* c, size_t index)
   c->current_module_index = index;
 }
 
-size_t codegen_create_per_module_state(compile_t* c, const char* pkg_sym,
-  ast_t* package)
+size_t codegen_create_per_module_state(compile_t* c, const char* mod_sym,
+  ast_t* module)
 {
   size_t index = c->per_module_count;
   c->per_module_count++;
@@ -1206,13 +1206,14 @@ size_t codegen_create_per_module_state(compile_t* c, const char* pkg_sym,
   per_module_state_t* state = &c->per_module_states[index];
   memset(state, 0, sizeof(per_module_state_t));
 
-  state->package_symbol = pkg_sym;
-  state->package = package;
+  state->module_symbol = mod_sym;
+  state->pony_module = module;
 
-  char module_name[256];
-  snprintf(module_name, sizeof(module_name), "%s.%s",
-    c->filename, (pkg_sym != NULL) ? pkg_sym : package_filename(package));
-  state->module = LLVMModuleCreateWithNameInContext(module_name, c->context);
+  char llvm_module_name[256];
+  snprintf(llvm_module_name, sizeof(llvm_module_name), "%s.%s",
+    c->filename, (mod_sym != NULL) ? mod_sym : module_filename(module));
+  state->module = LLVMModuleCreateWithNameInContext(llvm_module_name,
+    c->context);
 
   char* layout = LLVMCopyStringRepOfTargetData(c->target_data);
   LLVMSetTarget(state->module, c->opt->triple);
@@ -1221,8 +1222,8 @@ size_t codegen_create_per_module_state(compile_t* c, const char* pkg_sym,
 
   state->di = LLVMNewDIBuilder(state->module);
 
-  const char* filename = package_filename(package);
-  const char* dirname = package_path(package);
+  const char* filename = module_filename(module);
+  const char* dirname = module_path(module);
   const char* version = "ponyc-" PONY_VERSION;
   LLVMMetadataRef fileRef = LLVMDIBuilderCreateFile(state->di, filename,
     strlen(filename), dirname, strlen(dirname));
@@ -1246,9 +1247,9 @@ void codegen_init_modules(compile_t* c, ast_t* program)
   c->per_module_states = NULL;
   c->current_module_index = 0;
 
-  ast_t* main_package = ast_child(program);
+  ast_t* main_module = ast_child(program);
 
-  // Element 0: adopt the main module already created by init_module.
+  // Element 0: adopt the main LLVM module already created by init_module.
   size_t main_idx = c->per_module_count;
   c->per_module_count = 1;
   c->per_module_states = (per_module_state_t*)ponyint_pool_alloc_size(
@@ -1256,26 +1257,26 @@ void codegen_init_modules(compile_t* c, ast_t* program)
   memset(&c->per_module_states[main_idx], 0, sizeof(per_module_state_t));
 
   per_module_state_t* ms = &c->per_module_states[main_idx];
-  ms->package_symbol = package_symbol(main_package);
-  ms->package = main_package;
+  ms->module_symbol = module_symbol(main_module);
+  ms->pony_module = main_module;
   ms->module = c->module;
   ms->di = c->di;
   ms->di_unit = c->di_unit;
   ms->strings = c->strings;
   ms->ffi_decls = c->ffi_decls;
 
-  // Create modules for remaining packages.
-  ast_t* package = ast_sibling(main_package);
+  // Create LLVM modules for remaining Pony modules.
+  ast_t* module = ast_sibling(main_module);
 
-  while(package != NULL)
+  while(module != NULL)
   {
-    if(ast_id(package) == TK_PACKAGE)
+    if(ast_id(module) == TK_MODULE)
     {
       bool found = false;
 
       for(size_t i = 0; i < c->per_module_count; i++)
       {
-        if(c->per_module_states[i].package == package)
+        if(c->per_module_states[i].pony_module == module)
         {
           found = true;
           break;
@@ -1284,26 +1285,26 @@ void codegen_init_modules(compile_t* c, ast_t* program)
 
       if(!found)
       {
-        const char* pkg_sym = package_symbol(package);
-        size_t idx = codegen_create_per_module_state(c, pkg_sym,
-          package);
+        const char* mod_sym = module_symbol(module);
+        size_t idx = codegen_create_per_module_state(c, mod_sym,
+          module);
         codegen_switch_module(c, idx);
         init_runtime_decls(c);
       }
     }
 
-    package = ast_sibling(package);
+    module = ast_sibling(module);
   }
 
   // Switch back to the main module.
   codegen_switch_module(c, 0);
 }
 
-size_t codegen_module_index_for_package(compile_t* c, ast_t* package)
+size_t codegen_module_index_for_module(compile_t* c, ast_t* module)
 {
   for(size_t i = 0; i < c->per_module_count; i++)
   {
-    if(c->per_module_states[i].package == package)
+    if(c->per_module_states[i].pony_module == module)
       return i;
   }
 

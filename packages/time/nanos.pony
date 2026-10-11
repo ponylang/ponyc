@@ -2,7 +2,7 @@
 primitive Nanos
   """
   Collection of utility functions for converting various durations of time
-  to nanoseconds, for passing to other functions in the time package.
+  to nanoseconds, for passing to other functions in the time module.
   """
   fun from_seconds(t: U64): U64 =>
     t * 1_000_000_000

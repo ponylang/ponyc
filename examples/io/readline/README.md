@@ -1,6 +1,6 @@
 # readline
 
-A program showing usage of `Readline` from the `term` package.
+A program showing usage of `Readline` from the `term` module.
 
 ## How to Compile
 

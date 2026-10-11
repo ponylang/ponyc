@@ -10,9 +10,9 @@ primitive \nodoc\ _DocumentSymbolIntegrationTests is TestList
     let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
     let server = _LspTestServer(workspace_dir)
     // All fixtures live under workspace/document_symbol/ so the whole
-    // suite compiles a single package once (the test server's first-
+    // suite compiles a single module once (the test server's first-
     // `publish_diagnostics` gate only drains pending requests on the
-    // initial compile — a mid-suite package switch would race the new
+    // initial compile — a mid-suite module switch would race the new
     // compile and hand documentSymbol requests an empty module).
     test(_DocSymContainmentTest.create(server))
     test(_DocSymRangeTest.create(server))
@@ -94,7 +94,7 @@ class \nodoc\ iso _DocSymEntityKindsTest is UnitTest
   """
   Asserts that every Pony entity token surfaces as a top-level
   DocumentSymbol with the LSP SymbolKind it is mapped to by
-  `DocumentSymbols.from_module`:
+  `DocumentSymbols.from_file`:
     class, actor, primitive, type  → sk_class (5)
     trait, interface               → sk_interface (11)
     struct                         → sk_struct (23)

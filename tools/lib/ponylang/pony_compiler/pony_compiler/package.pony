@@ -1,15 +1,15 @@
 // use "debug"
-use @package_init[Bool](opt: _PassOpt)
-use @package_add_paths[None](
+use @module_init[Bool](opt: _PassOpt)
+use @module_add_paths[None](
   paths: Pointer[U8] tag, opy: _PassOpt)
 use @package_init_lib[Bool](
   opt: _PassOpt,
   pony_installation: Pointer[U8] tag)
-use @package_done[None](opt: _PassOpt)
+use @module_done[None](opt: _PassOpt)
 
-class val Package
+class val Module
   """
-  Represents a pony package.
+  Represents a pony module.
   """
   let ast: AST val
   let hygienic_id: String val
@@ -21,53 +21,53 @@ class val Package
   new val create(program: Program val, ast': AST) ? =>
     _program = program
     ast = ast'
-    let package: _Package = ast.package().apply()?
-    qualified_name = package.qualified_name()
-    path = package.path()
-    hygienic_id = package.hygienic_id()
+    let module_data: _Package = ast.module_data().apply()?
+    qualified_name = module_data.qualified_name()
+    path = module_data.path()
+    hygienic_id = module_data.hygienic_id()
 
-  fun val module(): (Module val | None) =>
+  fun val file(): (SourceFile val | None) =>
     """
-    Returns the first Module in this Package.
+    Returns the first SourceFile in this Module.
     """
     match ast.child()
     | let m_ast: AST =>
       try
-        Module.create(this._program, m_ast)?
+        SourceFile.create(this._program, m_ast)?
       end
     end
 
-  fun val modules(): Iterator[Module val] =>
-    _ModuleIter.create(_program, this)
+  fun val files(): Iterator[SourceFile val] =>
+    _SourceFileIter.create(_program, this)
 
-  fun val find_module(file: String): (Module val | None) =>
+  fun val find_file(path': String): (SourceFile val | None) =>
     """
-    Find a module in this package by package directory path.
+    Find a file in this module by file path.
     """
-    // Debug("trying to find module from: " + file)
-    for mod in modules() do
-      // Debug("checking: " +  mod.file)
-      if mod.file == file then
-        // Debug("found module: " + file)
-        return mod
+    // Debug("trying to find file from: " + path')
+    for f in files() do
+      // Debug("checking: " +  f.file)
+      if f.file == path' then
+        // Debug("found file: " + path')
+        return f
       end
     end
 
-class _PackageIter is Iterator[Package]
-  var _package_ast: (AST val | None)
+class _ModuleIter is Iterator[Module]
+  var _module_ast: (AST val | None)
   let _program: Program val
 
   new ref create(program: Program val) =>
-    _package_ast = program.ast.child()
+    _module_ast = program.ast.child()
     _program = program
 
   fun ref has_next(): Bool =>
-    _package_ast isnt None
+    _module_ast isnt None
 
-  fun ref next(): Package val ? =>
-    let package_ast = _package_ast as AST
-    _package_ast = package_ast.sibling()
-    Package.create(_program, package_ast)?
+  fun ref next(): Module val ? =>
+    let module_ast = _module_ast as AST
+    _module_ast = module_ast.sibling()
+    Module.create(_program, module_ast)?
 
 primitive _PackageSet
   """

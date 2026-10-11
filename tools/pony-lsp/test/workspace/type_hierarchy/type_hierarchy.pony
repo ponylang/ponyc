@@ -1,7 +1,7 @@
 """
 Test fixtures for exercising LSP type hierarchy functionality.
 
-This package provides fixture files for manual and automated testing of the
+This module provides fixture files for manual and automated testing of the
 three LSP type hierarchy operations (prepareTypeHierarchy,
 typeHierarchy/supertypes, and typeHierarchy/subtypes).
 
@@ -21,7 +21,7 @@ Expected type hierarchy behaviour:
   name, or null when the cursor is not on a type name
 - typeHierarchy/supertypes returns the types in the entity's provides clause,
   including both sides of intersection types
-- typeHierarchy/subtypes returns all types in the compiled package that
+- typeHierarchy/subtypes returns all types in the compiled module that
   provide the queried type, even when defined in other files
 - Both supertypes and subtypes return an empty array (not null) when there
   are no results

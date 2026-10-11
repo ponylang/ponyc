@@ -599,7 +599,7 @@ TEST_F(SugarExprTest, PartialConstructorCrossPackageAlias)
     "  new create(env: Env) =>\n"
     "    let mk = MyFoo~create(U8(1))";
 
-  add_package("pkg", pkg);
+  add_module("pkg", pkg);
   TEST_COMPILE(src);
 }
 
@@ -622,7 +622,7 @@ TEST_F(SugarExprTest, PartialConstructorCrossPackageParamAlias)
     "    let mk = MyFoo[U8]~create(U8(1))\n"
     "    let v: Foo[U8] ref = mk()";
 
-  add_package("pkg", pkg);
+  add_module("pkg", pkg);
   TEST_COMPILE(src);
 }
 

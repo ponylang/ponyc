@@ -46,4 +46,4 @@ As stated above, `--size` changes the number of actors in a ring, `--count` chan
 
 ## Program Modifications
 
-Notice something about this program: any random argument will display the "help message" such as `./ring --this-is-not-an-argument`. Modify the program to use the `cli` package so that it has a defined `--help` command and rejects such random arguments.
+Notice something about this program: any random argument will display the "help message" such as `./ring --this-is-not-an-argument`. Modify the program to use the `cli` module so that it has a defined `--help` command and rejects such random arguments.

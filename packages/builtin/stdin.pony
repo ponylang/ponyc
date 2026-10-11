@@ -64,7 +64,7 @@ actor Stdin is AsioEventNotify
         512)
   ```
 
-  **Note:** For reading user input from a terminal, use the [term](term--index.md) package.
+  **Note:** For reading user input from a terminal, use the [term](term--index.md) module.
   """
   var _notify: (InputNotify | None) = None
   var _chunk_size: USize = 32

@@ -1,6 +1,6 @@
 # json
 
-Demonstrates the standard library JSON package: building JSON documents,
+Demonstrates the standard library JSON module: building JSON documents,
 parsing JSON text, reading values with `JsonNav`, composable paths with
 `JsonLens`, string-based queries with `JsonPath` (including filters and
 function extensions), and serialization.

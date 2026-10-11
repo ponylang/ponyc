@@ -1,7 +1,7 @@
 trait TestList
   """
   Source of unit tests for a PonyTest object.
-  See package doc string for further information and example use.
+  See module doc string for further information and example use.
   """
 
   fun tag tests(test: PonyTest)

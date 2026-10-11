@@ -15,7 +15,7 @@ class \nodoc\ _TestFileNamingSingleEntity is UnitTest
         Array[(String val, ast.TokenId, USize, USize)]
           .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
       end
-    let diags = lint.FileNaming.check_module(entities, sf)
+    let diags = lint.FileNaming.check_file(entities, sf)
     // test.pony != foo.pony
     h.assert_eq[USize](1, diags.size())
     try
@@ -36,7 +36,7 @@ class \nodoc\ _TestFileNamingMatchingName is UnitTest
         Array[(String val, ast.TokenId, USize, USize)]
           .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
       end
-    let diags = lint.FileNaming.check_module(entities, sf)
+    let diags = lint.FileNaming.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestFileNamingTraitPrincipal is UnitTest
@@ -53,7 +53,7 @@ class \nodoc\ _TestFileNamingTraitPrincipal is UnitTest
           .> push(("Runnable", ast.TokenIds.tk_trait(), 0, 0))
           .> push(("Runner", ast.TokenIds.tk_class(), 0, 0))
       end
-    let diags = lint.FileNaming.check_module(entities, sf)
+    let diags = lint.FileNaming.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestFileNamingMultipleEntitiesSkipped is UnitTest
@@ -71,7 +71,7 @@ class \nodoc\ _TestFileNamingMultipleEntitiesSkipped is UnitTest
           .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
           .> push(("Bar", ast.TokenIds.tk_class(), 0, 0))
       end
-    let diags = lint.FileNaming.check_module(entities, sf)
+    let diags = lint.FileNaming.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestFileNamingTestPonyMain is UnitTest
@@ -87,7 +87,7 @@ class \nodoc\ _TestFileNamingTestPonyMain is UnitTest
         Array[(String val, ast.TokenId, USize, USize)]
           .> push(("Main", ast.TokenIds.tk_actor(), 0, 0))
       end
-    let diags = lint.FileNaming.check_module(entities, sf)
+    let diags = lint.FileNaming.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestFileNamingPrivateType is UnitTest
@@ -103,7 +103,7 @@ class \nodoc\ _TestFileNamingPrivateType is UnitTest
         Array[(String val, ast.TokenId, USize, USize)]
           .> push(("_MyHelper", ast.TokenIds.tk_primitive(), 0, 0))
       end
-    let diags = lint.FileNaming.check_module(entities, sf)
+    let diags = lint.FileNaming.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestFileNamingPathWithDirectory is UnitTest
@@ -119,7 +119,7 @@ class \nodoc\ _TestFileNamingPathWithDirectory is UnitTest
         Array[(String val, ast.TokenId, USize, USize)]
           .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
       end
-    let diags = lint.FileNaming.check_module(entities, sf)
+    let diags = lint.FileNaming.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestFileNamingPathMismatch is UnitTest
@@ -135,7 +135,7 @@ class \nodoc\ _TestFileNamingPathMismatch is UnitTest
         Array[(String val, ast.TokenId, USize, USize)]
           .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
       end
-    let diags = lint.FileNaming.check_module(entities, sf)
+    let diags = lint.FileNaming.check_file(entities, sf)
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_true(diags(0)?.message.contains("bar.pony"))
@@ -159,7 +159,7 @@ class \nodoc\ _TestFileNamingWindowsPath is UnitTest
           Array[(String val, ast.TokenId, USize, USize)]
             .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
         end
-      let diags = lint.FileNaming.check_module(entities, sf)
+      let diags = lint.FileNaming.check_file(entities, sf)
       h.assert_eq[USize](0, diags.size())
     end
 
@@ -176,5 +176,5 @@ class \nodoc\ _TestFileNamingTestPonyMainWithDir is UnitTest
         Array[(String val, ast.TokenId, USize, USize)]
           .> push(("Main", ast.TokenIds.tk_actor(), 0, 0))
       end
-    let diags = lint.FileNaming.check_module(entities, sf)
+    let diags = lint.FileNaming.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())

@@ -9,7 +9,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend,
   Create it with one of the four constructors -- `client`, `server`,
   `ssl_client`, `ssl_server` -- using `TCPConnection.none()` as the field
   initializer before that. An open plaintext connection can be upgraded to TLS
-  with `start_tls`. See the package documentation for the full lifecycle.
+  with `start_tls`. See the module documentation for the full lifecycle.
   """
   var _tcp: TCP = TCP
   var _asio: Asio = Asio
@@ -283,7 +283,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend,
 
     For commonly-tuned options, prefer the dedicated convenience methods
     (`set_nodelay`, `get_so_rcvbuf`, etc.). Do not change the socket's
-    non-blocking mode — the net package's event-driven I/O requires non-blocking
+    non-blocking mode — the net module's event-driven I/O requires non-blocking
     sockets.
     """
     _state.getsockopt(this, level, option_name, option_max_size)
@@ -299,7 +299,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend,
 
     For commonly-tuned options, prefer the dedicated convenience methods
     (`get_so_rcvbuf`, `get_so_sndbuf`, etc.). Do not change the socket's
-    non-blocking mode — the net package's event-driven I/O requires non-blocking
+    non-blocking mode — the net module's event-driven I/O requires non-blocking
     sockets.
     """
     _state.getsockopt_u32(this, level, option_name)
@@ -318,7 +318,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend,
 
     For commonly-tuned options, prefer the dedicated convenience methods
     (`set_nodelay`, `set_so_rcvbuf`, etc.). Do not change the socket's
-    non-blocking mode — the net package's event-driven I/O requires non-blocking
+    non-blocking mode — the net module's event-driven I/O requires non-blocking
     sockets.
     """
     _state.setsockopt(this, level, option_name, option)
@@ -333,7 +333,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend,
 
     For commonly-tuned options, prefer the dedicated convenience methods
     (`set_nodelay`, `set_so_rcvbuf`, etc.). Do not change the socket's
-    non-blocking mode — the net package's event-driven I/O requires non-blocking
+    non-blocking mode — the net module's event-driven I/O requires non-blocking
     sockets.
     """
     _state.setsockopt_u32(this, level, option_name, option)

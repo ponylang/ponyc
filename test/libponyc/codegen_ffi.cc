@@ -31,7 +31,7 @@ TEST_F(CodegenFFITest, ReferenceReferenceCompatibility)
     "    @foo(this)\n"
     "    Foo()";
 
-  add_package("pkg", pkg);
+  add_module("pkg", pkg);
 
   TEST_COMPILE(src);
 }
@@ -54,7 +54,7 @@ TEST_F(CodegenFFITest, ReferencePointerCompatibility)
     "    @foo(Pointer[Main])\n"
     "    Foo()";
 
-  add_package("pkg", pkg);
+  add_module("pkg", pkg);
 
   TEST_COMPILE(src);
 }
@@ -77,7 +77,7 @@ TEST_F(CodegenFFITest, ReferenceUSizeCompatibility)
     "    @foo(0)\n"
     "    Foo()";
 
-  add_package("pkg", pkg);
+  add_module("pkg", pkg);
 
   TEST_COMPILE(src);
 }
@@ -100,7 +100,7 @@ TEST_F(CodegenFFITest, PointerPointerCompatibility)
     "    @foo(Pointer[Main])\n"
     "    Foo()";
 
-  add_package("pkg", pkg);
+  add_module("pkg", pkg);
 
   TEST_COMPILE(src);
 }
@@ -123,7 +123,7 @@ TEST_F(CodegenFFITest, PointerUSizeCompatibility)
     "    @foo(0)\n"
     "    Foo()";
 
-  add_package("pkg", pkg);
+  add_module("pkg", pkg);
 
   TEST_COMPILE(src);
 }
@@ -159,7 +159,7 @@ TEST_F(CodegenFFITest, DeclParameterCountConflict)
     "    @foo(0, 0)\n"
     "    Foo()";
 
-  add_package("pkg", pkg);
+  add_module("pkg", pkg);
 
   TEST_ERRORS_1(src, "conflicting declarations for FFI function: declarations "
     "have an incompatible number of parameters");
@@ -183,7 +183,7 @@ TEST_F(CodegenFFITest, DeclParameterTypeConflict)
     "    @foo(0)\n"
     "    Foo()";
 
-  add_package("pkg", pkg);
+  add_module("pkg", pkg);
 
   TEST_ERRORS_1(src, "conflicting calls for FFI function: parameters "
     "have incompatible types");
@@ -207,7 +207,7 @@ TEST_F(CodegenFFITest, DeclReturnTypeConflict)
     "    @foo()\n"
     "    Foo()";
 
-  add_package("pkg", pkg);
+  add_module("pkg", pkg);
 
   TEST_ERRORS_1(src, "conflicting calls for FFI function: return values "
     "have incompatible types");
@@ -246,7 +246,7 @@ TEST_F(CodegenFFITest, DeclReturnTypeVoidConflict)
     "    @foo()\n"
     "    Foo()";
 
-  add_package("pkg", pkg);
+  add_module("pkg", pkg);
 
   TEST_ERRORS_1(src, "conflicting calls for FFI function: return values "
     "have incompatible types");

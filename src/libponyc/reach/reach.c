@@ -2124,10 +2124,10 @@ void reach_free(reach_t* r)
 void reach(reach_t* r, ast_t* type, const char* name, ast_t* typeargs,
   pass_opt_t* opt)
 {
-  pass_timers_start(opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_REACH));
+  pass_timers_start(opt->timers, PASS_TIMERS_PROGRAM_MOD, pass_name(PASS_REACH));
   reachable_method(r, NULL, type, name, typeargs, opt);
   handle_method_stack(r, opt);
-  pass_timers_stop(opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_REACH));
+  pass_timers_stop(opt->timers, PASS_TIMERS_PROGRAM_MOD, pass_name(PASS_REACH));
 }
 
 reach_type_t* reach_type(reach_t* r, ast_t* type, pass_opt_t* opt)

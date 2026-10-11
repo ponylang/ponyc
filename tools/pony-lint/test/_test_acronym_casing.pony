@@ -11,17 +11,17 @@ class \nodoc\ _TestAcronymCasingClean is UnitTest
     let source = "class JSONDoc\nclass HTTPClient\nclass MyClass\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AcronymCasing)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -36,10 +36,10 @@ class \nodoc\ _TestAcronymCasingViolation is UnitTest
     let source = "class JsonDoc\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AcronymCasing)
           h.assert_eq[USize](1, diags.size())
           try
@@ -53,7 +53,7 @@ class \nodoc\ _TestAcronymCasingViolation is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -68,10 +68,10 @@ class \nodoc\ _TestAcronymCasingHTTP is UnitTest
     let source = "class HttpClient\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AcronymCasing)
           h.assert_eq[USize](1, diags.size())
           try
@@ -83,7 +83,7 @@ class \nodoc\ _TestAcronymCasingHTTP is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")

@@ -33,10 +33,10 @@ use "json"
 // a.poly_method() call site poly_method (8,6)..(8,17)
 // _TPolyUser.call_b  name (10,6)..(10,12)  full (10,2)..(11,18)
 // b.poly_method() call site poly_method (11,6)..(11,17)
-// _t_cross_caller.pony  class _TCrossCaller (uses "callee" sub-package)
+// _t_cross_caller.pony  class _TCrossCaller (uses "callee" sub-module)
 // cross_call  name (3,6)..(3,16)  full (3,2)..(4,20)
 // c.callee_method() call site callee_method (4,6)..(4,19)
-// callee/t_callee.pony  TCallee (public; sub-package; no ".." import; no cycle)
+// callee/t_callee.pony  TCallee (public; sub-module; no ".." import; no cycle)
 // callee_method  name (4,6)..(4,19)  full (4,2)..(4,35)
 // _t_call_constructor.pony  classes _TConstructed, _TCallConstructorCaller,
 // _TConstructorWithBody
@@ -67,7 +67,7 @@ primitive \nodoc\ _CallHierarchyIntegrationTests is TestList
     test(_OutgoingCallsNoLambdaCallsTest.create(server))
     test(_IncomingCallsPolyATest.create(server))
     test(_IncomingCallsPolyBTest.create(server))
-    test(_OutgoingCallsCrossPackageTest.create(server))
+    test(_OutgoingCallsCrossModuleTest.create(server))
     test(_OutgoingCallsForFNewExplicitTest.create(server))
     test(_OutgoingCallsFromConstructorTest.create(server))
 
@@ -994,14 +994,14 @@ class \nodoc\ iso _IncomingCallsPolyBTest is UnitTest
                 (10, 2, 11, 18)),
               [(11, 6, 11, 17)]) ]) ])
 
-class \nodoc\ iso _OutgoingCallsCrossPackageTest is UnitTest
+class \nodoc\ iso _OutgoingCallsCrossModuleTest is UnitTest
   """
   Outgoing calls for _TCrossCaller.cross_call, where the callee
-  (_TCallee.callee_method) lives in the call_hierarchy/callee sub-package.
-  Exercises the cross-package definition resolution in _OutgoingCallCollector:
-  `definitions()` on `c.callee_method()` resolves to a method in a package
+  (_TCallee.callee_method) lives in the call_hierarchy/callee sub-module.
+  Exercises the cross-module definition resolution in _OutgoingCallCollector:
+  `definitions()` on `c.callee_method()` resolves to a method in a module
   different from the one containing cross_call.
-  `_t_cross_caller.pony` uses "callee", so the sub-package is compiled as a
+  `_t_cross_caller.pony` uses "callee", so the sub-module is compiled as a
   dependency in the same ponyc run — no separate compilation or timing concern.
   """
   let _server: _LspTestServer

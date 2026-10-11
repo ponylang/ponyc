@@ -10,7 +10,7 @@ PONY_EXTERN_C_BEGIN
 /**
  * Whole-program legality check for recursive type aliases.
  *
- * Walks the alias-reference graph across all packages, computes its
+ * Walks the alias-reference graph across all modules, computes its
  * strongly-connected components, and rejects every cycle that doesn't
  * meet two productivity conditions:
  *
@@ -72,17 +72,17 @@ PONY_EXTERN_C_BEGIN
  * every TK_TYPEALIASREF has its definition pointer set) and before
  * PASS_FLATTEN.
  *
- * Multi-package programs are handled implicitly: collect_aliases
- * walks every module in every package, and node_for_def keys by the
+ * Multi-module programs are handled implicitly: collect_aliases
+ * walks every file in every module, and node_for_def keys by the
  * TK_TYPE def pointer (which is unique per definition regardless of
- * package). An SCC with members in different packages would still be
- * detected, but Pony's package system forbids circular imports — two
- * packages can't both 'use' each other — so such an SCC isn't
- * expressible. A single package containing a multi-alias SCC, or a
- * recursive alias in one package consumed from another, both work.
+ * module). An SCC with members in different modules would still be
+ * detected, but Pony's module system forbids circular imports — two
+ * modules can't both 'use' each other — so such an SCC isn't
+ * expressible. A single module containing a multi-alias SCC, or a
+ * recursive alias in one module consumed from another, both work.
  *
  * For sub-AST catch-up calls where '*astp' is not TK_PROGRAM, returns
- * AST_OK without analysis: aliases live at the package level and are
+ * AST_OK without analysis: aliases live at the module level and are
  * checked for the program as a whole.
  */
 ast_result_t pass_typealias_recursion(ast_t** astp, pass_opt_t* opt);

@@ -8,7 +8,7 @@ A fixed number of client connections is churned through a listener at a bounded
 concurrency; each client sends a stamped payload, the server echoes it, and the
 client verifies the echo byte-for-byte before closing.
 
-Each swarm dimension is tied to a distinct code path in the net package's
+Each swarm dimension is tied to a distinct code path in the net module's
 `tcp_connection.pony` (see stress-tests/tcp-swarm/README.md):
 
 * `--payload-size` / `--messages` -- how much each connection sends, and in how
@@ -38,7 +38,7 @@ Each swarm dimension is tied to a distinct code path in the net package's
 
 Because `send()` is fallible and does not queue on backpressure, both
 endpoints handle backpressure explicitly (this is the main way this engine
-differs from a `net`-package echo test):
+differs from a `net`-module echo test):
 
 * The client runs a resumable send-pump: it hands the connection one message at
   a time while `is_writeable()`, and resumes from `_on_unthrottled` after

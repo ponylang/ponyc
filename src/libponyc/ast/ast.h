@@ -43,7 +43,7 @@ enum
   AST_FLAG_ERROR_2      = 0x80000,
   AST_FLAG_JUMPS_AWAY   = 0x100000, // Jumps away (control flow) without a value.
   AST_FLAG_INCOMPLETE   = 0x200000, // Not all fields are defined.
-  AST_FLAG_IMPORT       = 0x400000, // Import the referenced package.
+  AST_FLAG_IMPORT       = 0x400000, // Import the referenced module.
   AST_FLAG_MAY_BREAK    = 0x800000, // This loop has seen a break statement in it.
   AST_FLAG_CNSM_REASGN  = 0x1000000, // A variable is reassigned after a consume in the same expression
   AST_FLAG_FCNSM_REASGN = 0x2000000, // A field is reassigned after a consume in the same expression

@@ -16,10 +16,10 @@ PONY_EXTERN_C_BEGIN
  */
 typedef struct pass_timers_t pass_timers_t;
 
-/** Synthetic `package` key for passes that work over the whole program rather
- * than a single package (reach, paint).
+/** Synthetic `module` key for passes that work over the whole program rather
+ * than a single module (reach, paint).
  */
-#define PASS_TIMERS_PROGRAM_PKG "<program>"
+#define PASS_TIMERS_PROGRAM_MOD "<program>"
 
 /** Create a timing context. Choose its output with pass_timers_enable_table (a
  * stderr table) and/or pass_timers_set_json (a file); a context with neither
@@ -60,32 +60,32 @@ bool pass_timers_set_json(pass_timers_t* t, const char* path);
 void pass_timers_set_report_meta(pass_timers_t* t, bool build_ok,
   const char* triple);
 
-/** Start timing a pass on a package (NULL-safe).
+/** Start timing a pass on a module (NULL-safe).
  *
- * Regions accumulate by (package, pass) across calls, so many start/stop pairs
- * for one package and pass fold into a single row.
+ * Regions accumulate by (module, pass) across calls, so many start/stop pairs
+ * for one module and pass fold into a single row.
  *
  * Spans are inclusive and nest: loading a dependency runs its parse and syntax
- * inside the importing package's scope span, so that time is counted in both
+ * inside the importing module's scope span, so that time is counted in both
  * rows. Distinct regions that overlap are each counted in full, so the rows can
  * sum to more than the elapsed wall-clock time.
  *
  * A region must not be started while it is already running, which llvm::Timer
- * forbids. No compilation does so today, because the only nested package visit
- * loads a package that is not yet in the program. The depth counter enforces
+ * forbids. No compilation does so today, because the only nested module visit
+ * loads a module that is not yet in the program. The depth counter enforces
  * the rule regardless: the vendored LLVM is a Release build, so its own assert
  * would not catch a violation.
  *
- * `package` and `pass` are copied, so they need only be valid for the duration
+ * `module` and `pass` are copied, so they need only be valid for the duration
  * of the call.
  */
-void pass_timers_start(pass_timers_t* t, const char* package, const char* pass);
+void pass_timers_start(pass_timers_t* t, const char* module, const char* pass);
 
 /** Stop a region started with pass_timers_start (NULL-safe). The two names must
  * match the start call so they key the same region. A stop with no matching
  * start is ignored, and creates no row.
  */
-void pass_timers_stop(pass_timers_t* t, const char* package, const char* pass);
+void pass_timers_stop(pass_timers_t* t, const char* module, const char* pass);
 
 /** Emit the report (NULL-safe): the stderr table if pass_timers_enable_table
  * was called, and the JSON file if pass_timers_set_json was. Returns false if
@@ -98,13 +98,13 @@ bool pass_timers_report(pass_timers_t* t);
 /** Test-only introspection: current nesting depth of a region -- 0 when the
  * region does not exist or the context is NULL.
  */
-unsigned int pass_timers_depth(pass_timers_t* t, const char* package,
+unsigned int pass_timers_depth(pass_timers_t* t, const char* module,
   const char* pass);
 
 /** Test-only introspection: wall seconds recorded for a region -- 0 when the
  * region does not exist or the context is NULL.
  */
-double pass_timers_wall(pass_timers_t* t, const char* package,
+double pass_timers_wall(pass_timers_t* t, const char* module,
   const char* pass);
 
 /** Test-only: format `v` seconds into `buf` exactly as the JSON writer does.

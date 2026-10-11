@@ -1388,7 +1388,7 @@ ast_result_t pass_typealias_recursion(ast_t** astp, pass_opt_t* opt)
 {
   ast_t* ast = *astp;
   // Pre-visitor invocation: this fires for every node in the AST
-  // (TK_PACKAGE, TK_MODULE, TK_TYPE, TK_CLASS, TK_ACTOR, ...) during
+  // (TK_MODULE, TK_FILE, TK_TYPE, TK_CLASS, TK_ACTOR, ...) during
   // both the initial program-level walk and any sub-AST catch-up
   // walks invoked by sugar/lambda's synthesizers. Run the analysis
   // once when we see TK_PROGRAM; skip for every other node.
@@ -1399,7 +1399,7 @@ ast_result_t pass_typealias_recursion(ast_t** astp, pass_opt_t* opt)
   // (sugar/lambda only produce TK_CLASS / TK_PRIMITIVE), so the
   // skip is correct. An assertion that catches the regression is
   // not feasible from this pre-visitor — the same callback receives
-  // both the initial program walk's TK_PACKAGE/TK_MODULE nodes
+  // both the initial program walk's TK_MODULE/TK_FILE nodes
   // (which legitimately contain TK_TYPE children) and any future
   // catch-up call (which shouldn't). If a synthesizer ever starts
   // producing typealiases, that synthesizer needs to either run

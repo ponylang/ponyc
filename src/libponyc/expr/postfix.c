@@ -588,7 +588,7 @@ bool expr_tilde(pass_opt_t* opt, ast_t** astp)
 
     case TK_TYPEREF:
       ast_error(opt->check.errors, ast,
-        "can't do partial application on a package");
+        "can't do partial application on a module");
       return false;
 
     case TK_FVARREF:
@@ -635,7 +635,7 @@ bool expr_chain(pass_opt_t* opt, ast_t** astp)
 
     case TK_TYPEREF:
       ast_error(opt->check.errors, ast,
-        "can't do method chaining on a package");
+        "can't do method chaining on a module");
       return false;
 
     case TK_FVARREF:

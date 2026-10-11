@@ -34,26 +34,26 @@ class PassTest : public testing::Test
 protected:
   pass_opt_t opt;
   ast_t* program; // AST produced from given source
-  ast_t* package; // AST of first package, cache of ast_child(program)
-  ast_t* module;  // AST of first module in first package
+  ast_t* module;  // AST of first module, cache of ast_child(program)
+  ast_t* file;    // AST of first file in first module
   compile_t* compile;
   pass_id last_pass;
 
   virtual void SetUp();
   virtual void TearDown();
 
-  // Override the default builtin source. If NULL, the real builtin package is
+  // Override the default builtin source. If NULL, the real builtin module is
   // used
   void set_builtin(const char* src);
 
-  // Add an additional package source
-  void add_package(const char* path, const char* src);
+  // Add an additional module source
+  void add_module(const char* path, const char* src);
 
-  // Add an additional package backed by a real filesystem directory
-  void add_package_path(const char* path, const char* real_dir);
+  // Add an additional module backed by a real filesystem directory
+  void add_module_path(const char* path, const char* real_dir);
 
-  // Override the default path of the main package (useful for package loops)
-  void default_package_name(const char* path);
+  // Override the default path of the main module (useful for module loops)
+  void default_module_name(const char* path);
 
   // Count the number of symbol table references to the specified name in all
   // symbol tables in the given tree
@@ -69,7 +69,7 @@ protected:
   // These all build the given src code, up to the specified pass, and check
   // the resulting tree as required.
   // On successful build the resulting AST is stored in the program member with
-  // the package and module members pointing to the appropriate nodes.
+  // the module and file members pointing to the appropriate nodes.
   // These methods all use ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
 
   // Check that the given source compiles to the specified pass without error
@@ -95,7 +95,7 @@ protected:
     const char** errors, const char*** frames);
 
   // Check that the 2 given sources compile to give the same AST for the first
-  // package
+  // module
   void test_equiv(const char* actual_src, const char* actual_pass,
     const char* expect_src, const char* expect_pass);
 
@@ -111,27 +111,27 @@ protected:
   // Returns: the AST found in the symbol table, NULL if not found.
   ast_t* lookup_in(ast_t* ast, const char* name);
 
-  // Lookup the type with the given name in the loaded previously package.
+  // Lookup the type with the given name in the previously loaded module.
   // Returns: the AST of the type definition, NULL if not found.
   ast_t* lookup_type(const char* name);
 
   // Lookup the member with the given name in the type with the given name in
-  // the loaded previously package.
+  // the previously loaded module.
   // Returns: the AST of the named definition, NULL if not found.
   ast_t* lookup_member(const char* type_name, const char* member_name);
 
   // Lookup the first instance of the given integer as a number literal in
-  // the previously loaded package
+  // the previously loaded module
   ast_t* numeric_literal(uint64_t num);
 
 private:
   const char* _builtin_src;
   const char* _first_pkg_path;
 
-  // Attempt to compile the package with the specified name into a program.
+  // Attempt to compile the module with the specified name into a program.
   // Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
-  void build_package(const char* pass, const char* src,
-    const char* package_name, bool check_good, const char** expected_errors,
+  void build_module(const char* pass, const char* src,
+    const char* module_name, bool check_good, const char** expected_errors,
     bool resume);
 
   // Find the type of the parameter, field or local variable with the specified

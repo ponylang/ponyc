@@ -1,5 +1,5 @@
 """
-Demonstrates the net package's backpressure handling.
+Demonstrates the net module's backpressure handling.
 
 A flood client connects to a sink server and sends 200 chunks of 64KB as fast
 as possible. When the OS send buffer fills, send() returns

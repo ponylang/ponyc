@@ -34,7 +34,7 @@ static bool set_scope(pass_opt_t* opt, ast_t* scope, ast_t* name, ast_t* value,
     case TK_CLASS:
     case TK_ACTOR:
     case TK_TYPEPARAM:
-    case TK_PACKAGE:
+    case TK_MODULE:
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
@@ -75,30 +75,30 @@ static bool set_scope(pass_opt_t* opt, ast_t* scope, ast_t* name, ast_t* value,
   return true;
 }
 
-bool use_package(ast_t* ast, const char* path, ast_t* name,
+bool use_module(ast_t* ast, const char* path, ast_t* name,
   pass_opt_t* options)
 {
   pony_assert(ast != NULL);
   pony_assert(path != NULL);
 
-  ast_t* package = package_load(ast, path, options);
+  ast_t* module = module_load(ast, path, options);
 
-  if(package == NULL)
+  if(module == NULL)
   {
-    ast_error(options->check.errors, ast, "can't load package '%s'", path);
+    ast_error(options->check.errors, ast, "can't load module '%s'", path);
     return false;
   }
 
-  // Store the package so we can import it later without having to look it up
+  // Store the module so we can import it later without having to look it up
   // again
-  ast_setdata(ast, (void*)package);
+  ast_setdata(ast, (void*)module);
 
-  ast_t* curr_package = ast_nearest(ast, TK_PACKAGE);
-  pony_assert(curr_package != NULL);
-  package_add_dependency(curr_package, package);
+  ast_t* curr_module = ast_nearest(ast, TK_MODULE);
+  pony_assert(curr_module != NULL);
+  module_add_dependency(curr_module, module);
 
   if(name != NULL && ast_id(name) == TK_ID) // We have an alias
-    return set_scope(options, ast, name, package, false);
+    return set_scope(options, ast, name, module, false);
 
   ast_setflag(ast, AST_FLAG_IMPORT);
 
@@ -124,7 +124,7 @@ static ast_result_t scope_entity(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, typeparams, cap, provides, members);
 
-  if(!set_scope(opt, opt->check.frame->package, id, ast, false))
+  if(!set_scope(opt, opt->check.frame->module, id, ast, false))
     return AST_ERROR;
 
   // Scope fields and methods immediately, so that the contents of method

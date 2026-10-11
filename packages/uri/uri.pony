@@ -1,7 +1,7 @@
 """
 # URI Parsing and Resolution (RFC 3986)
 
-This package parses URI-references into structured components and resolves
+This module parses URI-references into structured components and resolves
 relative references against base URIs per RFC 3986.
 
 ## Entry Points
@@ -108,7 +108,7 @@ string. Use `PercentDecode`/`PercentEncode` for encoding operations,
 `PathSegments` for decoded path segment access, and `RemoveDotSegments`
 for standalone path normalization.
 
-For URI template expansion (RFC 6570), use the `uri/template` subpackage.
+For URI template expansion (RFC 6570), use the `uri/template` submodule.
 
 ## IRI Support (RFC 3987)
 

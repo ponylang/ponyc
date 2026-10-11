@@ -13,8 +13,9 @@
 /** Use commands are of the form:
  *   use "[scheme:]locator" [as name] [if guard]
  *
- * Each scheme has a handler function. The first handler ("package:") is used
- * as the default for commands that do not specify a scheme.
+ * Each scheme has a handler function. The first handler ("package:", which
+ * loads a module) is used as the default for commands that do not specify a
+ * scheme.
  *
  * An extra scheme handler for "test:" can be setup for testing.
  */
@@ -31,7 +32,7 @@ typedef struct use_scheme_t
 
 static __pony_thread_local use_scheme_t handlers[] =
 {
-  {"package:", 8, true, false, use_package},
+  {"package:", 8, true, false, use_module},
   {"lib:", 4, false, true, use_library},
   {"path:", 5, false, true, use_path},
   {"cincludedir:", 12, false, true, use_cincludedir},

@@ -25,7 +25,7 @@ typedef uint32_t kevent_flag_t;
 #endif
 
 #define MAX_SIGNAL 128
-// The 16-subscriber cap is documented API behavior — the signals-package
+// The 16-subscriber cap is documented API behavior — the signals module's
 // docstrings state it — and epoll.c, kqueue.c, and sock_notify.c must all use
 // the same value. A backend-only change desyncs the platforms and contradicts
 // the docstrings.
@@ -761,7 +761,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   if(ev->flags & ASIO_PROC)
   {
     // Watch for the process whose pid is ev->fd to exit. One-shot: a process
-    // exits once. This is how the process package detects a child's exit on
+    // exits once. This is how the process module detects a child's exit on
     // kqueue platforms, the counterpart to the pidfd read event on Linux.
     proc_index = i;
     EV_SET(&event[i], ev->fd, EVFILT_PROC,

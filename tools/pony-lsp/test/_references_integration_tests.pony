@@ -484,15 +484,15 @@ class \nodoc\ iso _RefsCrossPackageTest is UnitTest
   """
   Find references to `RefBase` from its type-annotation usage in
   `ref_base_user.pony` (line 7, col 18), with includeDeclaration = true.
-  Expects 2 locations across two different packages:
-    ref_base.pony      (4, 6)-(4, 13)   class declaration (ref_base/ package)
-    ref_base_user.pony (7, 18)-(7, 25)  type annotation   (references/ package)
+  Expects 2 locations across two different modules:
+    ref_base.pony      (4, 6)-(4, 13)   class declaration (ref_base/ module)
+    ref_base_user.pony (7, 18)-(7, 25)  type annotation   (references/ module)
 
-  `ref_base_user.pony` uses "ref_base", so ponyc compiles both packages in
-  one run. WorkspaceWalk must traverse both packages to find both locations.
+  `ref_base_user.pony` uses "ref_base", so ponyc compiles both modules in
+  one run. WorkspaceWalk must traverse both modules to find both locations.
 
   ref_base.pony layout (0-indexed):
-    lines 0-2:  package docstring
+    lines 0-2:  module docstring
     line 4:     class RefBase                        RefBase at (4,6)-(4,13)
     lines 5-7:  class docstring
     line 8:     fun value(): U32 => 42

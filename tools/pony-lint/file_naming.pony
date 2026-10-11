@@ -13,14 +13,14 @@ primitive FileNaming is ASTRule
   3. Otherwise — no principal type; the rule does not flag the file.
 
   Exception: `_test.pony` files with a `Main` actor are never flagged. This is
-  the standard Pony convention for library test runner packages.
+  the standard Pony convention for library test runner modules.
 
   The expected filename is the principal type name converted to snake_case,
   plus `.pony`. Private types (leading `_`) produce filenames with the leading
   underscore preserved: `_MyType` becomes `_my_type.pony`.
 
   This rule operates at the module level. The dispatcher collects entity
-  information during its walk, and `check_module()` is called once per module
+  information during its walk, and `check_file()` is called once per module
   after traversal.
   """
   fun id(): String val => "style/file-naming"
@@ -32,16 +32,16 @@ primitive FileNaming is ASTRule
   fun default_status(): RuleStatus => RuleOn
 
   fun node_filter(): Array[ast.TokenId] val =>
-    // Not used for per-node dispatch — this rule uses check_module
+    // Not used for per-node dispatch — this rule uses check_file
     recover val Array[ast.TokenId] end
 
   fun check(node: ast.AST box, source: SourceFile val)
     : Array[Diagnostic val] val
   =>
-    // Per-node check is a no-op; see check_module
+    // Per-node check is a no-op; see check_file
     recover val Array[Diagnostic val] end
 
-  fun check_module(
+  fun check_file(
     entities: Array[(String val, ast.TokenId, USize, USize)] val,
     source: SourceFile val)
     : Array[Diagnostic val] val

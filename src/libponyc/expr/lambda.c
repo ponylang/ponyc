@@ -809,7 +809,7 @@ static void add_field_to_object(pass_opt_t* opt, ast_t* field,
   ast_t* call_args)
 {
   AST_GET_CHILDREN(field, id, type, init);
-  ast_t* p_id = ast_from_string(id, package_hygienic_id(&opt->check, opt), opt->strtab);
+  ast_t* p_id = ast_from_string(id, module_hygienic_id(&opt->check, opt), opt->strtab);
 
   // The param is: $0: type
   BUILD(param, field,
@@ -914,7 +914,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   ast_clearflag(members, AST_FLAG_PRESERVE);
 
   ast_t* annotation = ast_consumeannotation(ast);
-  const char* c_id = package_hygienic_id(&opt->check, opt);
+  const char* c_id = module_hygienic_id(&opt->check, opt);
 
   ast_t* t_params;
   ast_t* t_args;
@@ -1033,9 +1033,9 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   // Add the create function at the end.
   ast_append(class_members, create);
 
-  // Add new type to current module and bring it up to date with passes.
-  ast_t* module = ast_nearest(ast, TK_MODULE);
-  ast_append(module, def);
+  // Add new type to current file and bring it up to date with passes.
+  ast_t* file = ast_nearest(ast, TK_FILE);
+  ast_append(file, def);
 
   // Turn any free variables into fields.
   ast_t* captures = ast_from(ast, TK_MEMBERS);

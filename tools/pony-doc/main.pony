@@ -13,14 +13,14 @@ use @ponyint_pool_free_size[None](
 actor Main
   """
   CLI entry point for pony-doc. Parses command-line arguments, compiles the
-  target package, extracts the documentation IR, and generates MkDocs output.
+  target module, extracts the documentation IR, and generates MkDocs output.
   """
   new create(env: Env) =>
     let cs =
       try
         CommandSpec.leaf(
           "pony-doc",
-          "Generate MkDocs documentation for Pony packages",
+          "Generate MkDocs documentation for Pony modules",
           [
             OptionSpec.string(
               "output",
@@ -37,8 +37,8 @@ actor Main
           ],
           [
             ArgSpec.string(
-              "package-dir",
-              "Package directory to document (default: CWD)"
+              "module-dir",
+              "Module directory to document (default: CWD)"
               where default' = ".")
           ])? .> add_help()?
       else
@@ -65,8 +65,8 @@ actor Main
       return
     end
 
-    // Get target package directory
-    let target_dir = cmd.arg("package-dir").string()
+    // Get target module directory
+    let target_dir = cmd.arg("module-dir").string()
 
     // Get output directory
     let output_dir_path = cmd.option("output").string()
@@ -74,16 +74,16 @@ actor Main
     // Get include_private flag
     let include_private = cmd.option("include-private").bool()
 
-    // Build package search paths
+    // Build module search paths
     let argv0 = try env.args(0)? else "" end
-    let package_paths = _build_package_paths(env.vars, argv0)
+    let module_paths = _build_module_paths(env.vars, argv0)
 
-    // Compile the target package
+    // Compile the target module
     let file_auth = FileAuth(env.root)
     let target_fp = FilePath(file_auth, target_dir)
 
     match \exhaustive\ ast.Compiler.compile(
-      target_fp where package_search_paths = package_paths,
+      target_fp where module_search_paths = module_paths,
       limit = ast.PassTraits)
     | let program: ast.Program val =>
       // Extract documentation IR
@@ -108,13 +108,13 @@ actor Main
       env.exitcode(1)
     end
 
-  fun _build_package_paths(
+  fun _build_module_paths(
     vars: (Array[String val] val | None),
     argv0: String val)
     : Array[String val] val
   =>
     """
-    Build the package search path list for AST compilation.
+    Build the module search path list for AST compilation.
 
     Installation paths come first (pony-doc is co-installed with ponyc,
     so the standard library is at `../packages` or `../../packages`

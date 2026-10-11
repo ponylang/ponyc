@@ -25,7 +25,7 @@ class \nodoc\ iso _SelectionRangeTokenTest is UnitTest
   entries with monotonically expanding ranges, innermost exactly (27,4)-(27,5).
 
   selection_range.pony layout (0-indexed):
-    line 0-20:  package docstring
+    line 0-20:  module docstring
     line 21:    (blank)
     line 22:    class SelectionRange
     line 23-25: class docstring

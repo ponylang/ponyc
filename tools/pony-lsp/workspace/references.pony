@@ -4,17 +4,17 @@ use "pony_compiler"
 
 primitive References
   """
-  Collects reference locations for a given AST node across all packages in the
+  Collects reference locations for a given AST node across all modules in the
   workspace, by walking every module AST and finding all nodes that resolve to
   the same definition.
   """
   fun collect(
     node: AST box,
-    packages: Map[String, PackageState] box,
+    modules: Map[String, ModuleState] box,
     include_declaration: Bool): Array[LspLocation]
   =>
     """
-    Walk all module ASTs across all packages and return the source locations of
+    Walk all module ASTs across all modules and return the source locations of
     all nodes that resolve to the same definition as `node`. Pass
     `include_declaration = false` to exclude the definition site itself.
     """
@@ -41,7 +41,7 @@ primitive References
       end
     end
 
-    _WorkspaceWalk(packages, collector)
+    _WorkspaceWalk(modules, collector)
     collector.locations()
 
 class ref _ReferenceCollector is ASTVisitor
@@ -133,7 +133,7 @@ class ref _ReferenceCollector is ASTVisitor
       // Deduplicate using the node's own source file (not the walking module's
       // file): a grafted node retains its original source, so this key is
       // stable across packages. Pre-excluded keys (declaration site) are in
-      // _seen; file is included because modules across packages share line
+      // _seen; file is included because modules across modules share line
       // numbers.
       let key: String val =
         recover val

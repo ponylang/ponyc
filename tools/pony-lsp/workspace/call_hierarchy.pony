@@ -33,23 +33,23 @@ primitive CallHierarchy
 
   fun incoming_calls(
     node: AST box,
-    packages: Map[String, PackageState] box): (JSONArray | None)
+    modules: Map[String, ModuleState] box): (JSONArray | None)
   =>
     """
-    Resolve the method at `node`, then cross-package walk to collect all
+    Resolve the method at `node`, then cross-module walk to collect all
     call sites, grouped by their enclosing method (the callers).
     """
     match \exhaustive\ _method_for_node(node)
     | let target: AST val =>
       let collector = _IncomingCallCollector(target)
-      _WorkspaceWalk(packages, collector)
+      _WorkspaceWalk(modules, collector)
       collector.result()
     | None => None
     end
 
   fun outgoing_calls(
     node: AST box,
-    packages: Map[String, PackageState] box): (JSONArray | None)
+    modules: Map[String, ModuleState] box): (JSONArray | None)
   =>
     """
     Resolve the method at `node`, then walk its AST body to collect all

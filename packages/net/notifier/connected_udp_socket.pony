@@ -6,7 +6,7 @@ actor ConnectedUDPSocket
   A connected UDP socket actor driven by a
   [`ConnectedUDPSocketNotify`](/net/notifier-ConnectedUDPSocketNotify/).
 
-  Wraps the net package's `ConnectedUDPSocket` class,
+  Wraps the net module's `ConnectedUDPSocket` class,
   `ConnectedUDPSocketActor` trait, and
   `ConnectedUDPLifecycleEventReceiver` trait into a single actor.
 

@@ -1,6 +1,6 @@
 # pony_bench
 
-A program showing use of the `pony_bench` package.
+A program showing use of the `pony_bench` module.
 
 ## How to Compile
 
@@ -40,7 +40,7 @@ _Timer (10000 ns)                        6025 ns           6060 ns      ±2.66% 
 
 ## Program Modifications
 
-Modify the program to add a benchmark using the math package's `Fibonacci` primitive.
+Modify the program to add a benchmark using the math module's `Fibonacci` primitive.
 
 ```console
 $ ./pony_bench

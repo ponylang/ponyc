@@ -8,7 +8,7 @@
 PONY_EXTERN_C_BEGIN
 
 /**
- * Imports packages, either with qualifying names or by merging them into the
+ * Imports modules, either with qualifying names or by merging them into the
  * current scope.
  */
 ast_result_t pass_import(ast_t** astp, pass_opt_t* options);

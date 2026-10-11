@@ -1,7 +1,7 @@
 """
-# CLI Package
+# CLI Module
 
-The CLI package provides enhanced Posix+GNU command line parsing with the
+The CLI module provides enhanced Posix+GNU command line parsing with the
 feature of commands that can be specified in a hierarchy.
 
 See [RFC-0038](https://github.com/ponylang/rfcs/blob/main/text/0038-cli-format.md) for more background.
@@ -30,7 +30,7 @@ Some examples:
 
 ## Usage
 
-The types in the cli package are broken down into three groups:
+The types in the cli module are broken down into three groups:
 
 ### Specs
 

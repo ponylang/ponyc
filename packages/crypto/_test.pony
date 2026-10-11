@@ -639,7 +639,7 @@ class \nodoc\ iso _TestPbkdf2Sha256ArgumentsTooLarge is UnitTest
   narrows to a negative one, and OpenSSL 3.x rejects that on its own, so the
   assertion below holds with or without the check. It is here because the four
   backends do not agree on what they do with a negative iteration count, and
-  this package should not have to know which one it is talking to.
+  this module should not have to know which one it is talking to.
 
   Each check runs before the key array is allocated.
   """

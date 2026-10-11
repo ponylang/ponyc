@@ -240,8 +240,8 @@ static const lextoken_t abstract[] =
   { "x", TK_NONE }, // Needed for AST printing
 
   { "program", TK_PROGRAM },
-  { "package", TK_PACKAGE },
   { "module", TK_MODULE },
+  { "file", TK_FILE },
 
   { "members", TK_MEMBERS },
   { "fvar", TK_FVAR },
@@ -296,7 +296,7 @@ static const lextoken_t abstract[] =
   { "try", TK_TRY_NO_CHECK },
 
   { "reference", TK_REFERENCE },
-  { "packageref", TK_PACKAGEREF },
+  { "moduleref", TK_MODULEREF },
   { "typeref", TK_TYPEREF },
   { "typeparamref", TK_TYPEPARAMREF },
   { "typealiasref", TK_TYPEALIASREF },

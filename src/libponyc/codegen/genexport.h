@@ -9,8 +9,8 @@ PONY_EXTERN_C_BEGIN
 /** Generate C headers for all exported types in the program. */
 bool genexport_header(ast_t* program, pass_opt_t* opt);
 
-/** Return true if the package contains any types with the \c_api\ annotation. */
-bool package_has_exports(ast_t* package, pass_opt_t* opt);
+/** Return true if the module contains any types with the \c_api\ annotation. */
+bool module_has_exports(ast_t* module, pass_opt_t* opt);
 
 /** Replace characters not valid in a C identifier with underscores, in place. */
 void sanitize_c_name(char* name);

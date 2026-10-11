@@ -20,8 +20,8 @@ primitive SelectionRanges
   AST by ponyc). This prevents positions from stdlib or trait source files
   from inflating the ranges of the user's own nodes.
 
-  The parent walk stops before `tk_package` and `tk_program` nodes, which
-  span the entire compiled program rather than a single file. `tk_module`
+  The parent walk stops before `tk_module` and `tk_program` nodes, which
+  span the entire compiled program rather than a single file. `tk_file`
   nodes are included — their span covers the whole current file, producing
   a useful "select all" outermost range.
   """
@@ -40,7 +40,7 @@ primitive SelectionRanges
       | let n: AST box =>
         let nid = n.id()
         // Stop before nodes that span the whole program.
-        if (nid == TokenIds.tk_package()) or (nid == TokenIds.tk_program()) then
+        if (nid == TokenIds.tk_module()) or (nid == TokenIds.tk_program()) then
           break
         end
         chain.push(n)

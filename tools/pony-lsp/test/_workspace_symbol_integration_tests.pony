@@ -10,7 +10,7 @@ primitive \nodoc\ _WorkspaceSymbolIntegrationTests is TestList
     let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
     let server = _LspTestServer(workspace_dir)
     // All fixtures live under workspace/workspace_symbol/ so the suite
-    // compiles a single package once.
+    // compiles a single module once.
     test(_WsSymExactMatchTest.create(server))
     test(_WsSymSubstringMatchTest.create(server))
     test(_WsSymSubstringInMiddleTest.create(server))

@@ -1,7 +1,7 @@
 """
-# Collections package
+# Collections module
 
-The Collections package provides a variety of collection classes,
+The Collections module provides a variety of collection classes,
 including map, set, range, heap, ring buffer, list, and flags.
 
 `Map` - Hashmap by structural equality (use `MapIs` for identity equality).

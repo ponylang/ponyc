@@ -2,7 +2,7 @@ use "pony_compiler"
 
 class val ExportEntry
   """
-  One public type in a package.
+  One public type in a module.
   """
   let name: String val
   let kind: String val
@@ -19,31 +19,31 @@ class val ExportEntry
 
 class val ExportsResult
   """
-  Every public type in a package, sorted by name.
+  Every public type in a module, sorted by name.
   """
-  let package_path: String val
+  let module_path: String val
   let entries: Array[ExportEntry val] val
 
   new val create(
-    package_path': String val,
+    module_path': String val,
     entries': Array[ExportEntry val] iso)
   =>
-    package_path = package_path'
+    module_path = module_path'
     entries = consume entries'
 
 primitive ExportsQuery
   """
-  List the public types exported by a package.
+  List the public types exported by a module.
   """
 
   fun apply(
     session: CompileSession box,
-    package_name: String val)
+    module_name: String val)
     : (ExportsResult val | String val)
   =>
     """
-    Return every public type in the named package, or a string
-    describing why the lookup failed. The package can be specified
+    Return every public type in the named module, or a string
+    describing why the lookup failed. The module can be specified
     by qualified name (e.g. "builtin") or by absolute path.
     """
     let program =
@@ -52,31 +52,31 @@ primitive ExportsQuery
       | None => return "no compiled program available"
       end
 
-    let pkg =
-      match \exhaustive\ _find_package(program, package_name)
-      | let p: Package val => p
-      | None => return "package not found: " + package_name
+    let mod =
+      match \exhaustive\ _find_module(program, module_name)
+      | let m: Module val => m
+      | None => return "module not found: " + module_name
       end
 
     let entries =
       recover iso
         let arr = Array[ExportEntry val]
-        for mod in pkg.modules() do
-          _collect_types(mod.ast, arr)
+        for f in mod.files() do
+          _collect_types(f.ast, arr)
         end
         _sort(arr)
         arr
       end
 
-    ExportsResult(pkg.path, consume entries)
+    ExportsResult(mod.path, consume entries)
 
-  fun _find_package(program: Program val, name: String val)
-    : (Package val | None)
+  fun _find_module(program: Program val, name: String val)
+    : (Module val | None)
   =>
     try return program(name)? end
-    for pkg in program.packages() do
-      if (pkg.qualified_name == name) or (pkg.path == name) then
-        return pkg
+    for mod in program.modules() do
+      if (mod.qualified_name == name) or (mod.path == name) then
+        return mod
       end
     end
 

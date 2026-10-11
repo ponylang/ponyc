@@ -6,7 +6,7 @@ This program shows how to use the Pony `struct` type, as well as passing them to
 
 The first step is to compile our C code to a shared library. The exact details may vary when using other compilers, so be sure to check the appropriate documentation. Run the following platform specific commands in the same directory as this README:
 
-Note that the C source lives in `c-src/` rather than next to the `.pony` file. A `.c` file in a package's directory is compiled by `ponyc` itself as a C shim and linked directly, which would shadow the library this example builds by hand — and this example exists to show linking a prebuilt library. See the `cshim` example for the shim workflow.
+Note that the C source lives in `c-src/` rather than next to the `.pony` file. A `.c` file in a module's directory is compiled by `ponyc` itself as a C shim and linked directly, which would shadow the library this example builds by hand — and this example exists to show linking a prebuilt library. See the `cshim` example for the shim workflow.
 
 ### MacOS
 

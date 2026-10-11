@@ -165,12 +165,12 @@ static void print_c_type(printbuf_t* buf, ast_t* type,
   }
 }
 
-bool package_has_exports(ast_t* package, pass_opt_t* opt)
+bool module_has_exports(ast_t* module, pass_opt_t* opt)
 {
-  for(ast_t* module = ast_child(package); module != NULL;
-    module = ast_sibling(module))
+  for(ast_t* file = ast_child(module); file != NULL;
+    file = ast_sibling(file))
   {
-    for(ast_t* node = ast_child(module); node != NULL;
+    for(ast_t* node = ast_child(file); node != NULL;
       node = ast_sibling(node))
     {
       token_id id = ast_id(node);
@@ -530,13 +530,13 @@ bool genexport_header(ast_t* program, pass_opt_t* opt)
 
   pony_mkdir(output);
 
-  for(ast_t* package = ast_child(program); package != NULL;
-    package = ast_sibling(package))
+  for(ast_t* module = ast_child(program); module != NULL;
+    module = ast_sibling(module))
   {
-    for(ast_t* module = ast_child(package); module != NULL;
-      module = ast_sibling(module))
+    for(ast_t* file = ast_child(module); file != NULL;
+      file = ast_sibling(file))
     {
-      for(ast_t* node = ast_child(module); node != NULL;
+      for(ast_t* node = ast_child(file); node != NULL;
         node = ast_sibling(node))
       {
         if(ast_id(node) != TK_USE)
@@ -547,21 +547,21 @@ bool genexport_header(ast_t* program, pass_opt_t* opt)
         if(use_name == NULL)
           continue;
 
-        ast_t* used_pkg = (ast_t*)ast_data(node);
+        ast_t* used_mod = (ast_t*)ast_data(node);
 
-        if(used_pkg == NULL || ast_id(used_pkg) != TK_PACKAGE)
+        if(used_mod == NULL || ast_id(used_mod) != TK_MODULE)
           continue;
 
-        if(!package_has_exports(used_pkg, opt))
+        if(!module_has_exports(used_mod, opt))
           continue;
 
-        package_set_needs_export_include(package);
+        module_set_needs_export_include(module);
 
         printbuf_t* prefix_buf = printbuf_new();
         printbuf(prefix_buf, "%s", use_name);
         sanitize_c_name(prefix_buf->m);
 
-        if(!gen_consumer_header(used_pkg, use_name, prefix_buf->m, output, opt))
+        if(!gen_consumer_header(used_mod, use_name, prefix_buf->m, output, opt))
           ok = false;
 
         printbuf_free(prefix_buf);
@@ -569,18 +569,18 @@ bool genexport_header(ast_t* program, pass_opt_t* opt)
     }
   }
 
-  ast_t* main_pkg = ast_child(program);
+  ast_t* main_mod = ast_child(program);
 
-  if(package_has_exports(main_pkg, opt))
+  if(module_has_exports(main_mod, opt))
   {
-    const char* main_name = package_filename(main_pkg);
+    const char* main_name = module_filename(main_mod);
 
     if((opt->bin_name != NULL) && (opt->bin_name[0] != '\0'))
       main_name = opt->bin_name;
 
-    package_set_needs_export_include(main_pkg);
+    module_set_needs_export_include(main_mod);
 
-    if(!gen_consumer_header(main_pkg, main_name, "", output, opt))
+    if(!gen_consumer_header(main_mod, main_name, "", output, opt))
       ok = false;
   }
 

@@ -25,7 +25,7 @@ actor Main
       try
         CommandSpec.parent(
           "pony-dep",
-          "A dependency manager for Pony packages",
+          "A dependency manager for Pony modules",
           [],
           [
             CommandSpec.leaf(
@@ -69,7 +69,7 @@ actor Main
               "Remove a dependency and its placed files")?
             CommandSpec.leaf(
               "clean",
-              "Remove placed packages that nothing references",
+              "Remove placed modules that nothing references",
               [],
               [
                 ArgSpec.string("src-dir")

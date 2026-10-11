@@ -6,10 +6,10 @@ primitive _Generics
   `: T` is a type parameter reference — goto definition on it navigates to
   the `T` declaration in the method's type parameter list (`[T]`).
 
-  Package-qualified type references (e.g. `col.List[U32]` where
+  Module-qualified type references (e.g. `col.List[U32]` where
   `use col = "collections"`) also support goto definition and navigate to the
-  first source file in that package — test this manually by adding a
-  package-aliased import and placing the cursor on the alias name.
+  first source file in that module — test this manually by adding a
+  module-aliased import and placing the cursor on the alias name.
 
   To manually test:
   1. Open the lsp/test/workspace directory as a project in your editor.

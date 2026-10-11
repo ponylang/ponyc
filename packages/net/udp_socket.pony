@@ -13,7 +13,7 @@ class UDPSocket[UDP: UDPBackend ref = UDPRuntimeBackend]
   `UDPSocketActor` owns one and delegates to it.
 
   Create with `UDPSocket(auth, host, port, enclosing, ler)`, using
-  `UDPSocket.none()` as the field initializer before that. See the package
+  `UDPSocket.none()` as the field initializer before that. See the module
   documentation for the full lifecycle.
   """
   var _udp: UDP = UDP

@@ -271,7 +271,7 @@ class ref Randomness
     end
     _spans.push(_Span(start, end_pos, label, discard))
 
-  // --- Package-private mode control ---
+  // --- Module-private mode control ---
   fun ref _start_recording() =>
     _mode = _ModeRecording
     _choices = recover iso Array[_Choice val] end

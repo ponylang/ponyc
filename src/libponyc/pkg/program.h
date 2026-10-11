@@ -15,9 +15,9 @@ program_t* program_create();
 /// Free the given program_t.
 void program_free(program_t* program);
 
-/// Assign the next package ID from the program at the root of the given AST.
+/// Assign the next module ID from the program at the root of the given AST.
 /// The actual AST node passed in may be anywhere in the tree.
-uint32_t program_assign_pkg_id(ast_t* ast);
+uint32_t program_assign_module_id(ast_t* ast);
 
 /// Process a "lib:" scheme use command.
 bool use_library(ast_t* use, const char* locator, ast_t* name,
@@ -58,7 +58,7 @@ bool program_gencshim_done(ast_t* program);
 void program_set_gencshim_done(ast_t* program);
 
 /** Record a C shim object emitted by gencshim. Paths accumulate in gencshim's
- * package-walk order, which the platform linkers preserve. */
+ * module-walk order, which the platform linkers preserve. */
 void program_add_c_object(ast_t* program, const char* path);
 
 /** Return the number of C shim objects recorded by gencshim. */

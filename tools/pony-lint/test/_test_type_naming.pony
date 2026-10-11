@@ -11,17 +11,17 @@ class \nodoc\ _TestTypeNamingClean is UnitTest
     let source = "class Foo\nprimitive Bar\nactor Baz\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.TypeNaming)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -36,10 +36,10 @@ class \nodoc\ _TestTypeNamingViolation is UnitTest
     let source = "class foo_bar\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.TypeNaming)
           h.assert_eq[USize](1, diags.size())
           try
@@ -52,7 +52,7 @@ class \nodoc\ _TestTypeNamingViolation is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -67,17 +67,17 @@ class \nodoc\ _TestTypeNamingPrivate is UnitTest
     let source = "primitive _PrivateType\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.TypeNaming)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -99,17 +99,17 @@ class \nodoc\ _TestTypeNamingAllEntityTypes is UnitTest
       "type GoodType is GoodClass\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.TypeNaming)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -118,7 +118,7 @@ class \nodoc\ _TestTypeNamingAllEntityTypes is UnitTest
 primitive \nodoc\ _CollectRuleDiags
   """Helper: walk a module's AST and collect diagnostics from a single rule."""
   fun apply(
-    mod: ast.Module val,
+    mod: ast.SourceFile val,
     sf: lint.SourceFile val,
     rule: lint.ASTRule val)
     : Array[lint.Diagnostic val] val

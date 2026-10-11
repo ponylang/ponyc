@@ -15,10 +15,10 @@ class \nodoc\ _TestCallArgFmtSingleLine is UnitTest
       "    x.baz(U32(1), U32(2))\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.CallArgumentFormat)
           h.assert_eq[USize](0, diags.size())
@@ -26,7 +26,7 @@ class \nodoc\ _TestCallArgFmtSingleLine is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -46,10 +46,10 @@ class \nodoc\ _TestCallArgFmtAllOnNextLine is UnitTest
       "      U32(1), U32(2), U32(3))\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.CallArgumentFormat)
           h.assert_eq[USize](0, diags.size())
@@ -57,7 +57,7 @@ class \nodoc\ _TestCallArgFmtAllOnNextLine is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -79,10 +79,10 @@ class \nodoc\ _TestCallArgFmtEachOnOwnLine is UnitTest
       "      U32(3))\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.CallArgumentFormat)
           h.assert_eq[USize](0, diags.size())
@@ -90,7 +90,7 @@ class \nodoc\ _TestCallArgFmtEachOnOwnLine is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -112,10 +112,10 @@ class \nodoc\ _TestCallArgFmtWhereClauseOwnLine is UnitTest
       "      where y = U32(2))\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.CallArgumentFormat)
           h.assert_eq[USize](0, diags.size())
@@ -123,7 +123,7 @@ class \nodoc\ _TestCallArgFmtWhereClauseOwnLine is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -143,10 +143,10 @@ class \nodoc\ _TestCallArgFmtSingleArgMultiline is UnitTest
       "      U32(1))\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.CallArgumentFormat)
           h.assert_eq[USize](0, diags.size())
@@ -154,7 +154,7 @@ class \nodoc\ _TestCallArgFmtSingleArgMultiline is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -173,10 +173,10 @@ class \nodoc\ _TestCallArgFmtNoArgs is UnitTest
       "    x.baz()\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.CallArgumentFormat)
           h.assert_eq[USize](0, diags.size())
@@ -184,7 +184,7 @@ class \nodoc\ _TestCallArgFmtNoArgs is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -204,10 +204,10 @@ class \nodoc\ _TestCallArgFmtPartialSplit is UnitTest
       "      U32(2), U32(3))\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.CallArgumentFormat)
           h.assert_true(
@@ -226,7 +226,7 @@ class \nodoc\ _TestCallArgFmtPartialSplit is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -247,10 +247,10 @@ class \nodoc\ _TestCallArgFmtMixedLayout is UnitTest
       "      U32(3))\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.CallArgumentFormat)
           h.assert_eq[USize](
@@ -269,7 +269,7 @@ class \nodoc\ _TestCallArgFmtMixedLayout is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -290,10 +290,10 @@ class \nodoc\ _TestCallArgFmtBothViolations is UnitTest
       "      U32(3), U32(4))\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.CallArgumentFormat)
           h.assert_eq[USize](
@@ -304,7 +304,7 @@ class \nodoc\ _TestCallArgFmtBothViolations is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -326,10 +326,10 @@ class \nodoc\ _TestCallArgFmtFFIClean is UnitTest
       "      U32(2))\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.CallArgumentFormat)
           h.assert_eq[USize](0, diags.size())
@@ -337,7 +337,7 @@ class \nodoc\ _TestCallArgFmtFFIClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -358,10 +358,10 @@ class \nodoc\ _TestCallArgFmtFFIPartialSplit is UnitTest
       "      U32(2))\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.CallArgumentFormat)
           h.assert_true(
@@ -378,7 +378,7 @@ class \nodoc\ _TestCallArgFmtFFIPartialSplit is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")

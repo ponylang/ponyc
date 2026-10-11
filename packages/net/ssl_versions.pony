@@ -49,24 +49,24 @@ primitive DTLS1u2Version
 
 primitive TLSMinVersion
   """
-  The lowest TLS version this package names.
+  The lowest TLS version this module names.
   """
   fun val apply(): ULong => TLS1Version()
 
 primitive TLSMaxVersion
   """
-  The highest TLS version this package names.
+  The highest TLS version this module names.
   """
   fun val apply(): ULong => TLS1u3Version()
 
 primitive DTLSMinVersion
   """
-  The lowest DTLS version this package names.
+  The lowest DTLS version this module names.
   """
   fun val apply(): ULong => DTLS1Version()
 
 primitive DTLSMaxVersion
   """
-  The highest DTLS version this package names.
+  The highest DTLS version this module names.
   """
   fun val apply(): ULong => DTLS1u2Version()

@@ -11,7 +11,7 @@ use @ponyint_pool_free_size[None](size: USize, p: Pointer[U8] tag)
 actor AgentServer
   """
   Stdin/stdout JSON query server for AI agents working with compiled
-  Pony programs. Compiles a package on startup, then accepts one
+  Pony programs. Compiles a module on startup, then accepts one
   JSON query per line and writes one JSON response per line.
   """
   let _env: Env
@@ -19,7 +19,7 @@ actor AgentServer
   let _user_flags: Array[String val] val
   var _program: (Program val | None)
   var _session: (CompileSession | None)
-  var _package_path: (FilePath | None)
+  var _module_path: (FilePath | None)
   let _input_buffer: String ref
   var _last_errors: Array[Error] val
   var _listening: Bool
@@ -34,17 +34,17 @@ actor AgentServer
     _user_flags = user_flags
     _program = None
     _session = None
-    _package_path = None
+    _module_path = None
     _input_buffer = String
     _last_errors = recover val Array[Error] end
     _listening = false
 
-  be compile(package: FilePath, id: JSONValue = "") =>
+  be compile(module: FilePath, id: JSONValue = "") =>
     """
-    Compile the package and begin listening for queries on stdin.
+    Compile the module and begin listening for queries on stdin.
     """
-    _package_path = package
-    _env.err.print("compiling: " + package.path)
+    _module_path = module
+    _env.err.print("compiling: " + module.path)
 
     let installation_paths = _find_installation_paths(_argv0)
     let pony_path = _get_pony_path(_env)
@@ -60,7 +60,7 @@ actor AgentServer
 
     let session =
       CompileSession(
-        package,
+        module,
         search_paths
         where
         user_flags = _user_flags,
@@ -301,12 +301,12 @@ actor AgentServer
 
   fun ref _handle_exports(id: JSONValue, nav: JSONNav) =>
     try
-      let package_name = nav("package").as_string()?
+      let module_name = nav("module").as_string()?
 
       match \exhaustive\ _session
       | let session: CompileSession =>
         let exports_result =
-          ExportsQuery(session, package_name)
+          ExportsQuery(session, module_name)
         match \exhaustive\ exports_result
         | let result: ExportsResult val =>
           var entries_arr = JSONArray
@@ -323,7 +323,7 @@ actor AgentServer
           _emit_response(
             JSONObject
               .update("id", id)
-              .update("package_path", result.package_path)
+              .update("module_path", result.module_path)
               .update("entries", entries_arr))
         | let err: String val =>
           _emit_error(id, err)
@@ -332,7 +332,7 @@ actor AgentServer
         _emit_error(id, "no compiled program available")
       end
     else
-      _emit_error(id, "exports requires 'package'")
+      _emit_error(id, "exports requires 'module'")
     end
 
   fun ref _handle_type_api(id: JSONValue, nav: JSONNav) =>
@@ -522,17 +522,17 @@ actor AgentServer
         .update("errors", err_arr))
 
   fun ref _handle_reload(id: JSONValue) =>
-    match _package_path
-    | let pkg: FilePath =>
+    match _module_path
+    | let mod: FilePath =>
       match _session
       | let old_session: CompileSession =>
         old_session.dispose()
       end
       _session = None
       _program = None
-      compile(pkg, id)
+      compile(mod, id)
     else
-      _emit_error(id, "no package to reload")
+      _emit_error(id, "no module to reload")
     end
 
   fun ref _handle_status(id: JSONValue) =>
