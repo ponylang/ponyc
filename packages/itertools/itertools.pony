@@ -1,7 +1,7 @@
 """
-# Itertools Module
+# Itertools Package
 
-The itertools module provides the `Iter` class for doing useful things with
+The itertools package provides the `Iter` class for doing useful things with
 iterators. It is Inspired by Python's itertools library, Rust's Iterator, and
 Elixir's Enum and Stream.
 

@@ -1,7 +1,7 @@
 """
-# Term module
+# Term Package
 
-The Term module provides support for building text-based user
+The Term package provides support for building text-based user
 interfaces in ANSI terminals.
 
 Terminal raw mode is opt-in: programs that use `Stdin` directly get

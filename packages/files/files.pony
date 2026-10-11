@@ -1,7 +1,7 @@
 """
-# Files module
+# Files package
 
-The Files module provides classes for working with files and
+The Files package provides classes for working with files and
 directories.
 
 Files are identified by `FilePath` objects, which represent both the

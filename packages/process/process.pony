@@ -1,7 +1,7 @@
 """
-# Process module
+# Process package
 
-The Process module provides support for handling Unix style processes.
+The Process package provides support for handling Unix style processes.
 For each external process that you want to handle, you provide a
 `ProcessNotify` object and call `StartProcess`, which spawns the process and
 gives you back a `ProcessMonitor` for it, or a `ProcessError` if the process

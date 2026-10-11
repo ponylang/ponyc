@@ -1,12 +1,12 @@
 """
-# Net Module
+# Net Package
 
-The net module is a networking library that separates connection logic from
+The net package is a networking library that separates connection logic from
 actor scheduling. The I/O state machine lives in a plain class that your actor
 delegates to. This separation gives you control over how your actor is
 structured while the library handles the low-level I/O.
 
-The net module covers TCP, UDP, and connected UDP.
+The net package covers TCP, UDP, and connected UDP.
 
 ## TCP
 

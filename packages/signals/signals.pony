@@ -1,7 +1,7 @@
 """
-# Signals module
+# Signals Package
 
-The Signals module provides support for handling Unix style signals with
+The Signals package provides support for handling Unix style signals with
 capability security and support for multiple handlers per signal.
 
 ## Overview

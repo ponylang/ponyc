@@ -1,6 +1,6 @@
 # property_testing
 
-A program showing example property-based tests using the PonyTest module.
+A program showing example property-based tests using the PonyTest package.
 
 ## How to compile
 

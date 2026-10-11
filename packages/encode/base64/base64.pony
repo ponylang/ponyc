@@ -1,7 +1,7 @@
 """
-# Base64 module
+# Base64 package
 
-The Base64 module contains support for doing Base64 binary-to-text encodings.
+The Base64 package contains support for doing Base64 binary-to-text encodings.
 We currently have support 3 encodings: PEM, MIME and URL.
 
 To learn more about Base64, we suggest you check out the

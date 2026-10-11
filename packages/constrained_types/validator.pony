@@ -52,7 +52,7 @@ class val Constrained[T: Any val, F: Validator[T]]
   new val _create(value: T val) =>
     """
     Private constructor that guarantees that `Constrained` can only be created
-    by the `MakeConstrained` primitive in this module.
+    by the `MakeConstrained` primitive in this package.
     """
     _value = value
 

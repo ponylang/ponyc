@@ -1,12 +1,12 @@
 """
 # Notifier Module
 
-A convenience layer over the net module for straightforward TCP and UDP
+A convenience layer over the net package for straightforward TCP and UDP
 applications. You write a notifier class with the callbacks you care about,
 hand it to an actor, and the actor handles the rest — connection setup, calling
 your notifier when data arrives or the connection state changes, and cleanup.
 
-The net module's native API gives you full control: you build your own actor,
+The net package's native API gives you full control: you build your own actor,
 mix in traits, and manage a `TCPConnection` or `UDPSocket` class directly. That
 control matters when you need custom actor structure or multiple sockets per
 actor. The notifier layer trades that control for less code: concrete actors

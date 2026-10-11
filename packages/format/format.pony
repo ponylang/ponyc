@@ -1,7 +1,7 @@
 """
-# Format module
+# Format package
 
-The Format module provides support for formatting strings. It can be
+The Format package provides support for formatting strings. It can be
 used to set things like width, padding and alignment, as well as
 controlling the way numbers are displayed (decimal, octal,
 hexadecimal).

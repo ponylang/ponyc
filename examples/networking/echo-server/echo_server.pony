@@ -1,5 +1,5 @@
 """
-Minimal echo server demonstrating the net module's core pattern.
+Minimal echo server demonstrating the net package's core pattern.
 
 A listener accepts TCP connections and hands each one to an Echoer actor that
 sends received data back to the client. Shows the three building blocks of a

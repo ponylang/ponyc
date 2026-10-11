@@ -1,7 +1,7 @@
 """
-# Random module
+# Random package
 
-The Random module provides support generating random numbers. The module
+The Random package provides support generating random numbers. The package
 provides random number generators you can use in your code, a dice roller and
 a trait for implementing your own random number generator.
 

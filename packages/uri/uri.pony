@@ -1,7 +1,7 @@
 """
 # URI Parsing and Resolution (RFC 3986)
 
-This module parses URI-references into structured components and resolves
+This package parses URI-references into structured components and resolves
 relative references against base URIs per RFC 3986.
 
 ## Entry Points

@@ -1,5 +1,5 @@
 """
-# Persistent Collections Module
+# Persistent Collections Package
 
 `List` - A persistent list with functional transformations.
 

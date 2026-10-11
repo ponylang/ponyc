@@ -60,7 +60,7 @@ primitive _X509VerifyResult
 
 primitive _ERRLibrary
   """
-  Which OpenSSL library raised an error, and the one value this module
+  Which OpenSSL library raised an error, and the one value this package
   compares that against. `of` takes the field from where each backend's
   `ERR_GET_LIB` does, because OpenSSL 3.0 moved it.
 
@@ -83,7 +83,7 @@ primitive _ERRLibrary
 
 primitive _ERRReason
   """
-  Why an OpenSSL library raised an error, and the one value this module
+  Why an OpenSSL library raised an error, and the one value this package
   compares that against. `of` masks the field the way each backend's
   `ERR_GET_REASON` does, because OpenSSL 3.0 widened it.
 

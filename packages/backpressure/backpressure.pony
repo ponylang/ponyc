@@ -1,7 +1,7 @@
 """
-# Backpressure Module
+# Backpressure Package
 
-The Backpressure module allows Pony programmers to participate in Pony's
+The Backpressure package allows Pony programmers to participate in Pony's
 runtime backpressure system. The goal of the backpressure system is to prevent
 an actor's mailbox from growing at an unbounded rate.
 
@@ -19,14 +19,14 @@ another process. TCP connections can experience backpressure from outside
 our Pony program that prevents them from sending. There's no way for the Pony
 runtime to detect this, so intervention by the programmer is needed.
 
-`TCPConnection` is a single example. This Backpressure module exists to allow
+`TCPConnection` is a single example. This Backpressure package exists to allow
 a programmer to indicate to the runtime that a given actor is experiencing
 pressure and sending messages to it should be adjusted accordingly.
 
 Any actor that needs to be able to tell the runtime to "send me messages
-slower" due to external conditions can do so via this module. Additionally,
+slower" due to external conditions can do so via this package. Additionally,
 actors that maintain their own internal queues of any sort, say for buffering,
-are also prime candidates for using this module. If an actor's internal
+are also prime candidates for using this package. If an actor's internal
 queue grows too large, it can call `Backpressure.apply` to let the runtime know
 it is under pressure.
 

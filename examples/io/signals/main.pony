@@ -22,7 +22,7 @@ class Handler is SignalNotify
 
 actor Main
   """
-  Demonstrates the signals module:
+  Demonstrates the signals package:
   - Creating a SignalAuth capability from AmbientAuth
   - Validating signal numbers with MakeHandleableSignal
   - Registering multiple handlers for the same signal
