@@ -96,6 +96,29 @@ class CompileSession
     _pass_opt.limit = limit()
     @ast_passes_program(_raw, _pass_opt)
 
+  fun box is_sendable(type_ast: AST box): Bool =>
+    """
+    True when the given type is sendable (iso, val, or tag).
+    Handles nominal, union, intersection, tuple, and arrow types.
+    """
+    @sendable(type_ast.raw, _pass_opt)
+
+  fun box is_subtype(
+    sub_def: AST box,
+    sub_cap: TokenId,
+    super_def: AST box,
+    super_cap: TokenId)
+    : Bool
+  =>
+    """
+    True when a nominal type built from `sub_def` at `sub_cap` is a
+    subtype of a nominal type built from `super_def` at `super_cap`.
+    Both definitions must be entity AST nodes (TK_CLASS, TK_ACTOR,
+    TK_PRIMITIVE, TK_TRAIT, TK_INTERFACE, TK_STRUCT).
+    """
+    @is_subtype_for_defs(
+      sub_def.raw, sub_cap, super_def.raw, super_cap, _pass_opt)
+
   fun ref dispose() =>
     """
     Release pass_opt resources. Must be called when the session is no longer

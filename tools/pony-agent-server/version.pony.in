@@ -1,0 +1,9 @@
+// Generated from version.pony.in by CMake — edit this file, not version.pony.
+
+primitive Version
+  """
+  The pony-agent-server version string. Matches the ponyc compiler
+  version since pony-agent-server is distributed with ponyc.
+  """
+  fun apply(): String =>
+    "@PONYC_VERSION@"
