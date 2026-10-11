@@ -15,17 +15,17 @@ class \nodoc\ _TestAssignmentIndentSingleLine is UnitTest
       "    x\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -49,17 +49,17 @@ class \nodoc\ _TestAssignmentIndentRHSNextLine is UnitTest
       "    y\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -81,17 +81,17 @@ class \nodoc\ _TestAssignmentIndentMultiLineNextLine is UnitTest
       "    output\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -114,10 +114,10 @@ class \nodoc\ _TestAssignmentIndentViolation is UnitTest
       "    y\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
           h.assert_eq[USize](1, diags.size())
           try
@@ -130,7 +130,7 @@ class \nodoc\ _TestAssignmentIndentViolation is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -151,10 +151,10 @@ class \nodoc\ _TestAssignmentIndentRecoverViolation is UnitTest
       "    arr\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
           h.assert_eq[USize](1, diags.size())
           try
@@ -167,7 +167,7 @@ class \nodoc\ _TestAssignmentIndentRecoverViolation is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -191,10 +191,10 @@ class \nodoc\ _TestAssignmentIndentReassignment is UnitTest
       "    y\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
           h.assert_eq[USize](1, diags.size())
           try
@@ -207,7 +207,7 @@ class \nodoc\ _TestAssignmentIndentReassignment is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -231,10 +231,10 @@ class \nodoc\ _TestAssignmentIndentRHSNotIndented is UnitTest
       "    chunk\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
           h.assert_eq[USize](1, diags.size())
           try
@@ -247,7 +247,7 @@ class \nodoc\ _TestAssignmentIndentRHSNotIndented is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -274,10 +274,10 @@ class \nodoc\ _TestAssignmentIndentReassignmentNotIndented is UnitTest
       "    y\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
           h.assert_eq[USize](1, diags.size())
           try
@@ -290,7 +290,7 @@ class \nodoc\ _TestAssignmentIndentReassignmentNotIndented is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -314,10 +314,10 @@ class \nodoc\ _TestAssignmentIndentRHSDedented is UnitTest
       "    chunk\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
           h.assert_eq[USize](1, diags.size())
           try
@@ -330,7 +330,7 @@ class \nodoc\ _TestAssignmentIndentRHSDedented is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -358,17 +358,17 @@ class \nodoc\ _TestAssignmentIndentMultipleViolations is UnitTest
       "    b\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
           h.assert_eq[USize](2, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")

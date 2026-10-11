@@ -122,9 +122,9 @@ bool verify_ffi_call(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_FFICALL);
 
-  if(!package_allow_ffi(&opt->check))
+  if(!module_allow_ffi(&opt->check))
   {
-    ast_error(opt->check.errors, ast, "this package isn't allowed to do C FFI");
+    ast_error(opt->check.errors, ast, "this module isn't allowed to do C FFI");
     return false;
   }
 

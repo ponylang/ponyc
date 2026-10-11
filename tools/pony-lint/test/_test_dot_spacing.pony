@@ -18,17 +18,17 @@ class \nodoc\ _TestDotSpacingClean is UnitTest
       "    f.x\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DotSpacing)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -50,10 +50,10 @@ class \nodoc\ _TestDotSpacingSpaceBeforeViolation is UnitTest
       "    f .x\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DotSpacing)
           h.assert_true(diags.size() > 0)
           try
@@ -66,7 +66,7 @@ class \nodoc\ _TestDotSpacingSpaceBeforeViolation is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -90,10 +90,10 @@ class \nodoc\ _TestDotSpacingChainNoSpaceViolation is UnitTest
       "    Foo.>set_x(1)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DotSpacing)
           h.assert_true(diags.size() > 0)
           try
@@ -106,7 +106,7 @@ class \nodoc\ _TestDotSpacingChainNoSpaceViolation is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -130,17 +130,17 @@ class \nodoc\ _TestDotSpacingChainSpacedClean is UnitTest
       "    Foo .> set_x(1)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DotSpacing)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -162,17 +162,17 @@ class \nodoc\ _TestDotSpacingContinuationLineClean is UnitTest
       "      .bar()\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DotSpacing)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -197,17 +197,17 @@ class \nodoc\ _TestDotSpacingChainContinuationClean is UnitTest
       "      .> set_x(1)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DotSpacing)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")

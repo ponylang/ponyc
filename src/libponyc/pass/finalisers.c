@@ -239,10 +239,10 @@ static bool entity_finaliser(pass_opt_t* opt, ast_t* entity, const char* final)
   return true;
 }
 
-static bool module_finalisers(pass_opt_t* opt, ast_t* module,
+static bool file_finalisers(pass_opt_t* opt, ast_t* file,
   const char* final)
 {
-  ast_t* entity = ast_child(module);
+  ast_t* entity = ast_child(file);
   bool ok = true;
 
   while(entity != NULL)
@@ -266,18 +266,18 @@ static bool module_finalisers(pass_opt_t* opt, ast_t* module,
   return ok;
 }
 
-static bool package_finalisers(pass_opt_t* opt, ast_t* package,
+static bool module_finalisers(pass_opt_t* opt, ast_t* module,
   const char* final)
 {
-  ast_t* module = ast_child(package);
+  ast_t* file = ast_child(module);
   bool ok = true;
 
-  while(module != NULL)
+  while(file != NULL)
   {
-    if(!module_finalisers(opt, module, final))
+    if(!file_finalisers(opt, file, final))
       ok = false;
 
-    module = ast_sibling(module);
+    file = ast_sibling(file);
   }
 
   return ok;
@@ -285,24 +285,24 @@ static bool package_finalisers(pass_opt_t* opt, ast_t* package,
 
 bool pass_finalisers(ast_t* program, pass_opt_t* options)
 {
-  ast_t* package = ast_child(program);
+  ast_t* module = ast_child(program);
   const char* final = stringtab(options->strtab, "_final");
   bool ok = true;
 
-  while(package != NULL)
+  while(module != NULL)
   {
-    // Timed here rather than by the TK_PACKAGE hook in ast_visit, because this
+    // Timed here rather than by the TK_MODULE hook in ast_visit, because this
     // pass walks the program itself instead of going through ast_visit.
-    const char* pkg = package_qualified_name(package);
+    const char* mod = module_qualified_name(module);
 
-    pass_timers_start(options->timers, pkg, pass_name(PASS_FINALISER));
+    pass_timers_start(options->timers, mod, pass_name(PASS_FINALISER));
 
-    if(!package_finalisers(options, package, final))
+    if(!module_finalisers(options, module, final))
       ok = false;
 
-    pass_timers_stop(options->timers, pkg, pass_name(PASS_FINALISER));
+    pass_timers_stop(options->timers, mod, pass_name(PASS_FINALISER));
 
-    package = ast_sibling(package);
+    module = ast_sibling(module);
   }
 
   return ok;

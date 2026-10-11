@@ -149,10 +149,10 @@ bool check_id_type_param(pass_opt_t* opt, ast_t* id_node)
     START_UPPER);
 }
 
-bool check_id_package(pass_opt_t* opt, ast_t* id_node)
+bool check_id_module(pass_opt_t* opt, ast_t* id_node)
 {
   // [a-z][A-Za-z0-9_]* (and no double or trailing underscores)
-  return check_id(opt, id_node, "package",
+  return check_id(opt, id_node, "module",
     START_LOWER | ALLOW_UNDERSCORE);
 }
 

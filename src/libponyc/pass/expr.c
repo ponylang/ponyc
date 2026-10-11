@@ -99,7 +99,7 @@ bool is_result_needed(ast_t* ast, pass_opt_t* opt)
       pony_assert(ast_id(type) == TK_NOMINAL);
       const char* pkg_name = ast_name(ast_child(type));
       const char* type_name = ast_name(ast_childidx(type, 1));
-      if(pkg_name == stringtab(opt->strtab, "$0")) // Builtin package.
+      if(pkg_name == stringtab(opt->strtab, "$0")) // Builtin module.
         return is_numeric_primitive(type_name, opt);
       return false;
     }
@@ -774,7 +774,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_STRING:
-      if(ast_id(ast_parent(ast)) == TK_PACKAGE)
+      if(ast_id(ast_parent(ast)) == TK_MODULE)
         return AST_OK;
 
       r = expr_literal(options, ast, "String");

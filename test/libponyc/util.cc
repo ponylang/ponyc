@@ -260,14 +260,14 @@ void PassTest::SetUp()
   pass_opt_init(&opt);
   opt.argv0 = test_argv0;
   codegen_pass_init(&opt);
-  package_init(&opt);
+  module_init(&opt);
   program = NULL;
-  package = NULL;
   module = NULL;
+  file = NULL;
   compile = NULL;
   _builtin_src = _builtin;
   _first_pkg_path = "prog";
-  package_clear_magic(&opt);
+  module_clear_magic(&opt);
   opt.verbosity = VERBOSITY_QUIET;
   opt.check_tree = true;
   opt.verify = true;
@@ -297,10 +297,10 @@ void PassTest::TearDown()
   }
   ast_free(program);
   program = NULL;
-  package = NULL;
   module = NULL;
+  file = NULL;
   last_pass = PASS_PARSE;
-  package_done(&opt);
+  module_done(&opt);
   codegen_pass_cleanup(&opt);
   pass_opt_done(&opt);
 }
@@ -312,19 +312,19 @@ void PassTest::set_builtin(const char* src)
 }
 
 
-void PassTest::add_package(const char* path, const char* src)
+void PassTest::add_module(const char* path, const char* src)
 {
-  package_add_magic_src(path, src, &opt);
+  module_add_magic_src(path, src, &opt);
 }
 
 
-void PassTest::add_package_path(const char* path, const char* real_dir)
+void PassTest::add_module_path(const char* path, const char* real_dir)
 {
-  package_add_magic_path(path, real_dir, &opt);
+  module_add_magic_path(path, real_dir, &opt);
 }
 
 
-void PassTest::default_package_name(const char* path)
+void PassTest::default_module_name(const char* path)
 {
   _first_pkg_path = path;
 }
@@ -371,25 +371,25 @@ void PassTest::check_ast_same(ast_t* expect, ast_t* actual)
 
 void PassTest::test_compile(const char* src, const char* pass)
 {
-  DO(build_package(pass, src, _first_pkg_path, true, NULL, false));
+  DO(build_module(pass, src, _first_pkg_path, true, NULL, false));
 
-  package = ast_child(program);
-  module = ast_child(package);
+  module = ast_child(program);
+  file = ast_child(module);
 }
 
 
 void PassTest::test_compile_resume(const char* pass)
 {
-  DO(build_package(pass, NULL, NULL, true, NULL, true));
+  DO(build_module(pass, NULL, NULL, true, NULL, true));
 }
 
 
 void PassTest::test_error(const char* src, const char* pass)
 {
-  DO(build_package(pass, src, _first_pkg_path, false, NULL, false));
+  DO(build_module(pass, src, _first_pkg_path, false, NULL, false));
 
-  package = NULL;
   module = NULL;
+  file = NULL;
   ASSERT_EQ((void*)NULL, program);
 }
 
@@ -397,10 +397,10 @@ void PassTest::test_error(const char* src, const char* pass)
 void PassTest::test_expected_errors(const char* src, const char* pass,
   const char** errors)
 {
-  DO(build_package(pass, src, _first_pkg_path, false, errors, false));
+  DO(build_module(pass, src, _first_pkg_path, false, errors, false));
 
-  package = NULL;
   module = NULL;
+  file = NULL;
   ASSERT_EQ((void*)NULL, program);
 }
 
@@ -459,14 +459,14 @@ void PassTest::test_expected_error_frames(const char* src, const char* pass,
 void PassTest::test_equiv(const char* actual_src, const char* actual_pass,
   const char* expect_src, const char* expect_pass)
 {
-  DO(build_package(expect_pass, expect_src, "expect", true, NULL, false));
+  DO(build_module(expect_pass, expect_src, "expect", true, NULL, false));
   ast_t* expect_ast = program;
-  ast_t* expect_package = ast_child(expect_ast);
+  ast_t* expect_module = ast_child(expect_ast);
   program = NULL;
 
   DO(test_compile(actual_src, actual_pass));
 
-  DO(check_ast_same(expect_package, package));
+  DO(check_ast_same(expect_module, module));
   ast_free(expect_ast);
 }
 
@@ -500,8 +500,8 @@ ast_t* PassTest::lookup_in(ast_t* ast, const char* name)
 
 ast_t* PassTest::lookup_type(const char* name)
 {
-  pony_assert(package != NULL);
-  return lookup_in(package, name);
+  pony_assert(module != NULL);
+  return lookup_in(module, name);
 }
 
 
@@ -519,8 +519,8 @@ ast_t* PassTest::lookup_member(const char* type_name, const char* member_name)
 
 // Private methods
 
-void PassTest::build_package(const char* pass, const char* src,
-  const char* package_name, bool check_good, const char** expected_errors,
+void PassTest::build_module(const char* pass, const char* src,
+  const char* module_name, bool check_good, const char** expected_errors,
   bool resume)
 {
   ASSERT_NE((void*)NULL, pass);
@@ -528,7 +528,7 @@ void PassTest::build_package(const char* pass, const char* src,
   if(!resume)
   {
     ASSERT_NE((void*)NULL, src);
-    ASSERT_NE((void*)NULL, package_name);
+    ASSERT_NE((void*)NULL, module_name);
 
     if(compile != NULL)
     {
@@ -538,8 +538,8 @@ void PassTest::build_package(const char* pass, const char* src,
     }
     ast_free(program);
     program = NULL;
-    package = NULL;
     module = NULL;
+    file = NULL;
     last_pass = PASS_PARSE;
 
 #ifndef PONY_PACKAGES_DIR
@@ -547,18 +547,18 @@ void PassTest::build_package(const char* pass, const char* src,
 #else
     if(_builtin_src != NULL)
     {
-      package_add_magic_src("builtin", _builtin_src, &opt);
+      module_add_magic_src("builtin", _builtin_src, &opt);
     } else {
       char path[FILENAME_MAX];
       path_cat(PONY_PACKAGES_DIR, "builtin", path);
-      package_add_magic_path("builtin", path, &opt);
+      module_add_magic_path("builtin", path, &opt);
     }
 #endif
 
-    package_add_magic_src(package_name, src, &opt);
+    module_add_magic_src(module_name, src, &opt);
 
     limit_passes(&opt, pass);
-    program = program_load(stringtab(opt.strtab, package_name), &opt);
+    program = program_load(stringtab(opt.strtab, module_name), &opt);
 
     if((program != NULL) && (opt.limit >= PASS_REACH))
     {

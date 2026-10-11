@@ -19,7 +19,7 @@
 #include <stdbool.h>
 
 #define MAX_SIGNAL 128
-// The 16-subscriber cap is documented API behavior — the signals-package
+// The 16-subscriber cap is documented API behavior — the signals module's
 // docstrings state it — and epoll.c, kqueue.c, and sock_notify.c must all use
 // the same value. A backend-only change desyncs the platforms and contradicts
 // the docstrings.

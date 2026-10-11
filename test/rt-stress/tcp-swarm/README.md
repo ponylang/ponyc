@@ -1,6 +1,6 @@
 # TCP swarm stress engine
 
-A closed, count-driven TCP workload for stressing the net package's TCP stack. A fixed number
+A closed, count-driven TCP workload for stressing the net module's TCP stack. A fixed number
 of client connections is churned through a listener at a bounded concurrency; each
 client sends a stamped payload, the server echoes it, and the client verifies the
 echo byte-for-byte before closing. Every behaviour is a CLI flag; the engine
@@ -8,9 +8,9 @@ echo byte-for-byte before closing. Every behaviour is a CLI flag; the engine
 swarm orchestrator (`orchestrate_tcp.py`) draws the flags.
 
 This is a port of ponyc's `tcp-swarm` runtime stress test. The draw and the run
-mechanism are carried over from there; the engine uses the net package's API.
+mechanism are carried over from there; the engine uses the net module's API.
 
-## How it stresses the net package
+## How it stresses the net module
 
 Heavy connection churn and lots of actor creation/destruction, with a content
 oracle on top. Each flag is tied to a distinct code path in `tcp_connection.pony`:
@@ -28,13 +28,13 @@ oracle on top. Each flag is tied to a distinct code path in `tcp_connection.pony
   `buffer_until(MakeBufferSize(N))` vs whole-buffer `Streaming` reads, on both
   endpoints.
 - `--close` (`graceful` | `hard`) — a graceful `close()` (FIN, drains) vs a muted
-  `close()`, which the net package routes to `hard_close()` (immediate teardown, no lingering
+  `close()`, which the net module routes to `hard_close()` (immediate teardown, no lingering
   drain). The client closes only after its whole echo is back, so the hard path
   drops no data here — it exercises the distinct teardown/unsubscribe code.
 - `--read-buffer-size` — the per-connection read buffer size (a `ReadBufferSize`),
   which sets both the initial allocation and the shrink-back floor. Because it sets
   the two equal, this varies read chunking and the yield threshold but does not
-  exercise the net package's dynamic buffer resize/shrink paths (those need a mid-run resize).
+  exercise the net module's dynamic buffer resize/shrink paths (those need a mid-run resize).
 - `--yield-after-reading` — after this many received bytes an endpoint calls
   `YieldReading` to leave the read loop cooperatively; reading resumes on its own
   the next scheduler turn. Small values yield often, giving other actors a chance
@@ -44,18 +44,18 @@ oracle on top. Each flag is tied to a distinct code path in `tcp_connection.pony
 - `--host` / `--port` — where the listener binds (default `localhost` / ephemeral).
   `localhost`, not the literal `127.0.0.1`, sidesteps a macOS ephemeral-port wall.
 
-This is a plaintext echo workload, so it does not exercise the net package's SSL/TLS paths, its
+This is a plaintext echo workload, so it does not exercise the net module's SSL/TLS paths, its
 idle/connection/user timers, or its socket options — its
 idle/connection/user timers, or its socket options. Those are candidates for future swarm dimensions.
 
 ## Backpressure handling
 
-The net package's `send()` is fallible: under backpressure it returns `SendErrorNotWriteable`
+The net module's `send()` is fallible: under backpressure it returns `SendErrorNotWriteable`
 and does not queue the data on the application's behalf. Over loopback with
 multi-megabyte payloads that happens constantly, on both endpoints, so the engine
 handles it explicitly. This is the main way the engine differs from an echo test
-written against the standard-library `net` package (whose `write()` queues
-unboundedly and never fails), and it means the engine also exercises the net package's
+written against the standard-library `net` module (whose `write()` queues
+unboundedly and never fails), and it means the engine also exercises the net module's
 backpressure and `mute`/`unmute` paths.
 
 - **Client** — a resumable send-pump. It hands the connection one message at a time
@@ -173,7 +173,7 @@ memory budget, the watchdog, the run classifiers): `python3 orchestrate_tcp_test
   set high enough to clear that ~8.4 GiB worst case with margin. The budget's
   cost constants (`MEM_OBJ_BYTES`, `MEM_RB_FACTOR`) were calibrated against ponyc's `net`
   stack, not measured independently — the *shape* carries over but the constants are unconfirmed
-  here, so the net package is at least as exposed; confirm with a raised-cap run before
+  here, so the net module is at least as exposed; confirm with a raised-cap run before
   trusting the budget as a tight bound.
 - **Time** — the per-run clamp bounds round-trips (`connections * messages`) and
   total bytes (`connections * messages * payload`), so an outsized draw is trimmed.

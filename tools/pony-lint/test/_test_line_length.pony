@@ -376,7 +376,7 @@ class \nodoc\ _TestLineLengthStringFlaggedProperty is UnitTest
 class \nodoc\ _TestLineLengthASTStringLiteralExempt is UnitTest
   """
   Lines inside a triple-quoted string literal (not a docstring) are
-  exempt from the 80-column check via the AST-based check_module.
+  exempt from the 80-column check via the AST-based check_file.
   """
   fun name(): String =>
     "LineLength: AST string literal lines exempt"
@@ -396,9 +396,9 @@ class \nodoc\ _TestLineLengthASTStringLiteralExempt is UnitTest
       end
     (let program, let sf) = _ASTTestHelper.compile(h, source)?
     let mod_ast =
-      (program.package() as ast.Package).module()
-        as ast.Module
-    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+      (program.module() as ast.Module).file()
+        as ast.SourceFile
+    let diags = lint.LineLength.check_file(mod_ast.ast, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthASTDocstringNotExempt is UnitTest
@@ -431,9 +431,9 @@ class \nodoc\ _TestLineLengthASTDocstringNotExempt is UnitTest
       end
     (let program, let sf) = _ASTTestHelper.compile(h, source)?
     let mod_ast =
-      (program.package() as ast.Package).module()
-        as ast.Module
-    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+      (program.module() as ast.Module).file()
+        as ast.SourceFile
+    let diags = lint.LineLength.check_file(mod_ast.ast, sf)
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_eq[USize](3, diags(0)?.line)
@@ -472,9 +472,9 @@ class \nodoc\ _TestLineLengthASTMethodDocstringNotExempt is UnitTest
       end
     (let program, let sf) = _ASTTestHelper.compile(h, source)?
     let mod_ast =
-      (program.package() as ast.Package).module()
-        as ast.Module
-    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+      (program.module() as ast.Module).file()
+        as ast.SourceFile
+    let diags = lint.LineLength.check_file(mod_ast.ast, sf)
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_eq[USize](4, diags(0)?.line)
@@ -486,7 +486,7 @@ class \nodoc\ _TestLineLengthASTModuleDocstringNotExempt is UnitTest
   """
   Lines inside a module-level docstring are NOT exempt when the
   overflow is breakable prose. The AST identifies child 0 of the
-  module as the package docstring.
+  file as the module docstring.
   """
   fun name(): String =>
     "LineLength: AST module-level docstring lines not exempt"
@@ -512,9 +512,9 @@ class \nodoc\ _TestLineLengthASTModuleDocstringNotExempt is UnitTest
       end
     (let program, let sf) = _ASTTestHelper.compile(h, source)?
     let mod_ast =
-      (program.package() as ast.Package).module()
-        as ast.Module
-    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+      (program.module() as ast.Module).file()
+        as ast.SourceFile
+    let diags = lint.LineLength.check_file(mod_ast.ast, sf)
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_eq[USize](2, diags(0)?.line)
@@ -544,9 +544,9 @@ class \nodoc\ _TestLineLengthASTDocstringQuotedIdExempt is UnitTest
       end
     (let program, let sf) = _ASTTestHelper.compile(h, source)?
     let mod_ast =
-      (program.package() as ast.Package).module()
-        as ast.Module
-    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+      (program.module() as ast.Module).file()
+        as ast.SourceFile
+    let diags = lint.LineLength.check_file(mod_ast.ast, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthASTDocstringURLExempt is UnitTest
@@ -576,9 +576,9 @@ class \nodoc\ _TestLineLengthASTDocstringURLExempt is UnitTest
       end
     (let program, let sf) = _ASTTestHelper.compile(h, source)?
     let mod_ast =
-      (program.package() as ast.Package).module()
-        as ast.Module
-    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+      (program.module() as ast.Module).file()
+        as ast.SourceFile
+    let diags = lint.LineLength.check_file(mod_ast.ast, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthASTMixedDocstringAndLiteral is UnitTest
@@ -620,9 +620,9 @@ class \nodoc\ _TestLineLengthASTMixedDocstringAndLiteral is UnitTest
       end
     (let program, let sf) = _ASTTestHelper.compile(h, source)?
     let mod_ast =
-      (program.package() as ast.Package).module()
-        as ast.Module
-    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+      (program.module() as ast.Module).file()
+        as ast.SourceFile
+    let diags = lint.LineLength.check_file(mod_ast.ast, sf)
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_eq[USize](3, diags(0)?.line)

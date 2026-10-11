@@ -16,7 +16,7 @@ primitive BlankLines is ASTRule
   - Exactly one blank line between consecutive entities, with the same
     one-liner exception.
 
-  Between-entity checks use `check_module()`, called once per module after
+  Between-entity checks use `check_file()`, called once per module after
   AST traversal.
   """
   fun id(): String val => "style/blank-lines"
@@ -143,7 +143,7 @@ primitive BlankLines is ASTRule
 
     consume result
 
-  fun check_module(
+  fun check_file(
     entities: Array[(String val, ast.TokenId, USize, USize)] val,
     source: SourceFile val)
     : Array[Diagnostic val] val

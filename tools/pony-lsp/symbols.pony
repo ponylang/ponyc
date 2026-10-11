@@ -120,15 +120,15 @@ class DocumentSymbol
 
 primitive DocumentSymbols
   """
-  Extracts document symbols from a compiled module.
+  Extracts document symbols from a compiled file.
   """
 
-  fun from_module(
-    module: Module,
+  fun from_file(
+    module: SourceFile,
     channel: Channel): Array[DocumentSymbol] ref
   =>
     """
-    Build DocumentSymbol trees for every top-level entity in the module.
+    Build DocumentSymbol trees for every top-level entity in the file.
     """
     let symbols: Array[DocumentSymbol] ref = Array[DocumentSymbol].create(4)
     // Collect entity start positions for look-ahead. Each entity's range

@@ -18,6 +18,6 @@ typedef enum
 
 ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
        /*OUT*/ bool* print_program_ast,
-       /*OUT*/ bool* print_package_ast);
+       /*OUT*/ bool* print_module_ast);
 
 #endif

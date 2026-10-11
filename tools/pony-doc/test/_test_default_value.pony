@@ -265,12 +265,12 @@ primitive \nodoc\ _DefaultValueTestHelper
   =>
     let program = _compile(h, source)?
     let defaults = Array[String val]
-    let pkgs = program.packages()
-    if pkgs.has_next() then
+    let mods = program.modules()
+    if mods.has_next() then
       try
-        let pkg = pkgs.next()?
-        for module in pkg.modules() do
-          for entity in module.ast.children() do
+        let mod = mods.next()?
+        for f in mod.files() do
+          for entity in f.ast.children() do
             if ast.TokenIds.is_entity(entity.id()) then
               try
                 let members = entity(4)?
@@ -414,7 +414,7 @@ primitive \nodoc\ _DefaultValueTestHelper
 
     let session =
       ast.CompileSession(
-        tmp where package_search_paths = pony_path,
+        tmp where module_search_paths = pony_path,
         limit = ast.PassParse)
     let result =
       try

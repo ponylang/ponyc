@@ -5,36 +5,36 @@ primitive _TypeExtractor
   """
   Converts an AST type node into a `DocType` IR value.
 
-  The `package_map` parameter maps package AST pointer addresses to
+  The `module_map` parameter maps module AST pointer addresses to
   qualified names, used for resolving nominal type TQFNs via
   `definitions()`.
   """
   fun apply(
     type_ast: ast.AST box,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : DocType
   =>
     match type_ast.id()
-    | ast.TokenIds.tk_nominal() => _nominal(type_ast, package_map)
+    | ast.TokenIds.tk_nominal() => _nominal(type_ast, module_map)
     | ast.TokenIds.tk_typealiasref() =>
-      _type_alias_ref(type_ast, package_map)
+      _type_alias_ref(type_ast, module_map)
     | ast.TokenIds.tk_typeparamref() => _type_param_ref(type_ast)
     | ast.TokenIds.tk_uniontype() =>
       _type_list(
         type_ast,
-        package_map,
+        module_map,
         {(types) => DocUnion(types) })
     | ast.TokenIds.tk_isecttype() =>
       _type_list(
         type_ast,
-        package_map,
+        module_map,
         {(types) => DocIntersection(types) })
     | ast.TokenIds.tk_tupletype() =>
       _type_list(
         type_ast,
-        package_map,
+        module_map,
         {(types) => DocTuple(types) })
-    | ast.TokenIds.tk_arrow() => _arrow(type_ast, package_map)
+    | ast.TokenIds.tk_arrow() => _arrow(type_ast, module_map)
     | ast.TokenIds.tk_thistype() => DocThis
     | ast.TokenIds.tk_iso() => DocCapability(type_ast.get_print())
     | ast.TokenIds.tk_trn() => DocCapability(type_ast.get_print())
@@ -52,13 +52,13 @@ primitive _TypeExtractor
 
   fun _nominal(
     type_ast: ast.AST box,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : DocNominal
   =>
     """
     Extracts a `DocNominal` from a TK_NOMINAL AST node.
 
-    Child access (post-REORDER): [0] package, [1] id, [2] type_args,
+    Child access (post-REORDER): [0] module, [1] id, [2] type_args,
     [3] cap, [4] ephemeral.
     """
     try
@@ -74,7 +74,7 @@ primitive _TypeExtractor
       let args: Array[DocType] iso = recover iso Array[DocType] end
       for child in targs_node.children() do
         if child.id() != ast.TokenIds.tk_none() then
-          args.push(apply(child, package_map))
+          args.push(apply(child, module_map))
         end
       end
       let type_args: Array[DocType] val = consume args
@@ -92,8 +92,8 @@ primitive _TypeExtractor
           None
         end
 
-      // Resolve TQFN: find definition, walk to TK_PACKAGE, look up name
-      let tqfn = _resolve_tqfn(type_ast, package_map)
+      // Resolve TQFN: find definition, walk to TK_MODULE, look up name
+      let tqfn = _resolve_tqfn(type_ast, module_map)
 
       DocNominal(
         display_name,
@@ -116,14 +116,14 @@ primitive _TypeExtractor
 
   fun _type_alias_ref(
     type_ast: ast.AST box,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : DocNominal
   =>
     """
     Extracts a `DocNominal` from a TK_TYPEALIASREF AST node.
 
     Child access: [0] id, [1] type_args, [2] cap, [3] ephemeral.
-    Unlike TK_NOMINAL, there is no package child so indices are shifted.
+    Unlike TK_NOMINAL, there is no module child so indices are shifted.
     """
     try
       let id_node = type_ast(0)?
@@ -136,7 +136,7 @@ primitive _TypeExtractor
       let args: Array[DocType] iso = recover iso Array[DocType] end
       for child in targs_node.children() do
         if child.id() != ast.TokenIds.tk_none() then
-          args.push(apply(child, package_map))
+          args.push(apply(child, module_map))
         end
       end
       let type_args: Array[DocType] val = consume args
@@ -155,7 +155,7 @@ primitive _TypeExtractor
         end
 
       // Resolve TQFN via definition pointer
-      let tqfn = _resolve_tqfn(type_ast, package_map)
+      let tqfn = _resolve_tqfn(type_ast, module_map)
 
       DocNominal(
         display_name,
@@ -201,7 +201,7 @@ primitive _TypeExtractor
 
   fun _type_list(
     type_ast: ast.AST box,
-    package_map: Map[USize, String] val,
+    module_map: Map[USize, String] val,
     builder: {(Array[DocType] val): DocType} val)
     : DocType
   =>
@@ -211,14 +211,14 @@ primitive _TypeExtractor
     """
     let result: Array[DocType] iso = recover iso Array[DocType] end
     for child in type_ast.children() do
-      result.push(apply(child, package_map))
+      result.push(apply(child, module_map))
     end
     let types: Array[DocType] val = consume result
     builder(types)
 
   fun _arrow(
     type_ast: ast.AST box,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : DocArrow
   =>
     """
@@ -227,8 +227,8 @@ primitive _TypeExtractor
     Child access (post-REORDER): [0] left, [1] right.
     """
     try
-      let left = apply(type_ast(0)?, package_map)
-      let right = apply(type_ast(1)?, package_map)
+      let left = apply(type_ast(0)?, module_map)
+      let right = apply(type_ast(1)?, module_map)
       DocArrow(left, right)
     else
       DocArrow(DocThis, DocThis)
@@ -236,27 +236,27 @@ primitive _TypeExtractor
 
   fun _resolve_tqfn(
     type_ast: ast.AST box,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : String
   =>
     """
     Resolves the TQFN for a nominal type by finding its definition,
-    walking up to the containing TK_PACKAGE, and looking up the
-    package's qualified name in the map.
+    walking up to the containing TK_MODULE, and looking up the
+    module's qualified name in the map.
     """
     try
       let defs = type_ast.definitions()
       let target = defs(0)?
-      // Walk up to the TK_PACKAGE
+      // Walk up to the TK_MODULE
       var parent = target.parent()
       while true do
         match parent
         | let p: ast.AST =>
-          if p.id() == ast.TokenIds.tk_package() then
-            let pkg_addr = p.raw.usize()
-            let pkg_name = package_map(pkg_addr)?
+          if p.id() == ast.TokenIds.tk_module() then
+            let mod_addr = p.raw.usize()
+            let mod_name = module_map(mod_addr)?
             let type_name = (target(0)?.token_value() as String)
-            return TQFN(pkg_name, type_name)
+            return TQFN(mod_name, type_name)
           end
           parent = p.parent()
         else

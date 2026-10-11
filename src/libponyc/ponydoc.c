@@ -13,7 +13,7 @@ bool ponydoc_init(pass_opt_t* options, const char* pony_installation)
   if(!codegen_pass_init(options))
     return false;
 
-  if(!package_init_lib(options, pony_installation))
+  if(!module_init_lib(options, pony_installation))
     return false;
 
   return true;

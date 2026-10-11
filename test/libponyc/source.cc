@@ -75,8 +75,8 @@ protected:
 
 
 // A directory whose name ends in .pony, sitting alongside a real source file,
-// is skipped; the package still loads from its real .pony files. Before the
-// fix, loading this package aborted (or, on some filesystems, silently
+// is skipped; the module still loads from its real .pony files. Before the
+// fix, loading this module aborted (or, on some filesystems, silently
 // mishandled the directory).
 TEST_F(SourceTest, DirectoryNamedLikeSourceFileIsSkipped)
 {
@@ -90,7 +90,7 @@ TEST_F(SourceTest, DirectoryNamedLikeSourceFileIsSkipped)
   DO(write_file(thing, "primitive Thing\n"));
   DO(make_dir(weird)); // a DIRECTORY named like a source file
 
-  package_add_magic_path(pkg, pkg, &opt);
+  module_add_magic_path(pkg, pkg, &opt);
 
   const char* src =
     "use \"source_test_pkg\"\n"
@@ -103,13 +103,13 @@ TEST_F(SourceTest, DirectoryNamedLikeSourceFileIsSkipped)
 }
 
 
-// A package whose only .pony-named entry is a directory has no source files:
-// the directory is skipped, leaving the package empty, so loading it produces
-// the ordinary empty-package error rather than aborting. This pins the skip's
+// A module whose only .pony-named entry is a directory has no source files:
+// the directory is skipped, leaving the module empty, so loading it produces
+// the ordinary empty-module error rather than aborting. This pins the skip's
 // effect on a dimension that holds on every filesystem -- remove the skip and
 // the directory instead reaches source_open, yielding a different error ("is
 // a directory") or a crash, never this one.
-TEST_F(SourceTest, DirectoryOnlyPackageHasNoSourceFiles)
+TEST_F(SourceTest, DirectoryOnlyModuleHasNoSourceFiles)
 {
   const char* pkg = "source_test_empty_pkg";
   char weird[FILENAME_MAX];
@@ -118,7 +118,7 @@ TEST_F(SourceTest, DirectoryOnlyPackageHasNoSourceFiles)
   DO(make_dir(pkg));
   DO(make_dir(weird)); // the only .pony-named entry is a directory
 
-  package_add_magic_path(pkg, pkg, &opt);
+  module_add_magic_path(pkg, pkg, &opt);
 
   const char* src =
     "use \"source_test_empty_pkg\"\n"
@@ -126,7 +126,7 @@ TEST_F(SourceTest, DirectoryOnlyPackageHasNoSourceFiles)
     "  new create(env: Env) => None";
 
   const char* errs[] =
-    { "no Pony source files in package", "can't load package", NULL };
+    { "no Pony source files in module", "can't load module", NULL };
   DO(test_expected_errors(src, "scope", errs));
 }
 

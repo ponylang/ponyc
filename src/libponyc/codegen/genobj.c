@@ -25,10 +25,10 @@ const char* genobj(compile_t* c)
   {
     for(size_t i = 0; i < c->per_module_count; i++)
     {
-      const char* pkg_sym = c->per_module_states[i].package_symbol;
+      const char* mod_sym = c->per_module_states[i].module_symbol;
       char suffix[256];
       snprintf(suffix, sizeof(suffix), ".%s.ll",
-        (pkg_sym != NULL) ? pkg_sym : "main");
+        (mod_sym != NULL) ? mod_sym : "main");
       const char* file_o = suffix_filename(c, c->opt->output, "",
         c->filename, suffix);
 

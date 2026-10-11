@@ -13,10 +13,10 @@ class \nodoc\ _TestMethodDeclFormatSingleLine is UnitTest
       "  fun apply(x: U32, y: U32): U32 => x + y\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
           h.assert_eq[USize](0, diags.size())
@@ -24,7 +24,7 @@ class \nodoc\ _TestMethodDeclFormatSingleLine is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -46,10 +46,10 @@ class \nodoc\ _TestMethodDeclFormatMultiLineFunClean is UnitTest
       "    offset\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
           h.assert_eq[USize](0, diags.size())
@@ -57,7 +57,7 @@ class \nodoc\ _TestMethodDeclFormatMultiLineFunClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -78,10 +78,10 @@ class \nodoc\ _TestMethodDeclFormatMultiLineNoReturnClean is UnitTest
       "    None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
           h.assert_eq[USize](0, diags.size())
@@ -89,7 +89,7 @@ class \nodoc\ _TestMethodDeclFormatMultiLineNoReturnClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -114,10 +114,10 @@ class \nodoc\ _TestMethodDeclFormatNewClean is UnitTest
       "    _y = y\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
           h.assert_eq[USize](0, diags.size())
@@ -125,7 +125,7 @@ class \nodoc\ _TestMethodDeclFormatNewClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -146,10 +146,10 @@ class \nodoc\ _TestMethodDeclFormatBeClean is UnitTest
       "    None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
           h.assert_eq[USize](0, diags.size())
@@ -157,7 +157,7 @@ class \nodoc\ _TestMethodDeclFormatBeClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -178,10 +178,10 @@ class \nodoc\ _TestMethodDeclFormatParamsSharingLine is UnitTest
       "    None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
           h.assert_eq[USize](
@@ -200,7 +200,7 @@ class \nodoc\ _TestMethodDeclFormatParamsSharingLine is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -222,10 +222,10 @@ class \nodoc\ _TestMethodDeclFormatColonMisaligned is UnitTest
       "    offset\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
           h.assert_eq[USize](
@@ -243,7 +243,7 @@ class \nodoc\ _TestMethodDeclFormatColonMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -265,10 +265,10 @@ class \nodoc\ _TestMethodDeclFormatArrowMisaligned is UnitTest
       "    offset\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match \exhaustive\ program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match \exhaustive\ program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
           h.assert_eq[USize](
@@ -287,7 +287,7 @@ class \nodoc\ _TestMethodDeclFormatArrowMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -309,10 +309,10 @@ class \nodoc\ _TestMethodDeclFormatMultipleViolations is UnitTest
       "    offset\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
           h.assert_eq[USize](
@@ -323,7 +323,7 @@ class \nodoc\ _TestMethodDeclFormatMultipleViolations is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")

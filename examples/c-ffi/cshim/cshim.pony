@@ -6,5 +6,5 @@ separate C build step and no `use "lib:..."` directive.
 
 The two `use` schemes configure the shim's compilation: `cdefine:` sets a
 C preprocessor macro (clang's -D) and `cincludedir:` adds an include search
-directory (clang's -I), resolved relative to this package's directory.
+directory (clang's -I), resolved relative to this module's directory.
 """

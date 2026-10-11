@@ -37,7 +37,7 @@ primitive LineLength is ASTRule
   =>
     recover val Array[Diagnostic val] end
 
-  fun check_module(module_ast: ast.AST box, source: SourceFile val)
+  fun check_file(module_ast: ast.AST box, source: SourceFile val)
     : Array[Diagnostic val] val
   =>
     """
@@ -181,7 +181,7 @@ class ref _StringLiteralVisitor is ast.ASTVisitor
     - Child 0 of a method body (first expression in the TK_SEQ that is
       child 7 of a tk_fun/tk_new/tk_be)
     - Child 8 of a method (abstract method docstring slot)
-    - First child of a module (package-level docstring)
+    - First child of a file (module-level docstring)
     """
     let parent =
       match node.parent()
@@ -193,8 +193,8 @@ class ref _StringLiteralVisitor is ast.ASTVisitor
     let idx = node.sibling_idx()
     let parent_id = parent.id()
 
-    // Module-level docstring
-    if (parent_id == ast.TokenIds.tk_module()) and (idx == 0) then
+    // File-level docstring
+    if (parent_id == ast.TokenIds.tk_file()) and (idx == 0) then
       return true
     end
 

@@ -39,7 +39,7 @@ primitive \nodoc\ _WriteLongPony
     file.print("    None")
 
 primitive \nodoc\ _PonyPath
-  """Extract PONYPATH from environment and split into package paths."""
+  """Extract PONYPATH from environment and split into module paths."""
   fun apply(
     vars: (Array[String val] val | None))
     : Array[String val] val

@@ -35,16 +35,16 @@ primitive TypeHierarchy
 
   fun subtypes(
     node: AST box,
-    packages: Map[String, PackageState] box): (JSONArray | None)
+    modules: Map[String, ModuleState] box): (JSONArray | None)
   =>
     """
-    Resolve the entity at `node`, then cross-package walk to collect all
+    Resolve the entity at `node`, then cross-module walk to collect all
     entities whose provides list directly references that entity.
     """
     match \exhaustive\ _entity_for_node(node)
     | let entity: AST val =>
       let collector = _SubtypeCollector(entity)
-      _WorkspaceWalk(packages, collector)
+      _WorkspaceWalk(modules, collector)
       collector.result()
     | None => None
     end

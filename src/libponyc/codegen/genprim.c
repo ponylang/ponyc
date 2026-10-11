@@ -1596,17 +1596,17 @@ void genprim_builtins(compile_t* c)
 
 void genprim_reachable_init(compile_t* c, ast_t* program)
 {
-  // Look for primitives in all packages that have _init or _final methods.
+  // Look for primitives in all modules that have _init or _final methods.
   // Mark them as reachable.
-  ast_t* package = ast_child(program);
+  ast_t* module = ast_child(program);
 
-  while(package != NULL)
+  while(module != NULL)
   {
-    ast_t* module = ast_child(package);
+    ast_t* file = ast_child(module);
 
-    while(module != NULL)
+    while(file != NULL)
     {
-      ast_t* entity = ast_child(module);
+      ast_t* entity = ast_child(file);
 
       while(entity != NULL)
       {
@@ -1639,9 +1639,9 @@ void genprim_reachable_init(compile_t* c, ast_t* program)
         entity = ast_sibling(entity);
       }
 
-      module = ast_sibling(module);
+      file = ast_sibling(file);
     }
 
-    package = ast_sibling(package);
+    module = ast_sibling(module);
   }
 }

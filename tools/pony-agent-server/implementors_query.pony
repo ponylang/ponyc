@@ -58,15 +58,15 @@ primitive ImplementorsQuery
     end
 
     let is_interface = target_kind == TokenIds.tk_interface()
-    let target_pkg = _entity_package(target_def)
+    let target_mod = _entity_module(target_def)
 
     let nominal_results = Array[String val]
     let structural_results = Array[String val]
 
-    for pkg in program.packages() do
-      let pkg_path = pkg.path
-      for mod in pkg.modules() do
-        var child: (AST box | None) = mod.ast.child()
+    for mod in program.modules() do
+      let mod_path = mod.path
+      for f in mod.files() do
+        var child: (AST box | None) = f.ast.child()
         while true do
           match \exhaustive\ child
           | let node: AST box =>
@@ -74,9 +74,9 @@ primitive ImplementorsQuery
               try
                 let name = node(0)?.token_value() as String val
 
-                // Skip private types from other packages
+                // Skip private types from other modules
                 if name(0)? == '_' then
-                  if pkg_path != target_pkg then
+                  if mod_path != target_mod then
                     child = node.sibling()
                     continue
                   end
@@ -165,13 +165,13 @@ primitive ImplementorsQuery
     else false
     end
 
-  fun _entity_package(entity: AST box): String val =>
+  fun _entity_module(entity: AST box): String val =>
     var current: (AST box | None) = entity.parent()
     while true do
       match \exhaustive\ current
       | let ast: AST box =>
         match ast.id()
-        | TokenIds.tk_package() =>
+        | TokenIds.tk_module() =>
           match ast.token_value()
           | let s: String val => return s
           end

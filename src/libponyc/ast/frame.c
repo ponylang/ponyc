@@ -39,20 +39,19 @@ bool frame_push(typecheck_t* t, ast_t* ast)
   {
     case TK_PROGRAM:
       pop = push_frame(t);
-      t->frame->package = NULL;
       t->frame->module = NULL;
-      break;
-
-    case TK_PACKAGE:
-      // Can occur in a module as a result of a use expression.
-      pop = push_frame(t);
-      t->frame->package = ast;
-      t->frame->module = NULL;
+      t->frame->file = NULL;
       break;
 
     case TK_MODULE:
       pop = push_frame(t);
       t->frame->module = ast;
+      t->frame->file = NULL;
+      break;
+
+    case TK_FILE:
+      pop = push_frame(t);
+      t->frame->file = ast;
       t->frame->ifdef_cond = NULL;
       t->frame->ifdef_clause = ast;
       break;

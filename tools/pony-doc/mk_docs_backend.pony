@@ -4,7 +4,7 @@ primitive MkDocsBackend is Backend
   """
   Generates MkDocs-compatible documentation output.
 
-  Generates mkdocs.yml configuration, package index pages, entity type pages,
+  Generates mkdocs.yml configuration, module index pages, entity type pages,
   source code pages, and theme assets.
   """
   fun generate(
@@ -35,31 +35,31 @@ primitive MkDocsBackend is Backend
     // Track already-written source files to avoid duplicates
     let written_sources = Array[String]
 
-    for pkg in program.packages.values() do
-      let pkg_tqfn = TQFN(pkg.qualified_name, "-index")
-      let sanitized_pkg =
-        PathSanitize.replace_path_separator(pkg.qualified_name)
+    for mod in program.modules.values() do
+      let mod_tqfn = TQFN(mod.qualified_name, "-index")
+      let sanitized_mod =
+        PathSanitize.replace_path_separator(mod.qualified_name)
 
-      // Nav: package group header and package index entry
-      nav.append("- package ")
-      nav.append(pkg.qualified_name)
+      // Nav: module group header and module index entry
+      nav.append("- module ")
+      nav.append(mod.qualified_name)
       nav.append(":\n")
-      nav.append("  - Package: \"")
-      nav.append(pkg_tqfn)
+      nav.append("  - Module: \"")
+      nav.append(mod_tqfn)
       nav.append(".md\"\n")
 
       // Home page link
       home_links.append("* [")
-      home_links.append(pkg.qualified_name)
+      home_links.append(mod.qualified_name)
       home_links.append("](")
-      home_links.append(pkg_tqfn)
+      home_links.append(mod_tqfn)
       home_links.append(".md)\n")
 
-      // Build package page and entity nav entries
+      // Build module page and entity nav entries
       let public_type_links = recover iso String(512) end
       let private_type_links = recover iso String(512) end
 
-      for entity in pkg.public_types.values() do
+      for entity in mod.public_types.values() do
         nav.append("  - ")
         nav.append(entity.kind.keyword())
         nav.append(" ")
@@ -79,11 +79,11 @@ primitive MkDocsBackend is Backend
         _write_entity_page(
           docs_dir,
           entity,
-          sanitized_pkg,
+          sanitized_mod,
           include_private)?
       end
 
-      for entity in pkg.private_types.values() do
+      for entity in mod.private_types.values() do
         nav.append("  - ")
         nav.append(entity.kind.keyword())
         nav.append(" ")
@@ -103,22 +103,22 @@ primitive MkDocsBackend is Backend
         _write_entity_page(
           docs_dir,
           entity,
-          sanitized_pkg,
+          sanitized_mod,
           include_private)?
       end
 
-      // Write package index page
-      _write_package_page(
+      // Write module index page
+      _write_module_page(
         docs_dir,
-        pkg,
-        pkg_tqfn,
+        mod,
+        mod_tqfn,
         consume public_type_links,
         consume private_type_links,
         include_private)?
 
       // Write source files
-      for sf in pkg.source_files.values() do
-        let source_key: String val = sanitized_pkg + "/" + sf.filename
+      for sf in mod.source_files.values() do
+        let source_key: String val = sanitized_mod + "/" + sf.filename
         // Check for duplicates
         var already_written = false
         for written in written_sources.values() do
@@ -130,13 +130,13 @@ primitive MkDocsBackend is Backend
         if not already_written then
           written_sources.push(source_key)
 
-          let pkg_src_dir = src_dir.join(sanitized_pkg)?
-          pkg_src_dir.mkdir()
-          _write_source_page(src_dir, sanitized_pkg, sf)?
+          let mod_src_dir = src_dir.join(sanitized_mod)?
+          mod_src_dir.mkdir()
+          _write_source_page(src_dir, sanitized_mod, sf)?
 
           source_entries.push(
             "  - " + sf.filename + " : \"" +
-              _source_doc_path(sanitized_pkg, sf.filename) + "\" \n")
+              _source_doc_path(sanitized_mod, sf.filename) + "\" \n")
         end
       end
     end
@@ -214,33 +214,33 @@ primitive MkDocsBackend is Backend
     """
     let content = recover iso String(512) end
     content.append("---\nsearch:\n  exclude: true\n---\n")
-    content.append("Packages\n\n")
+    content.append("Modules\n\n")
     content.append(links)
     _write_file(docs_dir, "index.md", consume content)?
 
-  fun _write_package_page(
+  fun _write_module_page(
     docs_dir: FilePath,
-    pkg: DocPackage box,
-    pkg_tqfn: String,
+    mod: DocModule box,
+    mod_tqfn: String,
     public_type_links: String val,
     private_type_links: String val,
     include_private: Bool)
     ?
   =>
     """
-    Write a package index page.
+    Write a module index page.
 
     Lists public and private types with their docstrings.
     """
     let content = recover iso String(1024) end
 
-    // Package docstring or placeholder
-    match pkg.doc_string
+    // Module docstring or placeholder
+    match mod.doc_string
     | let ds: String =>
       content.append(ds)
     else
-      content.append("No package doc string provided for ")
-      content.append(pkg.qualified_name)
+      content.append("No module doc string provided for ")
+      content.append(mod.qualified_name)
       content.append(".")
     end
 
@@ -256,13 +256,13 @@ primitive MkDocsBackend is Backend
       content.append(private_type_links)
     end
 
-    let filename: String val = pkg_tqfn + ".md"
+    let filename: String val = mod_tqfn + ".md"
     _write_file(docs_dir, filename, consume content)?
 
   fun _write_entity_page(
     docs_dir: FilePath,
     entity: DocEntity box,
-    sanitized_pkg: String,
+    sanitized_mod: String,
     include_private: Bool)
     ?
   =>
@@ -280,7 +280,7 @@ primitive MkDocsBackend is Backend
         MkDocsLinkFormat,
         false,
         include_private))
-    content.append(_source_link(entity.source, sanitized_pkg))
+    content.append(_source_link(entity.source, sanitized_mod))
 
     // Docstring
     match entity.doc_string
@@ -343,37 +343,37 @@ primitive MkDocsBackend is Backend
       _render_methods(
         entity.constructors,
         "Constructors",
-        sanitized_pkg,
+        sanitized_mod,
         include_private))
     content.append(
       _render_fields(
         entity.public_fields,
         "Public fields",
-        sanitized_pkg,
+        sanitized_mod,
         include_private))
     content.append(
       _render_methods(
         entity.public_behaviours,
         "Public Behaviours",
-        sanitized_pkg,
+        sanitized_mod,
         include_private))
     content.append(
       _render_methods(
         entity.public_functions,
         "Public Functions",
-        sanitized_pkg,
+        sanitized_mod,
         include_private))
     content.append(
       _render_methods(
         entity.private_behaviours,
         "Private Behaviours",
-        sanitized_pkg,
+        sanitized_mod,
         include_private))
     content.append(
       _render_methods(
         entity.private_functions,
         "Private Functions",
-        sanitized_pkg,
+        sanitized_mod,
         include_private))
 
     let filename: String val = entity.tqfn + ".md"
@@ -382,7 +382,7 @@ primitive MkDocsBackend is Backend
   fun _render_methods(
     methods: Array[DocMethod] val,
     title: String,
-    sanitized_pkg: String,
+    sanitized_mod: String,
     include_private: Bool)
     : String val
   =>
@@ -398,14 +398,14 @@ primitive MkDocsBackend is Backend
 
     for method in methods.values() do
       result.append(
-        _render_method(method, sanitized_pkg, include_private))
+        _render_method(method, sanitized_mod, include_private))
     end
 
     consume result
 
   fun _render_method(
     method: DocMethod box,
-    sanitized_pkg: String,
+    sanitized_mod: String,
     include_private: Bool)
     : String val
   =>
@@ -423,7 +423,7 @@ primitive MkDocsBackend is Backend
         MkDocsLinkFormat,
         false,
         include_private))
-    result.append(_source_link(method.source, sanitized_pkg))
+    result.append(_source_link(method.source, sanitized_mod))
     result.append("\n\n")
 
     // Docstring
@@ -552,7 +552,7 @@ primitive MkDocsBackend is Backend
   fun _render_fields(
     fields: Array[DocField] val,
     title: String,
-    sanitized_pkg: String,
+    sanitized_mod: String,
     include_private: Bool)
     : String val
   =>
@@ -579,7 +579,7 @@ primitive MkDocsBackend is Backend
           MkDocsLinkFormat,
           false,
           include_private))
-      result.append(_source_link(field.source, sanitized_pkg))
+      result.append(_source_link(field.source, sanitized_mod))
       result.append("\n")
 
       match field.doc_string
@@ -595,7 +595,7 @@ primitive MkDocsBackend is Backend
 
   fun _write_source_page(
     src_dir: FilePath,
-    sanitized_pkg: String,
+    sanitized_mod: String,
     sf: DocSourceFile box)
     ?
   =>
@@ -608,7 +608,7 @@ primitive MkDocsBackend is Backend
     content.append(sf.content)
     content.append("\n```````")
 
-    let pkg_dir = src_dir.join(sanitized_pkg)?
+    let pkg_dir = src_dir.join(sanitized_mod)?
     let filename_no_ext = _remove_ext(sf.filename)
     let out_name: String val = filename_no_ext + ".md"
     _write_file(pkg_dir, out_name, consume content)?
@@ -621,7 +621,7 @@ primitive MkDocsBackend is Backend
 
   fun _source_link(
     source: (DocSourceLocation | None),
-    sanitized_pkg: String)
+    sanitized_mod: String)
     : String val
   =>
     """
@@ -636,7 +636,7 @@ primitive MkDocsBackend is Backend
         let filename_no_ext = _remove_ext(filename)
         let result = recover iso String(128) end
         result.append("\n<span class=\"source-link\">[[Source]](src/")
-        result.append(sanitized_pkg)
+        result.append(sanitized_mod)
         result.append("/")
         result.append(filename_no_ext)
         result.append(".md#L-0-")
@@ -671,7 +671,7 @@ primitive MkDocsBackend is Backend
     end
 
   fun _source_doc_path(
-    sanitized_pkg: String,
+    sanitized_mod: String,
     filename: String)
     : String val
   =>
@@ -680,7 +680,7 @@ primitive MkDocsBackend is Backend
     """
     let result = recover iso String(64) end
     result.append("src/")
-    result.append(sanitized_pkg)
+    result.append(sanitized_mod)
     result.append("/")
     result.append(_remove_ext(filename))
     result.append(".md")

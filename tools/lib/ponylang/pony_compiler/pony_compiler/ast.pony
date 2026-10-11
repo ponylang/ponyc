@@ -248,7 +248,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     """
     The source struct for this AST.
     Will only return a non-NULL pointer
-    if this AST represents a module
+    if this AST represents a file
     """
     @ast_source(raw)
 
@@ -269,11 +269,11 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       String.from_cpointer(s.m, s.len - 1)
     end
 
-  fun box package(): NullablePointer[_Package] =>
+  fun box module_data(): NullablePointer[_Package] =>
     """
-    The package struct for this AST.
+    The module struct for this AST.
     Will only return a non-NULL pointer
-    if this AST represents a package
+    if this AST represents a module
     """
     @ast_data[NullablePointer[_Package]](raw)
 
@@ -492,8 +492,8 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     match id()
     | TokenIds.tk_none()
     | TokenIds.tk_program()
-    | TokenIds.tk_package()
     | TokenIds.tk_module()
+    | TokenIds.tk_file()
     | TokenIds.tk_members()
     // | TokenIds.tk_fvar() // points to the var keyword
     // | TokenIds.tk_flet() // points to the let keyword
@@ -542,7 +542,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     | TokenIds.tk_case()
     | TokenIds.tk_try_no_check()
     | TokenIds.tk_reference()
-    | TokenIds.tk_packageref()
+    | TokenIds.tk_moduleref()
     | TokenIds.tk_typeref()
     | TokenIds.tk_typealiasref()
     | TokenIds.tk_typeparamref()

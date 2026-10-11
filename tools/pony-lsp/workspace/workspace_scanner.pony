@@ -32,22 +32,22 @@ class WorkspaceScanner
       else error
       end
 
-    // extract packages
+    // extract module paths
     let packages = JSONPathParser.compile("$.packages.*")?.query(corral_json)
-    let package_paths =
+    let module_paths =
       recover
         trn Set[String].create(2)
       end
-    for package in packages.values() do
+    for pkg in packages.values() do
       let pp =
         try
-          dir.join(package as String)?
+          dir.join(pkg as String)?
         else
           _channel.log("packages element not a string")
           error
         end
-      Fact(pp.exists(), "Package path " + pp.path + " does not exist")?
-      package_paths.set(pp.path)
+      Fact(pp.exists(), "Module path " + pp.path + " does not exist")?
+      module_paths.set(pp.path)
     end
 
     // extract dependencies, also transitive ones
@@ -90,7 +90,7 @@ class WorkspaceScanner
       workspace_name,
       dir,
       consume dependencies,
-      consume package_paths)
+      consume module_paths)
 
   fun scan(
     auth: FileAuth,

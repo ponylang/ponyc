@@ -453,8 +453,8 @@ class \nodoc\ iso _ExportsBasicTest is UnitTest
         result.entries.size() > 0,
         "expected at least one export")
       h.assert_true(
-        result.package_path.size() > 0,
-        "expected non-empty package_path")
+        result.module_path.size() > 0,
+        "expected non-empty module_path")
 
       match _FixtureHelper.find_export(result, "Collector")
       | let e: ExportEntry val =>
@@ -633,9 +633,9 @@ class \nodoc\ iso _ExportsErrorTest is UnitTest
       else h.fail("fixture compilation failed"); return
       end
 
-    match ExportsQuery(session, "nonexistent_package_xyz")
+    match ExportsQuery(session, "nonexistent_module_xyz")
     | let _: ExportsResult val =>
-      h.fail("expected error for nonexistent package, got result")
+      h.fail("expected error for nonexistent module, got result")
     | let err: String val =>
       h.assert_true(
         err.contains("not found"),
@@ -1498,8 +1498,8 @@ primitive \nodoc\ _FixtureHelper
     type_name: String val)
     : (AST box | None)
   =>
-    for pkg in program.packages() do
-      for mod in pkg.modules() do
+    for pkg in program.modules() do
+      for mod in pkg.files() do
         let mod_ast = mod.ast
         var child: (AST box | None) = mod_ast.child()
         while true do

@@ -15,16 +15,16 @@ actor Main
   CLI entry point for pony-lint. Parses command-line arguments, loads
   configuration, builds the rule registry, and runs the linter.
 
-  The AST phase processes one package per behavior call so GC can collect
+  The AST phase processes one module per behavior call so GC can collect
   each `Program val` (and its C-level AST) before the next compilation.
-  Without this, repos with many packages (e.g., 35 example programs each
+  Without this, repos with many modules (e.g., 35 example programs each
   importing the same library) accumulate all ASTs in memory at once.
   """
   let _env: Env
   var _linter: Linter
   var _all_diags: Array[Diagnostic val]
   var _has_error: Bool
-  let _remaining: Array[_PackageInfo val]
+  let _remaining: Array[_ModuleInfo val]
   var _file_info: Map[String, _FileInfo val] val
 
   new create(env: Env) =>
@@ -41,7 +41,7 @@ actor Main
         "")
     _all_diags = Array[Diagnostic val]
     _has_error = false
-    _remaining = Array[_PackageInfo val]
+    _remaining = Array[_ModuleInfo val]
     _file_info = recover val Map[String, _FileInfo val] end
 
     let cs =
@@ -107,7 +107,7 @@ actor Main
         .> push(MemberNaming)
         .> push(AcronymCasing)
         .> push(FileNaming)
-        .> push(PackageNaming)
+        .> push(ModuleNaming)
         .> push(PublicDocstring)
         .> push(MatchSingleLine)
         .> push(MatchCaseIndent)
@@ -117,7 +117,7 @@ actor Main
         .> push(BlankLines)
         .> push(DocstringFormat)
         .> push(DocstringLeadingBlank)
-        .> push(PackageDocstring)
+        .> push(ModuleDocstring)
         .> push(PreferChaining)
         .> push(OperatorSpacing)
         .> push(LambdaSpacing)
@@ -217,15 +217,15 @@ actor Main
     // Build rule registry
     let registry = RuleRegistry(all_rules, all_ast_rules, config)
 
-    // Build package search paths: installation paths first (prevents
+    // Build module search paths: installation paths first (prevents
     // PONYPATH from overriding builtin, per ponylang/ponyc#3779),
     // then PONYPATH.
     let argv0 = try env.args(0)? else "" end
-    let package_paths = _build_package_paths(env.vars, argv0)
+    let mod_paths = _build_module_paths(env.vars, argv0)
 
     // Run text phase synchronously
     let cwd = Path.cwd()
-    _linter = Linter(registry, file_auth, cwd, package_paths, root_dir)
+    _linter = Linter(registry, file_auth, cwd, mod_paths, root_dir)
     let text_result = _linter.run_text_phase(targets)
     _has_error = text_result.has_error
     _file_info = text_result.file_info
@@ -235,21 +235,21 @@ actor Main
       _all_diags.push(d)
     end
 
-    // Copy package list into mutable array for shift()
-    for pkg in text_result.packages.values() do
+    // Copy module list into mutable array for shift()
+    for pkg in text_result.modules.values() do
       _remaining.push(pkg)
     end
 
-    // Start AST phase — one package per behavior call
+    // Start AST phase — one module per behavior call
     if _remaining.size() > 0 then
-      _process_next_package()
+      _process_next_module()
     else
       _finish()
     end
 
-  be _process_next_package() =>
+  be _process_next_module() =>
     """
-    Compile and lint one package. GC can run between behavior calls,
+    Compile and lint one module. GC can run between behavior calls,
     collecting the previous iteration's `Program val` and its C-level AST.
     """
     let pkg =
@@ -259,7 +259,7 @@ actor Main
         return
       end
     (let diags, let had_error) =
-      _linter.run_ast_package(
+      _linter.run_ast_module(
         pkg.dir,
         pkg.file_paths,
         _file_info,
@@ -271,7 +271,7 @@ actor Main
     if had_error then _has_error = true end
 
     if _remaining.size() > 0 then
-      _process_next_package()
+      _process_next_module()
     else
       _finish()
     end
@@ -296,13 +296,13 @@ actor Main
       end
     _env.exitcode(exit_code())
 
-  fun _build_package_paths(
+  fun _build_module_paths(
     vars: (Array[String val] val | None),
     argv0: String val)
     : Array[String val] val
   =>
     """
-    Build the package search path list for AST compilation.
+    Build the module search path list for AST compilation.
 
     Installation paths come first (pony-lint is co-installed with
     ponyc, so the standard library is at `../packages` or

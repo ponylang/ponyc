@@ -1,7 +1,7 @@
 """
 # Time Package
 
-The Time Package provides classes and methods for timing operations,
+The Time package provides classes and methods for timing operations,
 dealing with dates and times, and scheduling tasks.
 """
 

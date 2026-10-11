@@ -26,7 +26,7 @@ TEST_F(ScopeTest, Actor)
   TEST_COMPILE(src);
 
   ASSERT_ID(TK_ACTOR, lookup_type("Foo"));
-  ASSERT_EQ(1, ref_count(package, "Foo"));
+  ASSERT_EQ(1, ref_count(module, "Foo"));
 }
 
 
@@ -37,7 +37,7 @@ TEST_F(ScopeTest, Class)
   TEST_COMPILE(src);
 
   ASSERT_ID(TK_CLASS, lookup_type("Foo"));
-  ASSERT_EQ(1, ref_count(package, "Foo"));
+  ASSERT_EQ(1, ref_count(module, "Foo"));
 }
 
 
@@ -48,7 +48,7 @@ TEST_F(ScopeTest, Primitive)
   TEST_COMPILE(src);
 
   ASSERT_ID(TK_PRIMITIVE, lookup_type("Foo"));
-  ASSERT_EQ(1, ref_count(package, "Foo"));
+  ASSERT_EQ(1, ref_count(module, "Foo"));
 }
 
 
@@ -59,7 +59,7 @@ TEST_F(ScopeTest, Trait)
   TEST_COMPILE(src);
 
   ASSERT_ID(TK_TRAIT, lookup_type("Foo"));
-  ASSERT_EQ(1, ref_count(package, "Foo"));
+  ASSERT_EQ(1, ref_count(module, "Foo"));
 }
 
 
@@ -70,7 +70,7 @@ TEST_F(ScopeTest, Interface)
   TEST_COMPILE(src);
 
   ASSERT_ID(TK_INTERFACE, lookup_type("Foo"));
-  ASSERT_EQ(1, ref_count(package, "Foo"));
+  ASSERT_EQ(1, ref_count(module, "Foo"));
 }
 
 
@@ -81,7 +81,7 @@ TEST_F(ScopeTest, TypeAlias)
   TEST_COMPILE(src);
 
   ASSERT_ID(TK_TYPE, lookup_type("Foo"));
-  ASSERT_EQ(1, ref_count(package, "Foo"));
+  ASSERT_EQ(1, ref_count(module, "Foo"));
 }
 
 
@@ -92,7 +92,7 @@ TEST_F(ScopeTest, VarField)
   TEST_COMPILE(src);
 
   ASSERT_ID(TK_FVAR, lookup_member("C", "foo"));
-  ASSERT_EQ(1, ref_count(package, "foo"));
+  ASSERT_EQ(1, ref_count(module, "foo"));
 }
 
 
@@ -103,7 +103,7 @@ TEST_F(ScopeTest, LetField)
   TEST_COMPILE(src);
 
   ASSERT_ID(TK_FLET, lookup_member("C", "foo"));
-  ASSERT_EQ(1, ref_count(package, "foo"));
+  ASSERT_EQ(1, ref_count(module, "foo"));
 }
 
 
@@ -114,7 +114,7 @@ TEST_F(ScopeTest, Be)
   TEST_COMPILE(src);
 
   ASSERT_ID(TK_BE, lookup_member("A", "foo"));
-  ASSERT_EQ(1, ref_count(package, "foo"));
+  ASSERT_EQ(1, ref_count(module, "foo"));
 }
 
 
@@ -125,7 +125,7 @@ TEST_F(ScopeTest, New)
   TEST_COMPILE(src);
 
   ASSERT_ID(TK_NEW, lookup_member("A", "foo"));
-  ASSERT_EQ(1, ref_count(package, "foo"));
+  ASSERT_EQ(1, ref_count(module, "foo"));
 }
 
 
@@ -136,7 +136,7 @@ TEST_F(ScopeTest, Fun)
   TEST_COMPILE(src);
 
   ASSERT_ID(TK_FUN, lookup_member("A", "foo"));
-  ASSERT_EQ(1, ref_count(package, "foo"));
+  ASSERT_EQ(1, ref_count(module, "foo"));
 }
 
 
@@ -149,7 +149,7 @@ TEST_F(ScopeTest, FunParam)
   ast_t* foo = lookup_member("A", "foo");
   ASSERT_ID(TK_FUN, foo);
   ASSERT_ID(TK_PARAM, lookup_in(foo, "bar"));
-  ASSERT_EQ(1, ref_count(package, "bar"));
+  ASSERT_EQ(1, ref_count(module, "bar"));
 }
 
 
@@ -162,7 +162,7 @@ TEST_F(ScopeTest, TypeParam)
   ast_t* foo = lookup_member("A", "foo");
   ASSERT_ID(TK_FUN, foo);
   ASSERT_ID(TK_TYPEPARAM, lookup_in(foo, "T"));
-  ASSERT_EQ(1, ref_count(package, "T"));
+  ASSERT_EQ(1, ref_count(module, "T"));
 }
 
 
@@ -175,7 +175,7 @@ TEST_F(ScopeTest, Local)
   ast_t* foo = lookup_member("A", "foo");
   ASSERT_ID(TK_FUN, foo);
   ASSERT_ID(TK_VAR, lookup_in(foo, "bar"));
-  ASSERT_EQ(1, ref_count(package, "bar"));
+  ASSERT_EQ(1, ref_count(module, "bar"));
 }
 
 
@@ -195,9 +195,9 @@ TEST_F(ScopeTest, MultipleLocals)
   ASSERT_ID(TK_VAR, lookup_in(wombat, "bar"));
   ASSERT_ID(TK_LET, lookup_in(wombat, "aardvark"));
 
-  ASSERT_EQ(1, ref_count(package, "foo"));
-  ASSERT_EQ(1, ref_count(package, "bar"));
-  ASSERT_EQ(1, ref_count(package, "aardvark"));
+  ASSERT_EQ(1, ref_count(module, "foo"));
+  ASSERT_EQ(1, ref_count(module, "bar"));
+  ASSERT_EQ(1, ref_count(module, "aardvark"));
 }
 
 
@@ -217,9 +217,9 @@ TEST_F(ScopeTest, NestedLocals)
   ASSERT_ID(TK_VAR, lookup_in(wombat, "bar"));
   ASSERT_ID(TK_LET, lookup_in(wombat, "aardvark"));
 
-  ASSERT_EQ(1, ref_count(package, "foo"));
-  ASSERT_EQ(1, ref_count(package, "bar"));
-  ASSERT_EQ(1, ref_count(package, "aardvark"));
+  ASSERT_EQ(1, ref_count(module, "foo"));
+  ASSERT_EQ(1, ref_count(module, "bar"));
+  ASSERT_EQ(1, ref_count(module, "aardvark"));
 }
 
 
@@ -277,9 +277,9 @@ TEST_F(ScopeTest, Package)
 
   DO(test_compile(src, "import"));
 
-  // Builtin types go in the module symbol table
-  ASSERT_ID(TK_PRIMITIVE, lookup_in(module, "U32"));
-  ASSERT_EQ(1, ref_count(package, "U32"));
+  // Builtin types go in the file symbol table
+  ASSERT_ID(TK_PRIMITIVE, lookup_in(file, "U32"));
+  ASSERT_EQ(1, ref_count(module, "U32"));
 }
 
 
@@ -491,91 +491,91 @@ TEST_F(ScopeTest, Use)
   WALK_TREE(module);
   LOOKUP("U32", TK_PRIMITIVE);
 
-  ASSERT_EQ(1, ref_count(package, "U32"));
+  ASSERT_EQ(1, ref_count(module, "U32"));
 }
 
 
 TEST_F(ScopeTest, Use)
 {
   const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
+    "(program{scope} (module{scope} (file{scope}"
     "  (use{def start} x \"test\" x))))";
 
-  const char* used_package =
+  const char* used_module =
     "class Foo";
 
-  package_add_magic("test", used_package);
+  add_module("test", used_module);
 
   DO(build(tree));
   ASSERT_EQ(AST_OK, run_scope());
 
-  // Use imported types go in the module symbol table
-  ast_t* module = find_sub_tree(ast, TK_MODULE);
-  symtab_t* module_symtab = ast_get_symtab(module);
-  ASSERT_NE((void*)NULL, symtab_find(module_symtab, stringtab(opt.strtab, "Foo"), NULL));
+  // Use imported types go in the file symbol table
+  ast_t* file_ast = find_sub_tree(ast, TK_FILE);
+  symtab_t* file_symtab = ast_get_symtab(file_ast);
+  ASSERT_NE((void*)NULL, symtab_find(file_symtab, stringtab(opt.strtab, "Foo"), NULL));
 }
 
 
 TEST_F(ScopeTest, UseAs)
 {
   const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
+    "(program{scope} (module{scope} (file{scope}"
     "  (use{def start} (id bar) \"test\" x))))";
 
-  const char* used_package =
+  const char* used_module =
     "class Foo";
 
-  package_add_magic("test", used_package);
+  add_module("test", used_module);
 
   DO(build(tree));
   ASSERT_EQ(AST_OK, run_scope());
 
-  // Use imported types go in the module symbol table
-  ast_t* module = find_sub_tree(ast, TK_MODULE);
-  symtab_t* module_symtab = ast_get_symtab(module);
-  ASSERT_NE((void*)NULL, symtab_find(module_symtab, stringtab(opt.strtab, "bar"), NULL));
-  ASSERT_EQ((void*)NULL, symtab_find(module_symtab, stringtab(opt.strtab, "Foo"), NULL));
+  // Use imported types go in the file symbol table
+  ast_t* file_ast = find_sub_tree(ast, TK_FILE);
+  symtab_t* file_symtab = ast_get_symtab(file_ast);
+  ASSERT_NE((void*)NULL, symtab_find(file_symtab, stringtab(opt.strtab, "bar"), NULL));
+  ASSERT_EQ((void*)NULL, symtab_find(file_symtab, stringtab(opt.strtab, "Foo"), NULL));
 }
 
 
 TEST_F(ScopeTest, UseConditionTrue)
 {
   const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
+    "(program{scope} (module{scope} (file{scope}"
     "  (use x \"test\" (reference (id debug))))))";
 
-  const char* used_package =
+  const char* used_module =
     "class Foo";
 
-  package_add_magic("test", used_package);
+  add_module("test", used_module);
 
   DO(build(tree));
   ASSERT_EQ(AST_OK, run_scope());
 
-  // Use imported types go in the module symbol table
-  ast_t* module = find_sub_tree(ast, TK_MODULE);
-  symtab_t* module_symtab = ast_get_symtab(module);
-  ASSERT_NE((void*)NULL, symtab_find(module_symtab, stringtab(opt.strtab, "Foo"), NULL));
+  // Use imported types go in the file symbol table
+  ast_t* file_ast = find_sub_tree(ast, TK_FILE);
+  symtab_t* file_symtab = ast_get_symtab(file_ast);
+  ASSERT_NE((void*)NULL, symtab_find(file_symtab, stringtab(opt.strtab, "Foo"), NULL));
 }
 
 
 TEST_F(ScopeTest, UseConditionFalse)
 {
   const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
+    "(program{scope} (module{scope} (file{scope}"
     "  (use x \"test\" (call x x (. (reference (id debug)) (id op_not)))))))";
 
-  const char* used_package =
+  const char* used_module =
     "class Foo";
 
-  package_add_magic("test", used_package);
+  add_module("test", used_module);
 
   DO(build(tree));
   ASSERT_EQ(AST_OK, run_scope());
 
   // Nothing should be imported
-  ast_t* module = find_sub_tree(ast, TK_MODULE);
-  symtab_t* module_symtab = ast_get_symtab(module);
-  ASSERT_EQ((void*)NULL, symtab_find(module_symtab, stringtab(opt.strtab, "Foo"), NULL));
+  ast_t* file_ast = find_sub_tree(ast, TK_FILE);
+  symtab_t* file_symtab = ast_get_symtab(file_ast);
+  ASSERT_EQ((void*)NULL, symtab_find(file_symtab, stringtab(opt.strtab, "Foo"), NULL));
 }
 */

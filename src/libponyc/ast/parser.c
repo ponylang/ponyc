@@ -1351,10 +1351,10 @@ DEF(use);
   DONE();
 
 // {use} {class}
-DEF(module);
-  AST_NODE(TK_MODULE);
+DEF(file);
+  AST_NODE(TK_FILE);
   SCOPE();
-  OPT_NO_DFLT TOKEN("package docstring", TK_STRING);
+  OPT_NO_DFLT TOKEN("module docstring", TK_STRING);
   SEQ("use command", use);
   SEQ("type, interface, trait, primitive, class or actor definition",
     class_def);
@@ -1366,10 +1366,10 @@ DEF(module);
 #ifdef PARSER
 
 // external API
-bool pass_parse(ast_t* package, source_t* source, errors_t* errors,
+bool pass_parse(ast_t* module, source_t* source, errors_t* errors,
   strtable_t* strtab, bool allow_test_symbols, bool trace)
 {
-  return parse(package, source, module, "class, actor, primitive or trait",
+  return parse(module, source, file, "class, actor, primitive or trait",
     errors, strtab, allow_test_symbols, trace);
 }
 

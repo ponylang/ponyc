@@ -7,16 +7,16 @@ use "pony_compiler"
 primitive Rename
   """
   Builds a WorkspaceEdit for renaming all occurrences of a symbol across all
-  packages in the workspace.
+  modules in the workspace.
   """
   fun collect(
     node: AST box,
-    packages: Map[String, PackageState] box,
+    modules: Map[String, ModuleState] box,
     workspace_folder: String,
     new_name: String): (JSONObject val | String val)
   =>
     """
-    Walk all module ASTs across all packages and return a WorkspaceEdit mapping
+    Walk all module ASTs across all modules and return a WorkspaceEdit mapping
     each file URI to the TextEdit[] needed to rename every occurrence of the
     symbol at `node` to `new_name`.
 
@@ -41,7 +41,7 @@ primitive Rename
     end
 
     // Collect all occurrences including the declaration.
-    let locations = References.collect(node, packages, true)
+    let locations = References.collect(node, modules, true)
 
     // Group TextEdit objects by file URI and build the WorkspaceEdit.
     let by_uri = Map[String, Array[LspLocation]]

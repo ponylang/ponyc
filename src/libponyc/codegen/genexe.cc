@@ -1467,7 +1467,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   for(size_t i = 0; i < bc_count; i++)
     args.push_back(bc_files[i]);
 
-  // C shim objects (gencshim), in deterministic package-walk order. Objects are
+  // C shim objects (gencshim), in deterministic module-walk order. Objects are
   // always fully included, so they sit after the bitcode partitions and before
   // the user libraries that may satisfy their references.
   size_t c_object_count = program_c_object_count(program);
@@ -2046,7 +2046,7 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   for(size_t i = 0; i < bc_count; i++)
     args.push_back(bc_files[i]);
 
-  // C shim objects (gencshim), in deterministic package-walk order. Objects are
+  // C shim objects (gencshim), in deterministic module-walk order. Objects are
   // always fully included, so they sit after the bitcode partitions and before
   // the user libraries that may satisfy their references.
   size_t c_object_count = program_c_object_count(program);
@@ -2223,7 +2223,7 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
   for(size_t i = 0; i < bc_count; i++)
     args.push_back(bc_files[i]);
 
-  // C shim objects (gencshim), in deterministic package-walk order. These are
+  // C shim objects (gencshim), in deterministic module-walk order. These are
   // absolute object paths, so they don't depend on the /LIBPATH entries
   // pushed below; only library-name resolution does.
   size_t c_object_count = program_c_object_count(program);
@@ -2577,13 +2577,13 @@ static void gen_wrappers_for_exports(compile_t* c, ast_t* exported_pkg,
 
 static void gen_export_wrappers(compile_t* c, ast_t* program)
 {
-  for(ast_t* package = ast_child(program); package != NULL;
-    package = ast_sibling(package))
+  for(ast_t* module = ast_child(program); module != NULL;
+    module = ast_sibling(module))
   {
-    for(ast_t* module = ast_child(package); module != NULL;
-      module = ast_sibling(module))
+    for(ast_t* file = ast_child(module); file != NULL;
+      file = ast_sibling(file))
     {
-      for(ast_t* node = ast_child(module); node != NULL;
+      for(ast_t* node = ast_child(file); node != NULL;
         node = ast_sibling(node))
       {
         if(ast_id(node) != TK_USE)
@@ -2594,39 +2594,39 @@ static void gen_export_wrappers(compile_t* c, ast_t* program)
         if(use_name == NULL)
           continue;
 
-        ast_t* used_pkg = (ast_t*)ast_data(node);
+        ast_t* used_mod = (ast_t*)ast_data(node);
 
-        if(used_pkg == NULL || ast_id(used_pkg) != TK_PACKAGE)
+        if(used_mod == NULL || ast_id(used_mod) != TK_MODULE)
           continue;
 
-        if(!package_has_exports(used_pkg, c->opt))
+        if(!module_has_exports(used_mod, c->opt))
           continue;
 
         printbuf_t* prefix_buf = printbuf_new();
         printbuf(prefix_buf, "%s", use_name);
         sanitize_c_name(prefix_buf->m);
 
-        gen_wrappers_for_exports(c, used_pkg, prefix_buf->m);
+        gen_wrappers_for_exports(c, used_mod, prefix_buf->m);
         printbuf_free(prefix_buf);
       }
     }
   }
 
-  ast_t* main_pkg = ast_child(program);
+  ast_t* main_mod = ast_child(program);
 
-  if(package_has_exports(main_pkg, c->opt))
-    gen_wrappers_for_exports(c, main_pkg, "");
+  if(module_has_exports(main_mod, c->opt))
+    gen_wrappers_for_exports(c, main_mod, "");
 }
 
 static void reach_exported_types(compile_t* c, ast_t* program)
 {
-  for(ast_t* package = ast_child(program); package != NULL;
-    package = ast_sibling(package))
+  for(ast_t* module = ast_child(program); module != NULL;
+    module = ast_sibling(module))
   {
-    for(ast_t* module = ast_child(package); module != NULL;
-      module = ast_sibling(module))
+    for(ast_t* file = ast_child(module); file != NULL;
+      file = ast_sibling(file))
     {
-      for(ast_t* node = ast_child(module); node != NULL;
+      for(ast_t* node = ast_child(file); node != NULL;
         node = ast_sibling(node))
       {
         token_id nid = ast_id(node);
@@ -2693,13 +2693,13 @@ static bool generate_by_value_thunks(compile_t* c, ast_t* program)
   bool any = false;
   bool ok = true;
 
-  for(ast_t* package = ast_child(program); package != NULL;
-    package = ast_sibling(package))
+  for(ast_t* module = ast_child(program); module != NULL;
+    module = ast_sibling(module))
   {
-    for(ast_t* module = ast_child(package); module != NULL;
-      module = ast_sibling(module))
+    for(ast_t* file = ast_child(module); file != NULL;
+      file = ast_sibling(file))
     {
-      for(ast_t* node = ast_child(module); node != NULL;
+      for(ast_t* node = ast_child(file); node != NULL;
         node = ast_sibling(node))
       {
         if(ast_id(node) != TK_USE)
@@ -2969,20 +2969,20 @@ bool genexe(compile_t* c, ast_t* program)
 {
   errors_t* errors = c->opt->check.errors;
 
-  // The first package is the main package. It has to have a Main actor.
+  // The first module is the main module. It has to have a Main actor.
   const char* main_actor = c->str_Main;
   const char* env_class = c->str_Env;
-  const char* package_name = c->filename;
+  const char* module_name = c->filename;
 
   if((c->opt->bin_name != NULL) && (strlen(c->opt->bin_name) > 0))
     c->filename = c->opt->bin_name;
 
-  ast_t* package = ast_child(program);
-  ast_t* main_def = ast_get(package, main_actor, NULL);
+  ast_t* module = ast_child(program);
+  ast_t* main_def = ast_get(module, main_actor, NULL);
 
   if(main_def == NULL)
   {
-    errorf(errors, NULL, "no Main actor found in package '%s'", package_name);
+    errorf(errors, NULL, "no Main actor found in module '%s'", module_name);
     return false;
   }
 
@@ -3032,9 +3032,9 @@ bool genexe(compile_t* c, ast_t* program)
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Selector painting\n");
-  pass_timers_start(c->opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_PAINT));
+  pass_timers_start(c->opt->timers, PASS_TIMERS_PROGRAM_MOD, pass_name(PASS_PAINT));
   paint(&c->reach->types);
-  pass_timers_stop(c->opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_PAINT));
+  pass_timers_stop(c->opt->timers, PASS_TIMERS_PROGRAM_MOD, pass_name(PASS_PAINT));
 
   plugin_visit_reach(c->reach, c->opt, true);
 

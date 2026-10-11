@@ -841,7 +841,7 @@ actor _TestRunner
       _property_phase.sample_complete(_prop_sample_pass, exec, this)
     end
 
-  // Package-private methods for _PropertyPhase implementers
+  // Module-private methods for _PropertyPhase implementers
   fun ref _async_sample_failed(exec: _PropertyExecution) =>
     _pass = false
     _prop_sample_pass = false

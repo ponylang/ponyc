@@ -8,15 +8,15 @@
 PONY_EXTERN_C_BEGIN
 
 /**
- * Compile every package's C shim sources (PASS_C).
+ * Compile every module's C shim sources (PASS_C).
  *
- * Walks the program's packages and, for each package with .c sources
+ * Walks the program's modules and, for each module with .c sources
  * discovered next to its Pony files, compiles each source to an object file
  * in the output directory using the embedded clang. The compile targets the
  * same triple/cpu/features the Pony codegen will use (from pass_opt_t), so
- * this needs nothing from compile_t and runs before codegen. Each package's
+ * this needs nothing from compile_t and runs before codegen. Each module's
  * `use "cdefine:..."` and `use "cincludedir:..."` directives become -D and -I
- * arguments for that package's sources only. Object paths are recorded on
+ * arguments for that module's sources only. Object paths are recorded on
  * the program (program_add_c_object) for the platform linkers to append.
  *
  * Clang diagnostics are routed into opt->check.errors, so a broken shim

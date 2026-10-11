@@ -613,10 +613,10 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
 
 // Top level functions
 
-bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
+bool parse(ast_t* module, source_t* source, rule_t start, const char* expected,
   errors_t* errors, strtable_t* strtab, bool allow_test_symbols, bool trace)
 {
-  pony_assert(package != NULL);
+  pony_assert(module != NULL);
   pony_assert(source != NULL);
   pony_assert(expected != NULL);
 
@@ -676,9 +676,9 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
     return false;
   }
 
-  pony_assert(ast_id(ast) == TK_MODULE);
+  pony_assert(ast_id(ast) == TK_FILE);
   pony_assert(ast_data(ast) == NULL);
   ast_setdata(ast, source);
-  ast_add(package, ast);
+  ast_add(module, ast);
   return true;
 }

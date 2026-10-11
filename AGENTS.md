@@ -65,9 +65,9 @@ Run individual tests by name:
 - `ctest --preset debug -R validate-grammar` — checks `pony.g` against the compiler
 - `ctest --preset debug -R examples` — compiles all examples (not part of `ci-core`; runs locally and in the weekly `build-examples.yml` workflow)
 
-#### Per-package stdlib tests
+#### Per-module stdlib tests
 
-A single package's tests can be compiled and run without rebuilding the full stdlib suite:
+A single module's tests can be compiled and run without rebuilding the full stdlib suite:
 
 ```bash
 cd build/debug && ./ponyc -b stdlib --checktree -Dopenssl_3.0.x --pic ../../packages/collections

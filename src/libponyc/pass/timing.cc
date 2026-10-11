@@ -26,7 +26,7 @@ namespace
     unsigned depth = 0;
     // The two parts the region is keyed by. Kept so JSON consumers get them as
     // separate fields instead of splitting the composed display name.
-    std::string package;
+    std::string module;
     std::string pass;
   };
 }
@@ -55,34 +55,34 @@ struct pass_timers_t
   std::string triple;
 };
 
-static std::string region_name(const char* package, const char* pass)
+static std::string region_name(const char* module, const char* pass)
 {
-  return std::string(package) + " (" + pass + ")";
+  return std::string(module) + " (" + pass + ")";
 }
 
-static pass_timer_t& get_timer(pass_timers_t* t, const char* package,
+static pass_timer_t& get_timer(pass_timers_t* t, const char* module,
   const char* pass)
 {
-  std::string nid = region_name(package, pass);
+  std::string nid = region_name(module, pass);
   auto it = t->timers.find(nid);
   if(it != t->timers.end())
     return it->second;
 
   pass_timer_t& pt = t->timers[nid];
   pt.timer = std::make_unique<llvm::Timer>(nid, nid, *t->group);
-  pt.package = package;
+  pt.module = module;
   pt.pass = pass;
   return pt;
 }
 
 // Look a region up without creating it.
-static pass_timer_t* find_timer(pass_timers_t* t, const char* package,
+static pass_timer_t* find_timer(pass_timers_t* t, const char* module,
   const char* pass)
 {
   if(t == nullptr)
     return nullptr;
 
-  auto it = t->timers.find(region_name(package, pass));
+  auto it = t->timers.find(region_name(module, pass));
   return (it != t->timers.end()) ? &it->second : nullptr;
 }
 
@@ -91,8 +91,8 @@ pass_timers_t* pass_timers_create()
   pass_timers_t* t = new pass_timers_t();
   // PrintOnExit = false: pass_timers_report prints explicitly. The default
   // (true) would make LLVM print the group a second time at shutdown.
-  t->group = std::make_unique<llvm::TimerGroup>("package_passes",
-    "Pony pass time by package and pass", false);
+  t->group = std::make_unique<llvm::TimerGroup>("module_passes",
+    "Pony pass time by module and pass", false);
   t->start_wall = llvm::TimeRecord::getCurrentTime(false).getWallTime();
   return t;
 }
@@ -147,12 +147,12 @@ void pass_timers_set_report_meta(pass_timers_t* t, bool build_ok,
   t->triple = t->has_triple ? triple : "";
 }
 
-void pass_timers_start(pass_timers_t* t, const char* package, const char* pass)
+void pass_timers_start(pass_timers_t* t, const char* module, const char* pass)
 {
   if(t == nullptr)
     return;
 
-  pass_timer_t& pt = get_timer(t, package, pass);
+  pass_timer_t& pt = get_timer(t, module, pass);
 
   if(pt.depth++ == 0)
   {
@@ -164,12 +164,12 @@ void pass_timers_start(pass_timers_t* t, const char* package, const char* pass)
   }
 }
 
-void pass_timers_stop(pass_timers_t* t, const char* package, const char* pass)
+void pass_timers_stop(pass_timers_t* t, const char* module, const char* pass)
 {
   // Look the region up without creating it: a stop with no matching start must
   // leave no trace, or it shows up as a zero row in the JSON while the table
   // (which skips timers that never ran) omits it.
-  pass_timer_t* pt = find_timer(t, package, pass);
+  pass_timer_t* pt = find_timer(t, module, pass);
 
   if((pt == nullptr) || (pt->depth == 0))
     return;
@@ -181,22 +181,22 @@ void pass_timers_stop(pass_timers_t* t, const char* package, const char* pass)
   }
 }
 
-unsigned int pass_timers_depth(pass_timers_t* t, const char* package,
+unsigned int pass_timers_depth(pass_timers_t* t, const char* module,
   const char* pass)
 {
-  const pass_timer_t* pt = find_timer(t, package, pass);
+  const pass_timer_t* pt = find_timer(t, module, pass);
   return (pt != nullptr) ? pt->depth : 0;
 }
 
-double pass_timers_wall(pass_timers_t* t, const char* package,
+double pass_timers_wall(pass_timers_t* t, const char* module,
   const char* pass)
 {
-  const pass_timer_t* pt = find_timer(t, package, pass);
+  const pass_timer_t* pt = find_timer(t, module, pass);
   return (pt != nullptr) ? pt->timer->getTotalTime().getWallTime() : 0.0;
 }
 
 // Emit `s` as a JSON string. Bytes JSON requires escaped are escaped, and
-// ill-formed UTF-8 becomes U+FFFD: a package name comes from the filesystem,
+// ill-formed UTF-8 becomes U+FFFD: a module name comes from the filesystem,
 // where a name is any NUL-free byte string, and a raw ill-formed byte would
 // produce a file a strict parser rejects.
 static void json_print_escaped(FILE* f, const char* s)
@@ -398,7 +398,7 @@ static bool write_json(pass_timers_t* t)
   member("elapsed_wall");
   json_print_seconds(f, elapsed_wall(t));
 
-  member("package_passes");
+  member("module_passes");
   fprintf(f, "[\n");
 
   bool first_timer = true;
@@ -412,8 +412,8 @@ static bool write_json(pass_timers_t* t)
       fprintf(f, ",\n");
     first_timer = false;
 
-    fprintf(f, "    {\"package\": ");
-    json_print_escaped(f, pt.package.c_str());
+    fprintf(f, "    {\"module\": ");
+    json_print_escaped(f, pt.module.c_str());
     fprintf(f, ", \"pass\": ");
     json_print_escaped(f, pt.pass.c_str());
     fprintf(f, ", \"wall\": ");
@@ -463,15 +463,15 @@ static void print_table(pass_timers_t* t)
   llvm::errs() << "Rows above total " << rows_buf << " s of " << elapsed_buf
     << " s elapsed.\n"
     << "The front-end passes, reach, and paint are timed. Reach and paint run "
-       "over the whole program and appear under the synthetic package name '"
-    << PASS_TIMERS_PROGRAM_PKG
+       "over the whole program and appear under the synthetic module name '"
+    << PASS_TIMERS_PROGRAM_MOD
     << "'. Compiling C shims, plugin passes, codegen, LLVM optimisation and "
        "linking are not timed, so the rows can cover less of a build than the "
        "elapsed time.\n";
 
   if(t->observed_nesting)
-    llvm::errs() << "Rows are inclusive and nest -- loading a package runs its "
-      "parse and syntax inside the importing package's scope row, counting "
+    llvm::errs() << "Rows are inclusive and nest -- loading a module runs its "
+      "parse and syntax inside the importing module's scope row, counting "
       "that time in both -- so they can also sum to more than the time they "
       "cover.\n";
 

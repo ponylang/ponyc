@@ -1,5 +1,5 @@
 """
-# Notifier Package
+# Notifier Module
 
 A convenience layer over the net package for straightforward TCP and UDP
 applications. You write a notifier class with the callbacks you care about,
@@ -113,7 +113,7 @@ calls `send_to` internally and discards the result.
 ## Naming
 
 `TCPListener`, `UDPSocket`, and `ConnectedUDPSocket` exist in both `net` and
-`net/notifier`. When using both packages, qualify the import:
+`net/notifier`. When using both modules, qualify the import:
 
 ```pony
 use "net"

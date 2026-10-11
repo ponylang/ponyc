@@ -59,29 +59,29 @@ class val Program
   new val create(ast': AST) =>
     ast = ast'
 
-  fun val package(): (Package | None) =>
+  fun val module(): (Module | None) =>
     """
-    The package representing the source directory.
+    The module representing the source directory.
     """
     match ast.child()
     | let p_ast: AST =>
       try
-        Package.create(this, p_ast)?
+        Module.create(this, p_ast)?
       end
     end
 
-  fun val packages(): Iterator[Package] =>
+  fun val modules(): Iterator[Module] =>
     """
-    Source directory is always the first package.
+    Source directory is always the first module.
     Second is builtin.
     The rest is still unknown to me.
     """
-    _PackageIter.create(this)
+    _ModuleIter.create(this)
 
-  fun val apply(package': String): Package ? =>
-    let package_ast =
-      ast.find_in_scope(package') as AST
-    Package.create(this, package_ast)?
+  fun val apply(module': String): Module ? =>
+    let module_ast =
+      ast.find_in_scope(module') as AST
+    Module.create(this, module_ast)?
 
   fun _final() =>
     // The Program owns both the AST and its

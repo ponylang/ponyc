@@ -1,7 +1,7 @@
 """
 Test fixtures for exercising LSP textDocument/documentSymbol functionality.
 
-Each file in this package targets a specific slice of `DocumentSymbols`:
+Each file in this module targets a specific slice of `DocumentSymbols`:
 
   _ds_containment.pony — layout mirrors the references fixture; drives
     the containment and range integration tests (selectionRange ⊆ range,
@@ -10,7 +10,7 @@ Each file in this package targets a specific slice of `DocumentSymbols`:
   _ds_ent_interface.pony — one of every top-level entity token
     (`tk_class`, `tk_actor`, `tk_trait`, `tk_interface`, `tk_primitive`,
     `tk_struct`, `tk_type`) to guard the entity → SymbolKind map in
-    `DocumentSymbols.from_module`.
+    `DocumentSymbols.from_file`.
 
   member_kinds.pony — one of every member token (`tk_new`, `tk_fun`,
     `tk_be`, `tk_flet`, `tk_fvar`, `tk_embed`) under an actor so

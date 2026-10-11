@@ -5,11 +5,11 @@ The tester writes stdin.txt and closes. The program reads it in 64-byte chunks,
 and exits 0 only if every byte arrives, in order, and the read after the last of
 them returns zero.
 
-stdin.txt is larger than the pipe buffer the process package gives a child's
+stdin.txt is larger than the pipe buffer the process module gives a child's
 stdin, so writing it is more than one write. A write to a Windows PIPE_NOWAIT
 pipe writes all of the request or none of it, so a write bigger than the buffer
 writes nothing to a reader that is not blocked in a read -- and this program is
-never blocked, it peeks. The process package caps each write to the buffer, so
+never blocked, it peeks. The process module caps each write to the buffer, so
 the write becomes writes that fit. Without that, this input never arrives.
 
 Each byte carries its own offset -- byte i is 33 + (i % 94), printable and never

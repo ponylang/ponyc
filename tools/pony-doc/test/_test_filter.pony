@@ -1,14 +1,14 @@
 use "pony_test"
 use doc = ".."
 
-class \nodoc\ _TestFilterTestPackage is UnitTest
-  fun name(): String => "Filter/test-package"
+class \nodoc\ _TestFilterTestModule is UnitTest
+  fun name(): String => "Filter/test-module"
 
   fun apply(h: TestHelper) =>
-    h.assert_true(doc.Filter.is_test_package("test"))
-    h.assert_true(doc.Filter.is_test_package("builtin_test"))
-    h.assert_false(doc.Filter.is_test_package("builtin"))
-    h.assert_false(doc.Filter.is_test_package("collections"))
+    h.assert_true(doc.Filter.is_test_module("test"))
+    h.assert_true(doc.Filter.is_test_module("builtin_test"))
+    h.assert_false(doc.Filter.is_test_module("builtin"))
+    h.assert_false(doc.Filter.is_test_module("collections"))
 
 class \nodoc\ _TestFilterPrivate is UnitTest
   fun name(): String => "Filter/private"

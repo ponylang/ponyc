@@ -153,7 +153,7 @@ actor \nodoc\ Main is TestList
     test(_TestCleanExtNotFound)
     test(_TestCleanExtNotDirectory)
     test(_TestCleanUnparseableSourceFails)
-    test(_TestCleanUnparseablePackageStillReachable)
+    test(_TestCleanUnparseableModuleStillReachable)
     test(_TestCleanCyclicRefsTerminate)
     test(_TestCleanAliasedUseKept)
     test(_TestCleanFilesInExtIgnored)

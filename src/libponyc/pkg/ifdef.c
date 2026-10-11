@@ -205,20 +205,20 @@ static void find_flags_in_cond(ast_t* ast, buildflagset_t* config)
 
 
 // Find the build config flags used in the guard conditions for all FFI
-// declarations for the specified FFI name in the specified package.
-static bool find_decl_flags(ast_t* package, const char* ffi_name,
+// declarations for the specified FFI name in the specified module.
+static bool find_decl_flags(ast_t* module, const char* ffi_name,
   buildflagset_t* config)
 {
-  pony_assert(package != NULL);
+  pony_assert(module != NULL);
   pony_assert(ffi_name != NULL);
   pony_assert(config != NULL);
 
   bool had_decl = false;
 
-  // FFI declarations are package wide, so check all modules in package.
-  for(ast_t* m = ast_child(package); m != NULL; m = ast_sibling(m))
+  // FFI declarations are module wide, so check all files in module.
+  for(ast_t* m = ast_child(module); m != NULL; m = ast_sibling(m))
   {
-    // Find all the FFI declarations in this module.
+    // Find all the FFI declarations in this file.
     for(ast_t* use = ast_child(m); use != NULL; use = ast_sibling(use))
     {
       if(ast_id(use) == TK_USE)
@@ -256,22 +256,22 @@ typedef struct ffi_decl_t
 // the same as the one found.
 // All other cases are errors, which will be reported by this function.
 // Returns: true on success, false on failure.
-static bool find_decl_for_config(ast_t* call, ast_t* package,
+static bool find_decl_for_config(ast_t* call, ast_t* module,
   const char* ffi_name, buildflagset_t* config, ffi_decl_t* decl_info,
   pass_opt_t* opt)
 {
   pony_assert(call != NULL);
-  pony_assert(package != NULL);
+  pony_assert(module != NULL);
   pony_assert(ffi_name != NULL);
   pony_assert(config != NULL);
   pony_assert(decl_info != NULL);
 
   bool had_valid_decl = false;
 
-  // FFI declarations are package wide, so check all modules in package.
-  for(ast_t* m = ast_child(package); m != NULL; m = ast_sibling(m))
+  // FFI declarations are module wide, so check all files in module.
+  for(ast_t* m = ast_child(module); m != NULL; m = ast_sibling(m))
   {
-    // Find all the FFI declarations in this module.
+    // Find all the FFI declarations in this file.
     for(ast_t* use = ast_child(m); use != NULL; use = ast_sibling(use))
     {
       if(ast_id(use) == TK_USE)
@@ -357,11 +357,11 @@ static void check_config_count(buildflagset_t* config, ast_t* location)
 // Find the declaration for the given FFI call that is valid for the given
 // build config, within the specified ifdef condition (NULL for none).
 // Returns: true on success, false on failure.
-static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
+static bool find_ffi_decl(ast_t* ast, ast_t* module, ast_t* ifdef_cond,
   ast_t** out_decl, pass_opt_t* opt)
 {
   pony_assert(ast != NULL);
-  pony_assert(package != NULL);
+  pony_assert(module != NULL);
   pony_assert(out_decl != NULL);
 
   const char* ffi_name = ast_name(ast_child(ast));
@@ -371,7 +371,7 @@ static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
   if(ifdef_cond != NULL)
     find_flags_in_cond(ifdef_cond, config);
 
-  if(!find_decl_flags(package, ffi_name, config))
+  if(!find_decl_flags(module, ffi_name, config))
   {
     // There are no declarations for this FFI.
     buildflagset_free(config);
@@ -389,7 +389,7 @@ static bool find_ffi_decl(ast_t* ast, ast_t* package, ast_t* ifdef_cond,
     {
       // ifdef condition true, or not in an ifdef.
       // Look for valid FFI declaration.
-      if(!find_decl_for_config(ast, package, ffi_name, config, &decl_info, opt))
+      if(!find_decl_for_config(ast, module, ffi_name, config, &decl_info, opt))
       {
         // Config has failed.
         buildflagset_free(config);
@@ -477,7 +477,7 @@ bool ffi_get_decl(typecheck_t* t, ast_t* ast, ast_t** out_decl,
   {
     // We've not looked that up yet.
     pony_assert(decl == NULL);
-    if(!find_ffi_decl(ast, t->frame->package, t->frame->ifdef_cond, &decl, opt))
+    if(!find_ffi_decl(ast, t->frame->module, t->frame->ifdef_cond, &decl, opt))
     {
       // That went wrong. Record that so we don't try again.
       symtab_add(symtab, ffi_name, NULL, SYM_ERROR, opt->strtab);

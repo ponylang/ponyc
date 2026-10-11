@@ -51,8 +51,8 @@ static size_t get_width()
   return width;
 }
 
-static bool compile_package(const char* path, pass_opt_t* opt,
-  bool print_program_ast, bool print_package_ast)
+static bool compile_module(const char* path, pass_opt_t* opt,
+  bool print_program_ast, bool print_module_ast)
 {
   ast_t* program = program_load(path, opt);
 
@@ -62,7 +62,7 @@ static bool compile_package(const char* path, pass_opt_t* opt,
   if(print_program_ast)
     ast_fprint(stderr, program, opt->ast_print_width);
 
-  if(print_package_ast)
+  if(print_module_ast)
     ast_fprint(stderr, ast_child(program), opt->ast_print_width);
 
   bool ok = generate_passes(program, opt);
@@ -106,13 +106,13 @@ int main(int argc, char* argv[])
 
   ponyc_opt_process_t exit_code;
   bool print_program_ast;
-  bool print_package_ast;
+  bool print_module_ast;
 
   opt_state_t s;
   ponyint_opt_init(ponyc_opt_std_args(), &s, &argc, argv);
 
   exit_code = ponyc_opt_process(&s, &opt, &print_program_ast,
-                  &print_package_ast);
+                  &print_module_ast);
 
   if(exit_code == EXIT_255)
   {
@@ -132,11 +132,11 @@ int main(int argc, char* argv[])
   {
     if(argc == 1)
     {
-      ok &= compile_package(".", &opt, print_program_ast, print_package_ast);
+      ok &= compile_module(".", &opt, print_program_ast, print_module_ast);
     } else {
       for(int i = 1; i < argc; i++)
-        ok &= compile_package(argv[i], &opt, print_program_ast,
-          print_package_ast);
+        ok &= compile_module(argv[i], &opt, print_program_ast,
+          print_module_ast);
     }
   }
 

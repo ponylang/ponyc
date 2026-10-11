@@ -15,12 +15,12 @@ TEST(ProgramTest, PackageID)
   ast_t* prog = ast_blank(TK_PROGRAM);
   ASSERT_NE((void*)NULL, prog);
 
-  ASSERT_EQ((unsigned int)0, program_assign_pkg_id(prog));
-  ASSERT_EQ((unsigned int)1, program_assign_pkg_id(prog));
-  ASSERT_EQ((unsigned int)2, program_assign_pkg_id(prog));
-  ASSERT_EQ((unsigned int)3, program_assign_pkg_id(prog));
-  ASSERT_EQ((unsigned int)4, program_assign_pkg_id(prog));
-  ASSERT_EQ((unsigned int)5, program_assign_pkg_id(prog));
+  ASSERT_EQ((unsigned int)0, program_assign_module_id(prog));
+  ASSERT_EQ((unsigned int)1, program_assign_module_id(prog));
+  ASSERT_EQ((unsigned int)2, program_assign_module_id(prog));
+  ASSERT_EQ((unsigned int)3, program_assign_module_id(prog));
+  ASSERT_EQ((unsigned int)4, program_assign_module_id(prog));
+  ASSERT_EQ((unsigned int)5, program_assign_module_id(prog));
 
   ast_free(prog);
 }
@@ -200,11 +200,11 @@ TEST(ProgramTest, LibPathsRelative)
   pass_opt_t opt;
   pass_opt_init(&opt);
 
-  // create a fake package
-  ast_t* pkg = create_package(prog, "/foo", "foo", &opt);
+  // create a fake module
+  ast_t* pkg = create_module(prog, "/foo", "foo", &opt);
   ASSERT_NE((void*)NULL, pkg);
 
-  // pretend we issue a use "path:..." from within that package
+  // pretend we issue a use "path:..." from within that module
   ASSERT_TRUE(use_path(pkg, "bar", NULL, &opt));
 
   program_lib_build_args(prog, &opt, "static", "dynamic", "", "", "", "");
@@ -232,11 +232,11 @@ TEST(ProgramTest, LibPathsAbsolute)
   pass_opt_t opt;
   pass_opt_init(&opt);
 
-  // create a fake package
-  ast_t* pkg = create_package(prog, "/foo", "foo", &opt);
+  // create a fake module
+  ast_t* pkg = create_module(prog, "/foo", "foo", &opt);
   ASSERT_NE((void*)NULL, pkg);
 
-  // pretend we issue a use "path:..." from within that package
+  // pretend we issue a use "path:..." from within that module
   ASSERT_TRUE(use_path(pkg, "/bar", NULL, &opt));
 
   program_lib_build_args(prog, &opt, "static", "dynamic", "", "", "", "");

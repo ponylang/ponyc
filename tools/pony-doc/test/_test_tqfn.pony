@@ -22,8 +22,8 @@ class \nodoc\ _TestTQFNIndexOverride is UnitTest
     // The "-index" override produces a double dash: separator + "-index"
     h.assert_eq[String](doc.TQFN("builtin", "-index"), "builtin--index")
 
-class \nodoc\ _TestTQFNEmptyPackage is UnitTest
-  fun name(): String => "TQFN/empty-package"
+class \nodoc\ _TestTQFNEmptyModule is UnitTest
+  fun name(): String => "TQFN/empty-module"
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String](doc.TQFN("", "Foo"), "-Foo")

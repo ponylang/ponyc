@@ -15,17 +15,17 @@ class \nodoc\ _TestBlankLinesNoBlankBeforeFirstField is UnitTest
       "  let x: U32 = 0\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -43,10 +43,10 @@ class \nodoc\ _TestBlankLinesBlankBeforeFirstField is UnitTest
       "  let x: U32 = 0\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_true(diags.size() > 0)
           try
@@ -59,7 +59,7 @@ class \nodoc\ _TestBlankLinesBlankBeforeFirstField is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -79,17 +79,17 @@ class \nodoc\ _TestBlankLinesDocstringNoBlank is UnitTest
       "  let x: U32 = 0\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -110,17 +110,17 @@ class \nodoc\ _TestBlankLinesMultiLineHeaderClean is UnitTest
       "  fun greet(): String => \"hi\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -139,17 +139,17 @@ class \nodoc\ _TestBlankLinesConsecutiveFieldsClean is UnitTest
       "  var z: U32 = 2\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -168,10 +168,10 @@ class \nodoc\ _TestBlankLinesConsecutiveFieldsBlank is UnitTest
       "  let y: U32 = 1\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_true(diags.size() > 0)
           try
@@ -184,7 +184,7 @@ class \nodoc\ _TestBlankLinesConsecutiveFieldsBlank is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -203,17 +203,17 @@ class \nodoc\ _TestBlankLinesFieldToMethodOneBlank is UnitTest
       "  fun apply(): U32 => x\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -231,10 +231,10 @@ class \nodoc\ _TestBlankLinesFieldToMethodNoBlank is UnitTest
       "  fun apply(): U32 => x\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_true(diags.size() > 0)
           try
@@ -247,7 +247,7 @@ class \nodoc\ _TestBlankLinesFieldToMethodNoBlank is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -268,17 +268,17 @@ class \nodoc\ _TestBlankLinesMultiLineMethodsOneBlank is UnitTest
       "    U32(2)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -298,10 +298,10 @@ class \nodoc\ _TestBlankLinesMultiLineMethodsNoBlank is UnitTest
       "    U32(2)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_true(diags.size() > 0)
           try
@@ -314,7 +314,7 @@ class \nodoc\ _TestBlankLinesMultiLineMethodsNoBlank is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -332,17 +332,17 @@ class \nodoc\ _TestBlankLinesOneLineMethodsNoBlank is UnitTest
       "  fun bar(): U32 => U32(2)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -369,7 +369,7 @@ class \nodoc\ _TestBlankLinesBetweenEntitiesOneBlank is UnitTest
           .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
           .> push(("Bar", ast.TokenIds.tk_class(), 4, 5))
       end
-    let diags = lint.BlankLines.check_module(entities, sf)
+    let diags = lint.BlankLines.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestBlankLinesBetweenEntitiesNoBlank is UnitTest
@@ -391,7 +391,7 @@ class \nodoc\ _TestBlankLinesBetweenEntitiesNoBlank is UnitTest
           .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
           .> push(("Bar", ast.TokenIds.tk_class(), 3, 4))
       end
-    let diags = lint.BlankLines.check_module(entities, sf)
+    let diags = lint.BlankLines.check_file(entities, sf)
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_true(diags(0)?.message.contains("between entities"))
@@ -420,7 +420,7 @@ class \nodoc\ _TestBlankLinesBetweenEntitiesTooMany is UnitTest
           .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
           .> push(("Bar", ast.TokenIds.tk_class(), 5, 6))
       end
-    let diags = lint.BlankLines.check_module(entities, sf)
+    let diags = lint.BlankLines.check_file(entities, sf)
     h.assert_eq[USize](1, diags.size())
 
 class \nodoc\ _TestBlankLinesOneLinerEntitiesNoBlank is UnitTest
@@ -442,11 +442,11 @@ class \nodoc\ _TestBlankLinesOneLinerEntitiesNoBlank is UnitTest
           .> push(("Green", ast.TokenIds.tk_primitive(), 2, 2))
           .> push(("Blue", ast.TokenIds.tk_primitive(), 3, 3))
       end
-    let diags = lint.BlankLines.check_module(entities, sf)
+    let diags = lint.BlankLines.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestMaxLineVisitor is ast.ASTVisitor
-  """Test copy of _MaxLineVisitor (package-private in pony-lint)."""
+  """Test copy of _MaxLineVisitor (module-private in pony-lint)."""
   var max_line: USize
 
   new ref create(seed: USize) => max_line = seed
@@ -527,20 +527,20 @@ class \nodoc\ _TestBlankLinesBetweenDocstringEntities is UnitTest
       "  \"\"\"Bar docs.\"\"\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let collector = _TestEntityCollector
           mod.ast.visit(collector)
           let entities = collector.entities()
-          let diags = lint.BlankLines.check_module(entities, sf)
+          let diags = lint.BlankLines.check_file(entities, sf)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -572,17 +572,17 @@ class \nodoc\ _TestBlankLinesMultiLineDocMethodClean is UnitTest
       "  fun bar(): None => None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -612,10 +612,10 @@ class \nodoc\ _TestBlankLinesMultiLineDocMethodNoBlank is UnitTest
       "  fun bar(): None => None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_true(diags.size() > 0)
           try
@@ -628,7 +628,7 @@ class \nodoc\ _TestBlankLinesMultiLineDocMethodNoBlank is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -658,17 +658,17 @@ class \nodoc\ _TestBlankLinesMultiLineDocFieldToMethod is UnitTest
       "  fun apply(): U32 => x\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -698,20 +698,20 @@ class \nodoc\ _TestBlankLinesMultiLineDocEntities is UnitTest
       "  \"\"\"Bar docs.\"\"\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let collector = _TestEntityCollector
           mod.ast.visit(collector)
           let entities = collector.entities()
-          let diags = lint.BlankLines.check_module(entities, sf)
+          let diags = lint.BlankLines.check_file(entities, sf)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -741,10 +741,10 @@ class \nodoc\ _TestBlankLinesLeadingBlankDocEntitiesClean is UnitTest
       "  fun apply(): None => None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let collector = _TestEntityCollector
           mod.ast.visit(collector)
           let entities = collector.entities()
@@ -759,13 +759,13 @@ class \nodoc\ _TestBlankLinesLeadingBlankDocEntitiesClean is UnitTest
           else
             h.fail("could not access Foo entity")
           end
-          let diags = lint.BlankLines.check_module(entities, sf)
+          let diags = lint.BlankLines.check_file(entities, sf)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -795,14 +795,14 @@ class \nodoc\ _TestBlankLinesLeadingBlankDocEntitiesNoBlank is UnitTest
       "  fun apply(): None => None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let collector = _TestEntityCollector
           mod.ast.visit(collector)
           let entities = collector.entities()
-          let diags = lint.BlankLines.check_module(entities, sf)
+          let diags = lint.BlankLines.check_file(entities, sf)
           h.assert_eq[USize](1, diags.size())
           try
             h.assert_true(
@@ -814,7 +814,7 @@ class \nodoc\ _TestBlankLinesLeadingBlankDocEntitiesNoBlank is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -850,7 +850,7 @@ class \nodoc\ _TestBlankLinesBlockCommentBetweenEntitiesClean is UnitTest
           .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
           .> push(("Bar", ast.TokenIds.tk_type(), 9, 9))
       end
-    let diags = lint.BlankLines.check_module(entities, sf)
+    let diags = lint.BlankLines.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestBlankLinesBlockCommentNoSeparator is UnitTest
@@ -877,7 +877,7 @@ class \nodoc\ _TestBlankLinesBlockCommentNoSeparator is UnitTest
           .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
           .> push(("Bar", ast.TokenIds.tk_type(), 4, 4))
       end
-    let diags = lint.BlankLines.check_module(entities, sf)
+    let diags = lint.BlankLines.check_file(entities, sf)
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_true(diags(0)?.message.contains("between entities"))
@@ -911,7 +911,7 @@ class \nodoc\ _TestBlankLinesNestedBlockCommentClean is UnitTest
           .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
           .> push(("Bar", ast.TokenIds.tk_type(), 7, 7))
       end
-    let diags = lint.BlankLines.check_module(entities, sf)
+    let diags = lint.BlankLines.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestBlankLinesLineCommentWithBlockDelimiterClean is UnitTest
@@ -938,7 +938,7 @@ class \nodoc\ _TestBlankLinesLineCommentWithBlockDelimiterClean is UnitTest
           .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
           .> push(("Bar", ast.TokenIds.tk_type(), 5, 5))
       end
-    let diags = lint.BlankLines.check_module(entities, sf)
+    let diags = lint.BlankLines.check_file(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestBlankLinesBlockCommentBetweenMethodsClean is UnitTest
@@ -966,17 +966,17 @@ class \nodoc\ _TestBlankLinesBlockCommentBetweenMethodsClean is UnitTest
       "    U32(2)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -1006,17 +1006,17 @@ class \nodoc\ _TestBlankLinesLeadingBlankDocMethodClean is UnitTest
       "  fun bar(): None => None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -1044,10 +1044,10 @@ class \nodoc\ _TestBlankLinesLeadingBlankDocMethodNoBlank is UnitTest
       "  fun bar(): None => None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_true(diags.size() > 0)
           try
@@ -1060,7 +1060,7 @@ class \nodoc\ _TestBlankLinesLeadingBlankDocMethodNoBlank is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")

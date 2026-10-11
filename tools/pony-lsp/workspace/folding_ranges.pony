@@ -4,7 +4,7 @@ use "pony_compiler"
 
 primitive FoldingRanges
   """
-  Collects textDocument/foldingRange results for a module.
+  Collects textDocument/foldingRange results for a file.
 
   Returns one FoldingRange per top-level type entity (class, actor, struct,
   trait, interface, primitive, type alias) and one per member (fun, be, new).
@@ -32,10 +32,10 @@ primitive FoldingRanges
   or member boundary where it logically ends.
 
   Synthetic entity detection relies on source-line monotonicity: user-defined
-  entities appear in `module.ast.children()` in ascending source-line order,
+  entities appear in `file.ast.children()` in ascending source-line order,
   while compiler-generated entities (desugared `object`/lambda classes,
-  dispatch helpers, etc.) may appear non-monotonically. Any entity whose line
-  does not strictly exceed the running maximum is treated as synthetic.
+  dispatch helpers, etc.) may appear non-monotonically. Any entity whose
+  line does not strictly exceed the running maximum is treated as synthetic.
 
   Known limitation: this heuristic misclassifies a desugared `object` or
   lambda class as a real entity when it appears in a file where the entity
@@ -47,7 +47,7 @@ primitive FoldingRanges
   the last top-level entity by start line contains an `object`/lambda and
   there is no subsequent entity with a higher start line to act as a sentinel.
   """
-  fun collect(module: Module val): Array[JSONValue] =>
+  fun collect(file': SourceFile val): Array[JSONValue] =>
     """
     Returns an array of folding range objects for all top-level entities,
     their members, and multi-line expressions within method bodies.
@@ -56,7 +56,7 @@ primitive FoldingRanges
     let entities: Array[AST box] = Array[AST box]
     let synthetic_entities: Array[AST box] = Array[AST box]
     var max_entity_line: USize = 0
-    for node in module.ast.children() do
+    for node in file'.ast.children() do
       match node.id()
       | TokenIds.tk_class()
       | TokenIds.tk_actor()
@@ -171,7 +171,7 @@ primitive FoldingRanges
     Note: tk_object, tk_lambda, and tk_barelambda are not matched here
     because PassExpr replaces those literals with constructor calls before
     the AST reaches the LSP. Fold ranges for object/lambda expressions are
-    produced via the synthetic entity classes appended to the module.
+    produced via the synthetic entity classes appended to the file.
 
     Note: tk_ifdef is not matched here because resolve_ifdef() converts it
     to tk_if during the expr pass. Fold ranges for ifdef expressions are

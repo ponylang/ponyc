@@ -509,7 +509,7 @@ class \nodoc\ iso _TestDisposeRestoresDefaultDisposition is UnitTest
   regresses, the probe sees the runtime's handler (epoll and Windows) or
   SIG_IGN (kqueue) instead of SIG_DFL. If SIGTERM registration itself
   broke, this test passes vacuously; registration and delivery are pinned
-  by the other tests in this package. It shares SIGTERM with the
+  by the other tests in this module. It shares SIGTERM with the
   subscriber-limit test — see the note at the top of this file on why the
   SIGTERM tests clean up fully before finishing.
   """

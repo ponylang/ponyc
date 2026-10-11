@@ -1,5 +1,5 @@
 """
-# Term package
+# Term Package
 
 The Term package provides support for building text-based user
 interfaces in ANSI terminals.

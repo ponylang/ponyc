@@ -181,8 +181,8 @@ typedef enum token_id
 
   // Abstract tokens which don't directly appear in the source
   TK_PROGRAM,
-  TK_PACKAGE,
   TK_MODULE,
+  TK_FILE,
 
   TK_MEMBERS,
   TK_FVAR,
@@ -238,7 +238,7 @@ typedef enum token_id
   TK_MATCH_DONTCARE,
 
   TK_REFERENCE,
-  TK_PACKAGEREF,
+  TK_MODULEREF,
   TK_TYPEREF,
   TK_TYPEPARAMREF,
   TK_TYPEALIASREF,

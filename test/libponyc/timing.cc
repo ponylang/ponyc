@@ -349,7 +349,7 @@ TEST_F(TimingTest, UnbalancedStopIsIgnoredAndCreatesNoRow)
   EXPECT_TRUE(is_valid_json(json)) << json;
   EXPECT_EQ(std::string::npos, json.find("never_started"));
   // The array is empty, not merely missing the phantom row.
-  EXPECT_EQ(std::string::npos, json.find("\"package\":"));
+  EXPECT_EQ(std::string::npos, json.find("\"module\":"));
 }
 
 
@@ -407,7 +407,7 @@ TEST_F(TimingTest, EveryByteIsEscapedExactly)
         }
     }
 
-    std::string expected = std::string("\"package\": \"a") + want + "z\"";
+    std::string expected = std::string("\"module\": \"a") + want + "z\"";
     EXPECT_NE(std::string::npos, json.find(expected))
       << "byte " << b << " not escaped as expected in: " << json;
   }
@@ -415,7 +415,7 @@ TEST_F(TimingTest, EveryByteIsEscapedExactly)
 
 
 // Well-formed multi-byte UTF-8 must survive verbatim: replacing every byte
-// >= 0x80 would keep the file valid while mangling legitimate package names.
+// >= 0x80 would keep the file valid while mangling legitimate module names.
 TEST_F(TimingTest, WellFormedUtf8PassesThrough)
 {
   std::string path = temp_path("utf8");
@@ -435,7 +435,7 @@ TEST_F(TimingTest, WellFormedUtf8PassesThrough)
   ASSERT_FALSE(json.empty());
   EXPECT_TRUE(is_valid_json(json)) << json;
   EXPECT_NE(std::string::npos,
-    json.find(std::string("\"package\": \"") + pkg + "\""));
+    json.find(std::string("\"module\": \"") + pkg + "\""));
 }
 
 
@@ -499,17 +499,17 @@ TEST_F(TimingTest, MultipleRowsAreSeparatedAndNameOrdered)
   ASSERT_FALSE(json.empty());
   EXPECT_TRUE(is_valid_json(json)) << json;
 
-  size_t a = json.find("\"package\": \"aaa\"");
-  size_t z = json.find("\"package\": \"zzz\"");
+  size_t a = json.find("\"module\": \"aaa\"");
+  size_t z = json.find("\"module\": \"zzz\"");
   ASSERT_NE(std::string::npos, a);
   ASSERT_NE(std::string::npos, z);
   EXPECT_LT(a, z);
 }
 
 
-// Regions accumulate by (package, pass) across start/stop pairs. This is what
-// lets module_passes time parse per module and still report one row per
-// package, so it needs a test of its own.
+// Regions accumulate by (module, pass) across start/stop pairs. This is what
+// lets file_passes time parse per file and still report one row per
+// module, so it needs a test of its own.
 TEST_F(TimingTest, RepeatedRegionAccumulatesIntoOneRow)
 {
   std::string path = temp_path("accum");
@@ -539,10 +539,10 @@ TEST_F(TimingTest, RepeatedRegionAccumulatesIntoOneRow)
   EXPECT_TRUE(is_valid_json(json)) << json;
 
   // One row, not two.
-  size_t first_row = json.find("\"package\": \"builtin\"");
+  size_t first_row = json.find("\"module\": \"builtin\"");
   ASSERT_NE(std::string::npos, first_row);
   EXPECT_EQ(std::string::npos,
-    json.find("\"package\": \"builtin\"", first_row + 1));
+    json.find("\"module\": \"builtin\"", first_row + 1));
 }
 
 
@@ -915,7 +915,7 @@ TEST_F(TimingPassTest, CompileLeavesNoRegionRunning)
   for(const char* p : passes)
     EXPECT_EQ(0u, pass_timers_depth(opt.timers, "prog", p)) << p;
 
-  // The passes really ran on the package, so the assertion above is not
+  // The passes really ran on the module, so the assertion above is not
   // vacuously true of regions that were never opened.
   EXPECT_GT(pass_timers_wall(opt.timers, "prog", "expr"), 0.0);
 
@@ -974,5 +974,5 @@ TEST_F(TimingPassTest, FinaliserPassIsTimed)
   ASSERT_FALSE(json.empty());
   EXPECT_TRUE(is_valid_json(json)) << json;
   EXPECT_NE(std::string::npos,
-    json.find("\"package\": \"prog\", \"pass\": \"final\""));
+    json.find("\"module\": \"prog\", \"pass\": \"final\""));
 }

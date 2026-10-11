@@ -758,8 +758,8 @@ typical pattern: `Main` creates a `TCPListenAuth`, the listener creates a
 
 ## Notifier API
 
-The `net/notifier` subpackage provides an alternative callback-style API.
+The `net/notifier` submodule provides an alternative callback-style API.
 Instead of implementing actor traits and delegating to a `TCPConnection` class,
 you hand a notifier object to a concrete actor and the actor calls you back.
-See the [notifier package](/net/notifier--index/) documentation for details.
+See the [notifier module](/net/notifier--index/) documentation for details.
 """

@@ -43,7 +43,7 @@
 // comment below).
 
 #define MAX_SIGNAL 32
-// The 16-subscriber cap is documented API behavior — the signals-package
+// The 16-subscriber cap is documented API behavior — the signals module's
 // docstrings state it — and epoll.c, kqueue.c, and sock_notify.c must all use
 // the same value. A backend-only change desyncs the platforms and contradicts
 // the docstrings.
@@ -85,7 +85,7 @@ typedef struct signal_subscribers_t {
   // The disposition in place before the first subscriber replaced it, returned
   // by the CRT signal() at install and put back on last-subscriber teardown.
   // Restoring this instead of SIG_DFL preserves a disposition a program set
-  // itself before using the package. Written by the first subscriber before it
+  // itself before using the module. Written by the first subscriber before it
   // publishes registered == 1 and read by the last canceler after it claims
   // registered, so the registered protocol orders the two with no extra sync.
   void (*saved_action)(int);
@@ -802,7 +802,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           }
 
           // The exit event owns the process handle's close (see
-          // ponyint_win_process_wait and the process package's exit-source
+          // ponyint_win_process_wait and the process module's exit-source
           // teardown): close it once, now that no wait is registered on it.
           CloseHandle((HANDLE)ev->nsec);
 

@@ -47,7 +47,7 @@ primitive ASTIdentifier
         end
       end
     | TokenIds.tk_typealiasref() =>
-      // Type alias references: identifier at child(0) (no package prefix)
+      // Type alias references: identifier at child(0) (no module prefix)
       try
         let id = ast(0)?
         if id.id() == TokenIds.tk_id() then

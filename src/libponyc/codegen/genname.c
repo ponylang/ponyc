@@ -60,11 +60,11 @@ static void type_append(printbuf_t* buf, ast_t* type, bool first)
     case TK_NOMINAL:
     {
       // pkg_Type[_Arg1_Arg2]_cap
-      AST_GET_CHILDREN(type, package, name, typeargs, cap, eph);
+      AST_GET_CHILDREN(type, module, name, typeargs, cap, eph);
 
       ast_t* def = (ast_t*)ast_data(type);
-      ast_t* pkg = ast_nearest(def, TK_PACKAGE);
-      const char* pkg_name = package_symbol(pkg);
+      ast_t* pkg = ast_nearest(def, TK_MODULE);
+      const char* pkg_name = module_symbol(pkg);
 
       if(pkg_name != NULL)
         printbuf(buf, "%s_", pkg_name);
@@ -166,7 +166,7 @@ static const char* stringtab_two(const char* a, const char* b, strtable_t* strta
 
 const char* genname_type(ast_t* ast, strtable_t* strtab)
 {
-  // package_Type[_Arg1_Arg2]
+  // module_Type[_Arg1_Arg2]
   printbuf_t* buf = printbuf_new();
   type_append(buf, ast, true);
   return stringtab_buf(buf, strtab);
@@ -174,7 +174,7 @@ const char* genname_type(ast_t* ast, strtable_t* strtab)
 
 const char* genname_type_and_cap(ast_t* ast, strtable_t* strtab)
 {
-  // package_Type[_Arg1_Arg2]_cap
+  // module_Type[_Arg1_Arg2]_cap
   printbuf_t* buf = printbuf_new();
   type_append(buf, ast, false);
   return stringtab_buf(buf, strtab);

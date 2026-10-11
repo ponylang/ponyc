@@ -205,9 +205,9 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
 
   if(ast_id(receiver_type) == TK_NOMINAL)
   {
-    AST_GET_CHILDREN(receiver_type, package, id);
+    AST_GET_CHILDREN(receiver_type, module, id);
 
-    if(ast_name(package) == c->str_builtin)
+    if(ast_name(module) == c->str_builtin)
       name = ast_name(id);
   }
 
@@ -1237,10 +1237,10 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
 
   if(ast_id(pattern_type) == TK_NOMINAL)
   {
-    AST_GET_CHILDREN(pattern_type, package, id);
+    AST_GET_CHILDREN(pattern_type, module, id);
 
     // Special case equality on primitive types.
-    if(ast_name(package) == c->str_builtin)
+    if(ast_name(module) == c->str_builtin)
     {
       const char* name = ast_name(id);
 

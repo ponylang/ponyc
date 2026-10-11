@@ -88,7 +88,7 @@ primitive _Heartbeat
 actor Main
   new create(env: Env) =>
     """
-    Parse the workload args with the `cli` package and
+    Parse the workload args with the `cli` module and
     dispatch on the workload kind. `--help` prints usage
     and exits 0; a syntax error (unknown flag, missing
     value, bad number) or a failed value check exits
@@ -1386,7 +1386,7 @@ class val _Config
 primitive _Cli
   """
   Builds the workload command spec and extracts a validated `_Config` from a
-  parsed command. The `cli` package handles unknown flags, missing values, bad
+  parsed command. The `cli` module handles unknown flags, missing values, bad
   numbers, and `--help`; this adds the value-set and lower-bound checks it can't
   express. Runtime `--pony*` flags are stripped by the runtime before `Main`
   sees `env.args`, so they never reach the parser. Every option carries a

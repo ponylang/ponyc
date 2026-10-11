@@ -26,8 +26,8 @@ actor Main
           ],
           [
             ArgSpec.string(
-              "package",
-              "Path to the Pony package to compile"
+              "module",
+              "Path to the Pony module to compile"
               where default' = "")
           ])? .> add_help()?
       else
@@ -58,11 +58,11 @@ actor Main
       return
     end
 
-    let package_path = cmd.arg("package").string()
-    if package_path.size() == 0 then
-      env.err.print("error: package path is required")
+    let module_path = cmd.arg("module").string()
+    if module_path.size() == 0 then
+      env.err.print("error: module path is required")
       env.err.print(
-        "usage: pony-agent-server <package> [-D define]...")
+        "usage: pony-agent-server <module> [-D define]...")
       env.err.print(
         "run with --help for options" +
         " or --queries for the query reference")
@@ -70,7 +70,7 @@ actor Main
       return
     end
 
-    let file_path = FilePath(FileAuth(env.root), package_path)
+    let file_path = FilePath(FileAuth(env.root), module_path)
 
     let argv0 =
       try env.args(0)?
@@ -113,8 +113,8 @@ primitive \nodoc\ QueryHelp
     "   \"file\":\"...\", \"line\":N, \"column\":N}\n" +
     "\n" +
     "exports\n" +
-    "  Public types in a package.\n" +
-    "  {\"query\":\"exports\", \"package\":\"...\"}\n" +
+    "  Public types in a module.\n" +
+    "  {\"query\":\"exports\", \"module\":\"...\"}\n" +
     "\n" +
     "type_api\n" +
     "  Callable methods for a type at a capability.\n" +
@@ -140,7 +140,7 @@ primitive \nodoc\ QueryHelp
     "  {\"query\":\"errors\"}\n" +
     "\n" +
     "reload\n" +
-    "  Recompile the package.\n" +
+    "  Recompile the module.\n" +
     "  {\"query\":\"reload\"}\n" +
     "\n" +
     "status\n" +

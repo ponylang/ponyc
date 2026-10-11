@@ -132,13 +132,13 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
 
 // External API
 
-/** Generates a module AST and attaches it to the given package AST.
+/** Generates a file AST and attaches it to the given module AST.
  * The expected argument is used in the generated error message if nothing is
  * found. It is not stored.
  * The given source is attached to the resulting AST on success and closed on
  * failure.
  */
-bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
+bool parse(ast_t* module, source_t* source, rule_t start, const char* expected,
   errors_t* errors, strtable_t* strtab, bool allow_test_symbols, bool trace);
 
 

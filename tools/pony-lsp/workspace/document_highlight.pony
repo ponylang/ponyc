@@ -8,16 +8,16 @@ primitive DocumentHighlights
   """
   Collects `textDocument/documentHighlight` results for a given AST node.
 
-  Walking the entire module AST, it finds every node that resolves to the same
+  Walking the entire file AST, it finds every node that resolves to the same
   definition as the cursor node and returns each as a `(range, kind)` pair,
   where `kind` is a `DocumentHighlightKind` value (Text=1, Read=2, Write=3).
   """
   fun collect(
     node: AST box,
-    module: Module val): Array[DocumentHighlight]
+    file': SourceFile val): Array[DocumentHighlight]
   =>
     """
-    Walk the module AST and return the source ranges and kinds of all nodes
+    Walk the file AST and return the source ranges and kinds of all nodes
     that resolve to the same definition as `node`, including the definition
     site itself.
 
@@ -102,12 +102,12 @@ primitive DocumentHighlights
       end
 
     let collector = _HighlightCollector(target)
-    module.ast.visit(collector)
+    file'.ast.visit(collector)
     collector.highlights()
 
 class ref _HighlightCollector is ASTVisitor
   """
-  AST visitor that collects `(range, kind)` pairs for every node in the module
+  AST visitor that collects `(range, kind)` pairs for every node in the file
   that resolves to a given target definition.
 
   Kind assignment rules (evaluated on the matched AST node before extracting

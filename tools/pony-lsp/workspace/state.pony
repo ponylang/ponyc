@@ -6,27 +6,27 @@ use "pony_compiler"
 
 use ".."
 
-class PackageState
+class ModuleState
   """
-  State of a compiled package, containing its modules and document states.
+  State of a compiled module, containing its files and document states.
   """
   let path: FilePath
   let _documents: Map[String, DocumentState]
   let _channel: Channel
-  var _package: FromCompilerRun[Package]
+  var _module: FromCompilerRun[Module]
   var _compiler_run_id: USize
 
   new create(path': FilePath, channel: Channel) =>
     path = path'
     _channel = channel
     _documents = _documents.create()
-    _package = _package.empty()
+    _module = _module.empty()
     _compiler_run_id = 0
 
   fun debug(): String val =>
-    "Package " + path.path + " (" + (
+    "Module " + path.path + " (" + (
       try
-        (package() as Package).qualified_name
+        (module() as Module).qualified_name
       else
         ""
       end
@@ -34,7 +34,7 @@ class PackageState
       Iter[(String box, DocumentState box)](_documents.pairs())
         .map[String]({(kv) =>
           kv._1 + " (" +
-            if kv._2.module() isnt None then
+            if kv._2.file() isnt None then
               "M"
             else
               "_"
@@ -42,8 +42,8 @@ class PackageState
         })
     )
 
-  fun package(): (Package | None) =>
-    _package.get(_compiler_run_id)
+  fun module(): (Module | None) =>
+    _module.get(_compiler_run_id)
 
   fun get_document(document_path: String): (this->DocumentState | None) =>
     try
@@ -64,15 +64,15 @@ class PackageState
 
   fun ref insert_new(document_path: String): DocumentState =>
     """
-    Insert a new module by the given `document_path` into this package.
+    Insert a new file by the given `document_path` into this module.
     """
     let doc_state = DocumentState.create(document_path, _channel)
 
     try
       // populate the document from the last compilation result if available
-      let pkg = package() as Package
-      let module = pkg.find_module(document_path) as Module
-      doc_state.update(_compiler_run_id, module)
+      let mod = module() as Module
+      let f = mod.find_file(document_path) as SourceFile
+      doc_state.update(_compiler_run_id, f)
     end
     _documents.insert(document_path, doc_state)
 
@@ -86,23 +86,23 @@ class PackageState
     | None => insert_new(document_path)
     end
 
-  fun ref update(result: Package val, run_id: USize) =>
+  fun ref update(result: Module val, run_id: USize) =>
     """
-    Update the current package state with the result
+    Update the current module state with the result
     of the compilation run identified by `run_id`.
     """
     if run_id >= _compiler_run_id then
       _compiler_run_id = run_id
-      _package.update(run_id, result)
-      _channel.log("Updating package " + result.path)
+      _module.update(run_id, result)
+      _channel.log("Updating module " + result.path)
       _channel.log(debug())
       // for each open document, update the
       // document state if we have a module for it
       for (doc_path, doc_state) in _documents.pairs() do
-        // TODO: ensure both module and package-state paths are normalised
-        match \exhaustive\ result.find_module(doc_path)
-        | let m: Module val => doc_state.update(run_id, m)
-        | None => _channel.log("No module found for " + doc_path)
+        // TODO: ensure both file and module-state paths are normalised
+        match \exhaustive\ result.find_file(doc_path)
+        | let f: SourceFile val => doc_state.update(run_id, f)
+        | None => _channel.log("No file found for " + doc_path)
         end
       end
     end
@@ -120,11 +120,11 @@ class PackageState
 
 class DocumentState
   """
-  State of a single document within a package.
+  State of a single document within a module.
   """
   let path: String
   let _channel: Channel
-  var _module: FromCompilerRun[Module val]
+  var _file: FromCompilerRun[SourceFile val]
   var _diagnostics: FromCompilerRun[Array[Diagnostic] ref]
   var _position_index: FromCompilerRun[PositionIndex val]
   var _document_symbols: FromCompilerRun[Array[DocumentSymbol]]
@@ -135,24 +135,24 @@ class DocumentState
     path = path'
     _channel = channel'
     _diagnostics = _diagnostics.empty()
-    _module = _module.empty()
+    _file = _file.empty()
     _position_index = _position_index.empty()
     _document_symbols = _document_symbols.empty()
     _hash = _hash.empty()
     _compiler_run_id = 0
 
-  fun ref update(run_id: USize, module': Module val) =>
+  fun ref update(run_id: USize, file': SourceFile val) =>
     if run_id >= _compiler_run_id then
       _compiler_run_id = run_id
       // clear out diagnostics
-      _module.update(run_id, module')
+      _file.update(run_id, file')
       _position_index =
         FromCompilerRun[PositionIndex val]
-          .create(run_id, module'.create_position_index())
+          .create(run_id, file'.create_position_index())
       _document_symbols =
         FromCompilerRun[Array[DocumentSymbol]]
-          .create(run_id, DocumentSymbols.from_module(module', _channel))
-      _hash.update(run_id, module'.hash())
+          .create(run_id, DocumentSymbols.from_file(file', _channel))
+      _hash.update(run_id, file'.hash())
     end
 
   fun ref add_diagnostic(run_id: USize, diagnostic: Diagnostic) =>
@@ -178,10 +178,10 @@ class DocumentState
     end
 
   fun box needs_compilation(): Bool =>
-    (module() is None) and (diagnostics() is None)
+    (file() is None) and (diagnostics() is None)
 
-  fun box module(): (Module val | None) =>
-    _module.get(_compiler_run_id)
+  fun box file(): (SourceFile val | None) =>
+    _file.get(_compiler_run_id)
 
   fun box diagnostics(): (Array[Diagnostic] box | None) =>
     _diagnostics.get(_compiler_run_id)
@@ -196,14 +196,14 @@ class DocumentState
     """
     Get or create the current document symbols.
     """
-    match module()
-    | let mod: Module val =>
-      let created = DocumentSymbols.from_module(mod, _channel)
+    match file()
+    | let f: SourceFile val =>
+      let created = DocumentSymbols.from_file(f, _channel)
       _document_symbols.update(_compiler_run_id, created)
       created
     else
-      // no module available yet, no documentsymbols available yet
-      _channel.log("No module available yet for " + path)
+      // no file available yet, no document symbols available yet
+      _channel.log("No file available yet for " + path)
       []
     end
 

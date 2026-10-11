@@ -2,12 +2,12 @@ use ast = "pony_compiler"
 
 primitive Filter
   """
-  Filtering predicates for packages, entities, and names.
+  Filtering predicates for modules, entities, and names.
   """
 
-  fun is_test_package(name: String box): Bool =>
+  fun is_test_module(name: String box): Bool =>
     """
-    Returns true for test packages that should be excluded.
+    Returns true for test modules that should be excluded.
     """
     (name == "test") or (name == "builtin_test")
 

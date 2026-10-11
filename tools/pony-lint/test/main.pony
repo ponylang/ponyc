@@ -248,10 +248,10 @@ actor \nodoc\ Main is TestList
     test(_TestFileNamingWindowsPath)
     test(_TestFileNamingTestPonyMainWithDir)
 
-    // PackageNaming tests
-    test(_TestPackageNamingClean)
-    test(_TestPackageNamingViolation)
-    test(_TestPackageNamingSimpleName)
+    // ModuleNaming tests
+    test(_TestModuleNamingClean)
+    test(_TestModuleNamingViolation)
+    test(_TestModuleNamingSimpleName)
 
     // PublicDocstring tests
     test(_TestPublicDocstringTypeClean)
@@ -362,11 +362,11 @@ actor \nodoc\ Main is TestList
     test(_TestDocLeadingBlankNodocEntityExempt)
     test(_TestDocLeadingBlankNodocEntityMethodExempt)
 
-    // PackageDocstring tests
-    test(_TestPackageDocstringClean)
-    test(_TestPackageDocstringNoFile)
-    test(_TestPackageDocstringNoDocstring)
-    test(_TestPackageDocstringHyphenated)
+    // ModuleDocstring tests
+    test(_TestModuleDocstringClean)
+    test(_TestModuleDocstringNoFile)
+    test(_TestModuleDocstringNoDocstring)
+    test(_TestModuleDocstringHyphenated)
 
     // OperatorSpacing tests
     test(_TestOperatorSpacingCleanBinary)

@@ -266,7 +266,7 @@ Hashes data in chunks using the streaming `Digest` API. Creates a `Digest.sha256
 
 ### [cshim](c-ffi/cshim/)
 
-Calls C code that `ponyc` compiles itself: a `.c` shim placed next to the `.pony` files is discovered, compiled with the embedded clang, and linked into the program — no separate C build step or `use "lib:..."` directive. Demonstrates the `cdefine:` and `cincludedir:` use schemes for setting C preprocessor macros and include search paths per package. Start here if you're new to calling C from Pony.
+Calls C code that `ponyc` compiles itself: a `.c` shim placed next to the `.pony` files is discovered, compiled with the embedded clang, and linked into the program — no separate C build step or `use "lib:..."` directive. Demonstrates the `cdefine:` and `cincludedir:` use schemes for setting C preprocessor macros and include search paths per module. Start here if you're new to calling C from Pony.
 
 ### [ffi-callbacks](c-ffi/ffi-callbacks/)
 

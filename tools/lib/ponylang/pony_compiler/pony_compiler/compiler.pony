@@ -14,7 +14,7 @@ primitive Compiler
   """
   fun compile(
     path: FilePath,
-    package_search_paths:
+    module_search_paths:
       (String box | ReadSeq[String val] box) = [],
     user_flags: ReadSeq[String val] box = [],
     release: Bool = false,
@@ -24,8 +24,8 @@ primitive Compiler
   =>
     """
     Compile the pony source code at the given `path` with
-    the paths in `package_search_paths` to look for "used"
-    packages. Those can be colon-separated lists of paths.
+    the paths in `module_search_paths` to look for "used"
+    modules. Those can be colon-separated lists of paths.
 
     It is commonly used with PonyPath, extracting the
     PONYPATH environment variable.
@@ -41,14 +41,14 @@ primitive Compiler
     end
 
     @codegen_pass_init(pass_opt)
-    // avoid calling package_init
+    // avoid calling module_init
     // get the search paths from the arguments
-    match \exhaustive\ package_search_paths
+    match \exhaustive\ module_search_paths
     | let single: String box =>
-      @package_add_paths(single.cstring(), pass_opt)
+      @module_add_paths(single.cstring(), pass_opt)
     | let multiple: ReadSeq[String val] box =>
       for search_path in multiple.values() do
-        @package_add_paths(
+        @module_add_paths(
           search_path.cstring(), pass_opt)
       end
     end
@@ -82,7 +82,7 @@ primitive Compiler
           p
         end
 
-    @package_done(pass_opt)
+    @module_done(pass_opt)
     @codegen_pass_cleanup(pass_opt)
     @pass_opt_done(pass_opt)
     res

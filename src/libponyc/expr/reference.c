@@ -326,7 +326,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_TYPEREF);
-  AST_GET_CHILDREN(ast, package, id, typeargs);
+  AST_GET_CHILDREN(ast, module, id, typeargs);
 
   ast_t* type = ast_type(ast);
   if(type == NULL || (ast_id(type) == TK_INFERTYPE))
@@ -376,11 +376,11 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       }
     }
 
-    // Assemble the type node from the package name and type name strings.
+    // Assemble the type node from the module name and type name strings.
     const char* name = ast_name(id);
-    const char* package_name =
-      (ast_id(package) != TK_NONE) ? ast_name(ast_child(package)) : NULL;
-    type = type_sugar_args(ast, package_name, name, typeargs, opt);
+    const char* module_name =
+      (ast_id(module) != TK_NONE) ? ast_name(ast_child(module)) : NULL;
+    type = type_sugar_args(ast, module_name, name, typeargs, opt);
     ast_settype(ast, type);
 
     if(is_typecheck_error(type))

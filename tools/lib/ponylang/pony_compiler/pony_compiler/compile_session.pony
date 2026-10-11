@@ -25,7 +25,7 @@ class CompileSession
 
   new create(
     path: FilePath,
-    package_search_paths: (String box | ReadSeq[String val] box) = [],
+    module_search_paths: (String box | ReadSeq[String val] box) = [],
     user_flags: ReadSeq[String val] box = [],
     release: Bool = false,
     limit: PassId = PassAll,
@@ -46,12 +46,12 @@ class CompileSession
     end
 
     @codegen_pass_init(_pass_opt)
-    match \exhaustive\ package_search_paths
+    match \exhaustive\ module_search_paths
     | let single: String box =>
-      @package_add_paths(single.cstring(), _pass_opt)
+      @module_add_paths(single.cstring(), _pass_opt)
     | let multiple: ReadSeq[String val] box =>
       for search_path in multiple.values() do
-        @package_add_paths(search_path.cstring(), _pass_opt)
+        @module_add_paths(search_path.cstring(), _pass_opt)
       end
     end
 
@@ -126,7 +126,7 @@ class CompileSession
     """
     if not _disposed then
       _disposed = true
-      @package_done(_pass_opt)
+      @module_done(_pass_opt)
       @codegen_pass_cleanup(_pass_opt)
       // If a Program was produced, it owns the interned-string table and frees
       // it in its _final, so detach it here before pass_opt_done so the table

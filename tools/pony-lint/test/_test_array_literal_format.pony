@@ -14,10 +14,10 @@ class \nodoc\ _TestArrayLiteralFormatSingleLine is UnitTest
       "    let ns = [as USize: 1; 2; 3]\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.ArrayLiteralFormat)
           h.assert_eq[USize](0, diags.size())
@@ -25,7 +25,7 @@ class \nodoc\ _TestArrayLiteralFormatSingleLine is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -48,10 +48,10 @@ class \nodoc\ _TestArrayLiteralFormatMultiLineClean is UnitTest
       "        2 ]\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.ArrayLiteralFormat)
           h.assert_eq[USize](0, diags.size())
@@ -59,7 +59,7 @@ class \nodoc\ _TestArrayLiteralFormatMultiLineClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -81,10 +81,10 @@ class \nodoc\ _TestArrayLiteralFormatMultiLineCloseOwnLine is UnitTest
       "      ]\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.ArrayLiteralFormat)
           h.assert_eq[USize](0, diags.size())
@@ -92,7 +92,7 @@ class \nodoc\ _TestArrayLiteralFormatMultiLineCloseOwnLine is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -110,10 +110,10 @@ class \nodoc\ _TestArrayLiteralFormatEmpty is UnitTest
       "    let ns = Array[USize]\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.ArrayLiteralFormat)
           h.assert_eq[USize](0, diags.size())
@@ -121,7 +121,7 @@ class \nodoc\ _TestArrayLiteralFormatEmpty is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -142,10 +142,10 @@ class \nodoc\ _TestArrayLiteralFormatHangingIndent is UnitTest
       "    ]\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.ArrayLiteralFormat)
           h.assert_eq[USize](
@@ -163,7 +163,7 @@ class \nodoc\ _TestArrayLiteralFormatHangingIndent is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -185,10 +185,10 @@ class \nodoc\ _TestArrayLiteralFormatNoSpaceAfterOpen is UnitTest
       "      ]\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.ArrayLiteralFormat)
           h.assert_eq[USize](
@@ -206,7 +206,7 @@ class \nodoc\ _TestArrayLiteralFormatNoSpaceAfterOpen is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")

@@ -37,10 +37,10 @@ class \nodoc\ iso _CompileSimple is UnitTest
       [pony_path] where limit = PassFinaliser)
     | let p: Program =>
       try
-        let pkg = p.package() as Package
+        let pkg = p.module() as Module
         h.assert_eq[String](source_dir, pkg.path)
       else
-        h.fail("No package, huh?")
+        h.fail("No module, huh?")
       end
     | let e: Array[Error] val =>
       h.fail(
@@ -72,10 +72,10 @@ class \nodoc\ iso _CompileRepeatedly is UnitTest
         [pony_path] where limit = PassFinaliser)
       | let p: Program =>
         try
-          let pkg = p.package() as Package
+          let pkg = p.module() as Module
           h.assert_eq[String](source_dir, pkg.path)
         else
-          h.fail("No package, huh?")
+          h.fail("No module, huh?")
         end
       | let e: Array[Error] val =>
         h.fail(
@@ -196,14 +196,14 @@ class \nodoc\ iso _PositionIndexFind is UnitTest
       [pony_path] where limit = PassFinaliser)
     | let p: Program =>
       try
-        let pkg = p.package() as Package
+        let pkg = p.module() as Module
         h.assert_eq[String](source_dir, pkg.path)
         let main_pony_path =
           Path.join(source_dir, "main.pony")
         try
-          let module =
-            pkg.find_module(main_pony_path) as Module
-          let index = module.create_position_index()
+          let file_ast =
+            pkg.find_file(main_pony_path) as SourceFile
+          let index = file_ast.create_position_index()
           index.debug(h.env.out)
 
           for (line, column, expected_token_id) in
@@ -230,11 +230,11 @@ class \nodoc\ iso _PositionIndexFind is UnitTest
           end
         else
           h.fail(
-            "No module with file " + main_pony_path)
+            "No file with path " + main_pony_path)
           return
         end
       else
-        h.fail("No package, huh?")
+        h.fail("No module, huh?")
         return
       end
     | let e: Array[Error] val =>
@@ -287,9 +287,9 @@ class \nodoc\ _DefinitionTest is UnitTest
       // type ref within a newberef
       (Position(82, 9),
         [Position(78, 24)], TokenIds.tk_typeparam())
-      // package ref
+      // module ref resolves to first file in the module
       (Position(87, 5),
-        [Position(1, 1)], TokenIds.tk_module())
+        [Position(1, 1)], TokenIds.tk_file())
       // constructor ref; TypeName desugars to .create()
       (Position(97, 9),
         [Position(91, 1)], TokenIds.tk_new())
@@ -321,14 +321,14 @@ class \nodoc\ _DefinitionTest is UnitTest
       [pony_path] where limit = PassFinaliser)
     | let p: Program =>
       try
-        let pkg = p.package() as Package
+        let pkg = p.module() as Module
         h.assert_eq[String](source_dir, pkg.path)
         let main_pony_path =
           Path.join(source_dir, "main.pony")
         try
-          let module =
-            pkg.find_module(main_pony_path) as Module
-          let index = module.create_position_index()
+          let file_ast =
+            pkg.find_file(main_pony_path) as SourceFile
+          let index = file_ast.create_position_index()
           index.debug(h.env.out)
 
           for (ref_pos, expected_def_positions,
@@ -381,11 +381,11 @@ class \nodoc\ _DefinitionTest is UnitTest
           end
         else
           h.fail(
-            "No module with file " + main_pony_path)
+            "No file with path " + main_pony_path)
           return
         end
       else
-        h.fail("No package, huh?")
+        h.fail("No module, huh?")
         return
       end
     | let e: Array[Error] val =>
@@ -415,10 +415,10 @@ class \nodoc\ _EqHashTest is UnitTest
       FilePath(FileAuth(h.env.root), source_dir),
       [pony_path] where limit = PassFinaliser)
     | let p: Program =>
-      for package in p.packages() do
-        for module in package.modules() do
-          let module_ast: AST box = module.ast
-          module_ast.visit(
+      for mod in p.modules() do
+        for f in mod.files() do
+          let file_node: AST box = f.ast
+          file_node.visit(
             object is ASTVisitor
               var _last: (AST box | None) = None
 
@@ -439,13 +439,13 @@ class \nodoc\ _EqHashTest is UnitTest
         end
       end
       try
-        let pkg = p.package() as Package
+        let pkg = p.module() as Module
         let main_pony_path =
           Path.join(source_dir, "main.pony")
-        let main_module =
-          pkg.find_module(main_pony_path) as Module
+        let main_file =
+          pkg.find_file(main_pony_path) as SourceFile
         let index =
-          main_module.create_position_index()
+          main_file.create_position_index()
         let env_ref =
           index.find_node_at(12, 5) as AST box
         let env =
@@ -457,7 +457,7 @@ class \nodoc\ _EqHashTest is UnitTest
           let main_ast =
             index.find_node_at(4, 7) as AST box
           let found_main =
-            main_module.ast.find_in_scope("Main")
+            main_file.ast.find_in_scope("Main")
               as AST box
           h.assert_eq[AST box](
             main_ast,
@@ -626,13 +626,13 @@ actor \nodoc\ ParallelCompiler
         verbosity = VerbosityInfo)
     | let p: Program =>
       h.log("Compiler " + token + " done.")
-      for pkg in p.packages() do
-        for mod in pkg.modules() do
+      for mod in p.modules() do
+        for f in mod.files() do
           try
-            let mod_last =
-              (mod.ast.last_child() as AST)
+            let f_last =
+              (f.ast.last_child() as AST)
             h.log(
-              mod.file + ": " + mod_last.debug())
+              f.file + ": " + f_last.debug())
           end
         end
       end

@@ -43,10 +43,10 @@ class \nodoc\ _TestExprNodeScannerFindsMatch is UnitTest
           recover val Array[lint.TextRule val] end,
           ast_rules,
           lint.LintConfig.default())
-      let package_paths = _ponypath(h.env.vars)
+      let mod_paths = _ponypath(h.env.vars)
       let linter =
         lint.Linter(
-          registry, FileAuth(auth), tmp.path, package_paths)
+          registry, FileAuth(auth), tmp.path, mod_paths)
       let targets = recover val [as String val: tmp.path] end
       (let diags, _) = linter.run(targets)
 
@@ -112,10 +112,10 @@ class \nodoc\ _TestExprNodeScannerSkipsPassExpr is UnitTest
           recover val Array[lint.TextRule val] end,
           ast_rules,
           lint.LintConfig.default())
-      let package_paths = _ponypath(h.env.vars)
+      let mod_paths = _ponypath(h.env.vars)
       let linter =
         lint.Linter(
-          registry, FileAuth(auth), tmp.path, package_paths)
+          registry, FileAuth(auth), tmp.path, mod_paths)
       let targets = recover val [as String val: tmp.path] end
       (let diags, _) = linter.run(targets)
 

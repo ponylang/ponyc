@@ -1,39 +1,39 @@
 use ast = "pony_compiler"
 
-primitive PackageDocstring is ASTRule
+primitive ModuleDocstring is ASTRule
   """
-  Flags packages that lack a package-level docstring.
+  Flags modules that lack a module-level docstring.
 
-  A package docstring lives in a file named after the package (e.g.,
-  `my_package.pony` for a package in the `my_package/` directory). The file
-  should contain a module-level docstring — a triple-quoted string as the
-  first token in the module AST.
+  A module docstring lives in a file named after the module (e.g.,
+  `my_module.pony` for a module in the `my_module/` directory). The file
+  should contain a file-level docstring — a triple-quoted string as the
+  first token in the file AST.
 
   Directory names with hyphens are normalized to underscores when deriving the
   expected filename, since hyphens are not valid in Pony identifiers.
 
-  This rule operates at the package level. The linter calls `check_package()`
-  once per compiled package rather than per-node.
+  This rule operates at the module level. The linter calls `check_module()`
+  once per compiled module rather than per-node.
   """
-  fun id(): String val => "style/package-docstring"
+  fun id(): String val => "style/module-docstring"
   fun category(): String val => "style"
 
   fun description(): String val =>
-    "package should have a docstring in its <package>.pony file"
+    "module should have a docstring in its <module>.pony file"
 
   fun default_status(): RuleStatus => RuleOn
 
   fun node_filter(): Array[ast.TokenId] val =>
-    // Not used for per-node dispatch — this rule uses check_package
+    // Not used for per-node dispatch — this rule uses check_module
     recover val Array[ast.TokenId] end
 
   fun check(node: ast.AST box, source: SourceFile val)
     : Array[Diagnostic val] val
   =>
-    // Per-node check is a no-op; see check_package
+    // Per-node check is a no-op; see check_module
     recover val Array[Diagnostic val] end
 
-  fun check_package(
+  fun check_module(
     pkg_name: String val,
     has_pkg_file: Bool,
     has_docstring: Bool,
@@ -41,17 +41,17 @@ primitive PackageDocstring is ASTRule
     : Array[Diagnostic val] val
   =>
     """
-    Check that a package has its `<name>.pony` file with a module-level
-    docstring. `pkg_name` is the normalized package name (hyphens replaced
+    Check that a module has its `<name>.pony` file with a file-level
+    docstring. `pkg_name` is the normalized module name (hyphens replaced
     with underscores), `has_pkg_file` indicates whether the expected file
-    exists, `has_docstring` indicates whether that file has a module-level
+    exists, `has_docstring` indicates whether that file has a file-level
     docstring, and `first_file_rel` is used for diagnostic location.
     """
     if not has_pkg_file then
       recover val
         [ Diagnostic(
           id(),
-          "package has no '" + pkg_name + ".pony' file",
+          "module has no '" + pkg_name + ".pony' file",
           first_file_rel,
           0,
           0)]
@@ -60,7 +60,7 @@ primitive PackageDocstring is ASTRule
       recover val
         [ Diagnostic(
           id(),
-          "'" + pkg_name + ".pony' should have a package docstring",
+          "'" + pkg_name + ".pony' should have a module docstring",
           first_file_rel,
           0,
           0)]
