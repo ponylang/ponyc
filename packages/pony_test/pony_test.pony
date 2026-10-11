@@ -1,7 +1,7 @@
 """
-# PonyTest package
+# PonyTest module
 
-The PonyTest package provides a unit testing framework. It is designed to be as
+The PonyTest module provides a unit testing framework. It is designed to be as
 simple as possible to use, both for the unit test writer and the user running
 the tests.
 
@@ -20,7 +20,7 @@ can also indicate failure by raising an error in the test function.
 
 To use PonyTest simply write a class for each test and a TestList type that
 tells the PonyTest object about the tests. Typically the TestList will be Main
-for the package.
+for the module.
 
 The following is a complete program with 2 trivial tests.
 
@@ -55,7 +55,7 @@ The make() constructor is not needed for this example. However, it allows for
 easy aggregation of tests (see below) so it is recommended that all test Mains
 provide it.
 
-Main.create() is called only for program invocations on the current package.
+Main.create() is called only for program invocations on the current module.
 Main.make() is called during aggregation. If so desired extra code can be added
 to either of these constructors to perform additional tasks.
 
@@ -78,12 +78,12 @@ You can run only tests whose names start with a given string by using the
 ## Aggregation
 
 Often it is desirable to run a collection of unit tests from multiple different
-source files. For example, if several packages within a bundle each have their
+source files. For example, if several modules within a bundle each have their
 own unit tests it may be useful to run all tests for the bundle together.
 
 This can be achieved by writing an aggregate test list class, which calls the
-list function for each package. The following is an example that aggregates the
-tests from packages `foo` and `bar`.
+list function for each module. The following is an example that aggregates the
+tests from modules `foo` and `bar`.
 
 ```pony
 use "pony_test"
@@ -655,7 +655,7 @@ actor PonyTest
     Process our command line options.
     All command line arguments given must be recognised and make sense.
     State for specified options is stored in object fields.
-    We don't use the options package because we aren't already dependencies.
+    We don't use the options module because we aren't already dependencies.
     """
     var exe_name = ""
 

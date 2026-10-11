@@ -83,8 +83,8 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
 static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, package, id, typeargs, cap, ephemeral);
-  pony_assert(ast_id(package) == TK_NONE);
+  AST_GET_CHILDREN(ast, module_id, id, typeargs, cap, ephemeral);
+  pony_assert(ast_id(module_id) == TK_NONE);
 
   if(ast_id(typeargs) != TK_NONE)
   {
@@ -94,7 +94,7 @@ static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
   }
 
   if(ast_id(ast) == TK_NOMINAL) {
-    ast_t* module = ast_nearest(ast, TK_MODULE);
+    ast_t* module = ast_nearest(ast, TK_FILE);
     if(module && ast_get(module, ast_name(id), 0)) {
       ast_error(opt->check.errors, def,
                 "type parameter shadows existing type");
@@ -123,7 +123,7 @@ static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
 static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, package, id, typeargs, cap, eph);
+  AST_GET_CHILDREN(ast, mod_id, id, typeargs, cap, eph);
   AST_GET_CHILDREN(def, def_id, typeparams, def_cap);
   token_id tcap = ast_id(cap);
 
@@ -134,9 +134,9 @@ static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
 
   ast_setid(cap, tcap);
 
-  // We keep the actual package id for printing out in errors, etc.
-  ast_append(ast, package);
-  ast_replace(&package, package_id(def, opt));
+  // We keep the actual module id for printing out in errors, etc.
+  ast_append(ast, mod_id);
+  ast_replace(&mod_id, module_id(def, opt));
 
   // Store our definition for later use.
   ast_setdata(ast, def);
@@ -153,24 +153,24 @@ static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
   return true;
 }
 
-static ast_t* get_package_scope(pass_opt_t* opt, ast_t* scope, ast_t* ast)
+static ast_t* get_module_scope(pass_opt_t* opt, ast_t* scope, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_NOMINAL);
-  ast_t* package_id = ast_child(ast);
+  ast_t* mod_id = ast_child(ast);
 
-  // Find our actual package.
-  if(ast_id(package_id) != TK_NONE)
+  // Find our actual module.
+  if(ast_id(mod_id) != TK_NONE)
   {
-    const char* name = ast_name(package_id);
+    const char* name = ast_name(mod_id);
 
     if(is_name_internal_test(name))
       scope = ast_get(ast_nearest(scope, TK_PROGRAM), name, NULL);
     else
       scope = ast_get(scope, name, NULL);
 
-    if((scope == NULL) || (ast_id(scope) != TK_PACKAGE))
+    if((scope == NULL) || (ast_id(scope) != TK_MODULE))
     {
-      ast_error(opt->check.errors, package_id, "can't find package '%s'", name);
+      ast_error(opt->check.errors, mod_id, "can't find module '%s'", name);
       return NULL;
     }
   }
@@ -185,8 +185,8 @@ ast_t* names_def(pass_opt_t* opt, ast_t* ast)
   if(def != NULL)
     return def;
 
-  AST_GET_CHILDREN(ast, package_id, type_id, typeparams, cap, eph);
-  ast_t* scope = get_package_scope(opt, ast, ast);
+  AST_GET_CHILDREN(ast, mod_id, type_id, typeparams, cap, eph);
+  ast_t* scope = get_module_scope(opt, ast, ast);
 
   return ast_get(scope, ast_name(type_id), NULL);
 }
@@ -198,7 +198,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
   if(ast_data(ast) != NULL)
     return true;
 
-  AST_GET_CHILDREN(ast, package_id, type_id, typeparams, cap, eph);
+  AST_GET_CHILDREN(ast, mod_id, type_id, typeparams, cap, eph);
 
   // Keep some stats.
   opt->check.stats.names_count++;
@@ -206,13 +206,13 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
   if(ast_id(cap) == TK_NONE)
     opt->check.stats.default_caps_count++;
 
-  ast_t* r_scope = get_package_scope(opt, scope, ast);
+  ast_t* r_scope = get_module_scope(opt, scope, ast);
 
   if(r_scope == NULL)
     return false;
 
-  bool local_package =
-    (r_scope == scope) || (r_scope == ast_nearest(ast, TK_PACKAGE));
+  bool local_module =
+    (r_scope == scope) || (r_scope == ast_nearest(ast, TK_MODULE));
 
   // Find our definition.
   const char* name = ast_name(type_id);
@@ -237,10 +237,10 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
     r = false;
   } else {
     // Check for a private type.
-    if(!local_package && is_name_private(name))
+    if(!local_module && is_name_private(name))
     {
       ast_error(opt->check.errors, type_id,
-        "can't access a private type from another package");
+        "can't access a private type from another module");
       r = false;
     }
 

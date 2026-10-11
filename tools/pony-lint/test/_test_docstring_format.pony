@@ -15,17 +15,17 @@ class \nodoc\ _TestDocstringFormatEntityClean is UnitTest
       "  \"\"\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -49,17 +49,17 @@ class \nodoc\ _TestDocstringFormatMethodClean is UnitTest
       "    None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -76,10 +76,10 @@ class \nodoc\ _TestDocstringFormatSingleLine is UnitTest
       "  \"\"\"Foo docstring.\"\"\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](1, diags.size())
           try
@@ -94,7 +94,7 @@ class \nodoc\ _TestDocstringFormatSingleLine is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -113,10 +113,10 @@ class \nodoc\ _TestDocstringFormatClosingContent is UnitTest
       "  closing text.\"\"\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](1, diags.size())
           try
@@ -129,7 +129,7 @@ class \nodoc\ _TestDocstringFormatClosingContent is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -144,17 +144,17 @@ class \nodoc\ _TestDocstringFormatNoDocstring is UnitTest
     let source: String val = "class Foo\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -171,17 +171,17 @@ class \nodoc\ _TestDocstringFormatNodocEntityExempt is UnitTest
       "  \"\"\"Foo docstring.\"\"\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -203,17 +203,17 @@ class \nodoc\ _TestDocstringFormatNodocEntityMethodExempt is UnitTest
       "    None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")

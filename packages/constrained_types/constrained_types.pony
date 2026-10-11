@@ -1,12 +1,12 @@
 """
-# Constrained Types package
+# Constrained Types module
 
-The constrained types package provides a standard means for encoding
+The constrained types module provides a standard means for encoding
 domain constraints using the Pony type system.
 
 For example, in your applications domain, you have usernames that must
 be between 6 and 12 characters and can only contain lower case ASCII
-letters. The constrained types package allows you to express those
+letters. The constrained types module allows you to express those
 constraints in the type system and assure that your usernames conform.
 
 The key user supplied component of constrained types is a `Validator`.
@@ -146,7 +146,7 @@ and 12 characters and only contain lower case ASCII values.
 ### `val` Entities only
 
 It is important to note that only `val` entities can be used with the
-constrained types package. If an entity was mutable, then it could be changed
+constrained types module. If an entity was mutable, then it could be changed
 in a way that violates the constraints after it was validated. And that
 wouldn't be very useful.
 

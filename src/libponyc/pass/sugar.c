@@ -153,17 +153,17 @@ static void add_default_constructor(ast_t* ast, pass_opt_t* opt)
 }
 
 
-static ast_result_t sugar_module(pass_opt_t* opt, ast_t* ast)
+static ast_result_t sugar_file(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* docstring = ast_child(ast);
 
-  ast_t* package = ast_parent(ast);
-  pony_assert(ast_id(package) == TK_PACKAGE);
+  ast_t* module = ast_parent(ast);
+  pony_assert(ast_id(module) == TK_MODULE);
 
-  if(strcmp(package_name(package), "$0") != 0)
+  if(strcmp(module_name(module), "$0") != 0)
   {
-    // Every module not in builtin has an implicit use builtin command.
-    // Since builtin is always the first package processed it is $0.
+    // Every file not in builtin has an implicit use builtin command.
+    // Since builtin is always the first module processed it is $0.
     BUILD(builtin, ast,
       NODE(TK_USE,
       NONE
@@ -176,18 +176,18 @@ static ast_result_t sugar_module(pass_opt_t* opt, ast_t* ast)
   if((docstring == NULL) || (ast_id(docstring) != TK_STRING))
     return AST_OK;
 
-  ast_t* package_docstring = ast_childlast(package);
+  ast_t* module_docstring = ast_childlast(module);
 
-  if(ast_id(package_docstring) == TK_STRING)
+  if(ast_id(module_docstring) == TK_STRING)
   {
     ast_error(opt->check.errors, docstring,
-      "the package already has a docstring");
-    ast_error_continue(opt->check.errors, package_docstring,
+      "the module already has a docstring");
+    ast_error_continue(opt->check.errors, module_docstring,
       "the existing docstring is here");
     return AST_ERROR;
   }
 
-  ast_append(package, docstring);
+  ast_append(module, docstring);
   ast_remove(docstring);
   return AST_OK;
 }
@@ -555,7 +555,7 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
     ast_t* iter_expr = ast_child(iter_tuple);
     for(size_t i = 0; i < iter_count; i++)
     {
-      iter_names[i] = package_hygienic_id(&opt->check, opt);
+      iter_names[i] = module_hygienic_id(&opt->check, opt);
 
       BUILD(assign, iter_expr,
         NODE(TK_ASSIGN,
@@ -647,7 +647,7 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
   }
   else
   {
-    const char* iter_name = package_hygienic_id(&opt->check, opt);
+    const char* iter_name = module_hygienic_id(&opt->check, opt);
 
     BUILD(try_next, for_iter,
       NODE(TK_TRY_NO_CHECK,
@@ -756,7 +756,7 @@ static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
   {
     pony_assert(ast_id(p) == TK_SEQ);
     AST_GET_CHILDREN(p, idseq, init);
-    const char* init_name = package_hygienic_id(&opt->check, opt);
+    const char* init_name = module_hygienic_id(&opt->check, opt);
 
     BUILD(assign, idseq,
       NODE(TK_ASSIGN,
@@ -1178,7 +1178,7 @@ static ast_t* find_enclosing_default(ast_t* ast)
 }
 
 // Check whether any TK_NOMINAL in the subtree has the given name and a
-// TK_NONE package (an unresolved reference to a type parameter at this
+// TK_NONE module (an unresolved reference to a type parameter at this
 // pass stage).
 static bool subtree_names_param(ast_t* ast, const char* name)
 {
@@ -1389,7 +1389,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
     replace_thistype(ret_type, opt);
   }
 
-  const char* i_name = package_hygienic_id(&opt->check, opt);
+  const char* i_name = module_hygienic_id(&opt->check, opt);
 
   ast_t* interface_t_params;
   ast_t* t_args;
@@ -1439,7 +1439,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
   // We will replace {..} with $0
   REPLACE(astp,
     NODE(TK_NOMINAL,
-      NONE  // Package
+      NONE  // Module
       ID(i_name)
       TREE(t_args)
       TREE(interface_cap)
@@ -1577,9 +1577,9 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
     ast_setannotation(def, bare_annotation);
   }
 
-  // Add new type to current module and bring it up to date with passes.
-  ast_t* module = ast_nearest(ast, TK_MODULE);
-  ast_append(module, def);
+  // Add new type to current file and bring it up to date with passes.
+  ast_t* file = ast_nearest(ast, TK_FILE);
+  ast_append(file, def);
 
   if(!ast_passes_type(&def, opt, opt->program_pass))
     return AST_FATAL;
@@ -1813,7 +1813,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_MODULE:              return sugar_module(options, ast);
+    case TK_FILE:              return sugar_file(options, ast);
     case TK_PRIMITIVE:           return sugar_entity(options, ast, true, TK_VAL);
     case TK_STRUCT:              return sugar_entity(options, ast, true, TK_REF);
     case TK_CLASS:               return sugar_entity(options, ast, true, TK_REF);

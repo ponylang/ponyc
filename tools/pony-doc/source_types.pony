@@ -2,16 +2,16 @@ class val DocSourceFile
   """
   A source file included in the documentation output.
   """
-  let package_name: String
+  let module_name: String
   let filename: String
   let content: String
 
   new val create(
-    package_name': String,
+    module_name': String,
     filename': String,
     content': String)
   =>
-    package_name = package_name'
+    module_name = module_name'
     filename = filename'
     content = content'
 

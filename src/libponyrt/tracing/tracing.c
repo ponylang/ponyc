@@ -3175,7 +3175,7 @@ static bool tracing_category_matches(const char* pattern, const char* name)
 }
 
 // TODO: make it so tracing can be intialized/enabled/disabled at runtime by the user program?
-// TODO: make it possible for actors to emit "flow"/"async" tracing events via a "tracing package/api" (have to figure out appropriate memcpy stuff for this due to GC)?
+// TODO: make it possible for actors to emit "flow"/"async" tracing events via a "tracing module/api" (have to figure out appropriate memcpy stuff for this due to GC)?
 // TODO: should it be possible to have both the flight recorder and normal tracing enabled at the same time?
 void ponyint_tracing_init(char* format, char* output, char* enabled_categories_patterns, char* mode, size_t flight_recorder_events_size, bool handle_term_int, char* force_actor_tracing)
 {

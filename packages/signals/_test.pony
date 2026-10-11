@@ -509,7 +509,7 @@ class \nodoc\ iso _TestDisposeRestoresDefaultDisposition is UnitTest
   regresses, the probe sees the runtime's handler (epoll and Windows) or
   SIG_IGN (kqueue) instead of SIG_DFL. If SIGTERM registration itself
   broke, this test passes vacuously; registration and delivery are pinned
-  by the other tests in this package. It shares SIGTERM with the
+  by the other tests in this module. It shares SIGTERM with the
   subscriber-limit test — see the note at the top of this file on why the
   SIGTERM tests clean up fully before finishing.
   """
@@ -563,7 +563,7 @@ class \nodoc\ iso _TestDisposeRestoresIgnoredDisposition is UnitTest
   SIG_DFL. SIGPIPE is the case that matters: the runtime ignores it
   (socket.c) so a write to a closed socket fails with an error instead of a
   signal, and socket.c invites a program to handle SIGPIPE through this
-  package. Disposing that handler must return SIGPIPE to SIG_IGN; a
+  module. Disposing that handler must return SIGPIPE to SIG_IGN; a
   regression to SIG_DFL would kill the process on the next write to a closed
   socket. The disposition is read back rather than raised. SIGPIPE is not
   handleable on Windows, so this runs off Windows.

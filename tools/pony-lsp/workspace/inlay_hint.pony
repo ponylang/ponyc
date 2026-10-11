@@ -4,7 +4,7 @@ use "pony_compiler"
 
 primitive InlayHints
   """
-  Collects inlay hints for a module. Three kinds of hints are emitted:
+  Collects inlay hints for a file. Three kinds of hints are emitted:
   - Inferred type hints on let/var/field declarations with no type annotation.
   - Capability hints on type annotations where the capability is absent from
     source (including function parameter types, generic type arguments, union,
@@ -12,15 +12,15 @@ primitive InlayHints
   - Receiver capability and return type hints on fun declarations.
   """
   fun collect(
-    module: Module val,
+    file': SourceFile val,
     range: (None | (I64, I64, I64, I64)) = None): Array[JSONValue]
   =>
     """
-    Returns all inlay hints for module, optionally filtered to range
+    Returns all inlay hints for the file, optionally filtered to range
     (start_line, start_char, end_line, end_char) in 0-based LSP coordinates.
     """
     let collector = _InlayHintCollector.create(range)
-    module.ast.visit(collector)
+    file'.ast.visit(collector)
     collector.hints()
 
 class ref _InlayHintCollector is ASTVisitor

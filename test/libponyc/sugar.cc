@@ -174,7 +174,7 @@ TEST_F(SugarTest, ClassWithInitializedFieldsAndDocString)
     "    None\n";
 
   TEST_COMPILE(short_form);
-  ast_t* foo = ast_childlast(module);
+  ast_t* foo = ast_childlast(file);
   ASSERT_NE(ast_id(foo), TK_NONE);
 
   AST_GET_CHILDREN(foo, id, typeparams, defcap, traits, members);
@@ -264,7 +264,7 @@ TEST_F(SugarTest, ActorWithInitializedFieldsAndDocString)
     "    None\n";
 
   TEST_COMPILE(short_form);
-  ast_t* foo = ast_childlast(module);
+  ast_t* foo = ast_childlast(file);
   ASSERT_NE(ast_id(foo), TK_NONE);
 
   AST_GET_CHILDREN(foo, id, typeparams, defcap, traits, members);

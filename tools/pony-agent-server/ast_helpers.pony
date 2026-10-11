@@ -7,18 +7,18 @@ primitive ASTHelpers
   determine entity default capabilities.
   """
 
-  fun find_module(program: Program val, file: String val)
-    : (Module val | None)
+  fun find_file(program: Program val, file: String val)
+    : (SourceFile val | None)
   =>
     """
-    Find the module whose source path matches `file`. Normalizes
+    Find the file whose source path matches `file`. Normalizes
     the query path to an absolute path before comparing.
     """
     let abs_file = Path.abs(file)
-    for pkg in program.packages() do
-      for mod in pkg.modules() do
-        if mod.file == abs_file then
-          return mod
+    for mod in program.modules() do
+      for f in mod.files() do
+        if f.file == abs_file then
+          return f
         end
       end
     end
@@ -148,14 +148,14 @@ primitive ASTHelpers
     : (AST box | String val | None)
   =>
     """
-    Find an entity definition by unqualified name across all packages.
+    Find an entity definition by unqualified name across all modules.
     Returns the AST node, an error string when the name is ambiguous,
     or None when nothing matches.
     """
     var found: (AST box | None) = None
-    for pkg in program.packages() do
-      for mod in pkg.modules() do
-        var child: (AST box | None) = mod.ast.child()
+    for mod in program.modules() do
+      for f in mod.files() do
+        var child: (AST box | None) = f.ast.child()
         while true do
           match \exhaustive\ child
           | let node: AST box =>
@@ -166,7 +166,7 @@ primitive ASTHelpers
                   match \exhaustive\ found
                   | let _: AST box =>
                     return "ambiguous type name: " + type_name +
-                      " (found in multiple packages)"
+                      " (found in multiple modules)"
                   | None =>
                     found = node
                   end

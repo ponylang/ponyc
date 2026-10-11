@@ -567,7 +567,7 @@ fun mod_checked
   - If the *principal type* is a private type (its name beginning with an underscore character), then the *file name* should also be prefixed with an underscore character to highlight the fact that it defines a private type. For example, a file that defines the `_ClientConnection` type should be named `_client_connection.pony`.
   - If the *principal type* name contains an initialism (a sequence of uppercase letters with no lowercase letters between them), then the entire initialism should be considered as a single word when converting to snake case. Note that if there is another word following the initialism, its first letter will also be uppercase, but should not be considered part of the sequence of uppercase letters that form the initialism. For example, a file that defines the `SSLContext` type should be named `ssl_context.pony`.
 
-- A Pony package name is derived from the name of the directory which contains its source files. Package names, and therefore the corresponding directory names, should use `snake_case`.
+- A Pony module name is derived from the name of the directory which contains its source files. Module names, and therefore the corresponding directory names, should use `snake_case`.
 
 ## Documentation
 
@@ -594,9 +594,9 @@ primitive Format
   """
 ```
 
-### Package-level documentation
+### Module-level documentation
 
-Package-level documentation should be placed in a file called `<PACKAGE>.pony` within a triple-quoted docstring at the top of the file. This same file may contain additional content if such organization makes sense for the package.
+Module-level documentation should be placed in a file called `<MODULE>.pony` within a triple-quoted docstring at the top of the file. This same file may contain additional content if such organization makes sense for the module.
 
 ## Comments
 

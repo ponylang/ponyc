@@ -561,30 +561,30 @@ static void add_pony_include_args(pass_opt_t* opt,
 
 
 // Compile one C shim source to an object file with the embedded clang.
-static bool compile_shim(pass_opt_t* opt, ast_t* package, const char* src,
+static bool compile_shim(pass_opt_t* opt, ast_t* module, const char* src,
   const char* obj, const std::vector<const char*>& common_args)
 {
   errors_t* errors = opt->check.errors;
 
   std::vector<const char*> args(common_args);
 
-  // Per-package user flags, in deterministic insertion order (see the
-  // package_t comment in package.c).
-  for(strlist_t* p = package_c_defines(package); p != NULL;
+  // Per-module user flags, in deterministic insertion order (see the
+  // module_t comment in package.c).
+  for(strlist_t* p = module_c_defines(module); p != NULL;
     p = strlist_next(p))
   {
     std::string define = std::string("-D") + strlist_data(p);
     args.push_back(stringtab(opt->strtab, define.c_str()));
   }
 
-  for(strlist_t* p = package_c_includes(package); p != NULL;
+  for(strlist_t* p = module_c_includes(module); p != NULL;
     p = strlist_next(p))
   {
     std::string include = std::string("-I") + strlist_data(p);
     args.push_back(stringtab(opt->strtab, include.c_str()));
   }
 
-  if(package_needs_export_include(package))
+  if(module_needs_export_include(module))
   {
     const char* output = (opt->output != NULL) ? opt->output : ".";
     std::string include = std::string("-I") + output;
@@ -742,14 +742,14 @@ bool gencshim(ast_t* program, pass_opt_t* opt)
 
   program_set_gencshim_done(program);
 
-  // Single package walk: detect whether any shims exist (the fast-path
+  // Single module walk: detect whether any shims exist (the fast-path
   // signal) and, in the same pass, reject cdefine:/cincludedir: directives in
-  // a package with no C sources. Those flags only affect .c files in the
-  // same package, so such a directive is always inert — almost always the
-  // user put it in the consuming package instead of the one holding the
+  // a module with no C sources. Those flags only affect .c files in the
+  // same module, so such a directive is always inert — almost always the
+  // user put it in the consuming module instead of the one holding the
   // shim. Checked here rather than at the use handler so the inline-source
   // tests for scheme handling (which carry no .c) needn't move to disk, and
-  // because it's a package-level property: one error per package, not one
+  // because it's a module-level property: one error per module, not one
   // per directive. Consequence: unlike the other cdefine:/cincludedir: errors
   // (bad identifier, duplicate name) which fire in the scope pass, this orphan
   // error surfaces only at PASS_C and later, so `ponyc --pass verify` won't
@@ -757,27 +757,27 @@ bool gencshim(ast_t* program, pass_opt_t* opt)
   bool any = false;
   bool orphan_free = true;
 
-  for(ast_t* package = ast_child(program); package != NULL;
-    package = ast_sibling(package))
+  for(ast_t* module = ast_child(program); module != NULL;
+    module = ast_sibling(module))
   {
-    bool has_sources = package_c_sources(package) != NULL;
+    bool has_sources = module_c_sources(module) != NULL;
 
     if(has_sources)
       any = true;
 
-    bool has_flags = (package_c_defines(package) != NULL)
-      || (package_c_includes(package) != NULL);
+    bool has_flags = (module_c_defines(module) != NULL)
+      || (module_c_includes(module) != NULL);
 
     if(has_flags && !has_sources)
     {
-      ast_t* site = package_c_first_flag_use(package);
+      ast_t* site = module_c_first_flag_use(module);
 
       if(site != NULL)
-        ast_error(errors, site, "cdefine:/cincludedir: in a package with no C "
+        ast_error(errors, site, "cdefine:/cincludedir: in a module with no C "
           "source files; these flags only apply to .c files in the same "
-          "package, so this directive has no effect");
+          "module, so this directive has no effect");
       else
-        errorf(errors, NULL, "cdefine:/cincludedir: in a package with no C "
+        errorf(errors, NULL, "cdefine:/cincludedir: in a module with no C "
           "source files");
 
       orphan_free = false;
@@ -922,29 +922,29 @@ bool gencshim(ast_t* program, pass_opt_t* opt)
   pony_mkdir(output);
 
   // Object names carry the program name (like the Pony object does) so two
-  // programs sharing a shim package and an output directory don't collide
+  // programs sharing a shim module and an output directory don't collide
   // on shim objects.
   const char* prog_name;
 
   if((opt->bin_name != NULL) && (opt->bin_name[0] != '\0'))
     prog_name = opt->bin_name;
   else
-    prog_name = package_filename(ast_child(program));
+    prog_name = module_filename(ast_child(program));
 
   bool ok = true;
   size_t index = 0;
 
-  for(ast_t* package = ast_child(program); package != NULL;
-    package = ast_sibling(package))
+  for(ast_t* module = ast_child(program); module != NULL;
+    module = ast_sibling(module))
   {
-    for(strlist_t* s = package_c_sources(package); s != NULL;
+    for(strlist_t* s = module_c_sources(module); s != NULL;
       s = strlist_next(s))
     {
       const char* src = strlist_data(s);
 
       // Object name: <program>-<source base>.shim.<index>.o in the output
       // directory. The index makes names unique when same-named sources
-      // appear in different packages; the .shim. marker separates these
+      // appear in different modules; the .shim. marker separates these
       // from the Pony object.
       const char* base = strrchr(src, PATH_SLASH);
       base = (base != NULL) ? base + 1 : src;
@@ -970,7 +970,7 @@ bool gencshim(ast_t* program, pass_opt_t* opt)
       if(opt->verbosity >= VERBOSITY_INFO)
         fprintf(stderr, " %s\n", src);
 
-      if(compile_shim(opt, package, src, obj, common))
+      if(compile_shim(opt, module, src, obj, common))
         program_add_c_object(program, obj);
       else
         ok = false;

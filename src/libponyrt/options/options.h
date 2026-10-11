@@ -57,7 +57,7 @@
   "                   any effect.\n"
 
 /* NOTE: if you change any of the argument help details, update the docstrings
- *       in `RuntimeOptions` in the `builtin` package to keep them in sync.
+ *       in `RuntimeOptions` in the `builtin` module to keep them in sync.
  */
 #define PONYRT_HELP \
   "Runtime options for Pony programs (not for use with ponyc):\n" \
@@ -113,7 +113,7 @@
   "  --ponyhelp       Print the runtime usage options and exit.\n" \
   "\n" \
   "NOTE: These can be programmatically overridden. See the docstring in the\n" \
-  "      `RuntimeOptions` struct in the `builtin` package.\n"
+  "      `RuntimeOptions` struct in the `builtin` module.\n"
 
 typedef struct opt_arg_t
 {

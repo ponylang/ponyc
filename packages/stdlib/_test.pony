@@ -1,4 +1,4 @@
-// Include ALL standard library packages here, even if they don't have tests.
+// Include ALL standard library modules here, even if they don't have tests.
 // That way stdlib can be used to type check the whole standard library,
 // generate docs for it, etc.
 use "pony_test"

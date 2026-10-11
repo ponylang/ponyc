@@ -1,6 +1,6 @@
-# Net package
+# Net module
 
-The `net` package provides Pony's networking. It reworks the original stdlib `net` package around a different split: the connection logic lives in a plain `class` (`TCPConnection`, `TCPListener`, `UDPSocket`) that the user's `actor` holds and delegates to, rather than being baked into a single actor.
+The `net` module provides Pony's networking. It reworks the original stdlib `net` module around a different split: the connection logic lives in a plain `class` (`TCPConnection`, `TCPListener`, `UDPSocket`) that the user's `actor` holds and delegates to, rather than being baked into a single actor.
 
 <!-- contributor-only -->
 ## Contributing with an AI assistant

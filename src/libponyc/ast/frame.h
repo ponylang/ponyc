@@ -9,8 +9,8 @@ typedef struct errors_t errors_t;
 
 typedef struct typecheck_frame_t
 {
-  ast_t* package;
   ast_t* module;
+  ast_t* file;
   ast_t* type;
   ast_t* constraint;
   ast_t* provides;

@@ -74,13 +74,13 @@ primitive InspectQuery
       | None => return "no compiled program available"
       end
 
-    let module =
-      match \exhaustive\ ASTHelpers.find_module(program, file)
-      | let m: Module val => m
+    let source_file =
+      match \exhaustive\ ASTHelpers.find_file(program, file)
+      | let f: SourceFile val => f
       | None => return "file not found in compiled program: " + file
       end
 
-    let index = module.create_position_index()
+    let index = source_file.create_position_index()
 
     let node =
       match \exhaustive\ index.find_node_at(line, column)

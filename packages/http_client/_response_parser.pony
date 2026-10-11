@@ -12,7 +12,7 @@ class _ResponseParser
   being parsed. HEAD responses and 204/304 responses have no body regardless
   of headers — the method is needed to detect HEAD.
 
-  Fields are public so that state classes (in the same package) can access
+  Fields are public so that state classes (in the same module) can access
   them for buffer reading, position tracking, state transitions, and handler
   callbacks.
   """

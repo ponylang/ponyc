@@ -146,7 +146,7 @@ static void reify_reference(pass_opt_t* opt, ast_t** astp, ast_t* typeparams, as
     return;
 
   ast_setid(ast, TK_TYPEREF);
-  ast_add(ast, ast_from(ast, TK_NONE));    // 1st child: package reference
+  ast_add(ast, ast_from(ast, TK_NONE));    // 1st child: module reference
   ast_append(ast, ast_from(ast, TK_NONE)); // 3rd child: type args
   ast_settype(ast, typearg);
 }

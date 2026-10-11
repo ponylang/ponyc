@@ -20,10 +20,10 @@ class \nodoc\ _TestCtrlAlignIfClean is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -32,7 +32,7 @@ class \nodoc\ _TestCtrlAlignIfClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -52,10 +52,10 @@ class \nodoc\ _TestCtrlAlignForClean is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -64,7 +64,7 @@ class \nodoc\ _TestCtrlAlignForClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -84,10 +84,10 @@ class \nodoc\ _TestCtrlAlignWhileClean is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -96,7 +96,7 @@ class \nodoc\ _TestCtrlAlignWhileClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -120,10 +120,10 @@ class \nodoc\ _TestCtrlAlignTryClean is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -132,7 +132,7 @@ class \nodoc\ _TestCtrlAlignTryClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -152,10 +152,10 @@ class \nodoc\ _TestCtrlAlignRepeatClean is UnitTest
       "    until true end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -164,7 +164,7 @@ class \nodoc\ _TestCtrlAlignRepeatClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -185,10 +185,10 @@ class \nodoc\ _TestCtrlAlignWithClean is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -197,7 +197,7 @@ class \nodoc\ _TestCtrlAlignWithClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -221,10 +221,10 @@ class \nodoc\ _TestCtrlAlignIfdefClean is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -233,7 +233,7 @@ class \nodoc\ _TestCtrlAlignIfdefClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -251,10 +251,10 @@ class \nodoc\ _TestCtrlAlignSingleLineSkipped is UnitTest
       "    if true then None end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -263,7 +263,7 @@ class \nodoc\ _TestCtrlAlignSingleLineSkipped is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -287,10 +287,10 @@ class \nodoc\ _TestCtrlAlignNestedClean is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -299,7 +299,7 @@ class \nodoc\ _TestCtrlAlignNestedClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -321,10 +321,10 @@ class \nodoc\ _TestCtrlAlignElseMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -346,7 +346,7 @@ class \nodoc\ _TestCtrlAlignElseMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -368,10 +368,10 @@ class \nodoc\ _TestCtrlAlignElseifMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -390,7 +390,7 @@ class \nodoc\ _TestCtrlAlignElseifMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -410,10 +410,10 @@ class \nodoc\ _TestCtrlAlignEndMisaligned is UnitTest
       "      end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match \exhaustive\ pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match \exhaustive\ pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -432,7 +432,7 @@ class \nodoc\ _TestCtrlAlignEndMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -452,10 +452,10 @@ class \nodoc\ _TestCtrlAlignForEndMisaligned is UnitTest
       "      end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -477,7 +477,7 @@ class \nodoc\ _TestCtrlAlignForEndMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -499,10 +499,10 @@ class \nodoc\ _TestCtrlAlignTryElseMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match \exhaustive\ program.package()
-      | let pkg: ast.Package val =>
-        match \exhaustive\ pkg.module()
-        | let mod: ast.Module val =>
+      match \exhaustive\ program.module()
+      | let pkg: ast.Module val =>
+        match \exhaustive\ pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -524,7 +524,7 @@ class \nodoc\ _TestCtrlAlignTryElseMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -544,10 +544,10 @@ class \nodoc\ _TestCtrlAlignRepeatUntilMisaligned is UnitTest
       "      until true end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -566,7 +566,7 @@ class \nodoc\ _TestCtrlAlignRepeatUntilMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -587,10 +587,10 @@ class \nodoc\ _TestCtrlAlignWithEndMisaligned is UnitTest
       "      end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -612,7 +612,7 @@ class \nodoc\ _TestCtrlAlignWithEndMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -634,10 +634,10 @@ class \nodoc\ _TestCtrlAlignIfdefElseMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match \exhaustive\ program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match \exhaustive\ program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -659,7 +659,7 @@ class \nodoc\ _TestCtrlAlignIfdefElseMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -681,10 +681,10 @@ class \nodoc\ _TestCtrlAlignMultipleMisaligned is UnitTest
       "      end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -696,7 +696,7 @@ class \nodoc\ _TestCtrlAlignMultipleMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -718,10 +718,10 @@ class \nodoc\ _TestCtrlAlignWhileElseMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match \exhaustive\ program.package()
-      | let pkg: ast.Package val =>
-        match \exhaustive\ pkg.module()
-        | let mod: ast.Module val =>
+      match \exhaustive\ program.module()
+      | let pkg: ast.Module val =>
+        match \exhaustive\ pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -743,7 +743,7 @@ class \nodoc\ _TestCtrlAlignWhileElseMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -765,10 +765,10 @@ class \nodoc\ _TestCtrlAlignForElseMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match \exhaustive\ program.package()
-      | let pkg: ast.Package val =>
-        match \exhaustive\ pkg.module()
-        | let mod: ast.Module val =>
+      match \exhaustive\ program.module()
+      | let pkg: ast.Module val =>
+        match \exhaustive\ pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -790,7 +790,7 @@ class \nodoc\ _TestCtrlAlignForElseMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -813,10 +813,10 @@ class \nodoc\ _TestCtrlAlignRepeatElseMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match \exhaustive\ program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match \exhaustive\ program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -835,7 +835,7 @@ class \nodoc\ _TestCtrlAlignRepeatElseMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -859,10 +859,10 @@ class \nodoc\ _TestCtrlAlignTryThenMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match \exhaustive\ program.package()
-      | let pkg: ast.Package val =>
-        match \exhaustive\ pkg.module()
-        | let mod: ast.Module val =>
+      match \exhaustive\ program.module()
+      | let pkg: ast.Module val =>
+        match \exhaustive\ pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
@@ -884,7 +884,7 @@ class \nodoc\ _TestCtrlAlignTryThenMisaligned is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")

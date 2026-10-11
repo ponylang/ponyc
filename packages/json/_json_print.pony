@@ -255,7 +255,7 @@ primitive _JSONPrint
     """
     A compact decimal string that reparses to exactly `n`. `F64.string()`
     formats with C's `%g` at six significant digits, which drops precision, so
-    the package could not round-trip its own floats. An IEEE double needs at
+    the module could not round-trip its own floats. An IEEE double needs at
     most 17 significant digits to round-trip; format with `%g` at 15 digits,
     then 16, then 17, and keep the first whose value, read back with `strtod`,
     equals `n`. `%g` strips trailing zeros, so values that need fewer digits

@@ -428,19 +428,19 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
 }
 
 
-// Copy aliased use-package symbols from the donor trait's module into the
-// implementing type's module so that references in the copied default body
-// can resolve the package alias.
+// Copy aliased use-module symbols from the donor trait's file into the
+// implementing type's file so that references in the copied default body
+// can resolve the module alias.
 static void import_use_aliases(ast_t* entity, ast_t* body_donor,
   pass_opt_t* opt)
 {
-  ast_t* donor_module = ast_nearest(body_donor, TK_MODULE);
-  ast_t* target_module = ast_nearest(entity, TK_MODULE);
+  ast_t* donor_file = ast_nearest(body_donor, TK_FILE);
+  ast_t* target_file = ast_nearest(entity, TK_FILE);
 
-  if(donor_module == target_module)
+  if(donor_file == target_file)
     return;
 
-  for(ast_t* use = ast_child(donor_module); use != NULL;
+  for(ast_t* use = ast_child(donor_file); use != NULL;
     use = ast_sibling(use))
   {
     if(ast_id(use) != TK_USE)
@@ -452,10 +452,10 @@ static void import_use_aliases(ast_t* entity, ast_t* body_donor,
       continue;
 
     const char* name = ast_name(alias);
-    ast_t* package = (ast_t*)ast_data(use);
+    ast_t* module = (ast_t*)ast_data(use);
 
-    if(package != NULL)
-      ast_set(target_module, name, package, SYM_NONE, false, opt->strtab);
+    if(module != NULL)
+      ast_set(target_file, name, module, SYM_NONE, false, opt->strtab);
   }
 }
 

@@ -213,8 +213,8 @@ primitive TokenIds
 
   // Abstract tokens which don't directly appear in the source
   fun tk_program(): I32 => 136
-  fun tk_package(): I32 => 137
-  fun tk_module(): I32 => 138
+  fun tk_module(): I32 => 137
+  fun tk_file(): I32 => 138
 
   fun tk_members(): I32 => 139
   fun tk_fvar(): I32 => 140
@@ -271,7 +271,7 @@ primitive TokenIds
   fun tk_match_dontcare(): I32 => 185
 
   fun tk_reference(): I32 => 186
-  fun tk_packageref(): I32 => 187
+  fun tk_moduleref(): I32 => 187
   fun tk_typeref(): I32 => 188
   fun tk_typeparamref(): I32 => 189
   fun tk_typealiasref(): I32 => 190
@@ -453,8 +453,8 @@ primitive TokenIds
     | 134 => "TK_ADDRESS"
     | 135 => "TK_LOCATION"
     | 136 => "TK_PROGRAM"
-    | 137 => "TK_PACKAGE"
-    | 138 => "TK_MODULE"
+    | 137 => "TK_MODULE"
+    | 138 => "TK_FILE"
     | 139 => "TK_MEMBERS"
     | 140 => "TK_FVAR"
     | 141 => "TK_FLET"
@@ -503,7 +503,7 @@ primitive TokenIds
     | 184 => "TK_MATCH_CAPTURE"
     | 185 => "TK_MATCH_DONTCARE"
     | 186 => "TK_REFERENCE"
-    | 187 => "TK_PACKAGEREF"
+    | 187 => "TK_MODULEREF"
     | 188 => "TK_TYPEREF"
     | 189 => "TK_TYPEPARAMREF"
     | 190 => "TK_TYPEALIASREF"

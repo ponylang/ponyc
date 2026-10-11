@@ -884,7 +884,7 @@ static bool add_as_type(pass_opt_t* opt, ast_t* ast, ast_t* expr,
 
     default:
     {
-      const char* name = package_hygienic_id(&opt->check, opt);
+      const char* name = module_hygienic_id(&opt->check, opt);
 
       ast_t* expr_type = ast_type(expr);
       errorframe_t info = NULL;

@@ -16,13 +16,13 @@ static bool import_use(pass_opt_t* opt, ast_t* ast)
   ast_t* import = (ast_t*)ast_data(ast);
   pony_assert(import != NULL);
 
-  ast_t* module = ast_parent(ast);
+  ast_t* file = ast_parent(ast);
+  pony_assert(ast_id(file) == TK_FILE);
+  symtab_t* file_symtab = ast_get_symtab(file);
+
+  ast_t* module = ast_parent(file);
   pony_assert(ast_id(module) == TK_MODULE);
   symtab_t* mod_symtab = ast_get_symtab(module);
-
-  ast_t* package = ast_parent(module);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  symtab_t* pkg_symtab = ast_get_symtab(package);
 
   ast_t* uri_child = ast_childidx(ast, 1);
   pony_assert(uri_child != NULL);
@@ -45,11 +45,11 @@ static bool import_use(pass_opt_t* opt, ast_t* ast)
       (strcmp(sym->name, "Main") == 0))
       continue;
 
-    ast_t* existing = symtab_find_case(pkg_symtab, sym->name, NULL,
+    ast_t* existing = symtab_find_case(mod_symtab, sym->name, NULL,
       opt->strtab);
 
     if(existing == NULL)
-      existing = symtab_find_case(mod_symtab, sym->name, NULL, opt->strtab);
+      existing = symtab_find_case(file_symtab, sym->name, NULL, opt->strtab);
 
     if(existing != NULL)
     {
@@ -80,7 +80,7 @@ static bool import_use(pass_opt_t* opt, ast_t* ast)
     else
     {
       // OK to add symbol.
-      symtab_add(mod_symtab, sym->name, sym->def, sym->status, opt->strtab);
+      symtab_add(file_symtab, sym->name, sym->def, sym->status, opt->strtab);
     }
 
   }
@@ -97,8 +97,8 @@ ast_result_t pass_import(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_PROGRAM:
-    case TK_PACKAGE:
     case TK_MODULE:
+    case TK_FILE:
       return AST_OK;
 
     case TK_USE:

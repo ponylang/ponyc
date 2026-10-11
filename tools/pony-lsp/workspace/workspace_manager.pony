@@ -25,7 +25,7 @@ actor WorkspaceManager
   let _channel: Channel
   let _request_sender: RequestSender
   let _compiler: LspCompiler
-  let _packages: Map[String, PackageState]
+  let _modules: Map[String, ModuleState]
   let _global_errors: Array[Diagnostic val]
   var _compile_run: USize = 0
   var _compiling: Bool = false
@@ -50,38 +50,38 @@ actor WorkspaceManager
     _channel = channel'
     _request_sender = request_sender'
     _compiler = compiler'
-    _packages = _packages.create()
+    _modules = _modules.create()
     _global_errors =
       Array[Diagnostic val].create(4)
 
-  fun ref _ensure_package(package_path: FilePath): PackageState =>
+  fun ref _ensure_module(module_path: FilePath): ModuleState =>
     try
-      this._packages(package_path.path)?
+      this._modules(module_path.path)?
     else
-      this._packages.insert(
-        package_path.path,
-        PackageState.create(package_path, this._channel))
+      this._modules.insert(
+        module_path.path,
+        ModuleState.create(module_path, this._channel))
     end
 
-  fun _get_package(package_path: FilePath ): (this->PackageState | None) =>
+  fun _get_module(module_path: FilePath ): (this->ModuleState | None) =>
     try
-      this._packages(package_path.path)?
+      this._modules(module_path.path)?
     else
       None
     end
 
-  fun box _find_workspace_package(document_path: String): FilePath ? =>
+  fun box _find_workspace_module(document_path: String): FilePath ? =>
     """
-    Try to find the package in the workspace from the
+    Try to find the module in the workspace from the
     given `document_path` by iterating up the directory
     tree to see if any dir belongs to one of the
-    packages of the workspace.
+    modules of the workspace.
 
-    Errors if no package could be found.
+    Errors if no module could be found.
     """
     var dir_path = Path.dir(document_path)
     while (dir_path != ".") do
-      if this._packages.contains(dir_path) then
+      if this._modules.contains(dir_path) then
         return
           if Path.is_abs(dir_path) then
             FilePath(this._file_auth, dir_path)
@@ -145,7 +145,7 @@ actor WorkspaceManager
       if this._client.supports_publish_diagnostics() then
         // pre-fill with empty list of errors for
         // all files for which we have errors now
-        for pkg in this._packages.values() do
+        for pkg in this._modules.values() do
           for doc in pkg.document_paths() do
             errors_by_file(doc) = pc.Vec[JSONValue]
           end
@@ -158,24 +158,24 @@ actor WorkspaceManager
       match \exhaustive\ result
       | let program: Program val =>
         this._channel.log("Successfully compiled " + program_dir.path)
-        // create/update package states for every
-        // package being part of the program
-        for package in program.packages() do
-          let package_path = FilePath(this._file_auth, package.path)
-          let package_state = this._ensure_package(package_path)
-          package_state.update(package, run)
+        // create/update module states for every
+        // module being part of the program
+        for pkg in program.modules() do
+          let module_path = FilePath(this._file_auth, pkg.path)
+          let module_state = this._ensure_module(module_path)
+          module_state.update(pkg, run)
 
           var requires_another_compilation = false
           for (await_comp_file, await_comp_hash) in
             this._awaiting_compilation_for.pairs()
           do
             let await_pkg_path = Path.base(await_comp_file)
-            if package_state.path.path == await_pkg_path then
+            if module_state.path.path == await_pkg_path then
               try
                 // get the hash of the module file
                 // ponyc considered for compilation
                 let new_mod_hash =
-                  (package_state.get_document(await_comp_file) as DocumentState)
+                  (module_state.get_document(await_comp_file) as DocumentState)
                     .module_hash()
                 this._awaiting_compilation_for.remove(await_comp_file)?
                 requires_another_compilation =
@@ -220,9 +220,9 @@ actor WorkspaceManager
 
             // store the error in the document-state
             try
-              let package: FilePath = this._find_workspace_package(err_file)?
-              let package_state = this._ensure_package(package)
-              let document_state = package_state.ensure_document(err_file)
+              let mod_dir: FilePath = this._find_workspace_module(err_file)?
+              let module_state = this._ensure_module(mod_dir)
+              let document_state = module_state.ensure_document(err_file)
               document_state.add_diagnostic(run, diagnostic)
             end
 
@@ -300,7 +300,7 @@ actor WorkspaceManager
         " but already received results for run " + this._compile_run.string())
     end
 
-  fun ref _compile(package: FilePath) =>
+  fun ref _compile(module: FilePath) =>
     """
     Central entry point for triggering a compilation.
 
@@ -308,10 +308,10 @@ actor WorkspaceManager
     actually triggering the compilation.
     """
     this._channel.log(
-      "Compiling package " + package.path + " with dependency-paths: " +
+      "Compiling module " + module.path + " with dependency-paths: " +
       ", ".join(workspace.dependency_paths.values()))
 
-    let token = this._compilation_token(package)
+    let token = this._compilation_token(module)
     if this._client.supports_window_work_done_progress()
     then
       let chan = this._channel
@@ -326,7 +326,7 @@ actor WorkspaceManager
                 .update("kind", "begin")
                 .update(
                   "title",
-                  "Compiling " + Path.base(package.path) +
+                  "Compiling " + Path.base(module.path) +
                   " (" + this._compile_run.string() + ")")
                 .update("cancellable", false)
             )
@@ -343,14 +343,14 @@ actor WorkspaceManager
         end
       )
     end
-    _compiler.compile(package, workspace.dependency_paths, this)
+    _compiler.compile(module, workspace.dependency_paths, this)
     _compiling = true
 
-  fun _compilation_token(package: FilePath): String =>
+  fun _compilation_token(module: FilePath): String =>
     recover val
       String.create(128)
         .> append("pony-lsp")
-        .> append(package.path)
+        .> append(module.path)
         .> append("/compile/")
         .> append(this._compile_run.string())
     end
@@ -362,25 +362,25 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     this._channel.log("handling did_open of " + document_path)
 
-    let package: FilePath =
+    let mod_dir: FilePath =
       try
-        this._find_workspace_package(document_path)?
+        this._find_workspace_module(document_path)?
       else
-        var package_path = Path.dir(document_path)
-        if not Path.is_abs(package_path) then
+        var module_path = Path.dir(document_path)
+        if not Path.is_abs(module_path) then
           try
-            this.workspace.folder.join(package_path)?
+            this.workspace.folder.join(module_path)?
           else
-            _channel.log("Error determining package_path for " + document_path)
+            _channel.log("Error determining module_path for " + document_path)
             return
           end
         else
-          FilePath(this._file_auth, package_path)
+          FilePath(this._file_auth, module_path)
         end
       end
-    this._channel.log("did_open in pony package @ " + package.path)
-    let package_state = this._ensure_package(package)
-    let doc_state = package_state.ensure_document(document_path)
+    this._channel.log("did_open in pony module @ " + mod_dir.path)
+    let module_state = this._ensure_module(mod_dir)
+    let doc_state = module_state.ensure_document(document_path)
     if doc_state.needs_compilation() then
       if this._compiling then
         let current_hash = doc_state.module_hash()
@@ -389,7 +389,7 @@ actor WorkspaceManager
         _channel.log(
           "No module found for document " + document_path +
           ". Need to compile.")
-        this._compile(package)
+        this._compile(mod_dir)
       end
     end
 
@@ -400,10 +400,10 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     this._channel.log("handling did_close of " + document_path)
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      let package_state = this._ensure_package(package)
+      let mod_dir: FilePath = this._find_workspace_module(document_path)?
+      let module_state = this._ensure_module(mod_dir)
       try
-        package_state.remove_document(document_path)?
+        module_state.remove_document(document_path)?
       end
     else
       _channel.log("document not in workspace: " + document_path)
@@ -416,8 +416,8 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     this._channel.log("handling did_save of " + document_path)
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      let package_state = this._ensure_package(package)
+      let mod_dir: FilePath = this._find_workspace_module(document_path)?
+      let module_state = this._ensure_module(mod_dir)
       if this._compiling then
         // put the hash of the doc at saving time
         let text_content_hash =
@@ -427,7 +427,7 @@ actor WorkspaceManager
           end
         this._awaiting_compilation_for.insert(document_path, text_content_hash)
       else
-        this._compile(package)
+        this._compile(mod_dir)
       end
     else
       _channel.log("document not in workspace: " + document_path)
@@ -447,7 +447,7 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
 
     // Find AST node at the position
-    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    match \exhaustive\ _find_node_and_file(document_path, line, column)
     | (let hover_node: AST box, _) =>
       this._channel.log("Found AST node: " + hover_node.debug())
 
@@ -539,22 +539,22 @@ actor WorkspaceManager
       None
     end
 
-  fun ref _find_node_and_module(
+  fun ref _find_node_and_file(
     document_path: String,
     line: I64,
-    column: I64): ((AST box, Module val) | None)
+    column: I64): ((AST box, SourceFile val) | None)
   =>
     """
-    Find the AST node and its module at the given position.
-    Returns None if the document or package is not found,
+    Find the AST node and its file at the given position.
+    Returns None if the document or file is not found,
     or no node exists at that position.
     """
-    match _get_index_and_module(document_path)
-    | (let index: PositionIndex val, let module: Module val) =>
+    match _get_index_and_file(document_path)
+    | (let index: PositionIndex val, let f: SourceFile val) =>
       match index.find_node_at(
         USize.from[I64](line + 1),
         USize.from[I64](column + 1))
-      | let node: AST box => (node, module)
+      | let node: AST box => (node, f)
       end
     end
 
@@ -570,7 +570,7 @@ actor WorkspaceManager
     if (sel_line < 0) or (sel_col < 0) then
       return None
     end
-    match _find_node_and_module(document_path, sel_line, sel_col)
+    match _find_node_and_file(document_path, sel_line, sel_col)
     | (let node: AST box, _) =>
       CallHierarchy._method_for_node(node)
     end
@@ -587,13 +587,13 @@ actor WorkspaceManager
     if (sel_line < 0) or (sel_col < 0) then
       return None
     end
-    match _find_node_and_module(document_path, sel_line, sel_col)
+    match _find_node_and_file(document_path, sel_line, sel_col)
     | (let node: AST box, _) =>
       TypeHierarchy._entity_for_node(node)
     end
 
-  fun ref _get_index_and_module(
-    document_path: String): ((PositionIndex val, Module val) | None)
+  fun ref _get_index_and_file(
+    document_path: String): ((PositionIndex val, SourceFile val) | None)
   =>
     """
     Returns the position index and compiled module for the given document
@@ -601,17 +601,17 @@ actor WorkspaceManager
     been compiled, or its index is not yet available.
     """
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      match \exhaustive\ this._get_package(package)
-      | let pkg_state: PackageState =>
+      let mod_dir: FilePath = this._find_workspace_module(document_path)?
+      match \exhaustive\ this._get_module(mod_dir)
+      | let pkg_state: ModuleState =>
         match \exhaustive\ pkg_state.get_document(document_path)
         | let doc: DocumentState =>
-          match (doc.position_index(), doc.module())
-          | (let index: PositionIndex val, let module: Module val) =>
-            (index, module)
+          match (doc.position_index(), doc.file())
+          | (let index: PositionIndex val, let f: SourceFile val) =>
+            (index, f)
           else
             this._channel.log(
-              "No index or module available for " + document_path)
+              "No index or file available for " + document_path)
             None
           end
         else
@@ -620,7 +620,7 @@ actor WorkspaceManager
         end
       | None =>
         this._channel.log(
-          "No package state available for package: " + package.path)
+          "No module state available for module: " + mod_dir.path)
         None
       end
     else
@@ -660,9 +660,9 @@ actor WorkspaceManager
       | None => return
       end
     let document_path = Uris.to_path(document_uri)
-    match _find_node_and_module(document_path, line, column)
-    | (let node: AST box, let module: Module val) =>
-      let highlights = DocumentHighlights.collect(node, module)
+    match _find_node_and_file(document_path, line, column)
+    | (let node: AST box, let f: SourceFile val) =>
+      let highlights = DocumentHighlights.collect(node, f)
       var json_arr = JSONArray
       for (range, kind) in highlights.values() do
         json_arr =
@@ -693,10 +693,10 @@ actor WorkspaceManager
         true
       end
     let document_path = Uris.to_path(document_uri)
-    match _find_node_and_module(document_path, line, column)
+    match _find_node_and_file(document_path, line, column)
     | (let node: AST box, _) =>
       let locations =
-        References.collect(node, this._packages, include_declaration)
+        References.collect(node, this._modules, include_declaration)
       var json_arr = JSONArray
       for loc in locations.values() do
         json_arr = json_arr.push(loc.to_json())
@@ -722,7 +722,7 @@ actor WorkspaceManager
       | None => return
       end
     let document_path = Uris.to_path(document_uri)
-    match _find_node_and_module(document_path, line, column)
+    match _find_node_and_file(document_path, line, column)
     | (let node: AST box, _) =>
       let target: AST val =
         match \exhaustive\ _ResolveASTTarget(node)
@@ -803,11 +803,11 @@ actor WorkspaceManager
       return
     end
     let document_path = Uris.to_path(document_uri)
-    match _find_node_and_module(document_path, line, column)
+    match _find_node_and_file(document_path, line, column)
     | (let node: AST box, _) =>
       match \exhaustive\ Rename.collect(
         node,
-        this._packages,
+        this._modules,
         workspace.folder.path,
         new_name)
       | let workspace_edit: JSONObject val =>
@@ -834,7 +834,7 @@ actor WorkspaceManager
       | None => return
       end
     let document_path = Uris.to_path(document_uri)
-    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    match \exhaustive\ _find_node_and_file(document_path, line, column)
     | (let ast: AST box, _) =>
       this._channel.log(ast.debug())
       var json_arr = JSONArray
@@ -868,7 +868,7 @@ actor WorkspaceManager
       | None => return
       end
     let document_path = Uris.to_path(document_uri)
-    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    match \exhaustive\ _find_node_and_file(document_path, line, column)
     | (let ast: AST box, _) =>
       this._channel.log(ast.debug())
       var json_arr = JSONArray
@@ -898,9 +898,9 @@ actor WorkspaceManager
     this._channel.log("Handling textDocument/documentSymbol")
     let document_path = Uris.to_path(document_uri)
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      match \exhaustive\ this._get_package(package)
-      | let pkg_state: PackageState =>
+      let mod_dir: FilePath = this._find_workspace_module(document_path)?
+      match \exhaustive\ this._get_module(mod_dir)
+      | let pkg_state: ModuleState =>
         // this._channel.log(pkg_state.debug())
         match \exhaustive\ pkg_state.get_document(document_path)
         | let doc: DocumentState =>
@@ -916,7 +916,7 @@ actor WorkspaceManager
         end
       | None =>
         this._channel.log(
-          "No package state available for package: " + package.path)
+          "No module state available for module: " + mod_dir.path)
       end
     else
       this._channel.log("document not in workspace: " + document_path)
@@ -930,13 +930,13 @@ actor WorkspaceManager
   =>
     """
     Handle workspace/symbol request.
-    Collects symbols matching the query across all packages
+    Collects symbols matching the query across all modules
     in this workspace.
     """
     this._channel.log("Handling workspace/symbol: '" + query + "'")
     let query_lower: String val = query.lower()
     var results = JSONArray
-    for pkg_state in this._packages.values() do
+    for pkg_state in this._modules.values() do
       for doc_state in pkg_state.document_states() do
         let file_uri = Uris.from_path(doc_state.path)
         let top_symbols = doc_state.document_symbols()
@@ -1016,9 +1016,9 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     var diagnostics = pc.Vec[JSONValue]
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      match \exhaustive\ this._get_package(package)
-      | let pkg_state: PackageState =>
+      let mod_dir: FilePath = this._find_workspace_module(document_path)?
+      match \exhaustive\ this._get_module(mod_dir)
+      | let pkg_state: ModuleState =>
         match \exhaustive\ pkg_state.get_document(document_path)
         | let doc: DocumentState =>
           try
@@ -1036,12 +1036,12 @@ actor WorkspaceManager
         end
       | None =>
         this._channel.log(
-          "[textDocument/diagnostic] No package state available for package: " +
-          package.path)
+          "[textDocument/diagnostic] No module state available for module: " +
+          mod_dir.path)
       end
     else
       this._channel.log(
-        "[textDocument/diagnostic] Unable to find workspace package for: " +
+        "[textDocument/diagnostic] Unable to find workspace module for: " +
         document_uri)
     end
     this._channel.send(
@@ -1061,13 +1061,13 @@ actor WorkspaceManager
     this._channel.log("Handling textDocument/inlayHint")
     let document_path = Uris.to_path(document_uri)
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      match \exhaustive\ this._get_package(package)
-      | let pkg_state: PackageState =>
+      let mod_dir: FilePath = this._find_workspace_module(document_path)?
+      match \exhaustive\ this._get_module(mod_dir)
+      | let pkg_state: ModuleState =>
         match \exhaustive\ pkg_state.get_document(document_path)
         | let doc: DocumentState =>
-          match \exhaustive\ doc.module()
-          | let module: Module val =>
+          match \exhaustive\ doc.file()
+          | let f: SourceFile val =>
             let range: (None | (I64, I64, I64, I64)) =
               try
                 let p = request.params
@@ -1079,7 +1079,7 @@ actor WorkspaceManager
               else
                 None
               end
-            let hints = InlayHints.collect(module, range)
+            let hints = InlayHints.collect(f, range)
             var json_arr = JSONArray
             for hint in hints.values() do
               json_arr = json_arr.push(hint)
@@ -1088,7 +1088,7 @@ actor WorkspaceManager
             return
           | None =>
             this._channel.log(
-              "No module available for " + document_path)
+              "No file available for " + document_path)
           end
         | None =>
           this._channel.log(
@@ -1096,7 +1096,7 @@ actor WorkspaceManager
         end
       | None =>
         this._channel.log(
-          "No package state available for " + document_path)
+          "No module state available for " + document_path)
       end
     else
       this._channel.log("document not in workspace: " + document_path)
@@ -1110,14 +1110,14 @@ actor WorkspaceManager
     this._channel.log("Handling textDocument/foldingRange")
     let document_path = Uris.to_path(document_uri)
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      match \exhaustive\ this._get_package(package)
-      | let pkg_state: PackageState =>
+      let mod_dir: FilePath = this._find_workspace_module(document_path)?
+      match \exhaustive\ this._get_module(mod_dir)
+      | let pkg_state: ModuleState =>
         match \exhaustive\ pkg_state.get_document(document_path)
         | let doc: DocumentState =>
-          match \exhaustive\ doc.module()
-          | let module: Module val =>
-            let fold_ranges = FoldingRanges.collect(module)
+          match \exhaustive\ doc.file()
+          | let f: SourceFile val =>
+            let fold_ranges = FoldingRanges.collect(f)
             var json_arr = JSONArray
             for range in fold_ranges.values() do
               json_arr = json_arr.push(range)
@@ -1126,7 +1126,7 @@ actor WorkspaceManager
             return
           | None =>
             this._channel.log(
-              "No module available for " + document_path)
+              "No file available for " + document_path)
           end
         | None =>
           this._channel.log(
@@ -1134,7 +1134,7 @@ actor WorkspaceManager
         end
       | None =>
         this._channel.log(
-          "No package state available for " + document_path)
+          "No module state available for " + document_path)
       end
     else
       this._channel.log("document not in workspace: " + document_path)
@@ -1164,7 +1164,7 @@ actor WorkspaceManager
           try
             let l = JSONNav(pos_val)("line").as_i64()?
             let c = JSONNav(pos_val)("character").as_i64()?
-            match _find_node_and_module(document_path, l, c)
+            match _find_node_and_file(document_path, l, c)
             | (let node: AST box, _) =>
               SelectionRanges.collect(node, document_path)
             else
@@ -1201,14 +1201,14 @@ actor WorkspaceManager
     // Convert LSP 0-based cursor to 1-based AST coordinates.
     let cursor_line = USize.from[I64](line + 1)
     let cursor_col  = USize.from[I64](column + 1)
-    match _get_index_and_module(document_path)
-    | (let index: PositionIndex val, let module: Module val) =>
+    match _get_index_and_file(document_path)
+    | (let index: PositionIndex val, let f: SourceFile val) =>
       // Scan the source text forward from the cursor, skipping whitespace
       // and commas, to find the next real token.  This handles the case
       // where the cursor is on a separator character or trailing whitespace
       // where no AST node exists — without magic column limits.
       (let tok_line, let tok_col) =
-        match \exhaustive\ module.ast.source_contents()
+        match \exhaustive\ f.ast.source_contents()
         | let src: String box =>
           SignatureHelpSource.scan_to_token(src, cursor_line, cursor_col)
         | None =>
@@ -1241,7 +1241,7 @@ actor WorkspaceManager
       | None => return
       end
     let document_path = Uris.to_path(document_uri)
-    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    match \exhaustive\ _find_node_and_file(document_path, line, column)
     | (let node: AST box, _) =>
       match CallHierarchy.prepare(node)
       | let result: JSONArray =>
@@ -1265,7 +1265,7 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     match _find_method_node(document_path, sel_line, sel_col)
     | let node: AST box =>
-      match CallHierarchy.incoming_calls(node, this._packages)
+      match CallHierarchy.incoming_calls(node, this._modules)
       | let result: JSONArray =>
         this._channel.send(ResponseMessage(request.id, result))
         return
@@ -1286,7 +1286,7 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     match _find_method_node(document_path, sel_line, sel_col)
     | let node: AST box =>
-      match CallHierarchy.outgoing_calls(node, this._packages)
+      match CallHierarchy.outgoing_calls(node, this._modules)
       | let result: JSONArray =>
         this._channel.send(ResponseMessage(request.id, result))
         return
@@ -1308,7 +1308,7 @@ actor WorkspaceManager
       | None => return
       end
     let document_path = Uris.to_path(document_uri)
-    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    match \exhaustive\ _find_node_and_file(document_path, line, column)
     | (let node: AST box, _) =>
       match TypeHierarchy.prepare(node)
       | let result: JSONArray =>
@@ -1353,7 +1353,7 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     match _find_entity_node(document_path, sel_line, sel_col)
     | let node: AST box =>
-      match TypeHierarchy.subtypes(node, this._packages)
+      match TypeHierarchy.subtypes(node, this._modules)
       | let result: JSONArray =>
         this._channel.send(ResponseMessage(request.id, result))
         return
@@ -1362,6 +1362,6 @@ actor WorkspaceManager
     this._channel.send(ResponseMessage.create(request.id, None))
 
   be dispose() =>
-    for package_state in this._packages.values() do
-      package_state.dispose()
+    for module_state in this._modules.values() do
+      module_state.dispose()
     end

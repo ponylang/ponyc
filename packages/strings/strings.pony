@@ -1,5 +1,5 @@
 """
-# Strings package
+# Strings module
 
-The Strings package provides utilities for working with sequences of strings.
+The Strings module provides utilities for working with sequences of strings.
 """

@@ -4,31 +4,31 @@
 
 // TODO: big comment explaining what's going on
 
-ROOT(program, module);
+ROOT(program, file);
 
 RULE(program,
-  IS_SCOPE  // path -> PACKAGE
+  IS_SCOPE  // path -> MODULE
   HAS_DATA  // program_t
-  ZERO_OR_MORE(package),
+  ZERO_OR_MORE(module),
   TK_PROGRAM);
 
-RULE(package,
-  IS_SCOPE  // name -> entity
-  HAS_DATA  // package_t
-  ZERO_OR_MORE(module)
-  OPTIONAL(string), // Package doc string
-  TK_PACKAGE);
-
 RULE(module,
-  IS_SCOPE  // name -> PACKAGE | entity
+  IS_SCOPE  // name -> entity
+  HAS_DATA  // module_t
+  ZERO_OR_MORE(file)
+  OPTIONAL(string), // Module doc string
+  TK_MODULE);
+
+RULE(file,
+  IS_SCOPE  // name -> MODULE | entity
   HAS_DATA  // source_t
   OPTIONAL(string)
   ZERO_OR_MORE(use)
   ZERO_OR_MORE(class_def),
-  TK_MODULE);
+  TK_FILE);
 
 RULE(use,
-  HAS_DATA  // Included package (unaliased use package commands only)
+  HAS_DATA  // Included module (unaliased use module commands only)
   CHILD(id, none)
   CHILD(ffidecl, string)
   CHILD(expr, ifdef_cond, none),  // Guard
@@ -150,7 +150,7 @@ GROUP(expr,
   if_expr, ifdef, iftypeset, whileloop, repeat, for_loop, with,
   disposing_block, match, try_expr, lambda, barelambda, array_literal,
   object_literal, int_literal, float_literal, string, bool_literal, id, rawseq,
-  package_ref, location, this_ref, ref, fun_ref, type_ref, field_ref,
+  module_ref, location, this_ref, ref, fun_ref, type_ref, field_ref,
   tuple_elem_ref, local_ref, param_ref);
 
 RULE(local,
@@ -459,10 +459,10 @@ RULE(ref,
   CHILD(id),
   TK_REFERENCE);
 
-RULE(package_ref,
-  HAS_DATA // Package import
+RULE(module_ref,
+  HAS_DATA // Module import
   CHILD(id),
-  TK_PACKAGEREF);
+  TK_MODULEREF);
 
 RULE(fun_ref,
   HAS_TYPE(type)
@@ -474,7 +474,7 @@ RULE(fun_ref,
 RULE(type_ref,
   HAS_TYPE(type)
   HAS_DATA // Type definition
-  CHILD(package_ref, none)
+  CHILD(module_ref, none)
   CHILD(id, none)
   CHILD(type_args, none),
   TK_TYPEREF);
@@ -554,12 +554,12 @@ RULE(type_list, ONE_OR_MORE(type), TK_PARAMS);
 
 RULE(nominal,
   HAS_DATA  // Definition of referred type
-  CHILD(id, none) // Package
+  CHILD(id, none) // Module
   CHILD(id)       // Type
   CHILD(type_args, none)
   CHILD(cap, gencap, none)
   CHILD(aliased, ephemeral, none)
-  OPTIONAL(id, none), // Original package specifier (for error reporting)
+  OPTIONAL(id, none), // Original module specifier (for error reporting)
   TK_NOMINAL);
 
 RULE(type_param_ref,

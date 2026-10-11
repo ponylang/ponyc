@@ -1,6 +1,6 @@
 # printargs
 
-A program showing use of the `cli` package to read/print commandline arguments and environment variables.
+A program showing use of the `cli` module to read/print commandline arguments and environment variables.
 
 ## How to Compile
 

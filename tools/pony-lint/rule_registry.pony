@@ -120,8 +120,8 @@ class val RuleRegistry
     : Bool
   =>
     """
-    Check if a rule is enabled by configuration. Used for module-level and
-    package-level rules that are checked outside the per-node dispatch.
+    Check if a rule is enabled by configuration. Used for file-level and
+    module-level rules that are checked outside the per-node dispatch.
     """
     match _config.rule_status(rule_id, category, default)
     | RuleOn => true

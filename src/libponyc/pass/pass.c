@@ -208,16 +208,16 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
 }
 
 
-bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
+bool file_passes(ast_t* module, pass_opt_t* options, source_t* source)
 {
-  // module_passes runs once per module, and the timers accumulate by
-  // (package, pass), so a package's modules fold into one row per pass.
-  const char* pkg = package_qualified_name(package);
+  // file_passes runs once per file, and the timers accumulate by
+  // (module, pass), so a module's files fold into one row per pass.
+  const char* mod = module_qualified_name(module);
 
-  pass_timers_start(options->timers, pkg, pass_name(PASS_PARSE));
-  bool parsed = pass_parse(package, source, options->check.errors,
+  pass_timers_start(options->timers, mod, pass_name(PASS_PARSE));
+  bool parsed = pass_parse(module, source, options->check.errors,
     options->strtab, options->allow_test_symbols, options->parse_trace);
-  pass_timers_stop(options->timers, pkg, pass_name(PASS_PARSE));
+  pass_timers_stop(options->timers, mod, pass_name(PASS_PARSE));
 
   if(!parsed)
     return false;
@@ -225,17 +225,17 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
   if(options->limit < PASS_SYNTAX)
     return true;
 
-  ast_t* module = ast_child(package);
+  ast_t* file = ast_child(module);
 
-  pass_timers_start(options->timers, pkg, pass_name(PASS_SYNTAX));
-  ast_result_t r = ast_visit(&module, pass_syntax, NULL, options, PASS_SYNTAX);
-  pass_timers_stop(options->timers, pkg, pass_name(PASS_SYNTAX));
+  pass_timers_start(options->timers, mod, pass_name(PASS_SYNTAX));
+  ast_result_t r = ast_visit(&file, pass_syntax, NULL, options, PASS_SYNTAX);
+  pass_timers_stop(options->timers, mod, pass_name(PASS_SYNTAX));
 
   if(r != AST_OK)
     return false;
 
   if(options->check_tree)
-    check_tree(module, options);
+    check_tree(file, options);
   return true;
 }
 
@@ -365,7 +365,7 @@ bool ast_passes_program(ast_t* ast, pass_opt_t* options)
       return false;
   }
 
-  // PASS_C is not an AST pass: it compiles each package's C shim sources
+  // PASS_C is not an AST pass: it compiles each module's C shim sources
   // with the embedded clang, recording the objects on the program for the
   // link. It runs here, on the shared side of the REACH boundary, so both
   // real builds and the test harness reach it through this single call
@@ -388,12 +388,12 @@ bool ast_passes_type(ast_t** astp, pass_opt_t* options, pass_id last_pass)
 
   // We don't have the right frame stack for an entity, set up appropriate
   // frames
-  ast_t* module = ast_parent(ast);
-  ast_t* package = ast_parent(module);
+  ast_t* file = ast_parent(ast);
+  ast_t* module = ast_parent(file);
 
   frame_push(&options->check, NULL);
-  frame_push(&options->check, package);
   frame_push(&options->check, module);
+  frame_push(&options->check, file);
 
   bool ok = ast_passes(astp, options, last_pass);
 
@@ -450,23 +450,23 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   typecheck_t* t = &options->check;
   bool pop = frame_push(t, *ast);
 
-  // Per-package front-end timing. A package subtree is entered once per pass,
-  // so wrapping its whole visit attributes that pass's work on the package. The
-  // span is inclusive rather than exclusive: use_package loads a dependency
+  // Per-module front-end timing. A module subtree is entered once per pass,
+  // so wrapping its whole visit attributes that pass's work on the module. The
+  // span is inclusive rather than exclusive: use_module loads a dependency
   // from the scope pass, so the dependency's parse and syntax run inside this
-  // package's scope span and are counted in both rows.
+  // module's scope span and are counted in both rows.
   //
   // The context is tested before the node id because this runs on every AST
   // node and ast_id is an out-of-line call, so a build without --pass-timings
   // pays one predictable branch.
   //
   // The name is captured here because pre/post may replace *ast;
-  // package_qualified_name returns an interned pointer that outlives this call.
-  bool time_pkg = (options->timers != NULL) && (ast_id(*ast) == TK_PACKAGE);
-  const char* pkg_qname = time_pkg ? package_qualified_name(*ast) : NULL;
+  // module_qualified_name returns an interned pointer that outlives this call.
+  bool time_mod = (options->timers != NULL) && (ast_id(*ast) == TK_MODULE);
+  const char* mod_qname = time_mod ? module_qualified_name(*ast) : NULL;
 
-  if(time_pkg)
-    pass_timers_start(options->timers, pkg_qname, pass_name(pass));
+  if(time_mod)
+    pass_timers_start(options->timers, mod_qname, pass_name(pass));
 
   ast_result_t ret = AST_OK;
   bool ignore = false;
@@ -536,8 +536,8 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
     }
   }
 
-  if(time_pkg)
-    pass_timers_stop(options->timers, pkg_qname, pass_name(pass));
+  if(time_mod)
+    pass_timers_stop(options->timers, mod_qname, pass_name(pass));
 
   if(pop)
     frame_pop(t);
@@ -548,8 +548,8 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   // Shared by the three fatal arms above, so that stopping the timer cannot be
   // missed by a return added later.
 fatal:
-  if(time_pkg)
-    pass_timers_stop(options->timers, pkg_qname, pass_name(pass));
+  if(time_mod)
+    pass_timers_stop(options->timers, mod_qname, pass_name(pass));
 
   ast_pass_record(*ast, pass);
 
@@ -564,14 +564,14 @@ ast_result_t ast_visit_scope(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   pass_opt_t* options, pass_id pass)
 {
   typecheck_t* t = &options->check;
-  ast_t* module = ast_nearest(*ast, TK_MODULE);
-  ast_t* package = ast_parent(module);
+  ast_t* file = ast_nearest(*ast, TK_FILE);
+  ast_t* module = ast_parent(file);
+  pony_assert(file != NULL);
   pony_assert(module != NULL);
-  pony_assert(package != NULL);
 
   frame_push(t, NULL);
-  frame_push(t, package);
   frame_push(t, module);
+  frame_push(t, file);
 
   ast_result_t ret = ast_visit(ast, pre, post, options, pass);
 

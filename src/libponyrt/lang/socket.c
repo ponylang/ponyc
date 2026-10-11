@@ -1321,7 +1321,7 @@ bool ponyint_os_sockets_init()
 #ifdef PLATFORM_IS_POSIX_BASED
   // Ignore SIGPIPE to prevent writing to closed sockets, pipes, etc, from
   // raising a signal. If a program needs SIGPIPE, it can be accessed via the
-  // signals package.
+  // signals module.
   struct sigaction sa;
   sa.sa_handler = SIG_IGN;
   sigemptyset(&sa.sa_mask);

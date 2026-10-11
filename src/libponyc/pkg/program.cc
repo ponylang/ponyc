@@ -9,11 +9,11 @@
 // Per program state.
 typedef struct program_t
 {
-  package_group_list_t* package_groups;
-  uint32_t next_package_id;
+  module_group_list_t* module_groups;
+  uint32_t next_module_id;
   strlist_t* libpaths;
   strlist_t* libs;
-  // C shim objects emitted by gencshim, in package-walk order (deterministic).
+  // C shim objects emitted by gencshim, in module-walk order (deterministic).
   // The platform linkers append these to the link line in this order.
   // gencshim_done makes gencshim idempotent: AST passes are re-entry-guarded per
   // node, but a resumed ast_passes_program would otherwise recompile every
@@ -59,8 +59,8 @@ static void append_to_args(program_t* program, const char* text)
 program_t* program_create()
 {
   program_t* p = POOL_ALLOC(program_t);
-  p->package_groups = NULL;
-  p->next_package_id = 0;
+  p->module_groups = NULL;
+  p->next_module_id = 0;
   p->libpaths = NULL;
   p->libs = NULL;
   p->c_objects = NULL;
@@ -81,7 +81,7 @@ void program_free(program_t* program)
 {
   pony_assert(program != NULL);
 
-  package_group_list_free(program->package_groups);
+  module_group_list_free(program->module_groups);
 
   strlist_free(program->libpaths);
   strlist_free(program->libs);
@@ -104,7 +104,7 @@ void program_free(program_t* program)
 }
 
 
-uint32_t program_assign_pkg_id(ast_t* ast)
+uint32_t program_assign_module_id(ast_t* ast)
 {
   pony_assert(ast != NULL);
   pony_assert(ast_id(ast) == TK_PROGRAM);
@@ -112,7 +112,7 @@ uint32_t program_assign_pkg_id(ast_t* ast)
   program_t* data = (program_t*)ast_data(ast);
   pony_assert(data != NULL);
 
-  return data->next_package_id++;
+  return data->next_module_id++;
 }
 
 #if defined(PLATFORM_IS_WINDOWS)
@@ -176,8 +176,8 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
   const char* prefix = NULL;
 
   if(!is_path_absolute(locator)) {
-    ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
-    prefix = package_path(pkg_ast);
+    ast_t* pkg_ast = ast_nearest(use, TK_MODULE);
+    prefix = module_path(pkg_ast);
   }
 
   path_cat(prefix, locator, absolute);
@@ -238,7 +238,7 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
   }
 
   // Library paths from the command line and environment variable.
-  for(strlist_t* p = opt->package_search_paths; p != NULL; p = strlist_next(p))
+  for(strlist_t* p = opt->module_search_paths; p != NULL; p = strlist_next(p))
   {
     const char* libpath = quoted_locator(opt, NULL, strlist_data(p));
 
@@ -327,7 +327,7 @@ void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt)
   size_t path_count = 0;
   for(strlist_t* p = data->libpaths; p != NULL; p = strlist_next(p))
     path_count++;
-  for(strlist_t* p = opt->package_search_paths; p != NULL; p = strlist_next(p))
+  for(strlist_t* p = opt->module_search_paths; p != NULL; p = strlist_next(p))
   {
     if(quoted_locator(opt, NULL, strlist_data(p)) != NULL)
       path_count++;
@@ -344,7 +344,7 @@ void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt)
     for(strlist_t* p = data->libpaths; p != NULL; p = strlist_next(p))
       data->embedded_paths[i++] = unquote(strlist_data(p), opt);
 
-    for(strlist_t* p = opt->package_search_paths; p != NULL;
+    for(strlist_t* p = opt->module_search_paths; p != NULL;
       p = strlist_next(p))
     {
       const char* quoted = quoted_locator(opt, NULL, strlist_data(p));
@@ -508,23 +508,23 @@ void program_dump(ast_t* program)
   program_t* data = (program_t*)ast_data(program);
   pony_assert(data != NULL);
 
-  if(data->package_groups == NULL)
+  if(data->module_groups == NULL)
   {
-    ast_t* first_package = ast_child(program);
-    pony_assert(first_package != NULL);
-    data->package_groups = package_dependency_groups(first_package);
+    ast_t* first_module = ast_child(program);
+    pony_assert(first_module != NULL);
+    data->module_groups = module_dependency_groups(first_module);
   }
 
   size_t i = 0;
-  package_group_list_t* iter = data->package_groups;
+  module_group_list_t* iter = data->module_groups;
 
   while(iter != NULL)
   {
     printf("Group " __zu "\n", i);
-    package_group_t* group = package_group_list_data(iter);
-    package_group_dump(group);
+    module_group_t* group = module_group_list_data(iter);
+    module_group_dump(group);
     putchar('\n');
-    iter = package_group_list_next(iter);
+    iter = module_group_list_next(iter);
     i++;
   }
 }

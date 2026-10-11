@@ -387,11 +387,11 @@ class \nodoc\ _TestCleanUnparseableSourceFails is UnitTest
     end
     tmp.dispose()
 
-class \nodoc\ _TestCleanUnparseablePackageStillReachable is UnitTest
-  """A package that fails to parse is still kept if something references it."""
+class \nodoc\ _TestCleanUnparseableModuleStillReachable is UnitTest
+  """A module that fails to parse is still kept if something references it."""
 
   fun name(): String =>
-    "Clean keeps unparseable package when referenced"
+    "Clean keeps unparseable module when referenced"
 
   fun apply(h: TestHelper) ? =>
     let auth = FileAuth(h.env.root)
@@ -507,7 +507,7 @@ class \nodoc\ _TestCleanFilesInExtIgnored is UnitTest
 
     let stray_file = FilePath(auth, Path.join(ext, "stray.txt"))
     let f = CreateFile(stray_file) as File
-    f.print("not a package")
+    f.print("not a module")
     f.dispose()
 
     let pkg_path = _CleanTestHelper.packages_path(h)

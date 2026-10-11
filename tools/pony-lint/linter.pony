@@ -13,12 +13,12 @@ class val Linter
      suppressions, and run enabled text rules with suppression filtering.
      Each file's rules are resolved from the directory-specific config via
      `ConfigResolver`.
-  2. **AST phase** — group files by directory (package), compile each package
+  2. **AST phase** — group files by directory (module), compile each module
      via pony_compiler using `CompileSession`. Parse-level rules run after
      `PassParse`, then compilation continues to `PassExpr` for rules that need
-     type information (e.g., safety rules). Module-level and package-level
-     rules (file-naming, package-naming) run after the per-node dispatch.
-     Each package's rules are resolved from its directory's config.
+     type information (e.g., safety rules). File-level and module-level
+     rules (file-naming, module-naming) run after the per-node dispatch.
+     Each module's rules are resolved from its directory's config.
 
   File discovery recursively finds .pony files in given targets, skipping
   _corral/, _repos/, and directories starting with a dot. When inside a git
@@ -32,20 +32,20 @@ class val Linter
   with the root config using proximity-first precedence.
 
   The two phases can be invoked separately via `run_text_phase()` and
-  `run_ast_package()` to allow GC between package compilations. The combined
+  `run_ast_module()` to allow GC between module compilations. The combined
   `run()` method calls both in sequence for callers that don't need this.
   """
   let _registry: RuleRegistry
   let _file_auth: FileAuth
   let _cwd: String val
-  let _package_paths: Array[String val] val
+  let _module_paths: Array[String val] val
   let _root_dir: String val
 
   new val create(
     registry: RuleRegistry,
     file_auth: FileAuth,
     cwd: String val,
-    package_paths: Array[String val] val = recover val
+    module_paths: Array[String val] val = recover val
       Array[String val] end,
     root_dir: String val = "")
       // Empty `root_dir` disables hierarchical config discovery.
@@ -54,7 +54,7 @@ class val Linter
     _registry = registry
     _file_auth = file_auth
     _cwd = cwd
-    _package_paths = package_paths
+    _module_paths = module_paths
     _root_dir = root_dir
 
   fun run(targets: Array[String val] val)
@@ -64,8 +64,8 @@ class val Linter
     Run all enabled rules against the given target paths (files or
     directories). Returns sorted diagnostics and the appropriate exit code.
 
-    Calls `run_text_phase()` then `run_ast_package()` for each package in
-    sequence. Callers that need GC between package compilations (to avoid
+    Calls `run_text_phase()` then `run_ast_module()` for each module in
+    sequence. Callers that need GC between module compilations (to avoid
     accumulating `Program val` ASTs in memory) should call the two methods
     separately, driving the AST loop from actor behaviors.
     """
@@ -77,9 +77,9 @@ class val Linter
       all_diags.push(d)
     end
 
-    for pkg in result.packages.values() do
+    for pkg in result.modules.values() do
       (let pkg_diags, let pkg_error) =
-        run_ast_package(
+        run_ast_module(
           pkg.dir,
           pkg.file_paths,
           result.file_info,
@@ -109,11 +109,11 @@ class val Linter
   fun run_text_phase(targets: Array[String val] val): _TextPhaseResult =>
     """
     Run file discovery and text-phase rules. Returns intermediate state
-    needed by the AST phase: per-file metadata, the package list with
+    needed by the AST phase: per-file metadata, the module list with
     pre-resolved registries, text diagnostics, and the error flag.
 
-    This is the first half of what `run()` does. Call `run_ast_package()`
-    for each package in the result to complete the lint.
+    This is the first half of what `run()` does. Call `run_ast_module()`
+    for each module in the result to complete the lint.
     """
     let all_diags = Array[Diagnostic val]
     var has_error = false
@@ -204,12 +204,12 @@ class val Linter
     end
     let file_info: Map[String, _FileInfo val] val = consume fi_iso
 
-    // Build package list with pre-resolved registries.
+    // Build module list with pre-resolved registries.
     // Each entry carries the directory, its file paths, and its
     // RuleRegistry so the AST phase needs no ConfigResolver.
-    let packages: Array[_PackageInfo val] val =
+    let mods: Array[_ModuleInfo val] val =
       if _registry.all_ast_rules().size() > 0 then
-        // Group files by directory (package)
+        // Group files by directory (module)
         let pkg_map = Map[String, Array[String val]]
         for path in pony_files.values() do
           let dir = Path.dir(path)
@@ -224,7 +224,7 @@ class val Linter
           pkg_files.push(path)
         end
 
-        let all_pkgs = Array[_PackageInfo val]
+        let all_pkgs = Array[_ModuleInfo val]
         for (pkg_dir, pkg_file_paths) in pkg_map.pairs() do
           let pkg_registry =
             _registry_for(pkg_dir, resolver, _registry)
@@ -241,19 +241,19 @@ class val Linter
             fps_iso.push(p)
           end
           let fps: Array[String val] val = consume fps_iso
-          all_pkgs.push(_PackageInfo(pkg_dir, fps, pkg_registry))
+          all_pkgs.push(_ModuleInfo(pkg_dir, fps, pkg_registry))
         end
 
-        // Nest subpackages under their parents. A subpackage's dir
+        // Nest submodules under their parents. A submodule's dir
         // starts with a parent's dir + path separator. The parent's
         // CompileSession loads it as a dependency, so it can be linted
         // from the same compilation without a separate session.
         let sep = Path.sep()
-        let roots = Array[_PackageInfo val]
+        let roots = Array[_ModuleInfo val]
         let child_dirs = Set[String val]
         for pkg in all_pkgs.values() do
           let pkg_prefix: String val = pkg.dir + sep
-          let kids = Array[_PackageInfo val]
+          let kids = Array[_ModuleInfo val]
           for other in all_pkgs.values() do
             if (other.dir != pkg.dir) and
               other.dir.at(pkg_prefix)
@@ -264,10 +264,10 @@ class val Linter
           end
           if kids.size() > 0 then
             let kids_iso =
-              recover iso Array[_PackageInfo val](kids.size()) end
+              recover iso Array[_ModuleInfo val](kids.size()) end
             for k in kids.values() do kids_iso.push(k) end
             roots.push(
-              _PackageInfo(
+              _ModuleInfo(
                 pkg.dir,
                 pkg.file_paths,
                 pkg.registry,
@@ -278,7 +278,7 @@ class val Linter
         end
 
         let pkgs_iso =
-          recover iso Array[_PackageInfo val] end
+          recover iso Array[_ModuleInfo val] end
         for pkg in roots.values() do
           if not child_dirs.contains(pkg.dir) then
             pkgs_iso.push(pkg)
@@ -286,7 +286,7 @@ class val Linter
         end
         consume pkgs_iso
       else
-        recover val Array[_PackageInfo val] end
+        recover val Array[_ModuleInfo val] end
       end
 
     let diags_iso =
@@ -294,28 +294,28 @@ class val Linter
     for d in all_diags.values() do diags_iso.push(d) end
     let diags_val: Array[Diagnostic val] val = consume diags_iso
 
-    _TextPhaseResult(diags_val, has_error, file_info, packages)
+    _TextPhaseResult(diags_val, has_error, file_info, mods)
 
-  fun run_ast_package(
+  fun run_ast_module(
     pkg_dir: String val,
     pkg_file_paths: Array[String val] val,
     file_info: Map[String, _FileInfo val] val,
     pkg_registry: RuleRegistry,
-    children: Array[_PackageInfo val] val =
-      recover val Array[_PackageInfo val] end)
+    children: Array[_ModuleInfo val] val =
+      recover val Array[_ModuleInfo val] end)
     : (Array[Diagnostic val] val, Bool)
   =>
     """
-    Compile one package and run its AST rules. Returns diagnostics and
+    Compile one module and run its AST rules. Returns diagnostics and
     whether an error occurred. The `CompileSession` is created and disposed
     within this call.
 
-    When `children` is non-empty, the listed subpackages are also linted
+    When `children` is non-empty, the listed submodules are also linted
     from this compilation's `Program` instead of being compiled
     independently. The parent's `use` directives pull them in as
-    dependencies, so their `Package` nodes are already in the AST.
+    dependencies, so their `Module` nodes are already in the AST.
 
-    Called once per package from actor behaviors so GC can collect each
+    Called once per module from actor behaviors so GC can collect each
     `Program val` between calls.
     """
     let all_diags = Array[Diagnostic val]
@@ -327,13 +327,13 @@ class val Linter
     let pkg_fp = FilePath(_file_auth, pkg_dir)
     let session =
       ast.CompileSession(
-        pkg_fp where package_search_paths = _package_paths,
+        pkg_fp where module_search_paths = _module_paths,
         limit = ast.PassParse)
     match session.program()
     | let program: ast.Program val =>
-      match program.package()
-      | let pkg: ast.Package val =>
-        _lint_package_parse(
+      match program.module()
+      | let pkg: ast.Module val =>
+        _lint_module_parse(
           pkg,
           pkg_dir,
           pkg_file_paths,
@@ -342,7 +342,7 @@ class val Linter
           pkg_registry,
           all_diags)
 
-        // Lint child subpackages at parse level
+        // Lint child submodules at parse level
         for child in children.values() do
           _lint_child_parse(
             program, child, file_info, all_diags)
@@ -351,7 +351,7 @@ class val Linter
         // Expr-level dispatch (safety rules).
         // Skip PassExpr when the target files have no nodes matching
         // expr-level rules — avoids a full type-checking pass through
-        // the entire dependency tree for packages that don't need it.
+        // the entire dependency tree for modules that don't need it.
         if expr_rules.size() > 0 then
           var needs_expr = false
           let expr_tokens =
@@ -364,7 +364,7 @@ class val Linter
               end
               s
             end
-          for mod in pkg.modules() do
+          for mod in pkg.files() do
             try
               let info = file_info(mod.file)?
               let scanner = _ExprNodeScanner(expr_tokens)
@@ -377,12 +377,12 @@ class val Linter
           end
 
           if not needs_expr then
-            // Check child packages too
+            // Check child modules too
             for child in children.values() do
-              let child_pkg = _find_child_package(program, child.dir)
+              let child_pkg = _find_child_module(program, child.dir)
               match child_pkg
-              | let cp: ast.Package val =>
-                for mod in cp.modules() do
+              | let cp: ast.Module val =>
+                for mod in cp.files() do
                   try
                     let info = file_info(mod.file)?
                     let child_expr_rules =
@@ -412,19 +412,19 @@ class val Linter
 
           if needs_expr then
             if session.continue_to(ast.PassExpr) then
-              _lint_package_expr(
+              _lint_module_expr(
                 pkg, file_info, expr_rules, all_diags)
 
-              // Expr-level dispatch on child packages
+              // Expr-level dispatch on child modules
               for child in children.values() do
                 let child_pkg =
-                  _find_child_package(program, child.dir)
+                  _find_child_module(program, child.dir)
                 match child_pkg
-                | let cp: ast.Package val =>
+                | let cp: ast.Module val =>
                   let child_expr_rules =
                     child.registry.enabled_expr_ast_rules()
                   if child_expr_rules.size() > 0 then
-                    _lint_package_expr(
+                    _lint_module_expr(
                       cp,
                       file_info,
                       child_expr_rules,
@@ -488,8 +488,8 @@ class val Linter
 
     (diags_val, has_error)
 
-  fun _lint_package_parse(
-    pkg: ast.Package val,
+  fun _lint_module_parse(
+    pkg: ast.Module val,
     pkg_dir: String val,
     pkg_file_paths: Array[String val] val,
     file_info: Map[String, _FileInfo val] val,
@@ -498,10 +498,10 @@ class val Linter
     all_diags: Array[Diagnostic val])
   =>
     """
-    Run parse-level and package-level AST rules on a single package.
+    Run parse-level and module-level AST rules on a single module.
     """
     if parse_rules.size() > 0 then
-      for mod in pkg.modules() do
+      for mod in pkg.files() do
         let mod_file = mod.file
         try
           let info = file_info(mod_file)?
@@ -524,7 +524,7 @@ class val Linter
             FileNaming.default_status())
           then
             let file_diags =
-              FileNaming.check_module(
+              FileNaming.check_file(
                 dispatcher.entities(), info.source)
             for d in file_diags.values() do
               if info.magic_lines.contains(d.line) then continue end
@@ -544,7 +544,7 @@ class val Linter
             BlankLines.default_status())
           then
             let bl_diags =
-              BlankLines.check_module(
+              BlankLines.check_file(
                 dispatcher.entities(), info.source)
             for d in bl_diags.values() do
               if info.magic_lines.contains(d.line) then continue end
@@ -565,7 +565,7 @@ class val Linter
             LineLength.default_status())
           then
             let ll_diags =
-              LineLength.check_module(mod.ast, info.source)
+              LineLength.check_file(mod.ast, info.source)
             for d in ll_diags.values() do
               if info.magic_lines.contains(d.line) then continue end
               if info.suppressions.is_suppressed(
@@ -580,7 +580,7 @@ class val Linter
       end
     end
 
-    // Use first file in the package for diagnostic location
+    // Use first file in the module for diagnostic location
     let first_rel =
       try
         let first_path = pkg_file_paths(0)?
@@ -591,26 +591,26 @@ class val Linter
         pkg_dir
       end
 
-    // Package-naming check (once per package)
+    // Module-naming check (once per module)
     if pkg_registry.is_enabled(
-      PackageNaming.id(),
-      PackageNaming.category(),
-      PackageNaming.default_status())
+      ModuleNaming.id(),
+      ModuleNaming.category(),
+      ModuleNaming.default_status())
     then
       let pkg_diags =
-        PackageNaming.check_package(
+        ModuleNaming.check_module(
           Path.base(pkg.path), first_rel)
       for d in pkg_diags.values() do
         all_diags.push(d)
       end
     end
 
-    // Package-docstring check (once per package, before
+    // Module-docstring check (once per module, before
     // PassExpr which can transform the docstring AST node)
     if pkg_registry.is_enabled(
-      PackageDocstring.id(),
-      PackageDocstring.category(),
-      PackageDocstring.default_status())
+      ModuleDocstring.id(),
+      ModuleDocstring.category(),
+      ModuleDocstring.default_status())
     then
       let pkg_base = Path.base(pkg.path)
       let norm_name =
@@ -624,7 +624,7 @@ class val Linter
       let expected_file: String val = norm_name + ".pony"
       var has_pkg_file = false
       var has_docstring = false
-      for mod in pkg.modules() do
+      for mod in pkg.files() do
         let mod_basename = Path.base(mod.file)
         if mod_basename == expected_file then
           has_pkg_file = true
@@ -638,7 +638,7 @@ class val Linter
         end
       end
       let pd_diags =
-        PackageDocstring.check_package(
+        ModuleDocstring.check_module(
           norm_name, has_pkg_file, has_docstring, first_rel)
       for d in pd_diags.values() do
         all_diags.push(d)
@@ -647,19 +647,19 @@ class val Linter
 
   fun _lint_child_parse(
     program: ast.Program val,
-    child: _PackageInfo val,
+    child: _ModuleInfo val,
     file_info: Map[String, _FileInfo val] val,
     all_diags: Array[Diagnostic val])
   =>
     """
-    Find a child package in the compiled program and run its parse-level
-    and package-level rules. Skips children the parent never imported.
+    Find a child module in the compiled program and run its parse-level
+    and module-level rules. Skips children the parent never imported.
     """
-    let child_pkg = _find_child_package(program, child.dir)
+    let child_pkg = _find_child_module(program, child.dir)
     match child_pkg
-    | let cp: ast.Package val =>
+    | let cp: ast.Module val =>
       let child_parse = child.registry.enabled_parse_ast_rules()
-      _lint_package_parse(
+      _lint_module_parse(
         cp,
         child.dir,
         child.file_paths,
@@ -669,16 +669,16 @@ class val Linter
         all_diags)
     end
 
-  fun _lint_package_expr(
-    pkg: ast.Package val,
+  fun _lint_module_expr(
+    pkg: ast.Module val,
     file_info: Map[String, _FileInfo val] val,
     expr_rules: Array[ASTRule val] val,
     all_diags: Array[Diagnostic val])
   =>
     """
-    Run expr-level AST rules on a single package's modules.
+    Run expr-level AST rules on a single module's files.
     """
-    for mod in pkg.modules() do
+    for mod in pkg.files() do
       let mod_file = mod.file
       try
         let info = file_info(mod_file)?
@@ -696,15 +696,15 @@ class val Linter
       end
     end
 
-  fun _find_child_package(
+  fun _find_child_module(
     program: ast.Program val,
     child_dir: String val)
-    : (ast.Package val | None)
+    : (ast.Module val | None)
   =>
     """
-    Find a package in the program whose path matches the child directory.
+    Find a module in the program whose path matches the child directory.
     """
-    for pkg in program.packages() do
+    for pkg in program.modules() do
       if pkg.path == child_dir then
         return pkg
       end
@@ -956,25 +956,25 @@ class val _TextPhaseResult
   let diagnostics: Array[Diagnostic val] val
   let has_error: Bool
   let file_info: Map[String, _FileInfo val] val
-  let packages: Array[_PackageInfo val] val
+  let modules: Array[_ModuleInfo val] val
 
   new val create(
     diagnostics': Array[Diagnostic val] val,
     has_error': Bool,
     file_info': Map[String, _FileInfo val] val,
-    packages': Array[_PackageInfo val] val)
+    modules': Array[_ModuleInfo val] val)
   =>
     diagnostics = diagnostics'
     has_error = has_error'
     file_info = file_info'
-    packages = packages'
+    modules = modules'
 
-class val _PackageInfo
+class val _ModuleInfo
   """
-  A package directory to be AST-linted, with its file paths and
+  A module directory to be AST-linted, with its file paths and
   pre-resolved `RuleRegistry`.
 
-  When a package directory is a subdirectory of another discovered package,
+  When a module directory is a subdirectory of another discovered module,
   the child is nested under the parent's `children` field instead of being
   compiled independently. The parent's `CompileSession` already loads the
   child as a dependency (via `use` directives), so pony-lint can lint both
@@ -983,14 +983,14 @@ class val _PackageInfo
   let dir: String val
   let file_paths: Array[String val] val
   let registry: RuleRegistry
-  let children: Array[_PackageInfo val] val
+  let children: Array[_ModuleInfo val] val
 
   new val create(
     dir': String val,
     file_paths': Array[String val] val,
     registry': RuleRegistry,
-    children': Array[_PackageInfo val] val =
-      recover val Array[_PackageInfo val] end)
+    children': Array[_ModuleInfo val] val =
+      recover val Array[_ModuleInfo val] end)
   =>
     dir = dir'
     file_paths = file_paths'
@@ -1001,7 +1001,7 @@ class ref _ExprNodeScanner is ast.ASTVisitor
   """
   Scans a parse-level AST for nodes matching expr-level rule filters.
   Stops as soon as one is found. Used to decide whether `PassExpr` is
-  needed for a package — skipping it avoids a full type-checking pass
+  needed for a module — skipping it avoids a full type-checking pass
   through the entire dependency tree.
   """
   let _tokens: Set[ast.TokenId] val

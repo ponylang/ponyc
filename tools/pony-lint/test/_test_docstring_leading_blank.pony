@@ -16,10 +16,10 @@ class \nodoc\ _TestDocLeadingBlankEntityFlagged is UnitTest
       "  \"\"\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.DocstringLeadingBlank)
           h.assert_eq[USize](1, diags.size())
@@ -35,7 +35,7 @@ class \nodoc\ _TestDocLeadingBlankEntityFlagged is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -54,10 +54,10 @@ class \nodoc\ _TestDocLeadingBlankEntityClean is UnitTest
       "  \"\"\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.DocstringLeadingBlank)
           h.assert_eq[USize](0, diags.size())
@@ -65,7 +65,7 @@ class \nodoc\ _TestDocLeadingBlankEntityClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -90,10 +90,10 @@ class \nodoc\ _TestDocLeadingBlankMethodFlagged is UnitTest
       "    None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.DocstringLeadingBlank)
           h.assert_eq[USize](1, diags.size())
@@ -106,7 +106,7 @@ class \nodoc\ _TestDocLeadingBlankMethodFlagged is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -130,10 +130,10 @@ class \nodoc\ _TestDocLeadingBlankMethodClean is UnitTest
       "    None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.DocstringLeadingBlank)
           h.assert_eq[USize](0, diags.size())
@@ -141,7 +141,7 @@ class \nodoc\ _TestDocLeadingBlankMethodClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -164,10 +164,10 @@ class \nodoc\ _TestDocLeadingBlankAbstractMethodFlagged is UnitTest
       "    \"\"\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.DocstringLeadingBlank)
           h.assert_eq[USize](1, diags.size())
@@ -175,7 +175,7 @@ class \nodoc\ _TestDocLeadingBlankAbstractMethodFlagged is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -192,10 +192,10 @@ class \nodoc\ _TestDocLeadingBlankSingleLineClean is UnitTest
       "  \"\"\"Foo docstring.\"\"\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.DocstringLeadingBlank)
           h.assert_eq[USize](0, diags.size())
@@ -203,7 +203,7 @@ class \nodoc\ _TestDocLeadingBlankSingleLineClean is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -223,10 +223,10 @@ class \nodoc\ _TestDocLeadingBlankNodocEntityExempt is UnitTest
       "  \"\"\"\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.DocstringLeadingBlank)
           h.assert_eq[USize](0, diags.size())
@@ -234,7 +234,7 @@ class \nodoc\ _TestDocLeadingBlankNodocEntityExempt is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -259,10 +259,10 @@ class \nodoc\ _TestDocLeadingBlankNodocEntityMethodExempt is UnitTest
       "    None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.DocstringLeadingBlank)
           h.assert_eq[USize](0, diags.size())
@@ -270,7 +270,7 @@ class \nodoc\ _TestDocLeadingBlankNodocEntityMethodExempt is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")

@@ -4,15 +4,15 @@ class val DocProgram
   Pony program.
   """
   let name: String
-  let packages: Array[DocPackage] val
+  let modules: Array[DocModule] val
 
-  new val create(name': String, packages': Array[DocPackage] val) =>
+  new val create(name': String, modules': Array[DocModule] val) =>
     name = name'
-    packages = packages'
+    modules = modules'
 
-class val DocPackage
+class val DocModule
   """
-  A Pony package with its documented types and source
+  A Pony module with its documented types and source
   files.
   """
   let qualified_name: String

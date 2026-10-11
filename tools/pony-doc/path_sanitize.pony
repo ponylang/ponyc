@@ -1,6 +1,6 @@
 primitive PathSanitize
   """
-  Sanitizes package names for use in source directory paths.
+  Sanitizes module names for use in source directory paths.
 
   Replaces `.` with `_` and `/` with `-`. On Windows, also replaces
   `\\` with `-`. Separate from TQFN which only replaces `/` with `-`.

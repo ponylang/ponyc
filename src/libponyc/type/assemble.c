@@ -152,7 +152,7 @@ static ast_t* type_typeexpr(pass_opt_t* opt, token_id t, ast_t* l_type,
   return type;
 }
 
-static ast_t* type_base(ast_t* from, const char* package, const char* name,
+static ast_t* type_base(ast_t* from, const char* module, const char* name,
   ast_t* typeargs, pass_opt_t* opt)
 {
   if(typeargs == NULL)
@@ -160,7 +160,7 @@ static ast_t* type_base(ast_t* from, const char* package, const char* name,
 
   BUILD(ast, from,
     NODE(TK_NOMINAL,
-      ID(package)
+      ID(module)
       ID(name)
       TREE(typeargs)
       NONE
@@ -193,7 +193,7 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
 {
   BUILD(pointer, to,
     NODE(TK_NOMINAL,
-      NONE // Package
+      NONE // Module
       ID("Pointer")
       NODE(TK_TYPEARGS,
         TREE(to)
@@ -213,15 +213,15 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
   return pointer;
 }
 
-ast_t* type_sugar(ast_t* from, const char* package, const char* name, pass_opt_t* opt)
+ast_t* type_sugar(ast_t* from, const char* module, const char* name, pass_opt_t* opt)
 {
-  return type_base(from, package, name, NULL, opt);
+  return type_base(from, module, name, NULL, opt);
 }
 
-ast_t* type_sugar_args(ast_t* from, const char* package, const char* name,
+ast_t* type_sugar_args(ast_t* from, const char* module, const char* name,
   ast_t* typeargs, pass_opt_t* opt)
 {
-  return type_base(from, package, name, typeargs, opt);
+  return type_base(from, module, name, typeargs, opt);
 }
 
 ast_t* control_type_add_branch(pass_opt_t* opt, ast_t* control_type,
@@ -448,7 +448,7 @@ ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
     case TK_NOMINAL:
     {
       type = ast_dup(type);
-      AST_GET_CHILDREN(type, package, id, typeargs, tcap, eph);
+      AST_GET_CHILDREN(type, module, id, typeargs, tcap, eph);
 
       if(cap != TK_NONE)
         ast_setid(tcap, cap);

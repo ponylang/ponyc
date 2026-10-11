@@ -47,7 +47,7 @@ primitive Clean
     auth: FileAuth,
     src_dir: String,
     ext_dir: String,
-    package_paths: (String box | ReadSeq[String val] box))
+    module_paths: (String box | ReadSeq[String val] box))
     : (Array[String val] val | CleanSourceNotFound
       | CleanSourceNotDirectory | CleanExtNotFound
       | CleanExtNotDirectory | CleanFailed)
@@ -78,7 +78,7 @@ primitive Clean
     let queue = Array[String val]
 
     let src_refs =
-      match \exhaustive\ _collect_ext_refs(src_path, package_paths)
+      match \exhaustive\ _collect_ext_refs(src_path, module_paths)
       | let refs: HashSet[String, HashEq[String]] => refs
       | None =>
         return CleanFailed(
@@ -98,7 +98,7 @@ primitive Clean
         if
           try FileInfo(pkg_path)?.directory else false end
         then
-          match _collect_ext_refs(pkg_path, package_paths)
+          match _collect_ext_refs(pkg_path, module_paths)
           | let pkg_refs: HashSet[String, HashEq[String]] =>
             for ref_name in pkg_refs.values() do
               if not reachable.contains(ref_name) then
@@ -150,7 +150,7 @@ primitive Clean
 
   fun _collect_ext_refs(
     dir: FilePath,
-    package_paths: (String box | ReadSeq[String val] box))
+    module_paths: (String box | ReadSeq[String val] box))
     : (HashSet[String, HashEq[String]] | None)
   =>
     """
@@ -158,15 +158,15 @@ primitive Clean
     identifiers from the AST. Returns None when the directory fails to parse.
     """
     match \exhaustive\ ast.Compiler.compile(
-      dir where package_search_paths = package_paths,
+      dir where module_search_paths = module_paths,
       limit = ast.PassParse)
     | let program: ast.Program val =>
       let refs = HashSet[String, HashEq[String]]
-      match program.package()
-      | let pkg: ast.Package val =>
-        for mod in pkg.modules() do
+      match program.module()
+      | let mod: ast.Module val =>
+        for f in mod.files() do
           let collector = _ExtRefCollector(refs)
-          mod.ast.visit(collector)
+          f.ast.visit(collector)
         end
       end
       refs

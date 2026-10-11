@@ -15,9 +15,9 @@ bool check_id_type(pass_opt_t* opt, ast_t* id_node, const char* entity_desc);
 /// If name is illegal an error will be generated.
 bool check_id_type_param(pass_opt_t* opt, ast_t* id_node);
 
-/// Check that the name in the given ID node is valid for a package.
+/// Check that the name in the given ID node is valid for a module.
 /// If name is illegal an error will be generated.
-bool check_id_package(pass_opt_t* opt, ast_t* id_node);
+bool check_id_module(pass_opt_t* opt, ast_t* id_node);
 
 /// Check that the name in the given ID node is valid for a field.
 /// If name is illegal an error will be generated.

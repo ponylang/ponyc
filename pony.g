@@ -9,7 +9,7 @@ options
 
 // Parser
 
-module
+file
   : STRING? use* class_def* 
   ;
 

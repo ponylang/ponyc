@@ -41,10 +41,10 @@
 #  pragma warning(disable:4996)
 #endif
 
-DECLARE_HASHMAP(package_set, package_set_t, package_t)
+DECLARE_HASHMAP(module_set, module_set_t, module_t)
 
-// Per package state
-struct package_t
+// Per module state
+struct module_t
 {
   const char* path; // Absolute path
   const char* qualified_name; // For pretty printing, eg "builtin/U32"
@@ -52,8 +52,8 @@ struct package_t
   const char* filename; // Directory name
   const char* symbol; // Wart to use for symbol names
   ast_t* ast;
-  package_set_t dependencies;
-  package_group_t* group;
+  module_set_t dependencies;
+  module_group_t* group;
   size_t group_index;
   size_t next_hygienic_id;
   size_t low_index;
@@ -69,8 +69,8 @@ struct package_t
   strlist_t* c_defines;
   astlist_t* c_define_uses;
   strlist_t* c_sources;
-  // The first cdefine:/cincludedir: directive seen for this package, used to
-  // locate the error when such a directive lands in a package with no .c
+  // The first cdefine:/cincludedir: directive seen for this module, used to
+  // locate the error when such a directive lands in a module with no .c
   // sources to apply it to.
   ast_t* c_first_flag_use;
   bool allow_ffi;
@@ -78,29 +78,29 @@ struct package_t
   bool needs_export_include;
 };
 
-// A strongly connected component in the package dependency graph
-struct package_group_t
+// A strongly connected component in the module dependency graph
+struct module_group_t
 {
-  package_set_t members;
+  module_set_t members;
 };
 
-// Per defined magic package state
-struct magic_package_t
+// Per defined magic module state
+struct magic_module_t
 {
   const char* path;
   const char* src;
   const char* mapped_path;
-  struct magic_package_t* next;
+  struct magic_module_t* next;
 };
 
-DECLARE_STACK(package_stack, package_stack_t, package_t)
-DEFINE_STACK(package_stack, package_stack_t, package_t)
+DECLARE_STACK(module_stack, module_stack_t, module_t)
+DEFINE_STACK(module_stack, module_stack_t, module_t)
 
-DEFINE_LIST(package_group_list, package_group_list_t, package_group_t,
-  NULL, package_group_free)
+DEFINE_LIST(module_group_list, module_group_list_t, module_group_t,
+  NULL, module_group_free)
 
 
-static size_t package_hash(package_t* pkg)
+static size_t module_hash(module_t* pkg)
 {
   // Hash the full string instead of the stringtab pointer. We want a
   // deterministic hash in order to enable deterministic hashmap iteration,
@@ -109,20 +109,20 @@ static size_t package_hash(package_t* pkg)
 }
 
 
-static bool package_cmp(package_t* a, package_t* b)
+static bool module_cmp(module_t* a, module_t* b)
 {
   return a->qualified_name == b->qualified_name;
 }
 
 
-DEFINE_HASHMAP(package_set, package_set_t, package_t, package_hash,
-  package_cmp, NULL)
+DEFINE_HASHMAP(module_set, module_set_t, module_t, module_hash,
+  module_cmp, NULL)
 
 
 // Find the magic source code associated with the given path, if any
-static magic_package_t* find_magic_package(const char* path, pass_opt_t* opt)
+static magic_module_t* find_magic_module(const char* path, pass_opt_t* opt)
 {
-  for(magic_package_t* p = opt->magic_packages; p != NULL; p = p->next)
+  for(magic_module_t* p = opt->magic_modules; p != NULL; p = p->next)
   {
     if(path == p->path)
       return p;
@@ -134,10 +134,10 @@ static magic_package_t* find_magic_package(const char* path, pass_opt_t* opt)
 
 // Attempt to parse the specified source file and add it to the given AST
 // @return true on success, false on error
-static bool parse_source_file(ast_t* package, const char* file_path,
+static bool parse_source_file(ast_t* module, const char* file_path,
   pass_opt_t* opt)
 {
-  pony_assert(package != NULL);
+  pony_assert(module != NULL);
   pony_assert(file_path != NULL);
   pony_assert(opt != NULL);
 
@@ -156,13 +156,13 @@ static bool parse_source_file(ast_t* package, const char* file_path,
     return false;
   }
 
-  return module_passes(package, opt, source);
+  return file_passes(module, opt, source);
 }
 
 
 // Attempt to parse the specified source code and add it to the given AST
 // @return true on success, false on error
-static bool parse_source_code(ast_t* package, const char* src,
+static bool parse_source_code(ast_t* module, const char* src,
   pass_opt_t* opt)
 {
   pony_assert(src != NULL);
@@ -174,7 +174,7 @@ static bool parse_source_code(ast_t* package, const char* src,
   source_t* source = source_open_string(src);
   pony_assert(source != NULL);
 
-  return module_passes(package, opt, source);
+  return file_passes(module, opt, source);
 }
 
 
@@ -215,9 +215,9 @@ static int string_compare(const void* a, const void* b)
 
 
 // Attempt to parse the source files in the specified directory and add them to
-// the given package AST
+// the given module AST
 // @return true on success, false on error
-static bool parse_files_in_dir(ast_t* package, const char* dir_path,
+static bool parse_files_in_dir(ast_t* module, const char* dir_path,
   pass_opt_t* opt)
 {
   PONY_ERRNO err = 0;
@@ -311,7 +311,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
   {
     char fullpath[FILENAME_MAX];
     path_cat(dir_path, entries[i], fullpath);
-    r &= parse_source_file(package, fullpath, opt);
+    r &= parse_source_file(module, fullpath, opt);
   }
 
   // C shim sources are recorded in sorted order for the same reason: gencshim
@@ -319,7 +319,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
   // in that order, so this sort is what keeps the output reproducible.
   qsort(c_entries, c_count, sizeof(const char*), string_compare);
 
-  package_t* pkg = (package_t*)ast_data(package);
+  module_t* pkg = (module_t*)ast_data(module);
 
   for(size_t i = 0; i < c_count; i++)
   {
@@ -333,15 +333,15 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
       continue;
     }
 
-    // Compiling a C shim is the package doing C, so --safe gates it exactly
-    // like a C FFI call (verify_ffi_call): a package not on the safe list
+    // Compiling a C shim is the module doing C, so --safe gates it exactly
+    // like a C FFI call (verify_ffi_call): a module not on the safe list
     // doesn't get its .c compiled. The file is allowed to be there; what's
     // gated is compiling it. Checked here, at discovery, so it fails as
     // early as an unsafe FFI call would -- allow_ffi is already set
-    // (create_package runs before this).
+    // (create_module runs before this).
     if(!pkg->allow_ffi)
     {
-      errorf(errors, fullpath, "this package isn't allowed to do C FFI, so "
+      errorf(errors, fullpath, "this module isn't allowed to do C FFI, so "
         "its C source files can't be compiled as shims");
       r = false;
       continue;
@@ -412,9 +412,9 @@ static bool is_root(const char* path)
 }
 
 
-// Try base/../pony_packages/path, and keep adding .. to look another level up
-// until we are looking in /pony_packages/path
-static const char* try_package_path(const char* base, const char* path,
+// Try base/../pony_modules/path, and keep adding .. to look another level up
+// until we are looking in /pony_modules/path
+static const char* try_module_path(const char* base, const char* path,
   bool* out_found_notdir, pass_opt_t* opt)
 {
   char path1[FILENAME_MAX];
@@ -428,7 +428,7 @@ static const char* try_package_path(const char* base, const char* path,
     if(pony_realpath(path2, path1) != path1)
       break;
 
-    path_cat(path1, "pony_packages", path2);
+    path_cat(path1, "pony_modules", path2);
 
     const char* result = try_path(path2, path, out_found_notdir, opt);
 
@@ -440,7 +440,7 @@ static const char* try_package_path(const char* base, const char* path,
 }
 
 
-// Attempt to find the specified package directory in our search path
+// Attempt to find the specified module directory in our search path
 // @return The resulting directory path, which should not be deleted and is
 // valid indefinitely. NULL is directory cannot be found.
 static const char* find_path(ast_t* from, const char* path,
@@ -463,8 +463,8 @@ static const char* find_path(ast_t* from, const char* path,
   {
     base = NULL;
   } else {
-    from = ast_nearest(from, TK_PACKAGE);
-    package_t* pkg = (package_t*)ast_data(from);
+    from = ast_nearest(from, TK_MODULE);
+    module_t* pkg = (module_t*)ast_data(from);
     base = pkg->path;
   }
 
@@ -482,22 +482,22 @@ static const char* find_path(ast_t* from, const char* path,
   // If it's a relative path, don't try elsewhere
   if(!is_path_relative(path))
   {
-    // Check ../pony_packages and further up the tree
+    // Check ../pony_modules and further up the tree
     if(base != NULL)
     {
-      result = try_package_path(base, path, out_found_notdir, opt);
+      result = try_module_path(base, path, out_found_notdir, opt);
 
       if(result != NULL)
         return result;
 
-      // Check ../pony_packages from the compiler target
-      if((from != NULL) && (ast_id(from) == TK_PACKAGE))
+      // Check ../pony_modules from the compiler target
+      if((from != NULL) && (ast_id(from) == TK_MODULE))
       {
         ast_t* target = ast_child(ast_parent(from));
-        package_t* pkg = (package_t*)ast_data(target);
+        module_t* pkg = (module_t*)ast_data(target);
         base = pkg->path;
 
-        result = try_package_path(base, path, out_found_notdir, opt);
+        result = try_module_path(base, path, out_found_notdir, opt);
 
         if(result != NULL)
           return result;
@@ -505,7 +505,7 @@ static const char* find_path(ast_t* from, const char* path,
     }
 
     // Try the search paths
-    for(strlist_t* p = opt->package_search_paths; p != NULL;
+    for(strlist_t* p = opt->module_search_paths; p != NULL;
       p = strlist_next(p))
     {
       result = try_path(strlist_data(p), path, out_found_notdir, opt);
@@ -536,16 +536,16 @@ static const char* id_to_string(const char* prefix, size_t id, pass_opt_t* opt)
 
 static bool symbol_in_use(ast_t* program, const char* symbol)
 {
-  ast_t* package = ast_child(program);
+  ast_t* module = ast_child(program);
 
-  while(package != NULL)
+  while(module != NULL)
   {
-    package_t* pkg = (package_t*)ast_data(package);
+    module_t* pkg = (module_t*)ast_data(module);
 
     if(pkg->symbol == symbol)
       return true;
 
-    package = ast_sibling(package);
+    module = ast_sibling(module);
   }
 
   return false;
@@ -605,7 +605,7 @@ static const char* symbol_suffix(const char* symbol, size_t suffix,
 }
 
 
-static const char* create_package_symbol(ast_t* program, const char* filename,
+static const char* create_module_symbol(ast_t* program, const char* filename,
   pass_opt_t* opt)
 {
   const char* symbol = string_to_symbol(filename, opt);
@@ -621,14 +621,14 @@ static const char* create_package_symbol(ast_t* program, const char* filename,
 }
 
 
-// Create a package AST, set up its state and add it to the given program
-ast_t* create_package(ast_t* program, const char* name,
+// Create a module AST, set up its state and add it to the given program
+ast_t* create_module(ast_t* program, const char* name,
   const char* qualified_name, pass_opt_t* opt)
 {
-  ast_t* package = ast_blank(TK_PACKAGE);
-  uint32_t pkg_id = program_assign_pkg_id(program);
+  ast_t* module = ast_blank(TK_MODULE);
+  uint32_t pkg_id = program_assign_module_id(program);
 
-  package_t* pkg = POOL_ALLOC(package_t);
+  module_t* pkg = POOL_ALLOC(module_t);
   pkg->path = name;
   pkg->qualified_name = qualified_name;
   pkg->id = id_to_string(NULL, pkg_id, opt);
@@ -643,12 +643,12 @@ ast_t* create_package(ast_t* program, const char* name,
   pkg->filename = stringtab(opt->strtab, p);
 
   if(pkg_id > 1)
-    pkg->symbol = create_package_symbol(program, pkg->filename, opt);
+    pkg->symbol = create_module_symbol(program, pkg->filename, opt);
   else
     pkg->symbol = NULL;
 
-  pkg->ast = package;
-  package_set_init(&pkg->dependencies, 1);
+  pkg->ast = module;
+  module_set_init(&pkg->dependencies, 1);
   pkg->group = NULL;
   pkg->group_index = -1;
   pkg->next_hygienic_id = 0;
@@ -659,14 +659,14 @@ ast_t* create_package(ast_t* program, const char* name,
   pkg->c_sources = NULL;
   pkg->c_first_flag_use = NULL;
   pkg->needs_export_include = false;
-  ast_setdata(package, pkg);
+  ast_setdata(module, pkg);
 
-  ast_scope(package);
-  ast_append(program, package);
-  ast_set(program, pkg->path, package, SYM_NONE, false, opt->strtab);
-  ast_set(program, pkg->id, package, SYM_NONE, false, opt->strtab);
+  ast_scope(module);
+  ast_append(program, module);
+  ast_set(program, pkg->path, module, SYM_NONE, false, opt->strtab);
+  ast_set(program, pkg->id, module, SYM_NONE, false, opt->strtab);
 
-  strlist_t* safe = opt->safe_packages;
+  strlist_t* safe = opt->safe_modules;
 
   if((safe != NULL) && (strlist_find(safe, pkg->path) == NULL))
     pkg->allow_ffi = false;
@@ -675,11 +675,11 @@ ast_t* create_package(ast_t* program, const char* name,
 
   pkg->on_stack = false;
 
-  return package;
+  return module;
 }
 
 
-// Check that the given path exists and add it to our package search paths
+// Check that the given path exists and add it to our module search paths
 static bool add_path(const char* path, pass_opt_t* opt)
 {
 #ifdef PLATFORM_IS_WINDOWS
@@ -703,16 +703,16 @@ static bool add_path(const char* path, pass_opt_t* opt)
   if((err != -1) && S_ISDIR(s.st_mode))
   {
     path = stringtab(opt->strtab, path);
-    strlist_t* search = opt->package_search_paths;
+    strlist_t* search = opt->module_search_paths;
 
     if(strlist_find(search, path) == NULL)
-      opt->package_search_paths = strlist_append(search, path);
+      opt->module_search_paths = strlist_append(search, path);
   }
 
   return true;
 }
 
-// Safely concatenate paths and add it to package search paths
+// Safely concatenate paths and add it to module search paths
 static bool add_relative_path(const char* path, const char* relpath,
   pass_opt_t* opt)
 {
@@ -730,10 +730,10 @@ static bool add_relative_path(const char* path, const char* relpath,
 static bool add_safe(const char* path, pass_opt_t* opt)
 {
   path = stringtab(opt->strtab, path);
-  strlist_t* safe = opt->safe_packages;
+  strlist_t* safe = opt->safe_modules;
 
   if(strlist_find(safe, path) == NULL)
-    opt->safe_packages = strlist_append(safe, path);
+    opt->safe_modules = strlist_append(safe, path);
 
   return true;
 }
@@ -824,21 +824,21 @@ static bool add_exec_dir(pass_opt_t* opt)
   return add_pony_installation_dir(path, opt);
 }
 
-bool package_init(pass_opt_t* opt)
+bool module_init(pass_opt_t* opt)
 {
   // Command line --path entries have already been added to
-  // package_search_paths during option parsing. We need the standard library
+  // module_search_paths during option parsing. We need the standard library
   // paths to come first so that --path directories cannot shadow stdlib
-  // packages. This is the same approach used to fix PONYPATH shadowing in
+  // modules. This is the same approach used to fix PONYPATH shadowing in
   // https://github.com/ponylang/ponyc/issues/3779 — save the existing paths,
   // add stdlib paths first, then re-append the saved paths after.
-  strlist_t* cmdline_paths = opt->package_search_paths;
-  opt->package_search_paths = NULL;
+  strlist_t* cmdline_paths = opt->module_search_paths;
+  opt->module_search_paths = NULL;
 
   if(!add_exec_dir(opt))
   {
     strlist_free(cmdline_paths);
-    errorf(opt->check.errors, NULL, "Error adding package paths relative to ponyc binary location");
+    errorf(opt->check.errors, NULL, "Error adding module paths relative to ponyc binary location");
     return false;
   }
 
@@ -847,13 +847,13 @@ bool package_init(pass_opt_t* opt)
   {
     const char* path = strlist_data(p);
 
-    if(strlist_find(opt->package_search_paths, path) == NULL)
-      opt->package_search_paths = strlist_append(opt->package_search_paths,
+    if(strlist_find(opt->module_search_paths, path) == NULL)
+      opt->module_search_paths = strlist_append(opt->module_search_paths,
         path);
   }
   strlist_free(cmdline_paths);
 
-  package_add_paths(getenv("PONYPATH"), opt);
+  module_add_paths(getenv("PONYPATH"), opt);
 
   // Finally we add OS specific paths.
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -864,9 +864,9 @@ bool package_init(pass_opt_t* opt)
   add_path("/usr/local/cxx_atomics", opt);
 #endif
 
-  // Convert all the safe packages to their full paths.
+  // Convert all the safe modules to their full paths.
   strlist_t* full_safe = NULL;
-  strlist_t* safe = opt->safe_packages;
+  strlist_t* safe = opt->safe_modules;
 
   while(safe != NULL)
   {
@@ -880,25 +880,25 @@ bool package_init(pass_opt_t* opt)
     {
       strlist_free(full_safe);
       strlist_free(safe);
-      opt->safe_packages = NULL;
+      opt->safe_modules = NULL;
       return false;
     }
 
     full_safe = strlist_push(full_safe, path);
   }
 
-  opt->safe_packages = full_safe;
+  opt->safe_modules = full_safe;
 
   return true;
 }
 
-bool package_init_lib(pass_opt_t* opt, const char* pony_installation)
+bool module_init_lib(pass_opt_t* opt, const char* pony_installation)
 {
-  // TODO STA: does this need more than this subset of package_init?
-  package_add_paths(getenv("PONYPATH"), opt);
+  // TODO STA: does this need more than this subset of module_init?
+  module_add_paths(getenv("PONYPATH"), opt);
   if(!add_pony_installation_dir(pony_installation, opt))
   {
-    errorf(opt->check.errors, NULL, "Error adding package paths relative to ponyc installation location");
+    errorf(opt->check.errors, NULL, "Error adding module paths relative to ponyc installation location");
     return false;
   }
 
@@ -947,7 +947,7 @@ bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt)
   return ok;
 }
 
-void package_add_paths(const char* paths, pass_opt_t* opt)
+void module_add_paths(const char* paths, pass_opt_t* opt)
 {
   handle_path_list(paths, add_path, opt);
 }
@@ -981,48 +981,48 @@ void package_add_lib_path(const char* path, pass_opt_t* opt)
 }
 
 
-bool package_add_safe(const char* paths, pass_opt_t* opt)
+bool module_add_safe(const char* paths, pass_opt_t* opt)
 {
   add_safe("builtin", opt);
   return handle_path_list(paths, add_safe, opt);
 }
 
 
-void package_add_magic_src(const char* path, const char* src, pass_opt_t* opt)
+void module_add_magic_src(const char* path, const char* src, pass_opt_t* opt)
 {
-  magic_package_t* n = POOL_ALLOC(magic_package_t);
+  magic_module_t* n = POOL_ALLOC(magic_module_t);
   n->path = stringtab(opt->strtab, path);
   n->src = src;
   n->mapped_path = NULL;
-  n->next = opt->magic_packages;
-  opt->magic_packages = n;
+  n->next = opt->magic_modules;
+  opt->magic_modules = n;
 }
 
 
-void package_add_magic_path(const char* path, const char* mapped_path,
+void module_add_magic_path(const char* path, const char* mapped_path,
   pass_opt_t* opt)
 {
-  magic_package_t* n = POOL_ALLOC(magic_package_t);
+  magic_module_t* n = POOL_ALLOC(magic_module_t);
   n->path = stringtab(opt->strtab, path);
   n->src = NULL;
   n->mapped_path = stringtab(opt->strtab, mapped_path);
-  n->next = opt->magic_packages;
-  opt->magic_packages = n;
+  n->next = opt->magic_modules;
+  opt->magic_modules = n;
 }
 
 
-void package_clear_magic(pass_opt_t* opt)
+void module_clear_magic(pass_opt_t* opt)
 {
-  magic_package_t* p = opt->magic_packages;
+  magic_module_t* p = opt->magic_modules;
 
   while(p != NULL)
   {
-    magic_package_t* next = p->next;
-    POOL_FREE(magic_package_t, p);
+    magic_module_t* next = p->next;
+    POOL_FREE(magic_module_t, p);
     p = next;
   }
 
-  opt->magic_packages = NULL;
+  opt->magic_modules = NULL;
 }
 
 
@@ -1033,15 +1033,15 @@ ast_t* program_load(const char* path, pass_opt_t* opt)
 
   opt->program_pass = PASS_PARSE;
 
-  // Always load builtin package first, then the specified one.
-  if(package_load(program, stringtab(opt->strtab, "builtin"), opt) == NULL ||
-    package_load(program, path, opt) == NULL)
+  // Always load builtin module first, then the specified one.
+  if(module_load(program, stringtab(opt->strtab, "builtin"), opt) == NULL ||
+    module_load(program, path, opt) == NULL)
   {
     ast_free(program);
     return NULL;
   }
 
-  // Reorder packages so specified package is first.
+  // Reorder modules so specified module is first.
   ast_t* builtin = ast_pop(program);
   ast_append(program, builtin);
 
@@ -1054,11 +1054,11 @@ ast_t* program_load(const char* path, pass_opt_t* opt)
   return program;
 }
 
-ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
+ast_t* module_load(ast_t* from, const char* path, pass_opt_t* opt)
 {
   pony_assert(from != NULL);
 
-  magic_package_t* magic = find_magic_package(path, opt);
+  magic_module_t* magic = find_magic_module(path, opt);
   const char* full_path = path;
   const char* qualified_name = path;
   ast_t* program = ast_nearest(from, TK_PROGRAM);
@@ -1083,27 +1083,27 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
 
     if((from != program) && is_relative)
     {
-      // Package to load is relative to from, build the qualified name
+      // Module to load is relative to from, build the qualified name
       // The qualified name should be relative to the program being built
       // and account for the relative path we were provided not being relative
       // the program being built
-      ast_t* parent = ast_nearest(from, TK_PACKAGE);
-      package_t* parent_pkg = (package_t*)ast_data(parent);
+      ast_t* parent = ast_nearest(from, TK_MODULE);
+      module_t* parent_pkg = (module_t*)ast_data(parent);
 
       if(parent_pkg != NULL)
       {
-        const char* package_path = path;
+        const char* module_path = path;
 
         size_t relatives = 0;
         while(true)
         {
-          if(strncmp("../", package_path, 3) == 0)
+          if(strncmp("../", module_path, 3) == 0)
           {
-            package_path += 3;
+            module_path += 3;
             relatives += 1;
-          } else if(strncmp("./", package_path, 2) == 0)
+          } else if(strncmp("./", module_path, 2) == 0)
           {
-            package_path += 2;
+            module_path += 2;
           }
           else
           {
@@ -1123,18 +1123,18 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
           base_name_len -= 1;
         }
 
-        size_t package_path_len = strlen(package_path);
-        size_t len = base_name_len + package_path_len + 2;
+        size_t module_path_len = strlen(module_path);
+        size_t len = base_name_len + module_path_len + 2;
         char* q_name = (char*)ponyint_pool_alloc_size(len);
         memcpy(q_name, base_name, base_name_len);
         q_name[base_name_len] = '/';
-        memcpy(q_name + base_name_len + 1, package_path, package_path_len);
+        memcpy(q_name + base_name_len + 1, module_path, module_path_len);
         q_name[len - 1] = '\0';
         qualified_name = stringtab_consume(opt->strtab, q_name, len);
       }
     }
 
-    // we are loading the package specified as program dir
+    // we are loading the module specified as program dir
     if(from == program)
     {
       // construct the qualified name from the basename of the full path
@@ -1149,13 +1149,13 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
     }
   }
 
-  ast_t* package = ast_get(program, full_path, NULL);
+  ast_t* module = ast_get(program, full_path, NULL);
 
-  // Package already loaded
-  if(package != NULL)
-    return package;
+  // Module already loaded
+  if(module != NULL)
+    return module;
 
-  package = create_package(program, full_path, qualified_name, opt);
+  module = create_module(program, full_path, qualified_name, opt);
 
   if(opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, "Building %s -> %s\n", path, full_path);
@@ -1164,17 +1164,17 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
   {
     if(magic->src != NULL)
     {
-      if(!parse_source_code(package, magic->src, opt))
+      if(!parse_source_code(module, magic->src, opt))
         return NULL;
     } else if(magic->mapped_path != NULL) {
-      if(!parse_files_in_dir(package, magic->mapped_path, opt))
+      if(!parse_files_in_dir(module, magic->mapped_path, opt))
       {
         // If source file parsing failed, don't run future passes on the
-        // partially-initialised package. Without this, passes that run on the
+        // partially-initialised module. Without this, passes that run on the
         // whole program tree (e.g. the scope pass) would visit modules that
-        // were successfully parsed in this package producing spurious errors
+        // were successfully parsed in this module producing spurious errors
         // in those files.
-        ast_setflag(package, AST_FLAG_PRESERVE);
+        ast_setflag(module, AST_FLAG_PRESERVE);
         return NULL;
       }
     } else {
@@ -1183,119 +1183,119 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
   }
   else
   {
-    if(!parse_files_in_dir(package, full_path, opt))
+    if(!parse_files_in_dir(module, full_path, opt))
     {
       // If source file parsing failed, don't run future passes on the
-      // partially-initialised package. See comment above.
-      ast_setflag(package, AST_FLAG_PRESERVE);
+      // partially-initialised module. See comment above.
+      ast_setflag(module, AST_FLAG_PRESERVE);
       return NULL;
     }
   }
 
-  if(ast_child(package) == NULL)
+  if(ast_child(module) == NULL)
   {
     // A .c shim contributes no Pony AST, so a directory holding only .c
-    // files is still not a package: shims travel with Pony code, they don't
+    // files is still not a module: shims travel with Pony code, they don't
     // replace it.
-    ast_error(opt->check.errors, package,
-      "no Pony source files in package '%s'", path);
+    ast_error(opt->check.errors, module,
+      "no Pony source files in module '%s'", path);
     return NULL;
   }
 
-  if(!ast_passes_subtree(&package, opt, opt->program_pass))
+  if(!ast_passes_subtree(&module, opt, opt->program_pass))
   {
     // If these passes failed, don't run future passes.
-    ast_setflag(package, AST_FLAG_PRESERVE);
+    ast_setflag(module, AST_FLAG_PRESERVE);
     return NULL;
   }
 
-  return package;
+  return module;
 }
 
 
-void package_free(package_t* package)
+void module_free(module_t* module)
 {
-  if(package != NULL)
+  if(module != NULL)
   {
-    package_set_destroy(&package->dependencies);
-    strlist_free(package->c_includes);
-    strlist_free(package->c_defines);
-    astlist_free(package->c_define_uses);
-    strlist_free(package->c_sources);
-    POOL_FREE(package_t, package);
+    module_set_destroy(&module->dependencies);
+    strlist_free(module->c_includes);
+    strlist_free(module->c_defines);
+    astlist_free(module->c_define_uses);
+    strlist_free(module->c_sources);
+    POOL_FREE(module_t, module);
   }
 }
 
 
-const char* package_name(ast_t* ast)
+const char* module_name(ast_t* ast)
 {
-  package_t* pkg = (package_t*)ast_data(ast_nearest(ast, TK_PACKAGE));
+  module_t* pkg = (module_t*)ast_data(ast_nearest(ast, TK_MODULE));
   return (pkg == NULL) ? NULL : pkg->id;
 }
 
 
-ast_t* package_id(ast_t* ast, pass_opt_t* opt)
+ast_t* module_id(ast_t* ast, pass_opt_t* opt)
 {
-  return ast_from_string(ast, package_name(ast), opt->strtab);
+  return ast_from_string(ast, module_name(ast), opt->strtab);
 }
 
 
-const char* package_path(ast_t* package)
+const char* module_path(ast_t* module)
 {
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(module != NULL);
+  pony_assert(ast_id(module) == TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(module);
 
   return pkg->path;
 }
 
 
-const char* package_qualified_name(ast_t* package)
+const char* module_qualified_name(ast_t* module)
 {
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(module != NULL);
+  pony_assert(ast_id(module) == TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(module);
 
   return pkg->qualified_name;
 }
 
 
-const char* package_filename(ast_t* package)
+const char* module_filename(ast_t* module)
 {
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(module != NULL);
+  pony_assert(ast_id(module) == TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(module);
   pony_assert(pkg != NULL);
 
   return pkg->filename;
 }
 
 
-const char* package_symbol(ast_t* package)
+const char* module_symbol(ast_t* module)
 {
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(module != NULL);
+  pony_assert(ast_id(module) == TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(module);
   pony_assert(pkg != NULL);
 
   return pkg->symbol;
 }
 
 
-const char* package_hygienic_id(typecheck_t* t, pass_opt_t* opt)
+const char* module_hygienic_id(typecheck_t* t, pass_opt_t* opt)
 {
-  pony_assert(t->frame->package != NULL);
-  package_t* pkg = (package_t*)ast_data(t->frame->package);
+  pony_assert(t->frame->module != NULL);
+  module_t* pkg = (module_t*)ast_data(t->frame->module);
   size_t id = pkg->next_hygienic_id++;
 
   return id_to_string(pkg->id, id, opt);
 }
 
 
-bool package_allow_ffi(typecheck_t* t)
+bool module_allow_ffi(typecheck_t* t)
 {
-  pony_assert(t->frame->package != NULL);
-  package_t* pkg = (package_t*)ast_data(t->frame->package);
+  pony_assert(t->frame->module != NULL);
+  module_t* pkg = (module_t*)ast_data(t->frame->module);
   return pkg->allow_ffi;
 }
 
@@ -1328,7 +1328,7 @@ bool use_cincludedir(ast_t* use, const char* locator, ast_t* name,
   const char* prefix = NULL;
 
   if(!is_path_absolute(locator))
-    prefix = package_path(ast_nearest(use, TK_PACKAGE));
+    prefix = module_path(ast_nearest(use, TK_MODULE));
 
   path_cat(prefix, locator, absolute);
 
@@ -1343,8 +1343,8 @@ bool use_cincludedir(ast_t* use, const char* locator, ast_t* name,
   // particular). That's safe: it is handed to clang as a single argv element,
   // never through a shell. Duplicates are allowed; an include search list is
   // additive, so repeats are harmless.
-  ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(pkg_ast);
+  ast_t* pkg_ast = ast_nearest(use, TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(pkg_ast);
   pkg->c_includes = strlist_append(pkg->c_includes,
     stringtab(options->strtab, absolute));
 
@@ -1391,10 +1391,10 @@ bool use_cdefine(ast_t* use, const char* locator, ast_t* name,
     return false;
   }
 
-  ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(pkg_ast);
+  ast_t* pkg_ast = ast_nearest(use, TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(pkg_ast);
 
-  // A macro name is a declaration: defining it twice for one package is an
+  // A macro name is a declaration: defining it twice for one module is an
   // error even when the values match, like `let a = 1` twice. Guards have
   // already been evaluated (a guarded-out directive never reaches this
   // handler), so only directives active for the current target are checked.
@@ -1409,11 +1409,11 @@ bool use_cdefine(ast_t* use, const char* locator, ast_t* name,
     {
       if(strcmp(prior, locator) == 0)
         ast_error(options->check.errors, use,
-          "C macro '%.*s' is already defined for this package",
+          "C macro '%.*s' is already defined for this module",
           (int)name_len, locator);
       else
         ast_error(options->check.errors, use,
-          "C macro '%.*s' is already defined for this package as '%s'",
+          "C macro '%.*s' is already defined for this module as '%s'",
           (int)name_len, locator, prior);
 
       ast_error_continue(options->check.errors, astlist_data(u),
@@ -1437,76 +1437,76 @@ bool use_cdefine(ast_t* use, const char* locator, ast_t* name,
 }
 
 
-strlist_t* package_c_includes(ast_t* package)
+strlist_t* module_c_includes(ast_t* module)
 {
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(module != NULL);
+  pony_assert(ast_id(module) == TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(module);
   pony_assert(pkg != NULL);
 
   return pkg->c_includes;
 }
 
 
-strlist_t* package_c_defines(ast_t* package)
+strlist_t* module_c_defines(ast_t* module)
 {
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(module != NULL);
+  pony_assert(ast_id(module) == TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(module);
   pony_assert(pkg != NULL);
 
   return pkg->c_defines;
 }
 
 
-strlist_t* package_c_sources(ast_t* package)
+strlist_t* module_c_sources(ast_t* module)
 {
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(module != NULL);
+  pony_assert(ast_id(module) == TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(module);
   pony_assert(pkg != NULL);
 
   return pkg->c_sources;
 }
 
 
-ast_t* package_c_first_flag_use(ast_t* package)
+ast_t* module_c_first_flag_use(ast_t* module)
 {
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(module != NULL);
+  pony_assert(ast_id(module) == TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(module);
   pony_assert(pkg != NULL);
 
   return pkg->c_first_flag_use;
 }
 
 
-bool package_needs_export_include(ast_t* package)
+bool module_needs_export_include(ast_t* module)
 {
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(module != NULL);
+  pony_assert(ast_id(module) == TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(module);
   pony_assert(pkg != NULL);
 
   return pkg->needs_export_include;
 }
 
 
-void package_set_needs_export_include(ast_t* package)
+void module_set_needs_export_include(ast_t* module)
 {
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(module != NULL);
+  pony_assert(ast_id(module) == TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(module);
   pony_assert(pkg != NULL);
 
   pkg->needs_export_include = true;
 }
 
 
-const char* package_alias_from_id(ast_t* module, const char* id,
+const char* module_alias_from_id(ast_t* module, const char* id,
   pass_opt_t* opt)
 {
-  pony_assert(ast_id(module) == TK_MODULE);
+  pony_assert(ast_id(module) == TK_FILE);
 
   const char* strtab_id = stringtab(opt->strtab, id);
 
@@ -1514,9 +1514,9 @@ const char* package_alias_from_id(ast_t* module, const char* id,
   while(ast_id(use) == TK_USE)
   {
     ast_t* imported = (ast_t*)ast_data(use);
-    pony_assert((imported != NULL) && (ast_id(imported) == TK_PACKAGE));
+    pony_assert((imported != NULL) && (ast_id(imported) == TK_MODULE));
 
-    package_t* pkg = (package_t*)ast_data(imported);
+    module_t* pkg = (module_t*)ast_data(imported);
     pony_assert(pkg != NULL);
 
     if(pkg->id == strtab_id)
@@ -1536,152 +1536,152 @@ const char* package_alias_from_id(ast_t* module, const char* id,
 }
 
 
-void package_add_dependency(ast_t* package, ast_t* dep)
+void module_add_dependency(ast_t* module, ast_t* dep)
 {
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  pony_assert(ast_id(dep) == TK_PACKAGE);
+  pony_assert(ast_id(module) == TK_MODULE);
+  pony_assert(ast_id(dep) == TK_MODULE);
 
-  if(package == dep)
+  if(module == dep)
     return;
 
-  package_t* pkg = (package_t*)ast_data(package);
-  package_t* pkg_dep = (package_t*)ast_data(dep);
+  module_t* pkg = (module_t*)ast_data(module);
+  module_t* pkg_dep = (module_t*)ast_data(dep);
 
   pony_assert(pkg != NULL);
   pony_assert(pkg_dep != NULL);
 
   size_t index = HASHMAP_UNKNOWN;
-  package_t* in_set = package_set_get(&pkg->dependencies, pkg_dep, &index);
+  module_t* in_set = module_set_get(&pkg->dependencies, pkg_dep, &index);
 
   if(in_set != NULL)
     return;
 
-  package_set_putindex(&pkg->dependencies, pkg_dep, index);
+  module_set_putindex(&pkg->dependencies, pkg_dep, index);
 }
 
 
-size_t package_group_index(ast_t* package)
+size_t module_group_index(ast_t* module)
 {
-  pony_assert(ast_id(package) == TK_PACKAGE);
+  pony_assert(ast_id(module) == TK_MODULE);
 
-  package_t* pkg = (package_t*)ast_data(package);
+  module_t* pkg = (module_t*)ast_data(module);
   pony_assert(pkg->group_index != (size_t)-1);
 
   return pkg->group_index;
 }
 
 
-package_group_t* package_group_new()
+module_group_t* module_group_new()
 {
-  package_group_t* group = POOL_ALLOC(package_group_t);
-  package_set_init(&group->members, 1);
+  module_group_t* group = POOL_ALLOC(module_group_t);
+  module_set_init(&group->members, 1);
   return group;
 }
 
 
-void package_group_free(package_group_t* group)
+void module_group_free(module_group_t* group)
 {
-  package_set_destroy(&group->members);
-  POOL_FREE(package_group_t, group);
+  module_set_destroy(&group->members);
+  POOL_FREE(module_group_t, group);
 }
 
 
-static void make_dependency_group(package_t* package,
-  package_group_list_t** groups, package_stack_t** stack, size_t* index)
+static void make_dependency_group(module_t* module,
+  module_group_list_t** groups, module_stack_t** stack, size_t* index)
 {
-  pony_assert(!package->on_stack);
-  package->group_index = package->low_index = (*index)++;
-  *stack = package_stack_push(*stack, package);
-  package->on_stack = true;
+  pony_assert(!module->on_stack);
+  module->group_index = module->low_index = (*index)++;
+  *stack = module_stack_push(*stack, module);
+  module->on_stack = true;
 
   size_t i = HASHMAP_BEGIN;
-  package_t* dep;
+  module_t* dep;
 
-  while((dep = package_set_next(&package->dependencies, &i)) != NULL)
+  while((dep = module_set_next(&module->dependencies, &i)) != NULL)
   {
     if(dep->group_index == (size_t)-1)
     {
       make_dependency_group(dep, groups, stack, index);
 
-      if(dep->low_index < package->low_index)
-        package->low_index = dep->low_index;
-    } else if(dep->on_stack && (dep->group_index < package->low_index)) {
-      package->low_index = dep->group_index;
+      if(dep->low_index < module->low_index)
+        module->low_index = dep->low_index;
+    } else if(dep->on_stack && (dep->group_index < module->low_index)) {
+      module->low_index = dep->group_index;
     }
   }
 
-  if(package->group_index == package->low_index)
+  if(module->group_index == module->low_index)
   {
-    package_group_t* group = package_group_new();
-    package_t* member;
+    module_group_t* group = module_group_new();
+    module_t* member;
     size_t i = 0;
 
     do
     {
-      *stack = package_stack_pop(*stack, &member);
+      *stack = module_stack_pop(*stack, &member);
       member->on_stack = false;
       member->group = group;
       member->group_index = i++;
-      package_set_put(&group->members, member);
-    } while(package != member);
+      module_set_put(&group->members, member);
+    } while(module != member);
 
-    *groups = package_group_list_push(*groups, group);
+    *groups = module_group_list_push(*groups, group);
   }
 }
 
 
 // A dependency group is a strongly connected component in the dependency graph.
-package_group_list_t* package_dependency_groups(ast_t* first_package)
+module_group_list_t* module_dependency_groups(ast_t* first_module)
 {
-  package_group_list_t* groups = NULL;
-  package_stack_t* stack = NULL;
+  module_group_list_t* groups = NULL;
+  module_stack_t* stack = NULL;
   size_t index = 0;
 
-  while(first_package != NULL)
+  while(first_module != NULL)
   {
-    pony_assert(ast_id(first_package) == TK_PACKAGE);
-    package_t* package = (package_t*)ast_data(first_package);
+    pony_assert(ast_id(first_module) == TK_MODULE);
+    module_t* module = (module_t*)ast_data(first_module);
 
-    if(package->group_index == (size_t)-1)
-      make_dependency_group(package, &groups, &stack, &index);
+    if(module->group_index == (size_t)-1)
+      make_dependency_group(module, &groups, &stack, &index);
 
-    first_package = ast_sibling(first_package);
+    first_module = ast_sibling(first_module);
   }
 
   pony_assert(stack == NULL);
-  return package_group_list_reverse(groups);
+  return module_group_list_reverse(groups);
 }
 
 
-void package_group_dump(package_group_t* group)
+void module_group_dump(module_group_t* group)
 {
-  package_set_t deps;
-  package_set_init(&deps, 1);
+  module_set_t deps;
+  module_set_init(&deps, 1);
 
   puts("Members:");
 
   size_t i = HASHMAP_BEGIN;
-  package_t* member;
+  module_t* member;
 
-  while((member = package_set_next(&group->members, &i)) != NULL)
+  while((member = module_set_next(&group->members, &i)) != NULL)
   {
     printf("  %s\n", member->filename);
 
     size_t j = HASHMAP_BEGIN;
-    package_t* dep;
+    module_t* dep;
 
-    while((dep = package_set_next(&member->dependencies, &j)) != NULL)
+    while((dep = module_set_next(&member->dependencies, &j)) != NULL)
     {
       size_t k = HASHMAP_UNKNOWN;
-      package_t* in_set = package_set_get(&group->members, dep, &k);
+      module_t* in_set = module_set_get(&group->members, dep, &k);
 
       if(in_set == NULL)
       {
         k = HASHMAP_UNKNOWN;
-        in_set = package_set_get(&deps, dep, &k);
+        in_set = module_set_get(&deps, dep, &k);
 
         if(in_set == NULL)
-          package_set_putindex(&deps, dep, k);
+          module_set_putindex(&deps, dep, k);
       }
     }
   }
@@ -1690,25 +1690,25 @@ void package_group_dump(package_group_t* group)
 
   i = HASHMAP_BEGIN;
 
-  while((member = package_set_next(&deps, &i)) != NULL)
+  while((member = module_set_next(&deps, &i)) != NULL)
     printf("  %s\n", member->filename);
 
-  package_set_destroy(&deps);
+  module_set_destroy(&deps);
 }
 
 
-void package_done(pass_opt_t* opt)
+void module_done(pass_opt_t* opt)
 {
-  strlist_free(opt->package_search_paths);
-  opt->package_search_paths = NULL;
+  strlist_free(opt->module_search_paths);
+  opt->module_search_paths = NULL;
 
   strlist_free(opt->lib_search_paths);
   opt->lib_search_paths = NULL;
 
-  strlist_free(opt->safe_packages);
-  opt->safe_packages = NULL;
+  strlist_free(opt->safe_modules);
+  opt->safe_modules = NULL;
 
-  package_clear_magic(opt);
+  module_clear_magic(opt);
 }
 
 

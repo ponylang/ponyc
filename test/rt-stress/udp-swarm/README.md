@@ -1,6 +1,6 @@
 # UDP flood stress engine
 
-A count-driven, one-way UDP workload for stressing the net package's UDP stack. A fixed
+A count-driven, one-way UDP workload for stressing the net module's UDP stack. A fixed
 number of clients send stamped datagrams to a server; the server verifies the
 payload of each received datagram against a per-client keystream and reports
 results via actor messaging. There is no UDP echo: the only UDP traffic is
@@ -10,7 +10,7 @@ This stress test was written to empirically verify that the ASIO backend
 delivers persistent edge-triggered notifications correctly for UDP sockets
 under sustained load.
 
-## How it stresses the net package
+## How it stresses the net module
 
 No connection lifecycle: UDP sockets bind, send, receive, and close. The point
 is to exercise the readiness event delivery path under sustained datagram

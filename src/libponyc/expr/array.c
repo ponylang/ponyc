@@ -140,7 +140,7 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
   {
     case TK_NOMINAL:
     {
-      AST_GET_CHILDREN(ast, package, name, typeargs, cap, eph);
+      AST_GET_CHILDREN(ast, module, name, typeargs, cap, eph);
 
       // If it's an actual Array type, note it as a possibility and move on.
       if(stringtab(opt->strtab, "Array") == ast_name(name))
@@ -228,7 +228,7 @@ static void find_possible_iterator_element_types(pass_opt_t* opt, ast_t* ast,
   {
     case TK_NOMINAL:
     {
-      AST_GET_CHILDREN(ast, package, name, typeargs, cap, eph);
+      AST_GET_CHILDREN(ast, module, name, typeargs, cap, eph);
 
       if(stringtab(opt->strtab, "Iterator") == ast_name(name))
       {
@@ -628,7 +628,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
   }
   else
   {
-    const char* tmp_name = package_hygienic_id(&opt->check, opt);
+    const char* tmp_name = module_hygienic_id(&opt->check, opt);
 
     // No AST_SCOPE on the sequence: an expression-position sequence is a
     // rawseq, exactly as Pony represents a parenthesised `(let x = ...; x)`.

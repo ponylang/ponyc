@@ -14,123 +14,123 @@ primitive Extractor
     """
     Extract a documentation IR from a compiled program.
     """
-    // Build package map: AST pointer address → qualified name
-    let package_map = _build_package_map(program)
+    // Build module map: AST pointer address → qualified name
+    let module_map = _build_module_map(program)
 
-    // Program name from root package directory basename
+    // Program name from root module directory basename
     let program_name =
       try
-        let root_pkg = program.packages().next()?
-        Path.base(root_pkg.path)
+        let root_mod = program.modules().next()?
+        Path.base(root_mod.path)
       else
         "unknown"
       end
 
-    // Root package is always first, remaining sorted alphabetically
-    let packages =
+    // Root module is always first, remaining sorted alphabetically
+    let modules =
       recover val
-      let result = Array[DocPackage]
+      let result = Array[DocModule]
 
-      // Collect all packages
-      let all_packages = Array[(ast.Package val, Bool)]
+      // Collect all modules
+      let all_modules = Array[(ast.Module val, Bool)]
       var is_first = true
-      for pkg in program.packages() do
-        all_packages.push((pkg, is_first))
+      for mod in program.modules() do
+        all_modules.push((mod, is_first))
         is_first = false
       end
 
-      // Process root package first (unconditionally)
+      // Process root module first (unconditionally)
       try
-        (let root_pkg, _) = all_packages(0)?
+        (let root_mod, _) = all_modules(0)?
         result.push(
-          _extract_package(
-            root_pkg,
+          _extract_module(
+            root_mod,
             include_private,
-            package_map))
+            module_map))
       end
 
-      // Sort remaining packages alphabetically by qualified name,
-      // skipping test packages
-      let remaining = Array[(ast.Package val, String)]
-      for i in Range(1, all_packages.size()) do
+      // Sort remaining modules alphabetically by qualified name,
+      // skipping test modules
+      let remaining = Array[(ast.Module val, String)]
+      for i in Range(1, all_modules.size()) do
         try
-          (let pkg, _) = all_packages(i)?
-          let qn = pkg.qualified_name
-          if not Filter.is_test_package(qn) then
-            remaining.push((pkg, qn))
+          (let mod, _) = all_modules(i)?
+          let qn = mod.qualified_name
+          if not Filter.is_test_module(qn) then
+            remaining.push((mod, qn))
           end
         end
       end
 
       // Sort by qualified name
-      _sort_packages(remaining)
+      _sort_modules(remaining)
 
-      for (pkg, _) in remaining.values() do
-        result.push(_extract_package(pkg, include_private, package_map))
+      for (mod, _) in remaining.values() do
+        result.push(_extract_module(mod, include_private, module_map))
       end
 
       result
     end
 
-    DocProgram(program_name, packages)
+    DocProgram(program_name, modules)
 
-  fun _build_package_map(program: ast.Program val): Map[USize, String] val =>
+  fun _build_module_map(program: ast.Program val): Map[USize, String] val =>
     """
-    Maps package AST pointer addresses to qualified names. Used by
-    `_TypeExtractor` to resolve nominal type TQFNs across packages.
+    Maps module AST pointer addresses to qualified names. Used by
+    `_TypeExtractor` to resolve nominal type TQFNs across modules.
     """
     recover val
       let map = Map[USize, String]
-      for pkg in program.packages() do
-        map(pkg.ast.raw.usize()) = pkg.qualified_name
+      for mod in program.modules() do
+        map(mod.ast.raw.usize()) = mod.qualified_name
       end
       map
     end
 
-  fun _sort_packages(
-    packages: Array[(ast.Package val, String)])
+  fun _sort_modules(
+    modules: Array[(ast.Module val, String)])
   =>
     """
-    Sort packages in-place by qualified name.
+    Sort modules in-place by qualified name.
     """
-    // Simple insertion sort — package count is small
-    for i in Range(1, packages.size()) do
+    // Simple insertion sort — module count is small
+    for i in Range(1, modules.size()) do
       try
         var j = i
         while (j > 0) and
-          (packages(j)?._2 < packages(j - 1)?._2)
+          (modules(j)?._2 < modules(j - 1)?._2)
         do
-          let tmp = packages(j)?
-          packages(j)? = packages(j - 1)?
-          packages(j - 1)? = tmp
+          let tmp = modules(j)?
+          modules(j)? = modules(j - 1)?
+          modules(j - 1)? = tmp
           j = j - 1
         end
       end
     end
 
-  fun _extract_package(
-    pkg: ast.Package val,
+  fun _extract_module(
+    mod: ast.Module val,
     include_private: Bool,
-    package_map: Map[USize, String] val)
-    : DocPackage
+    module_map: Map[USize, String] val)
+    : DocModule
   =>
     """
-    Extracts a `DocPackage` from a compiled package.
+    Extracts a `DocModule` from a compiled module.
     """
     var doc_string: (String | None) = None
     let public_entities = Array[DocEntity]
     let private_entities = Array[DocEntity]
-    // Track which modules have documented entities for source file filtering
-    let documented_modules = Map[String, ast.Module val]
+    // Track which files have documented entities for source file filtering
+    let documented_files = Map[String, ast.SourceFile val]
 
-    // Iterate TK_PACKAGE children
-    for child in pkg.ast.children() do
+    // Iterate TK_MODULE children
+    for child in mod.ast.children() do
       if child.id() == ast.TokenIds.tk_string() then
-        // Package docstring is a direct TK_STRING child of TK_PACKAGE
+        // Module docstring is a direct TK_STRING child of TK_MODULE
         doc_string = child.token_value()
-      elseif child.id() == ast.TokenIds.tk_module() then
-        // Module — collect entities from its children, skipping TK_USE
-        let module_for_child = _find_module_for_ast(pkg, child)
+      elseif child.id() == ast.TokenIds.tk_file() then
+        // File — collect entities from its children, skipping TK_USE
+        let file_for_child = _find_file_for_ast(mod, child)
 
         for entity_ast in child.children() do
           if entity_ast.id() == ast.TokenIds.tk_use() then
@@ -153,17 +153,17 @@ primitive Extractor
           let is_priv = Filter.is_private(entity_name)
           if is_priv and (not include_private) then continue end
 
-          // This entity is documented — record its module for source files
-          match module_for_child
-          | let m: ast.Module val =>
-            documented_modules(m.file) = m
+          // This entity is documented — record its file for source files
+          match file_for_child
+          | let f: ast.SourceFile val =>
+            documented_files(f.file) = f
           end
 
           let entity =
             _extract_entity(
               entity_ast,
               include_private,
-              package_map)
+              module_map)
 
           if is_priv then
             private_entities.push(entity)
@@ -178,31 +178,30 @@ primitive Extractor
     let sorted_public = _sort_entities(public_entities)
     let sorted_private = _sort_entities(private_entities)
 
-    // Collect source files from documented modules only
+    // Collect source files from documented files only
     let source_files =
       _collect_source_files(
-        pkg.qualified_name,
-        documented_modules)
+        mod.qualified_name,
+        documented_files)
 
-    DocPackage(
-      pkg.qualified_name,
+    DocModule(
+      mod.qualified_name,
       doc_string,
       sorted_public,
       sorted_private,
       source_files)
 
-  fun _find_module_for_ast(
-    pkg: ast.Package val,
-    module_ast: ast.AST box)
-    : (ast.Module val | None)
+  fun _find_file_for_ast(
+    mod: ast.Module val,
+    file_ast: ast.AST box)
+    : (ast.SourceFile val | None)
   =>
     """
-    Find the Module wrapper for a given TK_MODULE AST
-    node.
+    Find the File wrapper for a given TK_FILE AST node.
     """
-    for m in pkg.modules() do
-      if m.ast.raw.usize() == module_ast.raw.usize() then
-        return m
+    for f in mod.files() do
+      if f.ast.raw.usize() == file_ast.raw.usize() then
+        return f
       end
     end
     None
@@ -210,7 +209,7 @@ primitive Extractor
   fun _extract_entity(
     entity_ast: ast.AST box,
     include_private: Bool,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : DocEntity
   =>
     """
@@ -225,11 +224,11 @@ primitive Extractor
       let kind = EntityKindBuilder(entity_ast.id())?
 
       // TQFN for this entity
-      let tqfn = _resolve_entity_tqfn(entity_ast, package_map)
+      let tqfn = _resolve_entity_tqfn(entity_ast, module_map)
 
       // Type params
       let tparams_node = entity_ast(1)?
-      let type_params = _extract_type_params(tparams_node, package_map)
+      let type_params = _extract_type_params(tparams_node, module_map)
 
       // Cap
       let cap_node = entity_ast(2)?
@@ -237,7 +236,7 @@ primitive Extractor
 
       // Provides
       let provides_node = entity_ast(3)?
-      let provides = _extract_provides(provides_node, package_map)
+      let provides = _extract_provides(provides_node, module_map)
 
       // Doc string
       let doc_node = entity_ast(6)?
@@ -268,7 +267,7 @@ primitive Extractor
         _extract_members(
           members_node,
           include_private,
-          package_map)
+          module_map)
 
       DocEntity(
         kind,
@@ -291,12 +290,12 @@ primitive Extractor
 
   fun _resolve_entity_tqfn(
     entity_ast: ast.AST box,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : String
   =>
     """
     Resolves the TQFN for an entity by walking up to
-    its TK_PACKAGE.
+    its TK_MODULE.
     """
     try
       let entity_name = (entity_ast(0)?.token_value() as String)
@@ -304,9 +303,9 @@ primitive Extractor
       while true do
         match parent
         | let p: ast.AST =>
-          if p.id() == ast.TokenIds.tk_package() then
-            let pkg_name = package_map(p.raw.usize())?
-            return TQFN(pkg_name, entity_name)
+          if p.id() == ast.TokenIds.tk_module() then
+            let mod_name = module_map(p.raw.usize())?
+            return TQFN(mod_name, entity_name)
           end
           parent = p.parent()
         else
@@ -320,7 +319,7 @@ primitive Extractor
 
   fun _extract_type_params(
     tparams_node: ast.AST box,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : Array[DocTypeParam] val
   =>
     """
@@ -337,7 +336,7 @@ primitive Extractor
           try
             let c = tp(1)?
             if c.id() != ast.TokenIds.tk_none() then
-              _TypeExtractor(c, package_map)
+              _TypeExtractor(c, module_map)
             else
               None
             end
@@ -348,7 +347,7 @@ primitive Extractor
           try
             let d = tp(2)?
             if d.id() != ast.TokenIds.tk_none() then
-              _TypeExtractor(d, package_map)
+              _TypeExtractor(d, module_map)
             else
               None
             end
@@ -362,7 +361,7 @@ primitive Extractor
 
   fun _extract_provides(
     provides_node: ast.AST box,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : Array[DocType] val
   =>
     """
@@ -371,13 +370,13 @@ primitive Extractor
     let result: Array[DocType] iso = recover iso Array[DocType] end
     if provides_node.id() != ast.TokenIds.tk_none() then
       for child in provides_node.children() do
-        result.push(_TypeExtractor(child, package_map))
+        result.push(_TypeExtractor(child, module_map))
       end
       // If provides has no children but is itself a type, extract it
       if (result.size() == 0) and
         (provides_node.id() != ast.TokenIds.tk_provides())
       then
-        result.push(_TypeExtractor(provides_node, package_map))
+        result.push(_TypeExtractor(provides_node, module_map))
       end
     end
     consume result
@@ -385,7 +384,7 @@ primitive Extractor
   fun _extract_members(
     members_node: ast.AST box,
     include_private: Bool,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : ( Array[DocMethod] val,  // constructors
         Array[DocField] val,   // public_fields
         Array[DocMethod] val,  // public_behaviours
@@ -434,22 +433,22 @@ primitive Extractor
                 match grouped.id()
                 | ast.TokenIds.tk_new() =>
                   if gpriv and (not include_private) then continue end
-                  constructors.push(_extract_method(grouped, package_map))
+                  constructors.push(_extract_method(grouped, module_map))
                 | ast.TokenIds.tk_be() =>
                   if gpriv then
                     if include_private then
-                      priv_bes.push(_extract_method(grouped, package_map))
+                      priv_bes.push(_extract_method(grouped, module_map))
                     end
                   else
-                    pub_bes.push(_extract_method(grouped, package_map))
+                    pub_bes.push(_extract_method(grouped, module_map))
                   end
                 | ast.TokenIds.tk_fun() =>
                   if gpriv then
                     if include_private then
-                      priv_funs.push(_extract_method(grouped, package_map))
+                      priv_funs.push(_extract_method(grouped, module_map))
                     end
                   else
-                    pub_funs.push(_extract_method(grouped, package_map))
+                    pub_funs.push(_extract_method(grouped, module_map))
                   end
                 end
               end
@@ -474,32 +473,32 @@ primitive Extractor
       | ast.TokenIds.tk_embed() =>
         // Fields: public only (allow_public=true, allow_private=false)
         if not is_priv then
-          pub_fields.push(_extract_field(member, package_map))
+          pub_fields.push(_extract_field(member, module_map))
         end
 
       | ast.TokenIds.tk_new() =>
         // Constructors: public always, private if include_private
         if is_priv and (not include_private) then continue end
-        constructors.push(_extract_method(member, package_map))
+        constructors.push(_extract_method(member, module_map))
 
       | ast.TokenIds.tk_be() =>
         // Behaviours: public list gets public, private list gets private
         if is_priv then
           if include_private then
-            priv_bes.push(_extract_method(member, package_map))
+            priv_bes.push(_extract_method(member, module_map))
           end
         else
-          pub_bes.push(_extract_method(member, package_map))
+          pub_bes.push(_extract_method(member, module_map))
         end
 
       | ast.TokenIds.tk_fun() =>
         // Functions: public list gets public, private list gets private
         if is_priv then
           if include_private then
-            priv_funs.push(_extract_method(member, package_map))
+            priv_funs.push(_extract_method(member, module_map))
           end
         else
-          pub_funs.push(_extract_method(member, package_map))
+          pub_funs.push(_extract_method(member, module_map))
         end
       end
     end
@@ -513,7 +512,7 @@ primitive Extractor
 
   fun _extract_method(
     method_ast: ast.AST box,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : DocMethod
   =>
     """
@@ -536,10 +535,10 @@ primitive Extractor
           None
         end
 
-      let type_params = _extract_type_params(method_ast(2)?, package_map)
+      let type_params = _extract_type_params(method_ast(2)?, module_map)
 
       // Params
-      let params = _extract_params(method_ast(3)?, package_map)
+      let params = _extract_params(method_ast(3)?, module_map)
 
       // Return type — only for fun and new
       let return_type: (DocType | None) =
@@ -548,7 +547,7 @@ primitive Extractor
         then
           let ret_node = method_ast(4)?
           if ret_node.id() != ast.TokenIds.tk_none() then
-            _TypeExtractor(ret_node, package_map)
+            _TypeExtractor(ret_node, module_map)
           else
             None
           end
@@ -594,7 +593,7 @@ primitive Extractor
 
   fun _extract_field(
     field_ast: ast.AST box,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : DocField
   =>
     """
@@ -606,7 +605,7 @@ primitive Extractor
       let kind = FieldKindBuilder(field_ast.id())?
       let name = (field_ast(0)?.token_value() as String)
 
-      let field_type = _TypeExtractor(field_ast(1)?, package_map)
+      let field_type = _TypeExtractor(field_ast(1)?, module_map)
 
       let doc_node = field_ast(3)?
       let doc_string: (String | None) =
@@ -632,7 +631,7 @@ primitive Extractor
 
   fun _extract_params(
     params_node: ast.AST box,
-    package_map: Map[USize, String] val)
+    module_map: Map[USize, String] val)
     : Array[DocParam] val
   =>
     """
@@ -645,7 +644,7 @@ primitive Extractor
       if param.id() == ast.TokenIds.tk_none() then continue end
       try
         let name = (param(0)?.token_value() as String)
-        let param_type = _TypeExtractor(param(1)?, package_map)
+        let param_type = _TypeExtractor(param(1)?, module_map)
         let default_value = _TypeExtractor.get_default_value(param(2)?)
         result.push(DocParam(name, param_type, default_value))
       end
@@ -683,26 +682,26 @@ primitive Extractor
     consume sorted
 
   fun _collect_source_files(
-    package_name: String,
-    documented_modules: Map[String, ast.Module val])
+    module_name: String,
+    documented_files: Map[String, ast.SourceFile val])
     : Array[DocSourceFile] val
   =>
     """
-    Collects source files from modules that contain documented entities.
+    Collects source files from files that contain documented entities.
     `source_contents()` returns `String box`, so content is cloned for
     `val` storage.
     """
     let result: Array[DocSourceFile] iso =
       recover iso Array[DocSourceFile] end
-    for (_, m) in documented_modules.pairs() do
+    for (_, f) in documented_files.pairs() do
       let content =
-        match m.ast.source_contents()
+        match f.ast.source_contents()
         | let s: String box => s.clone()
         else
           continue
         end
-      let filename = Path.base(m.file)
-      result.push(DocSourceFile(package_name, filename, consume content))
+      let filename = Path.base(f.file)
+      result.push(DocSourceFile(module_name, filename, consume content))
     end
     consume result
 

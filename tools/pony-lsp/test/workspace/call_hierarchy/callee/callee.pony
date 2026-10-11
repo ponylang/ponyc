@@ -1,3 +1,3 @@
 """
-Callee sub-package fixture for cross-package call hierarchy tests.
+Callee sub-module fixture for cross-module call hierarchy tests.
 """

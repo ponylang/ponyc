@@ -1,3 +1,3 @@
 """
-Demonstrates the `cli` package for parsing command-line arguments.
+Demonstrates the `cli` module for parsing command-line arguments.
 """

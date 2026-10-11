@@ -930,7 +930,7 @@ static bool build_partial_call_receiver(ast_t** out, ast_t* receiver_type,
 
   if(ast_id(receiver_type) == TK_TYPEALIASREF)
   {
-    // Save the alias name for the foreign-package fallback below.
+    // Save the alias name for the foreign-module fallback below.
     alias_name = ast_name(ast_child(receiver_type));
 
     ast_t* alias_targs = ast_childidx(receiver_type, 1);
@@ -952,31 +952,31 @@ static bool build_partial_call_receiver(ast_t** out, ast_t* receiver_type,
   {
     case TK_NOMINAL:
     {
-      AST_GET_CHILDREN(receiver_type, recv_type_package, recv_type_name,
+      AST_GET_CHILDREN(receiver_type, recv_type_module, recv_type_name,
         recv_type_args);
 
-      const char* recv_package_str = ast_name(recv_type_package);
+      const char* recv_module_str = ast_name(recv_type_module);
       const char* recv_name_str = ast_name(recv_type_name);
 
-      ast_t* module = ast_nearest(ast, TK_MODULE);
-      ast_t* package = ast_parent(module);
-      ast_t* pkg_id = package_id(package, opt);
+      ast_t* file = ast_nearest(ast, TK_FILE);
+      ast_t* module = ast_parent(file);
+      ast_t* pkg_id = module_id(module, opt);
       const char* pkg_str = ast_name(pkg_id);
 
       const char* pkg_alias = NULL;
       bool use_alias_name = false;
 
-      if(recv_package_str != pkg_str)
+      if(recv_module_str != pkg_str)
       {
         if(alias_name != NULL)
         {
-          // The unfolded type is from a foreign package the call site's
-          // module may not import. Use the alias name (which is in scope)
+          // The unfolded type is from a foreign module the call site's
+          // file may not import. Use the alias name (which is in scope)
           // rather than the unfolded nominal name (which may not be).
           use_alias_name = true;
           recv_name_str = alias_name;
         } else {
-          pkg_alias = package_alias_from_id(module, recv_package_str, opt);
+          pkg_alias = module_alias_from_id(file, recv_module_str, opt);
         }
       }
 
@@ -993,7 +993,7 @@ static bool build_partial_call_receiver(ast_t** out, ast_t* receiver_type,
 
       if(pkg_alias != NULL)
       {
-        // `package.Type`
+        // `module.Type`
         BUILD_NO_DECL(type_ref, ast,
           NODE(TK_DOT,
             NODE(TK_REFERENCE, ID(pkg_alias))
@@ -1008,7 +1008,7 @@ static bool build_partial_call_receiver(ast_t** out, ast_t* receiver_type,
       {
         ast_t* targs = use_alias_name ? alias_type_args : recv_type_args;
 
-        // `Type[Args].f` or `package.Type[Args].f`
+        // `Type[Args].f` or `module.Type[Args].f`
         BUILD_NO_DECL(*out, ast,
           NODE(TK_DOT,
             NODE(TK_QUALIFY,
@@ -1016,7 +1016,7 @@ static bool build_partial_call_receiver(ast_t** out, ast_t* receiver_type,
               TREE(ast_dup(targs)))
             TREE(method)));
       } else {
-        // `Type.f` or `package.Type.f`
+        // `Type.f` or `module.Type.f`
         BUILD_NO_DECL(*out, ast,
           NODE(TK_DOT,
             TREE(type_ref)
@@ -1129,7 +1129,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       ast_id(method_ast) == TK_NEW);
 
   token_id can_error = ast_id(ast_childidx(method_ast, 6));
-  const char* recv_name = package_hygienic_id(t, opt);
+  const char* recv_name = module_hygienic_id(t, opt);
 
   // Build lambda expression.
   ast_t* call_receiver = NULL;

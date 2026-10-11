@@ -1,14 +1,14 @@
 primitive TQFN
   """
-  Constructs a Type Qualified Full Name (TQFN) from a package's
+  Constructs a Type Qualified Full Name (TQFN) from a module's
   qualified name and a type name.
 
-  Format: `{qualified_package_name}-{type_name}` with all `/`
+  Format: `{qualified_module_name}-{type_name}` with all `/`
   replaced by `-`.
 
   The `type_name` parameter can be overridden to produce special
-  TQFNs, e.g. passing `"-index"` for package index pages produces
-  a double dash: `{pkg}--index`.
+  TQFNs, e.g. passing `"-index"` for module index pages produces
+  a double dash: `{mod}--index`.
   """
   fun apply(
     qualified_name: String,
@@ -16,7 +16,7 @@ primitive TQFN
     : String
   =>
     """
-    Build the TQFN string from a qualified package name
+    Build the TQFN string from a qualified module name
     and a type name.
     """
     let raw: String val = qualified_name + "-" + type_name

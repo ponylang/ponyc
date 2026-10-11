@@ -15,17 +15,17 @@ class \nodoc\ _TestLambdaSpacingSingleLineClean is UnitTest
       "    f(1)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.LambdaSpacing)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -46,10 +46,10 @@ class \nodoc\ _TestLambdaSpacingSingleLineMissingSpaceBefore is UnitTest
       "    f(1)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.LambdaSpacing)
           h.assert_true(diags.size() > 0)
           try
@@ -64,7 +64,7 @@ class \nodoc\ _TestLambdaSpacingSingleLineMissingSpaceBefore is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -83,10 +83,10 @@ class \nodoc\ _TestLambdaSpacingSpaceAfterOpen is UnitTest
       "    f(1)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.LambdaSpacing)
           h.assert_true(diags.size() > 0)
           try
@@ -99,7 +99,7 @@ class \nodoc\ _TestLambdaSpacingSpaceAfterOpen is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -120,17 +120,17 @@ class \nodoc\ _TestLambdaSpacingMultiLineClean is UnitTest
       "    f(1)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.LambdaSpacing)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -152,10 +152,10 @@ class \nodoc\ _TestLambdaSpacingMultiLineSpaceBeforeClose is UnitTest
       "    f(1)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.LambdaSpacing)
           h.assert_true(diags.size() > 0)
           try
@@ -168,7 +168,7 @@ class \nodoc\ _TestLambdaSpacingMultiLineSpaceBeforeClose is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -184,17 +184,17 @@ class \nodoc\ _TestLambdaSpacingTypeClean is UnitTest
       "type Fn is {(USize): USize}\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.LambdaSpacing)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -210,10 +210,10 @@ class \nodoc\ _TestLambdaSpacingTypeSpaceAfterOpen is UnitTest
       "type Fn is { (USize): USize}\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.LambdaSpacing)
           h.assert_true(diags.size() > 0)
           try
@@ -226,7 +226,7 @@ class \nodoc\ _TestLambdaSpacingTypeSpaceAfterOpen is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -242,10 +242,10 @@ class \nodoc\ _TestLambdaSpacingTypeSpaceBeforeClose is UnitTest
       "type Fn is {(USize): USize }\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.LambdaSpacing)
           h.assert_true(diags.size() > 0)
           try
@@ -258,7 +258,7 @@ class \nodoc\ _TestLambdaSpacingTypeSpaceBeforeClose is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -277,17 +277,17 @@ class \nodoc\ _TestLambdaSpacingBareLambdaClean is UnitTest
       "    f(1)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.LambdaSpacing)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -306,10 +306,10 @@ class \nodoc\ _TestLambdaSpacingBareLambdaSpaceAfterOpen is UnitTest
       "    f(1)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.LambdaSpacing)
           h.assert_true(diags.size() > 0)
           try
@@ -322,7 +322,7 @@ class \nodoc\ _TestLambdaSpacingBareLambdaSpaceAfterOpen is UnitTest
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")
@@ -338,17 +338,17 @@ class \nodoc\ _TestLambdaSpacingBareLambdaTypeClean is UnitTest
       "type Fn is @{(USize): USize}\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
-      | let pkg: ast.Package val =>
-        match pkg.module()
-        | let mod: ast.Module val =>
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
           let diags = _CollectRuleDiags(mod, sf, lint.LambdaSpacing)
           h.assert_eq[USize](0, diags.size())
         else
           h.fail("no module")
         end
       else
-        h.fail("no package")
+        h.fail("no module")
       end
     else
       h.fail("compilation failed")

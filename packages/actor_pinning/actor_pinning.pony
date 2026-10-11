@@ -1,7 +1,7 @@
 """
-# Actor Pinning Package
+# Actor Pinning Module
 
-The Actor Pinning package allows Pony programmers to pin actors to a dedicated
+The Actor Pinning module allows Pony programmers to pin actors to a dedicated
 scheduler thread. This can be required/used for interfacing with C libraries
 that rely on thread local storage. A common example of this is
 graphics/windowing libraries.

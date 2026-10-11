@@ -5,8 +5,8 @@ use @errors_get_first[NullablePointer[_ErrorMsg]](errors: _Errors)
 use @errors_get_count[USize](errors: _Errors)
 
 struct _TypecheckFrame
-  var package: Pointer[_AST] val = package.create()
   var module: Pointer[_AST] val = module.create()
+  var file: Pointer[_AST] val = file.create()
   var ttype: Pointer[_AST] val = ttype.create()
   var constraint: Pointer[_AST] val = constraint.create()
   var provides: Pointer[_AST] val = provides.create()

@@ -1,7 +1,7 @@
 """
-# Runtime Info package
+# Runtime Info module
 
-The runtime information package exposes information about the Pony runtime that
+The runtime information module exposes information about the Pony runtime that
 can be queried at runtime. The most common usage at this time is limiting the
 number of work based on the number of available schedulers.
 

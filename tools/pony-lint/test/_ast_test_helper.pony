@@ -13,7 +13,7 @@ primitive \nodoc\ _ASTTestHelper
   returns or raises.
 
   The PONYPATH environment variable must be set to locate the builtin
-  package (e.g., the ponyc packages/ directory). Tests run from a build
+  module (e.g., the ponyc packages/ directory). Tests run from a build
   directory, not an installed location, so executable-relative discovery
   is not used here.
 
@@ -50,7 +50,7 @@ primitive \nodoc\ _ASTTestHelper
         match \exhaustive\ pass
         | ast.PassParse =>
           match \exhaustive\ ast.Compiler.compile(
-            tmp where package_search_paths = pony_path,
+            tmp where module_search_paths = pony_path,
             limit = ast.PassParse)
           | let program: ast.Program val =>
             (program, sf)
@@ -61,7 +61,7 @@ primitive \nodoc\ _ASTTestHelper
         else
           let session =
             ast.CompileSession(
-              tmp where package_search_paths = pony_path,
+              tmp where module_search_paths = pony_path,
               limit = ast.PassParse)
           match session.program()
           | let program: ast.Program val =>

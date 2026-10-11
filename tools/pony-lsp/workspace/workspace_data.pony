@@ -13,22 +13,22 @@ class val WorkspaceData
   let dependencies: Array[String] val
   // absolute paths (derived from folder and dependencies)
   let dependency_paths: Array[String] val
-  // absolute paths of packages listed in all
+  // absolute paths of modules listed in all
   // corral.json files (including dependencies)
-  let package_paths: Set[String] val
+  let module_paths: Set[String] val
     """
-    Absolute paths of packages listed in all
+    Absolute paths of modules listed in all
     corral.json files (including dependencies).
     """
-  let _min_package_paths_len: USize
-  // TODO: further structure a workspace into different packages, separately
+  let _min_module_paths_len: USize
+  // TODO: further structure a workspace into different modules, separately
   // compiled
 
   new val create(
     name': String,
     folder': FilePath,
     dependencies': Set[String] val,
-    package_paths': Set[String] val)
+    module_paths': Set[String] val)
   =>
     name = name'
     folder = folder'
@@ -50,12 +50,12 @@ class val WorkspaceData
             })
           .collect(Array[String].create(dependencies.size()))
       end
-    package_paths = package_paths'
+    module_paths = module_paths'
     var min: USize = USize.max_value()
-    for package_path in package_paths.values() do
-      min = min.min(package_path.size())
+    for mod_path in module_paths.values() do
+      min = min.min(mod_path.size())
     end
-    _min_package_paths_len = min
+    _min_module_paths_len = min
 
   fun debug(): String =>
     """
@@ -66,23 +66,23 @@ class val WorkspaceData
       dp_arr = dp_arr.push(dp)
     end
     var pp_arr = JSONArray
-    for pp in package_paths.values() do
+    for pp in module_paths.values() do
       pp_arr = pp_arr.push(pp)
     end
     JSONObject
       .update("name", name)
       .update("folder", folder.path)
       .update("dependencies", dp_arr)
-      .update("packages", pp_arr)
+      .update("modules", pp_arr)
       .print()
 
-  fun find_package(document_path: String): (FilePath | None) =>
+  fun find_module(document_path: String): (FilePath | None) =>
     var doc_path: String val = document_path
-    while (doc_path != ".") and (doc_path.size() >= _min_package_paths_len) do
+    while (doc_path != ".") and (doc_path.size() >= _min_module_paths_len) do
       try
-        let package_path = this.package_paths(doc_path)?
+        let mod_path = this.module_paths(doc_path)?
         return this.folder.join(
-          package_path.substring(this.folder.path.size().isize() + 1)
+          mod_path.substring(this.folder.path.size().isize() + 1)
         )?
       end
       let parent = Path.dir(doc_path)

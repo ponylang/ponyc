@@ -22,13 +22,13 @@
 #endif
 
 /** Tests for C shims: the cincludedir:/cdefine: use schemes, .c discovery in
- * package directories, and compiling shims with the embedded clang (gencshim).
+ * module directories, and compiling shims with the embedded clang (gencshim).
  *
  * Scheme handling and the cdefine: duplicate check run in the scope pass on
  * plain inline source. Tests that need a .c on disk write a fixture
- * directory at runtime and map a package onto it with
- * package_add_magic_path, so parse_files_in_dir discovers the .c exactly as
- * it would in a real package directory.
+ * directory at runtime and map a module onto it with
+ * module_add_magic_path, so parse_files_in_dir discovers the .c exactly as
+ * it would in a real module directory.
  */
 
 #define TEST_COMPILE(src, pass) DO(test_compile(src, pass))
@@ -115,7 +115,7 @@ TEST_F(CShimTest, CDefineDuplicateConflictingValues)
     "  new create(env: Env) => None";
 
   TEST_ERROR_WITH_NOTE(src, "scope",
-    "C macro 'FOO' is already defined for this package as 'FOO=1'",
+    "C macro 'FOO' is already defined for this module as 'FOO=1'",
     "first definition is here");
 }
 
@@ -128,7 +128,7 @@ TEST_F(CShimTest, CDefineDuplicateIdenticalValues)
     "  new create(env: Env) => None";
 
   TEST_ERROR_WITH_NOTE(src, "scope",
-    "C macro 'FOO' is already defined for this package",
+    "C macro 'FOO' is already defined for this module",
     "first definition is here");
 }
 
@@ -141,7 +141,7 @@ TEST_F(CShimTest, CDefineDuplicateValuelessThenValued)
     "  new create(env: Env) => None";
 
   TEST_ERROR_WITH_NOTE(src, "scope",
-    "C macro 'FOO' is already defined for this package as 'FOO'",
+    "C macro 'FOO' is already defined for this module as 'FOO'",
     "first definition is here");
 }
 
@@ -200,7 +200,7 @@ TEST_F(CShimTest, CDefineDuplicateValuedThenValueless)
     "  new create(env: Env) => None";
 
   TEST_ERROR_WITH_NOTE(src, "scope",
-    "C macro 'FOO' is already defined for this package as 'FOO=1'",
+    "C macro 'FOO' is already defined for this module as 'FOO=1'",
     "first definition is here");
 }
 
@@ -240,7 +240,7 @@ TEST_F(CShimTest, CIncludeAbsolutePathStoredVerbatim)
   GTEST_SKIP() << "uses a POSIX absolute path form";
 #endif
 
-  // An absolute cincludedir: path skips package-dir resolution and is stored
+  // An absolute cincludedir: path skips module-dir resolution and is stored
   // as given.
   const char* src =
     "use \"cincludedir:/absolute/include dir\"\n"
@@ -249,7 +249,7 @@ TEST_F(CShimTest, CIncludeAbsolutePathStoredVerbatim)
 
   TEST_COMPILE(src, "scope");
 
-  strlist_t* includes = package_c_includes(package);
+  strlist_t* includes = module_c_includes(module);
   ASSERT_NE((void*)NULL, includes);
   EXPECT_STREQ("/absolute/include dir", strlist_data(includes));
 }
@@ -296,17 +296,17 @@ TEST_F(CShimTest, CIncludePathWithSpacesStoredVerbatim)
   TEST_COMPILE(src, "scope");
 
   char expected[FILENAME_MAX];
-  path_cat(package_path(package), "dir with spaces", expected);
+  path_cat(module_path(module), "dir with spaces", expected);
 
-  strlist_t* includes = package_c_includes(package);
+  strlist_t* includes = module_c_includes(module);
   ASSERT_NE((void*)NULL, includes);
   EXPECT_STREQ(expected, strlist_data(includes));
 }
 
 
-// Deterministic ordering of the per-package C state. gencshim consumes these
+// Deterministic ordering of the per-module C state. gencshim consumes these
 // lists head->tail, so insertion order here is the clang argv order and (for
-// sources) the link order; see the package_t comment in package.c.
+// sources) the link order; see the module_t comment in package.c.
 
 TEST_F(CShimTest, CDefinesAndIncludesPreserveSourceOrder)
 {
@@ -320,7 +320,7 @@ TEST_F(CShimTest, CDefinesAndIncludesPreserveSourceOrder)
 
   TEST_COMPILE(src, "scope");
 
-  strlist_t* defines = package_c_defines(package);
+  strlist_t* defines = module_c_defines(module);
   ASSERT_NE((void*)NULL, defines);
   EXPECT_STREQ("ZULU=1", strlist_data(defines));
   defines = strlist_next(defines);
@@ -328,14 +328,14 @@ TEST_F(CShimTest, CDefinesAndIncludesPreserveSourceOrder)
   EXPECT_STREQ("ALPHA=2", strlist_data(defines));
   EXPECT_EQ((void*)NULL, strlist_next(defines));
 
-  // cincludedir: paths resolve against the package directory (not the
-  // process's CWD), so the stored path is "<package path><slash><value>".
+  // cincludedir: paths resolve against the module directory (not the
+  // process's CWD), so the stored path is "<module path><slash><value>".
   char expected_first[FILENAME_MAX];
   char expected_second[FILENAME_MAX];
-  path_cat(package_path(package), "zz", expected_first);
-  path_cat(package_path(package), "aa", expected_second);
+  path_cat(module_path(module), "zz", expected_first);
+  path_cat(module_path(module), "aa", expected_second);
 
-  strlist_t* includes = package_c_includes(package);
+  strlist_t* includes = module_c_includes(module);
   ASSERT_NE((void*)NULL, includes);
   EXPECT_STREQ(expected_first, strlist_data(includes));
   includes = strlist_next(includes);
@@ -344,9 +344,9 @@ TEST_F(CShimTest, CDefinesAndIncludesPreserveSourceOrder)
   EXPECT_EQ((void*)NULL, strlist_next(includes));
 }
 
-TEST_F(CShimTest, ShimInUnsafePackageRejected)
+TEST_F(CShimTest, ShimInUnsafeModuleRejected)
 {
-  // --safe gates compiling a shim exactly like a C FFI call: a package not
+  // --safe gates compiling a shim exactly like a C FFI call: a module not
   // on the safe list doesn't get its .c compiled, and a .c there is an
   // error. The check is at discovery, so this fails as early as an unsafe
   // FFI call and needs no clang.
@@ -358,26 +358,26 @@ TEST_F(CShimTest, ShimInUnsafePackageRejected)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
-  // package_add_safe("") adds only builtin to the safe list;
-  // re-running package_init normalizes it to builtin's real path (the
-  // normalization lives in package_init). shimpkg isn't on the list, so
+  // module_add_safe("") adds only builtin to the safe list;
+  // re-running module_init normalizes it to builtin's real path (the
+  // normalization lives in module_init). shimpkg isn't on the list, so
   // its .c is rejected; builtin stays allowed so its own FFI is fine.
-  package_add_safe("", &opt);
-  package_init(&opt);
+  module_add_safe("", &opt);
+  module_init(&opt);
 
   const char* src =
     "use \"shimpkg\"\n"
     "actor Main\n"
     "  new create(env: Env) => None";
 
-  // The shim denial, plus the cascading load failure for the package that
+  // The shim denial, plus the cascading load failure for the module that
   // requested it.
   { const char* errs[] = {
-      "this package isn't allowed to do C FFI, so its C source files can't "
+      "this module isn't allowed to do C FFI, so its C source files can't "
       "be compiled as shims",
-      "can't load package 'shimpkg'", NULL};
+      "can't load module 'shimpkg'", NULL};
     DO(test_expected_errors(src, "scope", errs)); }
 
   remove_fixture(fixture, names);
@@ -396,7 +396,7 @@ TEST_F(CShimTest, CDefineValueStoredVerbatim)
 
   TEST_COMPILE(src, "scope");
 
-  strlist_t* defines = package_c_defines(package);
+  strlist_t* defines = module_c_defines(module);
   ASSERT_NE((void*)NULL, defines);
   EXPECT_STREQ("GREETING=\"hello world\"", strlist_data(defines));
   EXPECT_EQ((void*)NULL, strlist_next(defines));
@@ -469,7 +469,7 @@ TEST_F(CShimTest, CSourcesDiscoveredSortedAndScoped)
   const char* sub_contents[] = {"also never compiled\n", NULL};
   DO(write_fixture(subdir, sub_names, sub_contents));
 
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   const char* src =
     "use \"shimpkg\"\n"
@@ -482,7 +482,7 @@ TEST_F(CShimTest, CSourcesDiscoveredSortedAndScoped)
   ASSERT_NE((void*)NULL, shimpkg);
 
   const char* expected[] = {"alpha.c", "beta.c", "mid.c", "zeta.c"};
-  strlist_t* sources = package_c_sources(shimpkg);
+  strlist_t* sources = module_c_sources(shimpkg);
 
   for(size_t i = 0; i < 4; i++)
   {
@@ -501,23 +501,23 @@ TEST_F(CShimTest, CSourcesDiscoveredSortedAndScoped)
   remove_fixture(fixture, names);
 }
 
-TEST_F(CShimTest, COnlyDirectoryIsNotAPackage)
+TEST_F(CShimTest, COnlyDirectoryIsNotAModule)
 {
   const char* fixture = "cshim_fixture_c_only";
   const char* names[] = {"only.c", NULL};
   const char* contents[] = {"int only(void) { return 1; }\n", NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("conlypkg", fixture, &opt);
+  module_add_magic_path("conlypkg", fixture, &opt);
 
   const char* src =
     "use \"conlypkg\"\n"
     "actor Main\n"
     "  new create(env: Env) => None";
 
-  // The failed load also fails the use command that requested the package.
-  { const char* errs[] = {"no Pony source files in package",
-      "can't load package 'conlypkg'", NULL};
+  // The failed load also fails the use command that requested the module.
+  { const char* errs[] = {"no Pony source files in module",
+      "can't load module 'conlypkg'", NULL};
     DO(test_expected_errors(src, "scope", errs)); }
 
   remove_fixture(fixture, names);
@@ -541,7 +541,7 @@ TEST_F(CShimTest, BadShimReportsClangErrorWithLocation)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   const char* src =
     "use \"shimpkg\"\n"
@@ -575,7 +575,7 @@ TEST_F(CShimTest, GoodShimProducesLinkableObject)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   const char* src =
     "use \"shimpkg\"\n"
@@ -610,7 +610,7 @@ TEST_F(CShimTest, BadShimIgnoredBelowPassC)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   const char* src =
     "use \"shimpkg\"\n"
@@ -633,7 +633,7 @@ TEST_F(CShimTest, ShimWarningDoesNotFailBuild)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   const char* src =
     "use \"shimpkg\"\n"
@@ -649,12 +649,12 @@ TEST_F(CShimTest, ShimWarningDoesNotFailBuild)
   remove_fixture(fixture, names);
 }
 
-// A cdefine:/cincludedir: directive in a package with no .c is an error: the
-// flags only affect .c files in the same package, so the directive is inert
-// (usually it belongs in the package that holds the shim). The check is in
+// A cdefine:/cincludedir: directive in a module with no .c is an error: the
+// flags only affect .c files in the same module, so the directive is inert
+// (usually it belongs in the module that holds the shim). The check is in
 // gencshim, before any clang work, so it fires identically on every platform.
-// The main package here is inline source with no .c, so it is itself the
-// orphaned package.
+// The main module here is inline source with no .c, so it is itself the
+// orphaned module.
 
 TEST_F(CShimTest, CDefineWithoutCSourceErrors)
 {
@@ -664,7 +664,7 @@ TEST_F(CShimTest, CDefineWithoutCSourceErrors)
     "  new create(env: Env) => None";
 
   TEST_ERRORS_1(src, "c",
-    "cdefine:/cincludedir: in a package with no C source files");
+    "cdefine:/cincludedir: in a module with no C source files");
 }
 
 TEST_F(CShimTest, CIncludeWithoutCSourceErrors)
@@ -675,14 +675,14 @@ TEST_F(CShimTest, CIncludeWithoutCSourceErrors)
     "  new create(env: Env) => None";
 
   TEST_ERRORS_1(src, "c",
-    "cdefine:/cincludedir: in a package with no C source files");
+    "cdefine:/cincludedir: in a module with no C source files");
 }
 
 TEST_F(CShimTest, MultipleShimsCompileAndRecordInSortedOrder)
 {
-  // The within-package compile/record order is a documented determinism
+  // The within-module compile/record order is a documented determinism
   // contract (sorted sources -> object record order -> link order); no
-  // other test compiles more than one source per package, so a future
+  // other test compiles more than one source per module, so a future
   // change (say, parallel shim compiles) recording out of order must fail
   // here.
   const char* fixture = "cshim_fixture_multi";
@@ -694,7 +694,7 @@ TEST_F(CShimTest, MultipleShimsCompileAndRecordInSortedOrder)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   const char* src =
     "use \"shimpkg\"\n"
@@ -730,7 +730,7 @@ TEST_F(CShimTest, ShimWarningWithNoteDoesNotFailBuild)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   const char* src =
     "use \"shimpkg\"\n"
@@ -755,7 +755,7 @@ TEST_F(CShimTest, ShimObjectPathTooLongIsAnError)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   // An output path so long the object name can't fit FILENAME_MAX must be
   // a clear error, not a mangled filename.
@@ -798,7 +798,7 @@ TEST_F(CShimTest, ShimCanIncludePonyHeader)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   const char* src =
     "use \"shimpkg\"\n"
@@ -830,7 +830,7 @@ TEST_F(CShimTest, ShimCanIncludeWindowsHeader)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   const char* src =
     "use \"shimpkg\"\n"
@@ -856,7 +856,7 @@ TEST_F(CShimTest, ShimErrorNoteJoinsErrorFrame)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   const char* src =
     "use \"shimpkg\"\n"
@@ -882,7 +882,7 @@ TEST_F(CShimTest, CrossCompiledShimRequiresSysroot)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   // Cross-compile to a target whose toolchain is absent on every host that
   // runs this suite, so the shared cross-toolchain probe
@@ -1064,7 +1064,7 @@ TEST_F(CShimTest, ShimObjectGoesToCreatedOutputDir)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   // -o names a directory that doesn't exist yet. codegen creates it, but
   // gencshim runs first and must create it too, or only shim programs would
@@ -1105,7 +1105,7 @@ TEST_F(CShimTest, ShimRespectsCDefine)
     NULL};
 
   DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
+  module_add_magic_path("shimpkg", fixture, &opt);
 
   // Without the define the shim fails (proves the #error path is live).
   // Preprocessing continues past #error, so the use of THE_ANSWER below it
@@ -1119,8 +1119,8 @@ TEST_F(CShimTest, ShimRespectsCDefine)
     "use of undeclared identifier 'THE_ANSWER'", NULL};
   DO(test_expected_errors(bad_src, "c", errs));
 
-  // ...and the cdefine: in the package that owns the shim satisfies it.
-  // (Defines are per-package: they go in shimpkg's own source, not Main's.)
+  // ...and the cdefine: in the module that owns the shim satisfies it.
+  // (Defines are per-module: they go in shimpkg's own source, not Main's.)
   char gated_pony[FILENAME_MAX];
   snprintf(gated_pony, sizeof(gated_pony), "%s/%s", fixture, "dummy.pony");
   FILE* f = fopen(gated_pony, "w");

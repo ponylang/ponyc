@@ -1,5 +1,5 @@
 """
-Minimal UDP echo server demonstrating the net package's UDP socket.
+Minimal UDP echo server demonstrating the net module's UDP socket.
 
 A single actor binds a UDP socket and echoes every received datagram back to
 its sender. Shows the two building blocks of a net UDP application:

@@ -10,7 +10,7 @@ bool ponyc_init(pass_opt_t* options)
   if(!codegen_pass_init(options))
     return false;
 
-  if(!package_init(options))
+  if(!module_init(options))
     return false;
 
   return true;
@@ -18,10 +18,10 @@ bool ponyc_init(pass_opt_t* options)
 
 void ponyc_shutdown(pass_opt_t* options)
 {
-  package_done(options);
+  module_done(options);
   codegen_pass_cleanup(options);
   codegen_llvm_shutdown();
   // The interned-string table is freed by pass_opt_done, which the caller runs
   // after this; it must stay live through the cleanup above (error printing,
-  // package teardown) since those still read interned strings.
+  // module teardown) since those still read interned strings.
 }

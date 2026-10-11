@@ -35,15 +35,15 @@ primitive PassSugar
 primitive PassScope
   """
   Populates symbol tables for types, fields, methods,
-  and locals. Loads used packages.
+  and locals. Loads used modules.
   """
   fun apply(): I32 => 3
 
 primitive PassImport
   """
-  Imports symbols from packages used without an alias.
+  Imports symbols from modules used without an alias.
   Deferred from the scope pass to handle circular
-  package dependencies.
+  module dependencies.
   """
   fun apply(): I32 => 4
 
@@ -139,7 +139,7 @@ primitive PassLLVMIR
 
 primitive PassBitcode
   """
-  Emits per-package bitcode files.
+  Emits per-module bitcode files.
   """
   fun apply(): I32 => 18
 
@@ -199,8 +199,8 @@ struct _PassOpt
   var parse_trace: Bool = false
   // Mirrors pass_opt_t.user_triple (pass.h).
   var user_triple: Bool = false
-  var package_search_paths: Pointer[_StrList] =
-    package_search_paths.create()
+  var module_search_paths: Pointer[_StrList] =
+    module_search_paths.create()
   var safe_packages: Pointer[_StrList] = safe_packages.create()
   var magic_packages: Pointer[_MagicPackage] =
     magic_packages.create()

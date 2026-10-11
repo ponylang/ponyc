@@ -85,7 +85,7 @@ static bool emit_per_module_bitcode(compile_t* c, const char*** out_files,
   size_t count = c->per_module_count;
 
   if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-    fprintf(stderr, "Emitting %zu per-package modules\n", count);
+    fprintf(stderr, "Emitting %zu per-module LLVM modules\n", count);
 
   const char** files = (const char**)ponyint_pool_alloc_size(
     count * sizeof(const char*));
@@ -93,14 +93,14 @@ static bool emit_per_module_bitcode(compile_t* c, const char*** out_files,
   for(size_t i = 0; i < count; i++)
   {
     char suffix[256];
-    const char* pkg_sym = c->per_module_states[i].package_symbol;
+    const char* mod_sym = c->per_module_states[i].module_symbol;
     const char* suffix_name;
-    if(pkg_sym != NULL)
-      suffix_name = pkg_sym;
+    if(mod_sym != NULL)
+      suffix_name = mod_sym;
     else if(i == 0)
       suffix_name = "main";
     else
-      suffix_name = package_filename(c->per_module_states[i].package);
+      suffix_name = module_filename(c->per_module_states[i].pony_module);
     snprintf(suffix, sizeof(suffix), ".%s.bc", suffix_name);
     const char* file_bc = suffix_filename(c, c->opt->output, "",
       c->filename, suffix);

@@ -52,8 +52,8 @@ static void allocate_compile_types(compile_t* c)
     if((c->per_module_count > 0) && (ast_id(t->ast) == TK_NOMINAL))
     {
       ast_t* def = (ast_t*)ast_data(t->ast);
-      ast_t* pkg = ast_nearest(def, TK_PACKAGE);
-      c_t->module_index = codegen_module_index_for_package(c, pkg);
+      ast_t* pkg = ast_nearest(def, TK_MODULE);
+      c_t->module_index = codegen_module_index_for_module(c, pkg);
     }
 
     genfun_allocate_compile_methods(c, t);
@@ -81,7 +81,7 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
 
       // Find the primitive type, if there is one.
       AST_GET_CHILDREN(t->ast, pkg, id);
-      const char* package = ast_name(pkg);
+      const char* mod_name = ast_name(pkg);
       const char* name = ast_name(id);
 
       char* triple = c->opt->triple;
@@ -89,7 +89,7 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
       bool llp64 = target_is_llp64(triple);
       bool lp64 = target_is_lp64(triple);
 
-      if(package == c->str_builtin)
+      if(mod_name == c->str_builtin)
       {
         if(name == c->str_I8)
           c_t->primitive = c->i8;
@@ -649,10 +649,10 @@ static void make_intrinsic_methods(compile_t* c, reach_type_t* t)
 
   // Find the primitive type, if there is one.
   AST_GET_CHILDREN(t->ast, pkg, id);
-  const char* package = ast_name(pkg);
+  const char* mod_name = ast_name(pkg);
   const char* name = ast_name(id);
 
-  if(package == c->str_builtin)
+  if(mod_name == c->str_builtin)
   {
     if(name == c->str_Pointer)
       genprim_pointer_methods(c, t);
@@ -676,10 +676,10 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   {
     // Special case the array trace function.
     AST_GET_CHILDREN(t->ast, pkg, id);
-    const char* package = ast_name(pkg);
+    const char* mod_name = ast_name(pkg);
     const char* name = ast_name(id);
 
-    if((package == c->str_builtin) && (name == c->str_Array))
+    if((mod_name == c->str_builtin) && (name == c->str_Array))
     {
       genprim_array_trace(c, t);
       return true;

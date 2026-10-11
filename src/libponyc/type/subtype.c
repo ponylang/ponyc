@@ -2399,7 +2399,7 @@ bool is_literal(ast_t* type, const char* name)
   if(ast_id(type) != TK_NOMINAL)
     return false;
 
-  // Don't have to check the package, since literals are all builtins.
+  // Don't have to check the module, since literals are all builtins.
   return !strcmp(ast_name(ast_childidx(type, 1)), name);
 }
 

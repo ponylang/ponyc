@@ -52,7 +52,7 @@ five closed, count-driven workloads (`--workload`):
   swarm.
 - **`backpressure`** — a star of `Producer` actors flooding one `Consumer`. The
   consumer explicitly participates in runtime backpressure via the stdlib
-  `backpressure` package: after every `apply_every` received messages it calls
+  `backpressure` module: after every `apply_every` received messages it calls
   `Backpressure.apply` (marking itself UNDER_PRESSURE, so its producers are muted)
   and self-sends a `lift` that calls `Backpressure.release`. The self-send is never
   muted, so apply is always paired with release and the closed flood cannot

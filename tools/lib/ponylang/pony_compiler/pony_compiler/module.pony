@@ -2,26 +2,26 @@ use @ponyint_hash_block[USize](ptr: Pointer[None] tag, size: USize)
 use "collections"
 // use "debug"
 
-class val Module is (Hashable & Equatable[Module])
+class val SourceFile is (Hashable & Equatable[SourceFile])
   """
-  A compiled Pony module, corresponding to one source file within a package.
+  A compiled Pony file, corresponding to one source file within a module.
   """
 
   let ast: AST val
   let file: String val
-    """Absolute path to the file of this module"""
+    """Absolute path to this file"""
   let len: USize
     """length of the file contents in bytes"""
   let _hash: USize
     """
-    A hash of the module contents.
+    A hash of the file contents.
     """
   // kept so the underlying AST is not lost; reaped when Program is GC'd
   let _program: Program box
 
   new val create(program: Program val, ast': AST) ? =>
     """
-    Construct the module by extracting some metadata from the AST
+    Construct the file by extracting some metadata from the AST
     """
     _program = program
     ast = ast'
@@ -40,47 +40,47 @@ class val Module is (Hashable & Equatable[Module])
     """
     _hash
 
-  fun eq(that: box->Module): Bool =>
+  fun eq(that: box->SourceFile): Bool =>
     """
-    Two modules are considered equal if they are from the same file
+    Two files are considered equal if they are from the same path
     and the file contents are equal
     """
     let same_file = (this.file == that.file)
     let same_content = this._hash == that._hash
     same_file and same_content
 
-class _ModuleIter is Iterator[Module val]
-  var _module_ast: (AST val | None)
+class _SourceFileIter is Iterator[SourceFile val]
+  var _file_ast: (AST val | None)
   let _program: Program val
 
-  new ref create(program: Program val, package: Package val) =>
+  new ref create(program: Program val, module: Module val) =>
     _program = program
-    _module_ast = package.ast.child()
+    _file_ast = module.ast.child()
 
   fun ref has_next(): Bool =>
-    _module_ast isnt None
+    _file_ast isnt None
 
-  fun ref next(): Module val ? =>
-    let module_ast = _module_ast as AST
-    _module_ast = module_ast.sibling()
-    Module.create(_program, module_ast)?
+  fun ref next(): SourceFile val ? =>
+    let file_ast = _file_ast as AST
+    _file_ast = file_ast.sibling()
+    SourceFile.create(_program, file_ast)?
 
 class val PositionIndex
   """
   Index for AST nodes sorted by their position in the index.
   """
-  // IMPORTANT: keep the reference to the module alive,
+  // IMPORTANT: keep the reference to the file alive,
   // as long as we keep this class around
-  let _module: Module val
+  let _file: SourceFile val
   let _index: Array[_Entry] box
     """
     Sorted by position
     """
 
-  new val create(module: Module val) =>
-    _module = module
+  new val create(file': SourceFile val) =>
+    _file = file'
     let visitor = _PositionIndexBuilder
-    _build_index(_module.ast, visitor, _module.file)
+    _build_index(_file.ast, visitor, _file.file)
     _index = visitor.index()
 
   fun tag _is_filter_none_parent(ast_id: TokenId): Bool =>
@@ -103,13 +103,13 @@ class val PositionIndex
   fun tag _build_index(
     ast: AST box,
     visitor: _PositionIndexBuilder ref,
-    module_file: String val)
+    source_file: String val)
   =>
     """
     Custom traversal for building the position index.
 
     Unlike AST.visit(), which filters children by the parent's source file,
-    this checks each node against the module's source file and always recurses
+    this checks each node against the file's source and always recurses
     into children. This is necessary because several compiler transformations
     create mixed-source trees via ast_dup: type alias reification grafts
     definition nodes (TK_TYPEARGS, TK_ID) that retain the stdlib source, and
@@ -127,15 +127,15 @@ class val PositionIndex
       then
         None // skip inferred type arguments (non-null data on TK_TYPEARGS)
       else
-        let from_module =
+        let from_file =
           match child'.source_file()
-          | let sf: String val => sf == module_file
+          | let sf: String val => sf == source_file
           else true
           end
-        if from_module then visitor.visit(child') end
+        if from_file then visitor.visit(child') end
         // Always recurse regardless of source, so we reach user nodes
         // inside mixed-source subtrees
-        _build_index(child', visitor, module_file)
+        _build_index(child', visitor, source_file)
       end
     end
 
@@ -220,7 +220,7 @@ class val PositionIndex
         | TokenIds.tk_paramref()
         | TokenIds.tk_var()
         | TokenIds.tk_let()
-        | TokenIds.tk_packageref()
+        | TokenIds.tk_moduleref()
         => return parent'
         // else
           // Debug("Parent unknown: "

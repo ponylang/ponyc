@@ -1,7 +1,7 @@
 #include <stdint.h>
 
 #ifdef MAIN_VALUE
-#error MAIN_VALUE leaked across packages: cdefine must stay per-package
+#error MAIN_VALUE leaked across modules: cdefine must stay per-module
 #endif
 
 int32_t helper_value(void)

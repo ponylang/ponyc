@@ -178,15 +178,15 @@ primitive DefinitionResolver
         // "Error resolving tuple element ref")
         []
       end
-    | TokenIds.tk_packageref() =>
-      // return the first module in each package - as
-      // an editor will never be able to open a package
-      let package_defs = _data_ast(ast)
-      let num_pkgs = package_defs.size()
-      Iter[AST](package_defs.values())
+    | TokenIds.tk_moduleref() =>
+      // return the first file in each module - as
+      // an editor will never be able to open a module
+      let module_defs = _data_ast(ast)
+      let num_modules = module_defs.size()
+      Iter[AST](module_defs.values())
         .filter_map[AST](
-          {(pkg: AST) => pkg.child() })
-        .collect(Array[AST](num_pkgs))
+          {(mod: AST) => mod.child() })
+        .collect(Array[AST](num_modules))
     | TokenIds.tk_nominal()
     | TokenIds.tk_typealiasref() =>
       // the definition of the type is set as ast-data

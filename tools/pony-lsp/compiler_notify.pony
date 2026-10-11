@@ -51,7 +51,7 @@ actor PonyCompiler is LspCompiler
 
   fun tag _find_installation_paths(argv0: String val): Array[String val] val =>
     """
-    Find pony package paths relative to the running executable's directory.
+    Find pony module paths relative to the running executable's directory.
     Since pony-lsp is installed alongside ponyc, the standard library lives at
     `../packages` (installed layout) or `../../packages` (source build layout)
     relative to the executable.
@@ -104,29 +104,29 @@ actor PonyCompiler is LspCompiler
       // trigger all queued compilations
       try
         while this._compilation_queue.size() > 0 do
-          (let package, let paths, let notify) = this._compilation_queue.pop()?
-          this.compile(package, paths, notify)
+          (let module, let paths, let notify) = this._compilation_queue.pop()?
+          this.compile(module, paths, notify)
         end
       end
     end
 
   be compile(
-    package: FilePath,
+    module: FilePath,
     paths: Array[String val] val,
     notify: CompilerNotify tag)
   =>
     """
-    Compile a package with the given paths.
+    Compile a module with the given paths.
     """
     if not this._got_settings then
       // enqueue compilation and dont execute it yet
-      this._compilation_queue.push((package, paths, notify))
+      this._compilation_queue.push((module, paths, notify))
       return
     end
     // Search order: installation paths first (prevents PONYPATH from overriding
     // builtin, per ponylang/ponyc#3779), then PONYPATH, then workspace-specific
     // paths (corral dependencies).
-    let package_paths: Array[String val] val =
+    let module_paths: Array[String val] val =
       recover val
         let tmp = _installation_paths.clone()
         for p in _pony_path.values() do
@@ -138,15 +138,15 @@ actor PonyCompiler is LspCompiler
       end
     let result =
       Compiler.compile(
-        package,
-        package_paths
+        module,
+        module_paths
         where
           user_flags = this._defines,
           release = false,
           verbosity = VerbosityQuiet,
           limit = PassFinaliser)
     let run_id = _run_id_gen = _run_id_gen + 1
-    notify.done_compiling(package, result, run_id)
+    notify.done_compiling(module, result, run_id)
 
 trait tag LspCompiler
   """
@@ -162,11 +162,11 @@ trait tag LspCompiler
     """
 
   be compile(
-    package: FilePath,
+    module: FilePath,
     paths: Array[String val] val,
     notify: CompilerNotify tag)
     """
-    Compile the given package.
+    Compile the given module.
     """
 
 interface CompilerNotify
@@ -175,7 +175,7 @@ interface CompilerNotify
   """
 
   be done_compiling(
-    package: FilePath,
+    module: FilePath,
     result: (Program val | Array[Error val] val),
     run: USize)
     """

@@ -10,7 +10,7 @@ actor \nodoc\ Main is TestList
     test(_TestTQFNSimple)
     test(_TestTQFNPathSeparator)
     test(_TestTQFNIndexOverride)
-    test(_TestTQFNEmptyPackage)
+    test(_TestTQFNEmptyModule)
 
     // NameSort tests
     test(_TestNameSortBasic)
@@ -18,7 +18,7 @@ actor \nodoc\ Main is TestList
     test(_TestNameSortEqual)
 
     // Filter tests
-    test(_TestFilterTestPackage)
+    test(_TestFilterTestModule)
     test(_TestFilterPrivate)
     test(_TestFilterInternal)
 

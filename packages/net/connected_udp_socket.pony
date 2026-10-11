@@ -10,7 +10,7 @@ class ConnectedUDPSocket[
   Create with
   `ConnectedUDPSocket(auth, host, port, peer_host, peer_port, enclosing, ler)`,
   using `ConnectedUDPSocket.none()` as the field initializer before that.
-  See the package documentation for the full lifecycle.
+  See the module documentation for the full lifecycle.
   """
   var _udp: UDP = UDP
   var _state: _ConnectedUDPSocketState[UDP] ref = _ConnectedUDPNone[UDP]

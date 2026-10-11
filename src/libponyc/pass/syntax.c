@@ -525,17 +525,17 @@ static ast_result_t syntax_tupletype(pass_opt_t* opt, ast_t* ast)
 static ast_result_t syntax_nominal(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast != NULL);
-  AST_GET_CHILDREN(ast, package, name, typeargs, cap, eph);
+  AST_GET_CHILDREN(ast, mod_id, name, typeargs, cap, eph);
 
   if(!is_name_dontcare(ast_name(name)))
     return AST_OK;
 
   ast_result_t r = AST_OK;
 
-  if(ast_id(package) != TK_NONE)
+  if(ast_id(mod_id) != TK_NONE)
   {
-    ast_error(opt->check.errors, package,
-      "'_' cannot be in a package");
+    ast_error(opt->check.errors, mod_id,
+      "'_' cannot be in a module");
     r = AST_ERROR;
   }
 
@@ -1060,7 +1060,7 @@ static ast_result_t syntax_use(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast != NULL);
   AST_GET_CHILDREN(ast, id, url, guard);
 
-  if(ast_id(id) != TK_NONE && !check_id_package(opt, id))
+  if(ast_id(id) != TK_NONE && !check_id_module(opt, id))
     return AST_ERROR;
 
   if(ast_id(guard) != TK_NONE && !syntax_ifdef_cond(opt, guard, "use guard"))

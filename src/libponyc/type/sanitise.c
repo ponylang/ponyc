@@ -38,7 +38,7 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args, pa
   {
     BUILD(new_arg, orig_param,
       NODE(TK_NOMINAL,
-        NONE  // Package
+        NONE  // Module
         ID(name)
         NONE  // Type args
         NONE  // cap
@@ -126,7 +126,7 @@ static void sanitise(ast_t** astp, pass_opt_t* opt)
 
     REPLACE(astp,
       NODE(TK_NOMINAL,
-        NONE      // Package name
+        NONE      // Module name
         ID(name)
         NONE      // Type args
         NONE      // Capability
@@ -152,7 +152,7 @@ static void sanitise(ast_t** astp, pass_opt_t* opt)
 
     REPLACE(astp,
       NODE(TK_NOMINAL,
-        NONE            // Package name
+        NONE            // Module name
         ID(name)
         TREE(typeargs)  // Type args
         NONE            // Capability

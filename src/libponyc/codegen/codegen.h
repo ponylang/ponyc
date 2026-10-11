@@ -82,8 +82,8 @@ typedef struct per_module_state_t
   LLVMMetadataRef di_unit;
   genned_strings_t strings;
   ffi_decls_t ffi_decls;
-  const char* package_symbol;
-  ast_t* package;
+  const char* module_symbol;
+  ast_t* pony_module;
 } per_module_state_t;
 
 typedef struct compile_frame_t
@@ -257,12 +257,12 @@ void codegen_stamp_target_attrs(compile_t* c);
 
 void codegen_switch_module(compile_t* c, size_t index);
 
-size_t codegen_create_per_module_state(compile_t* c, const char* pkg_sym,
-  ast_t* package);
+size_t codegen_create_per_module_state(compile_t* c, const char* mod_sym,
+  ast_t* module);
 
 void codegen_init_modules(compile_t* c, ast_t* program);
 
-size_t codegen_module_index_for_package(compile_t* c, ast_t* package);
+size_t codegen_module_index_for_module(compile_t* c, ast_t* module);
 
 LLVMValueRef codegen_resolve_function(compile_t* c, LLVMValueRef fn);
 

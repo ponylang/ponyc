@@ -1,7 +1,7 @@
 """
 Test fixtures for exercising LSP call hierarchy functionality.
 
-This package provides fixture files for manual and automated testing of the
+This module provides fixture files for manual and automated testing of the
 three LSP call hierarchy operations (prepareCallHierarchy,
 callHierarchy/incomingCalls, and callHierarchy/outgoingCalls).
 
@@ -17,8 +17,8 @@ Fixture layout:
   a typed receiver, exercising position-based disambiguation for same-named
   methods in the same file.
 - _TCrossCaller declares cross_call() which calls TCallee.callee_method() from
-  the callee/ sub-package, exercising cross-package outgoing-call resolution.
-  callee/ uses a public type (no underscore) so it is accessible cross-package.
+  the callee/ sub-module, exercising cross-module outgoing-call resolution.
+  callee/ uses a public type (no underscore) so it is accessible cross-module.
 - _TConstructed declares new create(). _TCallConstructorCaller.f_new_explicit()
   calls _TConstructed.create() explicitly, exercising that _is_synthetic_newref
   does not filter user-written Foo.create() constructor calls.
@@ -74,7 +74,7 @@ Expected call hierarchy behaviour:
     - Incoming calls: `call_b` in `_TPolyUser` (one call site)
 
   `cross_call` in `_TCrossCaller`:
-    - Outgoing calls: `callee_method` in `TCallee` (callee/ sub-package)
+    - Outgoing calls: `callee_method` in `TCallee` (callee/ sub-module)
 
   `f_new_explicit` in `_TCallConstructorCaller`:
     - Outgoing calls: `create` in `_TConstructed` (one call site) — verifies

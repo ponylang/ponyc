@@ -171,12 +171,12 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
   {
     typecheck_t* t = &opt->check;
 
-    if(ast_nearest(def, TK_PACKAGE) != t->frame->package)
+    if(ast_nearest(def, TK_MODULE) != t->frame->module)
     {
       if(errors)
       {
         ast_error(opt->check.errors, from, "can't lookup fields or methods "
-          "on private types from other packages");
+          "on private types from other modules");
       }
 
       return NULL;
@@ -321,28 +321,28 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
       {
         // Given that we can pick up method bodies from default methods on
         // traits, we need to allow the lookup of private methods from within
-        // the same package.
+        // the same module.
         // We do this by getting the method we are calling from:
         //
         // t->frame->method
         //
         // And getting its body donor.
         // If the body_donor is a trait then check if that trait is in the same
-        // package the method we are trying to lookup is defined in.
+        // module the method we are trying to lookup is defined in.
         //
-        // If the method we are looking up is in the same package as the trait
+        // If the method we are looking up is in the same module as the trait
         // that we got our method body from then we can allow the lookup.
         bool skip_check = false;
         ast_t* body_donor = (ast_t*)ast_data(t->frame->method);
-        if ((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT) && (ast_nearest(find, TK_PACKAGE) == ast_nearest(body_donor, TK_PACKAGE)))
+        if ((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT) && (ast_nearest(find, TK_MODULE) == ast_nearest(body_donor, TK_MODULE)))
            skip_check = true;
 
-        if(!skip_check && (ast_nearest(def, TK_PACKAGE) != t->frame->package))
+        if(!skip_check && (ast_nearest(def, TK_MODULE) != t->frame->module))
         {
           if(errors)
           {
             ast_error(opt->check.errors, from,
-              "can't lookup private methods from outside the package");
+              "can't lookup private methods from outside the module");
           }
 
           return NULL;

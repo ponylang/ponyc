@@ -1,5 +1,5 @@
 // Fixture for `document_symbol/integration/entity_kinds` — exercises every
-// top-level entity token that `DocumentSymbols.from_module` maps to an LSP
+// top-level entity token that `DocumentSymbols.from_file` maps to an LSP
 // SymbolKind (class, actor, trait, interface, primitive, struct, type).
 //
 // Regression guard against silent edits to the `tk_*` → SymbolKind match

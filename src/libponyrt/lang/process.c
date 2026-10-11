@@ -145,7 +145,7 @@ PONY_API size_t ponyint_win_process_create(
  * Report a Windows child's exit status without blocking. Does not close the
  * process handle: the asio backend registers a wait on that handle for the
  * exit event, and the handle is closed once, later, when that wait is
- * unregistered (see the process package's exit-source teardown). Closing it
+ * unregistered (see the process module's exit-source teardown). Closing it
  * here while the wait is registered is undefined behavior.
  *
  * WaitForSingleObject with a zero timeout is the non-blocking poll:
