@@ -25,6 +25,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add connected UDP mode ([PR #6227](https://github.com/ponylang/ponyc/pull/6227))
 - Add iftype specialization for method overloading on type parameters ([PR #6222](https://github.com/ponylang/ponyc/pull/6222))
 - Add darkmode toggle to pony-doc generated documentation ([PR #6239](https://github.com/ponylang/ponyc/pull/6239))
+- Add pony-agent-server ([PR #6264](https://github.com/ponylang/ponyc/pull/6264))
 
 ### Changed
 
