@@ -1,3 +1,11 @@
+use @sendable[Bool](type_ast: Pointer[_AST] box, opt: _PassOpt box)
+use @is_subtype_for_defs[Bool](
+  sub_def: Pointer[_AST] box,
+  sub_cap: I32,
+  super_def: Pointer[_AST] box,
+  super_cap: I32,
+  opt: _PassOpt box)
+
 primitive Types
   """
   AST type extraction utilities.

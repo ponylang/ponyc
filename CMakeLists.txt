@@ -859,6 +859,7 @@ else()
     add_subdirectory(tools/pony-lint)
     add_subdirectory(tools/pony-doc)
     add_subdirectory(tools/pony-dep)
+    add_subdirectory(tools/pony-agent-server)
 
     # Test binaries compiled with the just-built ponyc. Built on demand, NOT under
     # ALL: each runs ponyc to compile builtin and the stdlib packages, so building
@@ -897,12 +898,18 @@ else()
         PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler ${PONY_SSL_LIB_DIR}
         WATCH ${CMAKE_SOURCE_DIR}/tools/pony-dep)
 
+    add_pony_binary(pony-agent-server-tests
+        NAME pony-agent-server-tests
+        SOURCE ${CMAKE_SOURCE_DIR}/tools/pony-agent-server/test
+        PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
+        WATCH ${CMAKE_SOURCE_DIR}/tools/pony-agent-server)
+
     # On-demand aggregate: build every self-hosted tool test in one target. Run
     # `cmake --build <dir> --target tool-tests` before `ctest -L tools`.
     add_custom_target(tool-tests)
     add_dependencies(tool-tests
         pony-compiler-tests pony-doc-tests pony-lint-tests pony-lsp-tests
-        pony-dep-tests)
+        pony-dep-tests pony-agent-server-tests)
 
     # ctest registration. Every test binary builds under ALL, so ctest only runs
     # them. Labels group the suites: `ci-core` is the core CI suite (the old
@@ -944,6 +951,9 @@ else()
     add_test(NAME pony-dep-tests
         COMMAND ${PONY_OUTPUT_DIR}/pony-dep-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
         WORKING_DIRECTORY ${PONY_OUTPUT_DIR})
+    add_test(NAME pony-agent-server-tests
+        COMMAND ${PONY_OUTPUT_DIR}/pony-agent-server-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
+        WORKING_DIRECTORY ${PONY_OUTPUT_DIR})
     set_tests_properties(pony-lint-tests PROPERTIES
         ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages;PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-lint-tests")
     set_tests_properties(pony-doc-tests PROPERTIES
@@ -952,6 +962,8 @@ else()
         ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages;PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-dep-tests")
     set_tests_properties(pony-lsp-tests PROPERTIES
         ENVIRONMENT "PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-lsp-tests")
+    set_tests_properties(pony-agent-server-tests PROPERTIES
+        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages;PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-agent-server-tests")
     add_test(NAME pony-compiler-tests
         COMMAND ${PONY_OUTPUT_DIR}/pony-compiler-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
         WORKING_DIRECTORY ${PONY_OUTPUT_DIR})
@@ -967,7 +979,7 @@ else()
             ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler:${CMAKE_SOURCE_DIR}/packages;PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-compiler-tests")
     endif()
     set_tests_properties(pony-doc-tests pony-lsp-tests pony-lint-tests pony-compiler-tests
-        pony-dep-tests PROPERTIES LABELS tools)
+        pony-dep-tests pony-agent-server-tests PROPERTIES LABELS tools)
 
     # Compile-then-run ci-core tests. Each compiles Pony sources with the freshly
     # built ponyc and then runs (or diffs) the result, so they depend on ponyc
@@ -1045,6 +1057,7 @@ else()
         ${PONY_OUTPUT_DIR}/pony-lint${CMAKE_EXECUTABLE_SUFFIX}
         ${PONY_OUTPUT_DIR}/pony-doc${CMAKE_EXECUTABLE_SUFFIX}
         ${PONY_OUTPUT_DIR}/pony-dep${CMAKE_EXECUTABLE_SUFFIX}
+        ${PONY_OUTPUT_DIR}/pony-agent-server${CMAKE_EXECUTABLE_SUFFIX}
         DESTINATION ${PONY_VERSIONED_DIR}/bin)
 
     # Runtime + compiler static libs, into the lib dir ponyc searches at run time
@@ -1138,7 +1151,7 @@ else()
                 endif()
             endforeach()
             file(MAKE_DIRECTORY \"\${_prefix}/bin\" \"\${_prefix}/lib\")
-            foreach(_tool ponyc pony-lsp pony-lint pony-doc pony-dep)
+            foreach(_tool ponyc pony-lsp pony-lint pony-doc pony-dep pony-agent-server)
                 set(_t \"\${_prefix}/${PONY_VERSIONED_DIR}/bin/\${_tool}\")
                 if(EXISTS \"\${_t}\")
                     file(CREATE_LINK \"\${_t}\" \"\${_prefix}/bin/\${_tool}\" SYMBOLIC)
@@ -1152,7 +1165,7 @@ else()
             endforeach()
         ")
     elseif(PONY_INSTALL_SYMLINKS AND WIN32)
-        foreach(_tool ponyc pony-lsp pony-lint pony-doc pony-dep)
+        foreach(_tool ponyc pony-lsp pony-lint pony-doc pony-dep pony-agent-server)
             install(PROGRAMS $<TARGET_FILE:ponyc-shim>
                 DESTINATION bin RENAME ${_tool}.exe)
         endforeach()

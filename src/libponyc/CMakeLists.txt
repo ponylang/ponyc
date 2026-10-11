@@ -94,6 +94,7 @@ add_library(libponyc STATIC
     type/sanitise.c
     type/subtype.c
     type/subtype_cache.c
+    type/subtype_ffi.c
     type/type_assume.c
     type/typealias.c
     type/typeparam.c

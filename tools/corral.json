@@ -8,7 +8,9 @@
     "pony-doc",
     "pony-doc/test",
     "pony-dep",
-    "pony-dep/test"
+    "pony-dep/test",
+    "pony-agent-server",
+    "pony-agent-server/test"
   ],
   "deps": [
     {

@@ -39,7 +39,7 @@ The output goes in `build/debug`. Use `--preset release` for a release build. Th
 Tests are registered with ctest and grouped by label. Two labels matter:
 
 - **`ci-core`** — built by a normal `cmake --build --preset debug`. The C/C++ compiler tests (`libponyc.tests`), the runtime tests (`libponyrt.tests`), the stdlib suite, full-program integration tests, and grammar validation.
-- **`tools`** — **not** built by a normal `cmake --build --preset debug`. The self-hosted tool test suites: pony-compiler, pony-lsp, pony-lint, pony-doc, and pony-dep.
+- **`tools`** — **not** built by a normal `cmake --build --preset debug`. The self-hosted tool test suites: pony-compiler, pony-lsp, pony-lint, pony-doc, pony-dep, and pony-agent-server.
 
 ### Core tests (ci-core)
 
@@ -87,6 +87,7 @@ Tool test binaries must be built explicitly before running. Build one target, th
 - `cmake --build --preset debug --target pony-lint-tests && ctest --preset debug -R pony-lint-tests`
 - `cmake --build --preset debug --target pony-doc-tests && ctest --preset debug -R pony-doc-tests`
 - `cmake --build --preset debug --target pony-dep-tests && ctest --preset debug -R pony-dep-tests`
+- `cmake --build --preset debug --target pony-agent-server-tests && ctest --preset debug -R pony-agent-server-tests`
 
 Build all tool test binaries at once with `cmake --build --preset debug --target tool-tests`, then run them with `ctest --preset debug -L tools`.
 
@@ -100,7 +101,7 @@ Run the `pony-lint` binary (built by a normal `cmake --build --preset debug`) ag
 cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lint/
 ```
 
-The same works for `../../tools/pony-lsp/`, `../../tools/pony-doc/`, and `../../tools/pony-dep/`.
+The same works for `../../tools/pony-lsp/`, `../../tools/pony-doc/`, `../../tools/pony-dep/`, and `../../tools/pony-agent-server/`.
 
 ## Opening PRs
 

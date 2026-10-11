@@ -38,6 +38,7 @@ tools/pony-lsp/version.pony
 tools/pony-lint/version.pony
 tools/pony-doc/version.pony
 tools/pony-dep/version.pony
+tools/pony-agent-server/version.pony
 
 # Python bytecode
 __pycache__/
