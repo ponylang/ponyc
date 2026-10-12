@@ -33,7 +33,7 @@ class Handler is ReadlineNotify
 
     _commands.push(line)
 
-  fun ref tab(line: String): Seq[String] box =>
+  fun ref tab(line: String): ReadSeq[String] box =>
     let r = Array[String]
 
     for command in _commands.values() do

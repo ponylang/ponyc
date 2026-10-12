@@ -39,7 +39,7 @@ primitive Base64
     """
     encode(data, '+', '/', '=', 76)
 
-  fun encode_url[A: Seq[U8] iso = String iso](
+  fun encode_url[A: ResizableSeq[U8] iso = String iso](
     data: ReadSeq[U8],
     pad: Bool = false)
     : A^
@@ -50,7 +50,7 @@ primitive Base64
     let c: U8 = if pad then '=' else 0 end
     encode[A](data, '-', '_', c)
 
-  fun encode[A: Seq[U8] iso = String iso](
+  fun encode[A: ResizableSeq[U8] iso = String iso](
     data: ReadSeq[U8],
     at62: U8 = '+',
     at63: U8 = '/',
@@ -125,13 +125,16 @@ primitive Base64
 
     out
 
-  fun decode_url[A: Seq[U8] iso = Array[U8] iso](data: ReadSeq[U8]): A^ ? =>
+  fun decode_url[A: ResizableSeq[U8] iso = Array[U8] iso](
+    data: ReadSeq[U8])
+    : A^ ?
+  =>
     """
     Decode for URLs (RFC 4648).
     """
     decode[A](data, '-', '_')?
 
-  fun decode[A: Seq[U8] iso = Array[U8] iso](
+  fun decode[A: ResizableSeq[U8] iso = Array[U8] iso](
     data: ReadSeq[U8],
     at62: U8 = '+',
     at63: U8 = '/',
