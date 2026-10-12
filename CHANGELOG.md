@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Split Seq into ReadSeq, Seq, and ResizableSeq ([PR #6275](https://github.com/ponylang/ponyc/pull/6275))
 
 ## [0.75.0] - 2026-10-11
 
