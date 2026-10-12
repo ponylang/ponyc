@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix release build link failure when building with GCC ([PR #6277](https://github.com/ponylang/ponyc/pull/6277))
 
 ### Added
 
