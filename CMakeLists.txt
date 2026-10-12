@@ -85,7 +85,8 @@ endif()
 if(NOT PONY_CROSS_LIBPONYRT)
     find_package(LLVM REQUIRED CONFIG PATHS "build/libs/lib/cmake/llvm" "build/libs/lib64/cmake/llvm" NO_DEFAULT_PATH)
 
-    if(PONY_USE_LTO AND CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT MSVC AND LLVM_TOOLS_BINARY_DIR)
+    if(PONY_USE_LTO AND CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT MSVC
+       AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND LLVM_TOOLS_BINARY_DIR)
         set(_pony_llvm_ar "${LLVM_TOOLS_BINARY_DIR}/llvm-ar")
         set(_pony_llvm_ranlib "${LLVM_TOOLS_BINARY_DIR}/llvm-ranlib")
         if(EXISTS "${_pony_llvm_ar}" AND EXISTS "${_pony_llvm_ranlib}")

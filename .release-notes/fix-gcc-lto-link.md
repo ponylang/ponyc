@@ -1,0 +1,3 @@
+## Fix release build link failure when building with GCC
+
+Building ponyc with GCC in release mode failed at two points: the ponyc binary itself failed to link, and programs compiled by a GCC-built ponyc failed to link with undefined runtime symbols. Both had the same cause — GCC's LTO format (GIMPLE) is not compatible with LLVM tools. The build system was using `llvm-ar` for LTO archives regardless of compiler, and was compiling `libponyrt` with GCC LTO, producing objects that ponyc's embedded `ld.lld` linker could not read. GCC builds now use `gcc-ar` for archiving, and `libponyrt` is built without LTO when the compiler is GCC.
