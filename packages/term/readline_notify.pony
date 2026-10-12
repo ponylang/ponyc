@@ -11,7 +11,7 @@ interface ReadlineNotify
     """
     None
 
-  fun ref tab(line: String): Seq[String] box =>
+  fun ref tab(line: String): ReadSeq[String] box =>
     """
     Return tab completion possibilities.
     """

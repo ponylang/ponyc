@@ -1049,7 +1049,7 @@ class \nodoc\ _LineNotify is ReadlineNotify
     _h.assert_eq[String](_expected, line)
     _h.complete(true)
 
-  fun ref tab(line: String): Seq[String] box =>
+  fun ref tab(line: String): ReadSeq[String] box =>
     _h.assert_eq[String](_tab_input, line where msg = "tab input")
     _completions
 

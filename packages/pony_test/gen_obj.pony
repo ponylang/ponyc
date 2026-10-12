@@ -173,14 +173,14 @@ primitive Generators
           result
       end)
 
-  fun iso_seq_of[T: Any #send, S: Seq[T] iso](
+  fun iso_seq_of[T: Any #send, S: ResizableSeq[T] iso](
     gen: Generator[T],
     from: USize = 0,
     to: USize = 100)
     : Generator[S]
   =>
     """
-    Generate a `Seq[T]` where `T` must be sendable.
+    Generate a `ResizableSeq[T]` where `T` must be sendable.
     Uses boolean-per-element encoding.
     """
     let lo = from.min(to)
@@ -213,14 +213,14 @@ primitive Generators
           consume result
       end)
 
-  fun seq_of[T, S: Seq[T] ref](
+  fun seq_of[T, S: ResizableSeq[T] ref](
     gen: Generator[T],
     from: USize = 0,
     to: USize = 100)
     : Generator[S]
   =>
     """
-    Create a `Seq` from generated values with size in `from` to `to`.
+    Create a `ResizableSeq` from generated values with size in `from` to `to`.
     Uses boolean-per-element encoding.
     """
     let lo = from.min(to)

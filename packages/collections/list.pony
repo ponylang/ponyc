@@ -1,4 +1,4 @@
-class List[A] is Seq[A]
+class List[A] is ResizableSeq[A]
   """
   A doubly linked list.
 
@@ -166,9 +166,9 @@ class List[A] is Seq[A]
 
   new create(len: USize = 0) =>
     """
-    Always creates an empty list with 0 nodes, `len` is ignored.
+    Creates an empty list. The `len` parameter is a capacity hint that this
+    implementation ignores because linked lists don't pre-allocate.
 
-    Required method for `List` to satisfy the `Seq` interface.
     ```pony
     let my_list = List[String]
     ```
@@ -200,9 +200,7 @@ class List[A] is Seq[A]
 
   fun ref reserve(len: USize) =>
     """
-    Do nothing
-
-    Required method for `List` to satisfy the `Seq` interface.
+    No-op. Linked lists don't pre-allocate, so there is nothing to reserve.
     """
     None
 

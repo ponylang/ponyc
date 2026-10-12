@@ -6,7 +6,7 @@ use @strtod[F64](nptr: Pointer[U8] tag, endptr: Pointer[Pointer[U8] box] ref)
 use @pony_os_clear_errno[None]()
 use @pony_os_errno[I32]()
 
-class val String is (Seq[U8] & Comparable[String box] & Stringable)
+class val String is (ResizableSeq[U8] & Comparable[String box] & Stringable)
   """
   A String is an ordered collection of bytes.
 
