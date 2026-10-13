@@ -79,10 +79,6 @@ target_include_directories(libponyrt
 
 add_dependencies(libponyrt pony_version)
 
-if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_INTERPROCEDURAL_OPTIMIZATION)
-    set_target_properties(libponyrt PROPERTIES INTERPROCEDURAL_OPTIMIZATION OFF)
-endif()
-
 if (MSVC)
     # VirtualAlloc2, which mem/alloc.c calls, is not exported by kernel32.lib.
     # INTERFACE so every executable linking libponyrt gets it; ponyc links pony

@@ -713,6 +713,12 @@ if(PONY_USE_LTO AND CMAKE_SIZEOF_VOID_P EQUAL 8)
     if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
         # cl.exe's /GL produces LTCG bitcode that lld-link can't read;
         # use the ClangCL toolset for LTO on Windows.
+    elseif(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+        # GCC LTO produces GIMPLE objects. ponyc links Pony programs with
+        # the embedded ld.lld, which cannot read GIMPLE, so every static
+        # library the linker consumes (libponyrt, libponyc, …) must contain
+        # native objects. Disabling LTO globally is simpler and safer than
+        # exempting targets one by one.
     elseif(_pony_llvm_ar)
         set(_ipo_supported YES)
     else()
