@@ -94,8 +94,9 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
       v_min = LLVMConstNot(v_min);
       v_min = LLVMBuildShl(c->builder, v_min,
         LLVMConstInt(r_type, width - 1, false), "");
-      long long min = LLVMConstIntGetSExtValue(v_min);
-      if(LLVMConstIntGetSExtValue(l_value) == min)
+      LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntEQ,
+        l_value, v_min, "");
+      if(is_always_true(cmp))
         return is_div ? v_min : LLVMConstInt(r_type, 0, false);
     }
   }
