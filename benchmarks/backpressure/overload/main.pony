@@ -1,0 +1,60 @@
+"""
+Sustained overload: many senders, one receiver.
+
+10,000 senders each call `fire()` in a tight loop, flooding a single
+receiver. The receiver prints cumulative throughput every 50M messages.
+
+This measures how the runtime handles a permanently overloaded actor.
+With binary muting, throughput is limited by the fixed batch size.
+With graduated batch sizes, the receiver's batch grows and throughput
+increases.
+"""
+
+use "collections"
+use "time"
+
+actor Receiver
+  var _msgs: U64 = 0
+  let _out: OutStream
+  var _last: U64 = Time.nanos()
+
+  new create(out: OutStream) =>
+    _out = out
+    _out.print("Single receiver started.")
+
+  be receive() =>
+    _msgs = _msgs + 1
+    if ((_msgs % 50_000_000) == 0) then
+      let now = Time.nanos()
+      let nanos = now - _last
+      _last = now
+      _out.print(_msgs.string() + " messages received in " +
+        nanos.string() + " nanos.")
+    end
+
+actor Sender
+  let _receiver: Receiver
+
+  new create(receiver: Receiver) =>
+    _receiver = receiver
+
+  be fire() =>
+    _receiver.receive()
+    fire()
+
+actor Main
+  var _size: U32 = 10_000
+
+  new create(env: Env) =>
+    start_messaging(env.out)
+    loop()
+
+  be loop() => None
+    loop()
+
+  fun ref start_messaging(out: OutStream) =>
+    let r = Receiver(out)
+    out.print("Starting " + _size.string() + " senders.")
+    for i in Range[U32](0, _size) do
+      Sender(r).fire()
+    end

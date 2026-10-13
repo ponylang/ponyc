@@ -1746,6 +1746,7 @@ static int sched_actor_systematic_testing_id_cmp(const void* a, const void* b)
 static void sched_reschedule_unmuted(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   ponyint_unmute_actor(actor);
+  actor->batch_size = PONY_SCHED_BATCH_STEP;
   ponyint_sched_add(ctx, actor);
   ponyint_sched_start_global_unmute(ctx->scheduler->index, actor);
 }
