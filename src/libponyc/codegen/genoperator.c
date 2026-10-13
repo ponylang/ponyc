@@ -83,16 +83,9 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
 
   LLVMTypeRef r_type = LLVMTypeOf(r_value);
 
-  // This doesn't pick up `x / 0` for 128 bit numbers on platforms without
-  // native 128 bit support.
   if(!is_fp(r_value) && LLVMIsConstant(r_value))
   {
     long long r_const = LLVMConstIntGetSExtValue(r_value);
-    if (r_const == 0)
-    {
-      ast_error(c->opt->check.errors, right, "constant divide or rem by zero");
-      return NULL;
-    }
 
     if((r_const == -1) && LLVMIsConstant(l_value) && sign)
     {
