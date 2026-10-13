@@ -14,3 +14,7 @@ Code that uses `Seq` and calls growth methods must change `Seq` to `ResizableSeq
 
 Building ponyc with GCC in release mode failed at two points: the ponyc binary itself failed to link, and programs compiled by a GCC-built ponyc failed to link with undefined runtime symbols. Both had the same cause — GCC's LTO format (GIMPLE) is not compatible with LLVM tools. The build system was enabling LTO globally regardless of compiler, producing GIMPLE objects that the embedded `ld.lld` linker and `llvm-ar` archiver could not read. LTO is now disabled entirely for GCC builds.
 
+## Remove compile-time error for constant integer division by zero
+
+The compiler no longer rejects constant integer division or remainder by zero. `let x: I64 = 1 / 0` was a compile error, but `let x = I64(1) / I64(0)` was not — the check only caught bare literals.
+
