@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix release build link failure when building with GCC ([PR #6277](https://github.com/ponylang/ponyc/pull/6277))
+- Fix I128 constant division by -1 producing wrong result ([PR #6282](https://github.com/ponylang/ponyc/pull/6282))
 
 ### Added
 
