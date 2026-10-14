@@ -129,8 +129,4 @@ class ArchiveEncoder
         _Unreachable()
         ""
       end
-    ifdef windows then
-      rel.clone() .> replace("\\", "/")
-    else
-      rel
-    end
+    rel

@@ -23,11 +23,10 @@
 #define C_EXTENSION ".c"
 
 
+# define PATH_SLASH '/'
 #ifdef PLATFORM_IS_WINDOWS
-# define PATH_SLASH '\\'
 # define PATH_LIST_SEPARATOR ';'
 #else
-# define PATH_SLASH '/'
 # define PATH_LIST_SEPARATOR ':'
 #endif
 
@@ -401,7 +400,7 @@ static bool is_root(const char* path)
   if((path[2] == '\0'))
     return true;
 
-  if((path[2] == '\\') && (path[3] == '\0'))
+  if((path[2] == '\\' || path[2] == '/') && (path[3] == '\0'))
     return true;
 #else
   if((path[0] == '/') && (path[1] == '\0'))
@@ -683,14 +682,14 @@ ast_t* create_module(ast_t* program, const char* name,
 static bool add_path(const char* path, pass_opt_t* opt)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  // The Windows implementation of stat() cannot cope with trailing a \ on a
-  // directory name, so we remove it here if present. It is not safe to modify
-  // the given path since it may come direct from getenv(), so we copy.
+  // The Windows implementation of stat() cannot cope with a trailing separator
+  // on a directory name, so we remove it here if present. It is not safe to
+  // modify the given path since it may come direct from getenv(), so we copy.
   char buf[FILENAME_MAX];
   strcpy(buf, path);
   size_t len = strlen(path);
 
-  if(path[len - 1] == '\\')
+  if(path[len - 1] == '\\' || path[len - 1] == '/')
   {
     buf[len - 1] = '\0';
     path = buf;
@@ -960,7 +959,7 @@ void package_add_lib_path(const char* path, pass_opt_t* opt)
   strcpy(buf, path);
   size_t len = strlen(path);
 
-  if(path[len - 1] == '\\')
+  if(path[len - 1] == '\\' || path[len - 1] == '/')
   {
     buf[len - 1] = '\0';
     path = buf;

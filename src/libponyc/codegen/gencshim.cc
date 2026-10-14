@@ -53,11 +53,7 @@
 #include <vector>
 #include <sys/stat.h>
 
-#ifdef PLATFORM_IS_WINDOWS
-#  define PATH_SLASH '\\'
-#else
 #  define PATH_SLASH '/'
-#endif
 
 
 static bool dir_exists(const char* path)

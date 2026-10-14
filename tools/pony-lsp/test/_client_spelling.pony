@@ -13,7 +13,6 @@ primitive \nodoc\ _ClientSpelling
   fun uri(path: String): String =>
     let s = path.clone()
     ifdef windows then
-      s.replace("\\", "/")
       s.replace(":", "%3A")
     end
     s.replace(" ", "%20")

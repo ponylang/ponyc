@@ -111,12 +111,7 @@ primitive ContentHash
               _Unreachable()
               ""
             end
-          let rel_path: String val =
-            ifdef windows then
-              rel.clone() .> replace("\\", "/")
-            else
-              rel
-            end
+          let rel_path: String val = rel
           let content: Array[U8] val =
             match OpenFile(child)
             | let f: File =>

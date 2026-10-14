@@ -205,25 +205,6 @@ primitive LspMsg
     }
     """)
 
-  fun tag _json_escape(
-    s: String val): String val
-  =>
-    """
-    Escape backslashes for safe embedding in JSON
-    string literals.
-    """
-    ifdef windows then
-      if s.contains("\\") then
-        let out = s.clone()
-        out.replace("\\", "\\\\")
-        consume out
-      else
-        s
-      end
-    else
-      s
-    end
-
   fun tag initialize(
     dir: String,
     did_change_configuration_dynamic_registration:
@@ -244,14 +225,13 @@ primitive LspMsg
     replaces the spelling of the URI, for a test that needs the escaping a
     particular client applies.
     """
-    let safe_dir = _json_escape(dir)
+    let safe_dir = dir
     let dir_uri =
-      _json_escape(
-        match uri
-        | let u: String => u
-        else
-          Uris.from_path(dir)
-        end)
+      match uri
+      | let u: String => u
+      else
+        Uris.from_path(dir)
+      end
     let root_uri_field =
       if send_root_uri then
         """

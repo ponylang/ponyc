@@ -2,8 +2,7 @@ primitive PathSanitize
   """
   Sanitizes module names for use in source directory paths.
 
-  Replaces `.` with `_` and `/` with `-`. On Windows, also replaces
-  `\\` with `-`. Separate from TQFN which only replaces `/` with `-`.
+  Replaces `.` with `_` and `/` with `-`.
   """
   fun replace_path_separator(name: String): String =>
     let result = recover iso String(name.size()) end
@@ -13,15 +12,7 @@ primitive PathSanitize
       elseif byte == '/' then
         result.push('-')
       else
-        ifdef windows then
-          if byte == '\\' then
-            result.push('-')
-          else
-            result.push(byte)
-          end
-        else
-          result.push(byte)
-        end
+        result.push(byte)
       end
     end
     consume result

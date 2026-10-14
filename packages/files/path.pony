@@ -13,6 +13,12 @@ primitive Path
   """
   Operations on paths that do not require a capability. The operations can be
   used to manipulate path names, but give no access to the resulting paths.
+
+  All paths use `/` as the separator on every platform, including Windows.
+  Paths obtained through `Path.cwd()` and `Path.canonical()` are already
+  `/`-separated. `clean()` normalizes any remaining `\` on Windows.
+  `is_sep()` still accepts `\` on Windows for parsing external input.
+  Use `to_os()` when a backslash path is needed for Windows shell commands.
   """
   fun is_sep(c: U8): Bool =>
     """
@@ -28,7 +34,7 @@ primitive Path
     """
     Return the path separator as a string.
     """
-    ifdef windows then "\\" else "/" end
+    "/"
 
   fun is_abs(path: String): Bool =>
     """
@@ -70,12 +76,12 @@ primitive Path
 
   fun clean(path: String): String =>
     """
-    Replace multiple separators with a single separator.
-    Convert / to the OS separator.
-    Remove instances of . from the path.
-    Remove instances of .. and the preceding path element from the path.
+    Replace multiple separators with a single `/`.
+    On Windows, normalize `\` to `/`.
+    Remove instances of `.` from the path.
+    Remove instances of `..` and the preceding path element from the path.
     The result will have no trailing slash unless it is a root directory.
-    If the result would be empty, "." will be returned instead.
+    If the result would be empty, `"."` will be returned instead.
     """
     let s = recover String(path.size()) end
     let vol = volume(path)
@@ -120,12 +126,7 @@ primitive Path
 
               if
                 (s.size() == 0) or
-                (s.compare_sub("../", 3, backtrack) is Equal) or
-                ifdef windows then
-                  s.compare_sub("..\\", 3, backtrack) is Equal
-                else
-                  false
-                end
+                (s.compare_sub("../", 3, backtrack) is Equal)
               then
                 backtrack = -1
               end
@@ -189,11 +190,10 @@ primitive Path
 
   fun normcase(path: String): String =>
     """
-    Normalizes the case of path for the runtime platform.
+    Lowercases the path on case-insensitive platforms (Windows, macOS).
+    Returns the path unchanged on case-sensitive platforms.
     """
-    if Platform.windows() then
-      recover val path.lower() .> replace("/", "\\") end
-    elseif Platform.osx() then
+    if Platform.windows() or Platform.osx() then
       path.lower()
     else
       path
@@ -319,8 +319,8 @@ primitive Path
     (but the strings may differ). Also see the functions dir() and base().
     """
     try
-      let i = path.rfind(separator)?.usize()
-      (clean(path.trim(0, i)), path.trim(i + separator.size()))
+      let i = _rfind_sep(path)?.usize()
+      (clean(path.trim(0, i)), path.trim(i + 1))
     else
       ("", path)
     end
@@ -334,7 +334,7 @@ primitive Path
     """
     let b =
       try
-        path.trim(path.rfind(sep())?.usize() + 1)
+        path.trim(_rfind_sep(path)?.usize() + 1)
       else
         path
       end
@@ -357,7 +357,7 @@ primitive Path
     is no separator.
     """
     try
-      clean(path.trim(0, path.rfind(sep())?.usize()))
+      clean(path.trim(0, _rfind_sep(path)?.usize()))
     else
       path
     end
@@ -372,7 +372,7 @@ primitive Path
 
       let j =
         try
-          path.rfind(sep())?
+          _rfind_sep(path)?
         else
           i
         end
@@ -429,14 +429,15 @@ primitive Path
 
   fun _network_share(path: String, offset: ISize = 0): String =>
     """
-    Look for a host, a \, and a resource. Return the path up to that point if
-    we found one, otherwise an empty String.
+    Look for a host, a separator, and a resource. Return the path up to that
+    point if we found one, otherwise an empty String. Accepts both `/` and `\`
+    as separators since input may arrive un-normalized from external sources.
     """
     try
-      let next = path.find("\\", offset)? + 1
+      let next = _find_sep(path, offset)? + 1
 
       try
-        path.trim(0, path.find("\\", next)?.usize())
+        path.trim(0, _find_sep(path, next)?.usize())
       else
         path
       end
@@ -444,9 +445,45 @@ primitive Path
       ""
     end
 
-  fun from_slash(path: String): String =>
+  fun _find_sep(path: String, offset: ISize = 0): ISize ? =>
     """
-    Changes each / in the path to the OS specific separator.
+    Find the first path separator at or after `offset`. On Windows, accepts
+    both `/` and `\`; on other platforms, only `/`.
+    """
+    ifdef windows then
+      let fwd = try path.find("/", offset)? else ISize.max_value() end
+      let back = try path.find("\\", offset)? else ISize.max_value() end
+      if (fwd == ISize.max_value()) and (back == ISize.max_value()) then
+        error
+      end
+      if fwd < back then fwd else back end
+    else
+      path.find("/", offset)?
+    end
+
+  fun _rfind_sep(path: String, offset: ISize = -1): ISize ? =>
+    """
+    Find the last path separator at or before `offset`. On Windows, accepts
+    both `/` and `\`; on other platforms, only `/`.
+    """
+    ifdef windows then
+      let fwd = try path.rfind("/", offset)? else ISize.min_value() end
+      let back = try path.rfind("\\", offset)? else ISize.min_value() end
+      if (fwd == ISize.min_value()) and (back == ISize.min_value()) then
+        error
+      end
+      if fwd > back then fwd else back end
+    else
+      path.rfind("/", offset)?
+    end
+
+  fun to_os(path: String): String =>
+    """
+    Convert forward slashes to the OS native separator. On Windows this
+    replaces `/` with `\`; on all other platforms it returns `path` unchanged.
+
+    Use when passing a path to `cmd.exe` or another Windows tool that
+    interprets `/` as an option flag.
     """
     ifdef windows then
       let s = path.clone()
@@ -457,30 +494,6 @@ primitive Path
         while i < len do
           if s(i)? == '/' then
             s(i)? = '\\'
-          end
-
-          i = i + 1
-        end
-      end
-
-      s
-    else
-      path
-    end
-
-  fun to_slash(path: String): String =>
-    """
-    Changes each OS specific separator in the path to /.
-    """
-    ifdef windows then
-      let s = path.clone()
-      let len = s.size()
-      var i = USize(0)
-
-      try
-        while i < len do
-          if s(i)? == '\\' then
-            s(i)? = '/'
           end
 
           i = i + 1
