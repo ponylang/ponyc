@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Use forward slash as the path separator on all platforms ([PR #6276](https://github.com/ponylang/ponyc/pull/6276))
 - Remove Path.from_slash and Path.to_slash ([PR #6276](https://github.com/ponylang/ponyc/pull/6276))
+- Use forward slash as the path separator on all platforms ([PR #6276](https://github.com/ponylang/ponyc/pull/6276))
 
 ## [0.76.0] - 2026-10-14
 
