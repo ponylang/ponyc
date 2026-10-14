@@ -35,10 +35,10 @@ jobs:
       matrix:
         ssl:
           - libressl-3.9.2
-          - libressl-4.2.1
+          - libressl-4.3.3
           - openssl-1.1.1w
-          - openssl-3.6.2
-          - openssl-4.0.0
+          - openssl-3.6.5
+          - openssl-4.0.3
     name: ${{ matrix.ssl }}
     steps:
       - name: Checkout

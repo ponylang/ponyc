@@ -10,7 +10,7 @@ RUN apt-get update \
  && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/*
 
-ARG OPENSSL_VERSION=3.6.2
+ARG OPENSSL_VERSION=4.0.3
 RUN curl -fsSL "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" \
       -o /tmp/openssl.tar.gz \
  && tar -xzf /tmp/openssl.tar.gz -C /tmp \

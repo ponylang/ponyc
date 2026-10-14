@@ -524,18 +524,18 @@ jobs:
           - ssl-name: libressl-3.9.2
             ssl-flag: '-Dlibressl'
             image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-libressl-3.9.2:20260911
-          - ssl-name: libressl-4.2.1
+          - ssl-name: libressl-4.3.3
             ssl-flag: '-Dlibressl'
-            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-libressl-4.2.1:20260911
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-libressl-4.3.3:20261014
           - ssl-name: openssl-1.1.1w
             ssl-flag: '-Dopenssl_1.1.x'
             image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-openssl-1.1.1w:20260911
-          - ssl-name: openssl-3.6.2
+          - ssl-name: openssl-3.6.5
             ssl-flag: '-Dopenssl_3.0.x'
-            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-openssl-3.6.2:20260911
-          - ssl-name: openssl-4.0.0
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-openssl-3.6.5:20261014
+          - ssl-name: openssl-4.0.3
             ssl-flag: '-Dopenssl_4.0.x'
-            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-openssl-4.0.0:20260911
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-openssl-4.0.3:20261014
     container:
       image: ${{ matrix.image }}
       options: --user pony

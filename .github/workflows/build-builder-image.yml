@@ -14,10 +14,10 @@ on:
           - cross-riscv64
           - ubuntu26.04-builder
           - ubuntu26.04-builder-with-libressl-3.9.2
-          - ubuntu26.04-builder-with-libressl-4.2.1
+          - ubuntu26.04-builder-with-libressl-4.3.3
           - ubuntu26.04-builder-with-openssl-1.1.1w
-          - ubuntu26.04-builder-with-openssl-3.6.2
-          - ubuntu26.04-builder-with-openssl-4.0.0
+          - ubuntu26.04-builder-with-openssl-3.6.5
+          - ubuntu26.04-builder-with-openssl-4.0.3
           - x86-64-unknown-linux-fedora44-builder
           - x86-64-unknown-linux-ubuntu24.04-builder
       ref:
@@ -191,11 +191,11 @@ jobs:
       - name: Build and push
         run: bash .ci-dockerfiles/ubuntu26.04-builder-with-libressl-3.9.2/build-and-push.bash
 
-  ubuntu26_04-builder-with-libressl-4_2_1:
-    if: ${{ github.event.inputs.builder-name == 'ubuntu26.04-builder-with-libressl-4.2.1' }}
+  ubuntu26_04-builder-with-libressl-4_3_3:
+    if: ${{ github.event.inputs.builder-name == 'ubuntu26.04-builder-with-libressl-4.3.3' }}
     runs-on: ubuntu-latest
 
-    name: ubuntu26.04-builder-with-libressl-4.2.1
+    name: ubuntu26.04-builder-with-libressl-4.3.3
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -215,7 +215,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
-        run: bash .ci-dockerfiles/ubuntu26.04-builder-with-libressl-4.2.1/build-and-push.bash
+        run: bash .ci-dockerfiles/ubuntu26.04-builder-with-libressl-4.3.3/build-and-push.bash
 
   ubuntu26_04-builder-with-openssl-1_1_1w:
     if: ${{ github.event.inputs.builder-name == 'ubuntu26.04-builder-with-openssl-1.1.1w' }}
@@ -243,11 +243,11 @@ jobs:
       - name: Build and push
         run: bash .ci-dockerfiles/ubuntu26.04-builder-with-openssl-1.1.1w/build-and-push.bash
 
-  ubuntu26_04-builder-with-openssl-3_6_2:
-    if: ${{ github.event.inputs.builder-name == 'ubuntu26.04-builder-with-openssl-3.6.2' }}
+  ubuntu26_04-builder-with-openssl-3_6_5:
+    if: ${{ github.event.inputs.builder-name == 'ubuntu26.04-builder-with-openssl-3.6.5' }}
     runs-on: ubuntu-latest
 
-    name: ubuntu26.04-builder-with-openssl-3.6.2
+    name: ubuntu26.04-builder-with-openssl-3.6.5
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -267,13 +267,13 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
-        run: bash .ci-dockerfiles/ubuntu26.04-builder-with-openssl-3.6.2/build-and-push.bash
+        run: bash .ci-dockerfiles/ubuntu26.04-builder-with-openssl-3.6.5/build-and-push.bash
 
-  ubuntu26_04-builder-with-openssl-4_0_0:
-    if: ${{ github.event.inputs.builder-name == 'ubuntu26.04-builder-with-openssl-4.0.0' }}
+  ubuntu26_04-builder-with-openssl-4_0_3:
+    if: ${{ github.event.inputs.builder-name == 'ubuntu26.04-builder-with-openssl-4.0.3' }}
     runs-on: ubuntu-latest
 
-    name: ubuntu26.04-builder-with-openssl-4.0.0
+    name: ubuntu26.04-builder-with-openssl-4.0.3
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -293,7 +293,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
-        run: bash .ci-dockerfiles/ubuntu26.04-builder-with-openssl-4.0.0/build-and-push.bash
+        run: bash .ci-dockerfiles/ubuntu26.04-builder-with-openssl-4.0.3/build-and-push.bash
 
   x86-64-unknown-linux-fedora44-builder:
     if: ${{ github.event.inputs.builder-name == 'x86-64-unknown-linux-fedora44-builder' }}
