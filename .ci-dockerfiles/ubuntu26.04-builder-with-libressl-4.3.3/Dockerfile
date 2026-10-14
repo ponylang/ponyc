@@ -10,7 +10,7 @@ RUN apt-get update \
  && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/*
 
-ARG LIBRESSL_VERSION=4.2.1
+ARG LIBRESSL_VERSION=4.3.3
 RUN curl -fsSL "https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${LIBRESSL_VERSION}.tar.gz" \
       -o /tmp/libressl.tar.gz \
  && tar -xzf /tmp/libressl.tar.gz -C /tmp \
