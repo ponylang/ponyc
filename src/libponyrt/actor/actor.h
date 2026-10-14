@@ -14,6 +14,11 @@
 
 PONY_EXTERN_C_BEGIN
 
+// default actor batch size
+#define PONY_SCHED_BATCH 100
+// batch size adjustment step for backpressure
+#define PONY_SCHED_BATCH_STEP 25
+
 #define ACTORMSG_APPLICATION_START (UINT32_MAX - 9)
 #define ACTORMSG_CHECKBLOCKED (UINT32_MAX - 8)
 #define ACTORMSG_ISBLOCKED (UINT32_MAX - 7)
@@ -87,6 +92,8 @@ typedef struct pony_actor_t
   size_t muted; // 4/8 bytes
   // internal flags are only ever accessed from a single scheduler thread
   uint8_t internal_flags; // 4/8 bytes (after alignment)
+  bool sent_to_overloaded;
+  uint16_t batch_size;
   uint32_t live_asio_events;
 #ifdef USE_RUNTIMESTATS
   actorstats_t actorstats; // 64/128 bytes

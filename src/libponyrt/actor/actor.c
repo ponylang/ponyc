@@ -20,8 +20,7 @@
 #include <valgrind/helgrind.h>
 #endif
 
-// default actor batch size
-#define PONY_SCHED_BATCH 100
+// default actor batch size — defined in actor.h
 
 PONY_EXTERN_C_BEGIN
 
@@ -184,18 +183,30 @@ static void maybe_mark_should_mute(pony_ctx_t* ctx, pony_actor_t* to)
 {
   if(ctx->current != NULL)
   {
-    // only mute a sender IF:
+    // only throttle/mute a sender IF:
     // 1. the receiver is overloaded/under pressure/muted
     // AND
     // 2. the sender isn't overloaded or under pressure
     // AND
     // 3. we are sending to another actor (as compared to sending to self)
-    if(triggers_muting(to) &&
-      !has_sync_flag_any(ctx->current, ACTOR_SYNC_FLAG_OVERLOADED |
-        ACTOR_SYNC_FLAG_UNDER_PRESSURE) &&
-      ctx->current != to)
+    if(triggers_muting(to) && ctx->current != to)
     {
-      ponyint_sched_mute(ctx, ctx->current, to);
+      ctx->current->sent_to_overloaded = true;
+      if(has_sync_flag_any(ctx->current, ACTOR_SYNC_FLAG_OVERLOADED |
+        ACTOR_SYNC_FLAG_UNDER_PRESSURE))
+      {
+        if(ctx->current->batch_size > PONY_SCHED_BATCH_STEP)
+          ctx->current->batch_size -= PONY_SCHED_BATCH_STEP;
+      }
+      else if(ctx->current->batch_size <= PONY_SCHED_BATCH_STEP)
+      {
+        ctx->current->batch_size = 0;
+        ponyint_sched_mute(ctx, ctx->current, to);
+      }
+      else
+      {
+        ctx->current->batch_size -= PONY_SCHED_BATCH_STEP;
+      }
     }
   }
 }
@@ -520,6 +531,8 @@ static bool batch_limit_reached(pony_actor_t* actor)
     actor_setoverloaded(actor);
   }
 
+  actor->batch_size += PONY_SCHED_BATCH_STEP;
+
   return true;
 }
 
@@ -528,7 +541,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
   TRACING_THREAD_ACTOR_RUN_START(actor);
   pony_assert(!has_sync_flag(actor, ACTOR_SYNC_FLAG_MUTED));
   ctx->current = actor;
-  size_t batch = PONY_SCHED_BATCH;
+  actor->sent_to_overloaded = false;
+  size_t batch = actor->batch_size;
 
   pony_msg_t* msg;
   size_t app = 0;
@@ -623,6 +637,13 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
     // 2- this actor can no longer send to other actors free from muting should
     //    the receiver be overloaded or muted
     actor_unsetoverloaded(actor);
+  }
+
+  if(!actor->sent_to_overloaded && actor->batch_size < PONY_SCHED_BATCH)
+  {
+    actor->batch_size += PONY_SCHED_BATCH_STEP;
+    if(actor->batch_size > PONY_SCHED_BATCH)
+      actor->batch_size = PONY_SCHED_BATCH;
   }
 
   try_gc(ctx, actor);
@@ -879,6 +900,7 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   ponyint_messageq_init(&actor->q);
   ponyint_heap_init(&actor->heap);
   ponyint_gc_done(&actor->gc);
+  actor->batch_size = PONY_SCHED_BATCH;
 
   if(ctx->current != NULL && !orphaned)
   {
