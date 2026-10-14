@@ -14,11 +14,7 @@
 #include <sys/stat.h>
 #endif
 
-#ifdef PLATFORM_IS_WINDOWS
-# define PATH_SLASH '\\'
-#else
 # define PATH_SLASH '/'
-#endif
 
 PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 {
@@ -70,8 +66,13 @@ char* pony_realpath(const char* path, char* resolved)
     GetFileAttributes(resolved) == INVALID_FILE_ATTRIBUTES)
     return NULL;
 
-  // Strip any trailing backslashes
-  for(size_t len = strlen(resolved); resolved[len - 1] == '\\'; --len)
+  // Normalize backslashes to forward slashes
+  for(size_t i = 0; resolved[i] != '\0'; i++)
+    if(resolved[i] == '\\')
+      resolved[i] = '/';
+
+  // Strip any trailing slashes
+  for(size_t len = strlen(resolved); len > 0 && resolved[len - 1] == '/'; --len)
     resolved[len - 1] = '\0';
 
   return resolved;
@@ -221,6 +222,13 @@ bool get_compiler_exe_path(char* output_path, const char* argv0)
   // Specified size *includes* nul terminator
   GetModuleFileName(NULL, output_path, FILENAME_MAX);
   success = (GetLastError() == ERROR_SUCCESS);
+
+  if(success)
+  {
+    for(size_t i = 0; output_path[i] != '\0'; i++)
+      if(output_path[i] == '\\')
+        output_path[i] = '/';
+  }
 #elif defined PLATFORM_IS_LINUX
   // Specified size *excludes* nul terminator
   ssize_t r = readlink("/proc/self/exe", output_path, FILENAME_MAX - 1);

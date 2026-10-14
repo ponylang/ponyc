@@ -12,6 +12,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Use forward slash as the path separator on all platforms ([PR #6276](https://github.com/ponylang/ponyc/pull/6276))
+- Remove Path.from_slash and Path.to_slash ([PR #6276](https://github.com/ponylang/ponyc/pull/6276))
 
 ## [0.76.0] - 2026-10-14
 
@@ -23,6 +25,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Use forward slash as the path separator on all platforms ([PR #6276](https://github.com/ponylang/ponyc/pull/6276))
+- Remove Path.from_slash and Path.to_slash ([PR #6276](https://github.com/ponylang/ponyc/pull/6276))
 - Split Seq into ReadSeq, Seq, and ResizableSeq ([PR #6275](https://github.com/ponylang/ponyc/pull/6275))
 - Remove compile-time error for constant integer division by zero ([PR #6280](https://github.com/ponylang/ponyc/pull/6280))
 

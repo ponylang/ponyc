@@ -22,8 +22,9 @@ PONY_API char* pony_os_realpath(const char* path)
   size_t len = strlen(resolved) + 1;
 
 #ifdef PLATFORM_IS_WINDOWS
-  for(; resolved[len - 1] == '\\'; --len)
-    resolved[len - 1] = '\0';
+  for(size_t i = 0; i < len - 1; i++)
+    if(resolved[i] == '\\')
+      resolved[i] = '/';
 #endif
 
   char* cstring = (char*)pony_alloc(pony_ctx(), len);

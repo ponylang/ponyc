@@ -21,13 +21,13 @@ class \nodoc\ iso _URIToPathTest is UnitTest
   fun apply(h: TestHelper) =>
     ifdef windows then
       h.assert_eq[String](
-        "D:\\foo\\bar.pony",
+        "D:/foo/bar.pony",
         Uris.to_path("file:///D:/foo/bar.pony"))
       h.assert_eq[String](
-        "\\foo\\bar.pony",
+        "/foo/bar.pony",
         Uris.to_path("file:///foo/bar.pony"))
       h.assert_eq[String](
-        "\\",
+        "/",
         Uris.to_path("file:///"))
     else
       h.assert_eq[String]("/foo/bar.pony", Uris.to_path("file:///foo/bar.pony"))
@@ -36,22 +36,21 @@ class \nodoc\ iso _URIToPathTest is UnitTest
 class \nodoc\ iso _URIToPathNoSchemeTest is UnitTest
   """
   A string with no "://" is returned without decoding: a path is bytes, so a
-  '%' in one is part of a filename. On Windows it is still normalised to
-  native separators.
+  '%' in one is part of a filename. On Windows, backslashes are normalized
+  to `/`.
   """
   fun name(): String => "uris/to_path/no_scheme"
 
   fun apply(h: TestHelper) =>
     ifdef windows then
       h.assert_eq[String](
-        "C:\\foo\\bar.pony",
+        "C:/foo/bar.pony",
         Uris.to_path("C:\\foo\\bar.pony"))
-      // A rootPath can arrive with forward slashes.
       h.assert_eq[String](
-        "C:\\foo\\bar.pony",
+        "C:/foo/bar.pony",
         Uris.to_path("C:/foo/bar.pony"))
       h.assert_eq[String](
-        "C:\\foo\\50%20off.pony",
+        "C:/foo/50%20off.pony",
         Uris.to_path("C:\\foo\\50%20off.pony"))
     else
       h.assert_eq[String](
@@ -72,17 +71,17 @@ class \nodoc\ iso _URIToPathDecodeTest is UnitTest
   fun apply(h: TestHelper) =>
     ifdef windows then
       h.assert_eq[String](
-        "c:\\Users\\sean\\x.pony",
+        "c:/Users/sean/x.pony",
         Uris.to_path("file:///c%3A/Users/sean/x.pony"))
       h.assert_eq[String](
-        "C:\\project\\readme.md",
+        "C:/project/readme.md",
         Uris.to_path("file:///C%3A/project/readme.md"))
       // Neovim emits lowercase hex.
       h.assert_eq[String](
-        "c:\\Users\\sean\\x.pony",
+        "c:/Users/sean/x.pony",
         Uris.to_path("file:///c%3a/Users/sean/x.pony"))
       h.assert_eq[String](
-        "C:\\my project\\x.pony",
+        "C:/my project/x.pony",
         Uris.to_path("file:///C:/my%20project/x.pony"))
     else
       h.assert_eq[String](
@@ -113,7 +112,7 @@ class \nodoc\ iso _URIFromPathTest is UnitTest
     ifdef windows then
       h.assert_eq[String](
         "file:///D:/foo/bar.pony",
-        Uris.from_path("D:\\foo\\bar.pony"))
+        Uris.from_path("D:/foo/bar.pony"))
     else
       h.assert_eq[String](
         "file:///foo/bar.pony",
@@ -131,10 +130,10 @@ class \nodoc\ iso _URIFromPathEncodeTest is UnitTest
     ifdef windows then
       h.assert_eq[String](
         "file:///C:/my%20project/x.pony",
-        Uris.from_path("C:\\my project\\x.pony"))
+        Uris.from_path("C:/my project/x.pony"))
       h.assert_eq[String](
         "file:///C:/a/100%25.pony",
-        Uris.from_path("C:\\a\\100%.pony"))
+        Uris.from_path("C:/a/100%.pony"))
     else
       h.assert_eq[String](
         "file:///home/sean/my%20project/x.pony",
@@ -181,8 +180,8 @@ class \nodoc\ iso _URIRoundTripTest is UnitTest
   fun apply(h: TestHelper) =>
     let cases =
       ifdef windows then
-        [ "C:\\a\\my project\\x.pony"; "C:\\a\\100%.pony"
-          "C:\\a\\50%20off.pony"; "C:\\a\\café.pony"; "C:\\a\\c#1.pony" ]
+        [ "C:/a/my project/x.pony"; "C:/a/100%.pony"
+          "C:/a/50%20off.pony"; "C:/a/café.pony"; "C:/a/c#1.pony" ]
       else
         [ "/a/my project/x.pony"; "/a/100%.pony"; "/a/50%20off.pony"
           "/a/café.pony"; "/a/c#1.pony"; "/a/b,c+d.pony" ]
@@ -198,12 +197,10 @@ class \nodoc\ iso _URIRoundTripPropertyTest is UnitTest
   """
   to_path undoes from_path for any single-segment absolute path.
 
-  '/' is removed from the generated segment on both platforms: on Windows it
-  comes back as a separator, and on either platform a segment holding "://"
-  makes from_path treat the path as a URI already. '\' is removed only on
-  Windows, where it is a separator; on Linux it is an ordinary filename byte
-  and encodes to %5C. Windows needs the drive letter, since from_path only
-  produces a round-trippable URI for a drive-letter path.
+  '/' is removed from the generated segment on both platforms: on either
+  platform a segment holding "://" makes from_path treat the path as a URI
+  already. Windows needs the drive letter, since from_path only produces a
+  round-trippable URI for a drive-letter path.
   """
   fun name(): String => "uris/round_trip/property"
 
@@ -215,13 +212,10 @@ class \nodoc\ iso _URIRoundTripPropertyTest is UnitTest
       {(segment: String, ph: PropertyHelper) =>
         let cleaned = segment.clone()
         cleaned.remove("/")
-        ifdef windows then
-          cleaned.remove("\\")
-        end
         let safe: String val = consume cleaned
         let path: String val =
           ifdef windows then
-            "C:\\tmp\\" + safe
+            "C:/tmp/" + safe
           else
             "/tmp/" + safe
           end

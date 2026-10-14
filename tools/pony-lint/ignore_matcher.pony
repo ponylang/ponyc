@@ -160,18 +160,10 @@ class ref IgnoreMatcher
 
         let matched =
           if pat.anchored then
-            // Match against path relative to the rule's base directory,
-            // normalized to forward slashes for GlobMatch
+            // Match against path relative to the rule's base directory
             let rel =
               try
-                let r = Path.rel(base_dir, abs_path)?
-                ifdef windows then
-                  let s = r.clone()
-                  s.replace("\\", "/")
-                  consume s
-                else
-                  r
-                end
+                Path.rel(base_dir, abs_path)?
               else
                 abs_path
               end

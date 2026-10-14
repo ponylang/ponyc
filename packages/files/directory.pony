@@ -155,7 +155,7 @@ class Directory
         @closedir(h)
       elseif windows then
         var find = @ponyint_windows_find_data()
-        let search = path' + "\\*"
+        let search = path' + "/*"
         let h = @FindFirstFileA(search.cstring(), find)
 
         if h.usize() == -1 then

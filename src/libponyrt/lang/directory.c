@@ -56,6 +56,12 @@ PONY_API char* pony_os_cwd()
     if(cwd_alloc == NULL)
       cwd_alloc = strdup(".");
 
+#if defined(PLATFORM_IS_WINDOWS)
+    for(char* p = cwd_alloc; *p != '\0'; p++)
+      if(*p == '\\')
+        *p = '/';
+#endif
+
 #ifdef USE_VALGRIND
     ANNOTATE_HAPPENS_BEFORE(&cwd_cache);
 #endif

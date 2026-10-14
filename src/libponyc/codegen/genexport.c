@@ -10,11 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef PLATFORM_IS_WINDOWS
-# define PATH_SLASH '\\'
-#else
 # define PATH_SLASH '/'
-#endif
 
 static const char* c_type_for_pony_name(const char* name)
 {

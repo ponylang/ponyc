@@ -47,11 +47,15 @@ actor \nodoc\ Main is TestList
     test(_TestMkdtemp)
     test(_TestPathBase)
     test(_TestPathClean)
+    test(_TestPathCleanBackslash)
+    test(_TestPathBackslashDirBaseExt)
     test(_TestPathDir)
     test(_TestPathExt)
     test(_TestPathJoin)
     test(_TestPathRel)
     test(_TestPathSplit)
+    test(_TestPathNormcase)
+    test(_TestPathToOs)
     test(_TestPathVolume)
     test(_TestWalk)
 
@@ -73,7 +77,6 @@ primitive \nodoc\ _FileHelper
           "tmp._FileHelper.")?)?
     for f in files.values() do
       try
-        // Since we embed paths, we use the posix separator, even on Windows.
         let dir_head = Path.split(f, "/")
         let fp = FilePath.from(top.path, dir_head._1)?
         let r = fp.mkdir()
@@ -343,22 +346,42 @@ class \nodoc\ iso _TestPathClean is UnitTest
     let res6 = Path.clean("/foo/bar/baz/..")
     let res7 = Path.clean("/foo/bar/baz/../../qux")
 
+    h.assert_eq[String](res1, "/foo/bar")
+    h.assert_eq[String](res2, "foo/bar")
+    h.assert_eq[String](res3, "foo")
+    h.assert_eq[String](res4, "/foo/bar/base.ext")
+    h.assert_eq[String](res5, "/foo")
+    h.assert_eq[String](res6, "/foo/bar")
+    h.assert_eq[String](res7, "/foo/qux")
+
+class \nodoc\ iso _TestPathCleanBackslash is UnitTest
+  """
+  On Windows, `clean()` normalizes backslash-separated paths to forward
+  slashes. On other platforms backslash is an ordinary character.
+  """
+  fun name(): String => "files/Path.clean-backslash"
+
+  fun apply(h: TestHelper) =>
     ifdef windows then
-      h.assert_eq[String](res1, "\\foo\\bar")
-      h.assert_eq[String](res2, "foo\\bar")
-      h.assert_eq[String](res3, "foo")
-      h.assert_eq[String](res4, "\\foo\\bar\\base.ext")
-      h.assert_eq[String](res5, "\\foo")
-      h.assert_eq[String](res6, "\\foo\\bar")
-      h.assert_eq[String](res7, "\\foo\\qux")
-    else
-      h.assert_eq[String](res1, "/foo/bar")
-      h.assert_eq[String](res2, "foo/bar")
-      h.assert_eq[String](res3, "foo")
-      h.assert_eq[String](res4, "/foo/bar/base.ext")
-      h.assert_eq[String](res5, "/foo")
-      h.assert_eq[String](res6, "/foo/bar")
-      h.assert_eq[String](res7, "/foo/qux")
+      h.assert_eq[String](Path.clean("C:\\foo\\bar"), "C:/foo/bar")
+      h.assert_eq[String](Path.clean("\\\\server\\share"), "//server/share")
+      h.assert_eq[String](Path.clean("foo\\bar\\..\\baz"), "foo/baz")
+    end
+
+class \nodoc\ iso _TestPathBackslashDirBaseExt is UnitTest
+  """
+  On Windows, `dir()`, `base()`, and `ext()` accept backslash-separated paths
+  from external input. `dir()` returns a cleaned (forward-slash) result.
+  """
+  fun name(): String => "files/Path.backslash-dir-base-ext"
+
+  fun apply(h: TestHelper) =>
+    ifdef windows then
+      h.assert_eq[String](Path.dir("C:\\foo\\bar.pony"), "C:/foo")
+      h.assert_eq[String](Path.base("C:\\foo\\bar.ext"), "bar.ext")
+      h.assert_eq[String](Path.base("C:\\foo\\bar.ext", false), "bar")
+      h.assert_eq[String](Path.ext("C:\\foo\\bar.ext"), "ext")
+      h.assert_eq[String](Path.ext("C:\\foo\\.hidden"), "hidden")
     end
 
 class \nodoc\ iso _TestPathJoin is UnitTest
@@ -374,15 +397,9 @@ class \nodoc\ iso _TestPathJoin is UnitTest
     let res2 = Path.join(res1, path3)
     let res3 = Path.join(res2, path4)
 
-    ifdef windows then
-      h.assert_eq[String](res1, "\\foo\\bar\\foo\\bar")
-      h.assert_eq[String](res2, "\\foo\\bar\\foo\\bar\\foo")
-      h.assert_eq[String](res3, "\\foo\\dir\\base.ext")
-    else
-      h.assert_eq[String](res1, "/foo/bar/foo/bar")
-      h.assert_eq[String](res2, "/foo/bar/foo/bar/foo")
-      h.assert_eq[String](res3, "/foo/dir/base.ext")
-    end
+    h.assert_eq[String](res1, "/foo/bar/foo/bar")
+    h.assert_eq[String](res2, "/foo/bar/foo/bar/foo")
+    h.assert_eq[String](res3, "/foo/dir/base.ext")
 
 class \nodoc\ iso _TestPathRel is UnitTest
   fun name(): String => "files/Path.rel"
@@ -395,68 +412,43 @@ class \nodoc\ iso _TestPathSplit is UnitTest
   fun name(): String => "files/Path.split"
 
   fun apply(h: TestHelper) =>
-    ifdef windows then
-      var path = "\\foo\\bar\\dir\\"
-      let expect =
-        [
-          ("\\foo\\bar\\dir", "")
-          ("\\foo\\bar", "dir")
-          ("\\foo", "bar")
-          (".", "foo")
-          ("", ".")
-        ]
-      for parts in expect.values() do
-        let res = Path.split(path)
-        h.assert_eq[String](res._1, parts._1)
-        h.assert_eq[String](res._2, parts._2)
-        path = parts._1
-      end
+    var path = "/foo/bar/dir/"
+    let expect =
+      [
+        ("/foo/bar/dir", "")
+        ("/foo/bar", "dir")
+        ("/foo", "bar")
+        (".", "foo")
+        ("", ".")
+      ]
+    for parts in expect.values() do
+      let res = Path.split(path)
+      h.assert_eq[String](res._1, parts._1)
+      h.assert_eq[String](res._2, parts._2)
+      path = parts._1
+    end
 
-    else
-      var path = "/foo/bar/dir/"
-      let expect =
-        [
-          ("/foo/bar/dir", "")
-          ("/foo/bar", "dir")
-          ("/foo", "bar")
-          (".", "foo")
-          ("", ".")
-        ]
-      for parts in expect.values() do
-        let res = Path.split(path)
-        h.assert_eq[String](res._1, parts._1)
-        h.assert_eq[String](res._2, parts._2)
-        path = parts._1
-      end
+    ifdef windows then
+      let bs = Path.split("C:\\foo\\bar")
+      h.assert_eq[String](bs._1, "C:/foo")
+      h.assert_eq[String](bs._2, "bar")
     end
 
 class \nodoc\ iso _TestPathDir is UnitTest
   fun name(): String => "files/Path.dir"
 
   fun apply(h: TestHelper) =>
-    ifdef windows then
-      let res1 = Path.dir("\\foo\\bar\\dir\\base.ext")
-      let res2 = Path.dir("\\foo\\bar\\dir\\")
-      h.assert_eq[String](res1, "\\foo\\bar\\dir")
-      h.assert_eq[String](res2, "\\foo\\bar\\dir")
-
-    else
-      let res1 = Path.dir("/foo/bar/dir/base.ext")
-      let res2 = Path.dir("/foo/bar/dir/")
-      h.assert_eq[String](res1, "/foo/bar/dir")
-      h.assert_eq[String](res2, "/foo/bar/dir")
-    end
+    let res1 = Path.dir("/foo/bar/dir/base.ext")
+    let res2 = Path.dir("/foo/bar/dir/")
+    h.assert_eq[String](res1, "/foo/bar/dir")
+    h.assert_eq[String](res2, "/foo/bar/dir")
 
 class \nodoc\ iso _TestPathBase is UnitTest
-  fun name(): String => "files/Path.dir"
+  fun name(): String => "files/Path.base"
 
   fun apply(h: TestHelper) =>
-    (let p1, let p2) =
-      ifdef windows then
-        ("\\dir\\base.ext", "\\dir\\")
-      else
-        ("/dir/base.ext", "/dir/")
-      end
+    let p1 = "/dir/base.ext"
+    let p2 = "/dir/"
 
     h.assert_eq[String](Path.base(p1), "base.ext")
     h.assert_eq[String](Path.base(p1, false), "base")
@@ -466,34 +458,48 @@ class \nodoc\ iso _TestPathExt is UnitTest
   fun name(): String => "files/Path.ext"
 
   fun apply(h: TestHelper) =>
-    ifdef windows then
-      let res1 = Path.ext("\\dir\\base.ext")
-      let res2 = Path.ext("\\dir\\base.ext\\")
+    let res1 = Path.ext("/dir/base.ext")
+    let res2 = Path.ext("/dir/base.ext/")
 
-      h.assert_eq[String](res1, "ext")
-      h.assert_eq[String](res2, "")
-
-    else
-      let res1 = Path.ext("/dir/base.ext")
-      let res2 = Path.ext("/dir/base.ext/")
-
-      h.assert_eq[String](res1, "ext")
-      h.assert_eq[String](res2, "")
-    end
+    h.assert_eq[String](res1, "ext")
+    h.assert_eq[String](res2, "")
 
 class \nodoc\ iso _TestPathVolume is UnitTest
   fun name(): String => "files/Path.volume"
 
   fun apply(h: TestHelper) =>
-    let res1 = Path.volume("C:\\foo")
-    let res2 = Path.volume("\\foo")
-
     ifdef windows then
-      h.assert_eq[String](res1, "C:")
-      h.assert_eq[String](res2, "")
+      h.assert_eq[String](Path.volume("C:/foo"), "C:")
+      h.assert_eq[String](Path.volume("C:\\foo"), "C:")
+      h.assert_eq[String](Path.volume("/foo"), "")
     else
-      h.assert_eq[String](res1, "")
-      h.assert_eq[String](res2, "")
+      h.assert_eq[String](Path.volume("C:/foo"), "")
+      h.assert_eq[String](Path.volume("/foo"), "")
+    end
+
+class \nodoc\ iso _TestPathNormcase is UnitTest
+  fun name(): String => "files/Path.normcase"
+
+  fun apply(h: TestHelper) =>
+    ifdef windows then
+      h.assert_eq[String](Path.normcase("C:/Foo/BAR"), "c:/foo/bar")
+      h.assert_eq[String](Path.normcase("C:\\Foo\\BAR"), "c:\\foo\\bar")
+    elseif osx then
+      h.assert_eq[String](Path.normcase("/Foo/BAR"), "/foo/bar")
+    else
+      h.assert_eq[String](Path.normcase("/Foo/BAR"), "/Foo/BAR")
+    end
+
+class \nodoc\ iso _TestPathToOs is UnitTest
+  fun name(): String => "files/Path.to_os"
+
+  fun apply(h: TestHelper) =>
+    ifdef windows then
+      h.assert_eq[String](Path.to_os("C:/foo/bar"), "C:\\foo\\bar")
+      h.assert_eq[String](Path.to_os("/foo/bar"), "\\foo\\bar")
+      h.assert_eq[String](Path.to_os("foo"), "foo")
+    else
+      h.assert_eq[String](Path.to_os("/foo/bar"), "/foo/bar")
     end
 
 class \nodoc\ iso _TestPathRoot is UnitTest
