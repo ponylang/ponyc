@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix iftype specialization on method-level type parameters ([PR #6292](https://github.com/ponylang/ponyc/pull/6292))
+- Fix match without else in trait default method always taking the first arm ([PR #6297](https://github.com/ponylang/ponyc/pull/6297))
 
 ### Added
 
