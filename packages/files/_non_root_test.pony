@@ -346,7 +346,7 @@ class \nodoc\ iso _TestPathClean is UnitTest
     let res6 = Path.clean("/foo/bar/baz/..")
     let res7 = Path.clean("/foo/bar/baz/../../qux")
 
-    h.assert_eq[String](res1, "/foo/bar")
+    h.assert_eq[String](res1, "//foo/bar")
     h.assert_eq[String](res2, "foo/bar")
     h.assert_eq[String](res3, "foo")
     h.assert_eq[String](res4, "/foo/bar/base.ext")
@@ -365,6 +365,10 @@ class \nodoc\ iso _TestPathCleanBackslash is UnitTest
     ifdef windows then
       h.assert_eq[String](Path.clean("C:\\foo\\bar"), "C:/foo/bar")
       h.assert_eq[String](Path.clean("\\\\server\\share"), "//server/share")
+      h.assert_eq[String](
+        Path.clean("\\\\server\\share\\dir\\file"),
+        "//server/share/dir/file")
+      h.assert_eq[String](Path.clean("\\\\server/share\\dir"), "//server/share/dir")
       h.assert_eq[String](Path.clean("foo\\bar\\..\\baz"), "foo/baz")
     end
 
@@ -397,8 +401,8 @@ class \nodoc\ iso _TestPathJoin is UnitTest
     let res2 = Path.join(res1, path3)
     let res3 = Path.join(res2, path4)
 
-    h.assert_eq[String](res1, "/foo/bar/foo/bar")
-    h.assert_eq[String](res2, "/foo/bar/foo/bar/foo")
+    h.assert_eq[String](res1, "//foo/bar/foo/bar")
+    h.assert_eq[String](res2, "//foo/bar/foo/bar/foo")
     h.assert_eq[String](res3, "/foo/dir/base.ext")
 
 class \nodoc\ iso _TestPathRel is UnitTest
@@ -472,9 +476,18 @@ class \nodoc\ iso _TestPathVolume is UnitTest
       h.assert_eq[String](Path.volume("C:/foo"), "C:")
       h.assert_eq[String](Path.volume("C:\\foo"), "C:")
       h.assert_eq[String](Path.volume("/foo"), "")
+      h.assert_eq[String](Path.volume("//foo/bar"), "//foo/bar")
+      h.assert_eq[String](Path.volume("\\\\server\\share"), "\\\\server\\share")
+      h.assert_eq[String](Path.volume("\\\\server\\share\\dir"), "\\\\server\\share")
+      h.assert_eq[String](Path.volume("\\\\a\\b"), "\\\\a\\b")
+      h.assert_eq[String](Path.volume("\\\\a\\b\\c"), "\\\\a\\b")
+      h.assert_eq[String](Path.volume("\\\\server/share"), "\\\\server/share")
+      h.assert_eq[String](Path.volume("///foo/bar"), "")
     else
       h.assert_eq[String](Path.volume("C:/foo"), "")
       h.assert_eq[String](Path.volume("/foo"), "")
+      h.assert_eq[String](Path.volume("//foo/bar"), "//foo/bar")
+      h.assert_eq[String](Path.volume("///foo/bar"), "")
     end
 
 class \nodoc\ iso _TestPathNormcase is UnitTest
