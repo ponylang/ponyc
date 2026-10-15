@@ -18,7 +18,13 @@ The `FileStream` actor provides the ability to asynchronously write to
 a file.
 
 The `Path` primitive can be used to do path-related operations on
-strings and characters.
+strings and characters. `Path.clean` and `Path.volume` treat a path
+beginning with exactly two separators (`//` or `\\`) as a network path
+and preserve the double-separator prefix. Three or more leading
+separators collapse to one. This follows the POSIX rule that a pathname
+beginning with exactly two slashes is implementation-defined, and
+matches how `//host/share` is used for SMB/CIFS mounts on Unix and UNC
+paths on Windows.
 
 # Example program
 

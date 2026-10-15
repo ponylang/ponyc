@@ -80,12 +80,20 @@ primitive Path
     On Windows, normalize `\` to `/`.
     Remove instances of `.` from the path.
     Remove instances of `..` and the preceding path element from the path.
+    A leading `//` (exactly two separators) is preserved as a network path
+    prefix per POSIX; three or more leading separators collapse to one.
     The result will have no trailing slash unless it is a root directory.
     If the result would be empty, `"."` will be returned instead.
     """
     let s = recover String(path.size()) end
     let vol = volume(path)
-    s.append(vol)
+    ifdef windows then
+      for c in vol.values() do
+        if c == '\\' then s.push('/') else s.push(c) end
+      end
+    else
+      s.append(vol)
+    end
 
     var state: _PathState = _PathOther
     var i = vol.size()
@@ -385,31 +393,42 @@ primitive Path
 
   fun volume(path: String): String =>
     """
-    On Windows, this returns the drive letter or UNC base at the beginning of
-    the path, if there is one. Otherwise, this returns an empty string.
+    Return the volume at the beginning of the path, if there is one.
+
+    On Windows, this includes drive letters (`C:`), extended-length prefixes
+    (`\\?\`), and UNC bases (`\\server\share`).
+
+    On all platforms, a path beginning with exactly two separators followed by
+    a non-separator is treated as a network path (`//host/share`), matching the
+    POSIX rule that a pathname beginning with exactly two slashes is
+    implementation-defined. Three or more leading slashes are not a network
+    path and collapse to one in `clean()`.
     """
     ifdef windows then
-      var offset = ISize(0)
-
       if path.compare_sub("""\\?\""", 4) is Equal then
-        offset = 4
-
-        if path.compare_sub("""UNC\""", 4, offset) is Equal then
-          return _network_share(path, offset + 4)
+        if path.compare_sub("""UNC\""", 4, 4) is Equal then
+          return _network_share(path, 8)
         end
+
+        if _drive_letter(path, 4) then
+          return path.trim(0, 6)
+        end
+
+        return ""
       end
 
-      if _drive_letter(path, offset) then
-        return path.trim(0, offset.usize() + 2)
+      if _drive_letter(path) then
+        return path.trim(0, 2)
       end
+    end
 
-      try
-        if
-          is_sep(path.at_offset(offset)?) and
-          is_sep(path.at_offset(offset + 1)?)
-        then
-          return _network_share(path, offset + 3)
-        end
+    try
+      if
+        is_sep(path.at_offset(0)?) and
+        is_sep(path.at_offset(1)?) and
+        not is_sep(path.at_offset(2)?)
+      then
+        return _network_share(path, 2)
       end
     end
     ""
