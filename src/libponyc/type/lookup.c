@@ -69,6 +69,86 @@ static ast_t* downcast_iso_trn_receiver_to_ref(ast_t* receiver, pass_opt_t* opt)
   }
 }
 
+static bool is_method_typeparam(const char* name, ast_t* method_typeparams)
+{
+  ast_t* tp = ast_child(method_typeparams);
+
+  while(tp != NULL)
+  {
+    if(ast_name(ast_child(tp)) == name)
+      return true;
+    tp = ast_sibling(tp);
+  }
+
+  return false;
+}
+
+static bool guard_references_method_typeparams(ast_t* guard,
+  ast_t* method_typeparams)
+{
+  switch(ast_id(guard))
+  {
+    case TK_IFTYPEGUARD:
+    {
+      ast_t* subtype = ast_child(guard);
+
+      if(ast_id(subtype) == TK_TYPEPARAMREF)
+      {
+        ast_t* def = (ast_t*)ast_data(subtype);
+        const char* name = ast_name(ast_child(def));
+        return is_method_typeparam(name, method_typeparams);
+      }
+
+      if(ast_id(subtype) == TK_NOMINAL)
+      {
+        const char* name = ast_name(ast_childidx(subtype, 1));
+        return is_method_typeparam(name, method_typeparams);
+      }
+
+      if(ast_id(subtype) == TK_TUPLETYPE)
+      {
+        ast_t* elem = ast_child(subtype);
+        while(elem != NULL)
+        {
+          if(ast_id(elem) == TK_TYPEPARAMREF)
+          {
+            ast_t* def = (ast_t*)ast_data(elem);
+            const char* name = ast_name(ast_child(def));
+            if(is_method_typeparam(name, method_typeparams))
+              return true;
+          }
+          else if(ast_id(elem) == TK_NOMINAL)
+          {
+            const char* name = ast_name(ast_childidx(elem, 1));
+            if(is_method_typeparam(name, method_typeparams))
+              return true;
+          }
+          elem = ast_sibling(elem);
+        }
+      }
+
+      return false;
+    }
+
+    case TK_IFTYPEGUARD_AND:
+    case TK_IFTYPEGUARD_OR:
+    {
+      ast_t* child = ast_child(guard);
+      while(child != NULL)
+      {
+        if(guard_references_method_typeparams(child, method_typeparams))
+          return true;
+        child = ast_sibling(child);
+      }
+      return false;
+    }
+
+    default:
+      pony_assert(0);
+      return false;
+  }
+}
+
 static bool lookup_evaluate_guard(deferred_reification_t* fun, ast_t* guard,
   pass_opt_t* opt)
 {
@@ -139,10 +219,22 @@ static ast_t* lookup_select_specialization(ast_t* default_method,
     typeparams, typeargs, thistype);
   ast_t* spec = ast_sibling(default_method);
   ast_t* result = NULL;
+  ast_t* method_typeparams = ast_childidx(default_method, 2);
 
   while(spec != NULL)
   {
     ast_t* guard = ast_childidx(spec, 5);
+
+    // When the guard references a method-level type parameter, it cannot
+    // be evaluated here — the concrete method type arguments are only known
+    // at the call site (reachability pass). Skip this specialization and
+    // let reach.c handle it.
+    if((ast_id(method_typeparams) != TK_NONE) &&
+      guard_references_method_typeparams(guard, method_typeparams))
+    {
+      spec = ast_sibling(spec);
+      continue;
+    }
 
     if(lookup_evaluate_guard(temp, guard, opt))
     {
