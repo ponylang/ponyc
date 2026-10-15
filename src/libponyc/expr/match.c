@@ -448,6 +448,34 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
       }
     }
   }
+  else if(ast_id(else_clause) == TK_NONE)
+  {
+    // Exhaustiveness analysis was skipped (body inherited from a trait), but
+    // the match still needs an implicit else clause for codegen when it isn't
+    // exhaustive. The traits pass copies the body before the expr pass runs,
+    // so the class's copy doesn't have the else clause that the trait's own
+    // expr pass would synthesize.
+    ast_t* exhaustive_at = is_match_exhaustive(opt, expr_type, cases);
+
+    if(exhaustive_at == NULL)
+    {
+      ast_scope(else_clause);
+      ast_setid(else_clause, TK_SEQ);
+
+      BUILD(ref, else_clause,
+        NODE(TK_TYPEREF,
+          NONE
+          ID("None")
+          NONE));
+      ast_add(else_clause, ref);
+
+      if(!expr_typeref(opt, &ref) || !expr_seq(opt, else_clause))
+      {
+        ast_free_unattached(type);
+        return false;
+      }
+    }
+  }
 
   if((ast_id(else_clause) != TK_NONE))
   {
