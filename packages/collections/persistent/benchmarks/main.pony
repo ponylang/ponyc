@@ -2,6 +2,8 @@ use ".."
 use mut = "collections"
 use "pony_bench"
 
+type _Range[A: (Real[A] val & Number) = USize] is mut.Range[A]
+
 type K is String
 type V is U64
 
@@ -86,7 +88,7 @@ class iso MapIter is MicroBenchmark
     " ".join(["iter size"; _size].values())
 
   fun apply() ? =>
-    for i in mut.Range(0, _size) do
+    for i in _Range.till(0, _size) do
       let x = _map(i.string())?
       DoNotOptimise[V](x)
     end
@@ -95,7 +97,7 @@ class iso MapIter is MicroBenchmark
 primitive GenMap
   fun apply(size: USize): Map[K, V] =>
     var m = Map[K, V]
-    for i in mut.Range(0, size) do
+    for i in _Range.till(0, size) do
       m = m(i.string()) = i.u64()
     end
     m

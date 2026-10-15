@@ -31,7 +31,7 @@ actor Timers is AsioEventNotify
     _slop = slop
     _set_time()
 
-    for i in Range(0, _wheels()) do
+    for i in Range.till(0, _wheels()) do
       _wheel.push(_TimingWheel(i))
     end
 
@@ -100,7 +100,7 @@ actor Timers is AsioEventNotify
     let elapsed = _set_time()
 
     try
-      for i in Range(0, _wheels()) do
+      for i in Range.till(0, _wheels()) do
         if not _wheel(i)?.advance(_pending, _current, elapsed) then
           break
         end
@@ -158,7 +158,7 @@ actor Timers is AsioEventNotify
     var next: U64 = -1
 
     try
-      for i in Range(0, _wheels()) do
+      for i in Range.till(0, _wheels()) do
         next = next.min(_wheel(i)?.next(_current))
       end
     end

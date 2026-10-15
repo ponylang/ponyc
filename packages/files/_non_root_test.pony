@@ -795,7 +795,7 @@ class \nodoc\ iso _TestFileLongLine is UnitTest
     let filepath = FilePath(FileAuth(h.env.root), path)
     with file = File(filepath) do
       var longline = "foobar"
-      for d in Range(0, 10) do
+      for d in Range.till(0, 10) do
         longline = longline + longline
       end
       file.print(longline)

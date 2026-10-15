@@ -95,7 +95,7 @@ actor Ring
   fun tag spawn_ring(env: Env, size: U32, pass': U32): Ring =>
     var next: Ring = this
 
-    for i in Range[U32](0, size) do
+    for i in Range[U32].till(0, size) do
       next = Ring.neighbor(env, next)
     end
 
@@ -128,7 +128,7 @@ actor Main
     _repetitions = _env.args(4)?.u32()?
 
   fun ref start_benchmark() =>
-    for i in Range[U32](0, _count) do
+    for i in Range[U32].till(0, _count) do
       Ring(_env, _size, _pass, _repetitions)
     end
 

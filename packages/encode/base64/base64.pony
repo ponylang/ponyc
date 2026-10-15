@@ -157,7 +157,7 @@ primitive Base64
     var input = U8(0)
     var output = U8(0)
 
-    for i in Range(0, data.size()) do
+    for i in Range.till(0, data.size()) do
       input = data(i)?
 
       let value =

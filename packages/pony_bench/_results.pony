@@ -31,7 +31,7 @@ class val _Results
   fun sum(): U64 =>
     var sum': U64 = 0
     try
-      for i in Range(0, samples.size()) do
+      for i in Range.till(0, samples.size()) do
         sum' = sum' + samples(i)?
       end
     end
@@ -59,7 +59,7 @@ class val _Results
     if samples.size() < 2 then return 0 end
     try
       var sum_squares: F64 = 0
-      for i in Range(0, samples.size()) do
+      for i in Range.till(0, samples.size()) do
         let n = samples(i)?.f64()
         sum_squares = sum_squares + (n * n)
       end

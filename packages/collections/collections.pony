@@ -9,7 +9,8 @@ including map, set, range, heap, ring buffer, list, and flags.
 `Set` - A set built on top of `Map` using structural equality
 (use `SetIs` for identity equality).
 
-`Range` - Iterate over a range of numbers with optional step size.
+`Range` - Iterate over a range of numbers with `till` (exclusive) or
+`through` (inclusive) constructors.
 
 `BinaryHeap` - A priority queue implemented as a binary heap — use a
 `BinaryHeapPriority` parameter to determine priority.
