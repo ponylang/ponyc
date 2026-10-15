@@ -48,3 +48,19 @@ primitive Foo
 
 Calling `Foo.bar[WrappedSeq](seq)?` would fail to compile with "can't find a compatible 'read_u16' method on type 'WrappedSeq ref'" because the compiler chose the `Array[U8]`-specialized body instead of the default.
 
+## Fix match without else in trait default method always taking the first arm
+
+A `match` without an explicit `else` in a trait default method body always took the first capture arm, regardless of the runtime type of the matched value. The first capture arm always ran, which could crash the program or silently produce wrong results when the matched value was a different type.
+
+```pony
+trait T
+  fun get(): (R | None)
+
+  fun check() =>
+    match get()
+    | let r: R => r.n  // always taken, even when get() returns None
+    end
+```
+
+The same match written in a class body, or with an explicit `else`, worked correctly.
+
