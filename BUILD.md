@@ -191,6 +191,7 @@ Building on Windows requires the following:
   - If using Visual C++ Build Tools, install the `Visual C++ build tools` workload, and the `Visual Studio C++ core features` individual component.
   - Install the `C++ Clang Compiler for Windows` component (under Individual Components). The build uses clang-cl, not MSVC's cl.exe, so that LTO-compiled libraries are compatible with the LLVM linker ponyc uses internally.
   - Install the latest `Windows 11 SDK (11.x.x.x) for Desktop` component.
+- Windows long paths must be enabled. The LLVM build tree exceeds the 260-character `MAX_PATH` limit. In an admin PowerShell prompt, run `reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f` and restart your terminal.
 
 In a PowerShell prompt, run:
 
