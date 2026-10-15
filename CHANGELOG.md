@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix iftype specialization on method-level type parameters ([PR #6292](https://github.com/ponylang/ponyc/pull/6292))
 
 ### Added
 
