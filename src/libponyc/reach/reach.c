@@ -820,10 +820,6 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
     deferred_reification_t* fun = lookup(opt, NULL, r_ast, n->name);
     pony_assert(fun != NULL);
 
-    ast_t* spec = select_specialization(fun, opt);
-    if(spec != NULL)
-      fun->ast = spec;
-
     // The typeargs and thistype are in the scope of r_ast but we're going to
     // free it. Change the scope to a durable AST.
     if(fun->type_typeargs != NULL)
@@ -839,6 +835,10 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
       deferred_reify_add_method_typeparams(fun, typeparams, typeargs, opt);
       m->typeargs = fun->method_typeargs;
     }
+
+    ast_t* spec = select_specialization(fun, opt);
+    if(spec != NULL)
+      fun->ast = spec;
 
     m->fun = fun;
     set_method_types(r, m, opt);
