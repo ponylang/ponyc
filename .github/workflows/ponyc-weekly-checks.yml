@@ -330,10 +330,8 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  # == Step 5 =================================================================
-
   with_sanitizers:
-    needs: [check-for-changes, always_assert]
+    needs: [check-for-changes, systematic_testing_tests, thin_lto_smoke]
     if: >-
       !cancelled() &&
       needs.check-for-changes.outputs.has-changes == 'true'
@@ -390,8 +388,10 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
+  # == Step 5 =================================================================
+
   arm64_macos_with_sanitizers:
-    needs: [check-for-changes, always_assert]
+    needs: [check-for-changes, always_assert, with_sanitizers]
     if: >-
       !cancelled() &&
       needs.check-for-changes.outputs.has-changes == 'true'
@@ -422,10 +422,8 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  # == Step 6 =================================================================
-
   x86_64_macos_with_sanitizers:
-    needs: [check-for-changes, with_sanitizers, arm64_macos_with_sanitizers]
+    needs: [check-for-changes, always_assert, with_sanitizers]
     if: >-
       !cancelled() &&
       needs.check-for-changes.outputs.has-changes == 'true'
