@@ -48,9 +48,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016
             name: x86-64 Linux musl alpine3.23
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016
             name: x86-64 Linux musl alpine3.24
 
     name: ${{ matrix.name }}
@@ -177,11 +177,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
             name: arm64 Linux glibc
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016
             name: arm64 Linux musl alpine3.23
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016
             name: arm64 Linux musl alpine3.24
 
     name: ${{ matrix.name }}

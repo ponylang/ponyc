@@ -50,7 +50,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
 
     name: ${{ matrix.image }}
     container:
@@ -77,9 +77,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20260908
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20261016
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016
 
     name: ${{ matrix.image }}
     container:
@@ -109,7 +109,7 @@ jobs:
       max-parallel: 2
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder:20261016
           - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20260913
 
     name: ${{ matrix.image }}
@@ -142,10 +142,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20260908
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20261016
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
 
     name: ${{ matrix.image }}
     steps:

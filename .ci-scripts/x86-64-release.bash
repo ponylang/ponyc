@@ -73,9 +73,9 @@ popd || exit 1
 
 # Ship it off to cloudsmith
 echo "Uploading package to cloudsmith..."
-cloudsmith push raw --version "${CLOUDSMITH_VERSION}" \
+cloudsmith-uploader --version "${CLOUDSMITH_VERSION}" \
   --api-key "${CLOUDSMITH_API_KEY}" --summary "${ASSET_SUMMARY}" \
-  --description "${ASSET_DESCRIPTION}" ${ASSET_PATH} "${ASSET_FILE}"
+  --description "${ASSET_DESCRIPTION}" "${ASSET_PATH}" "${ASSET_FILE}"
 
 # Attach the archive and its SHA-512 sibling to the GitHub Release
 echo "Uploading package to GitHub Release..."

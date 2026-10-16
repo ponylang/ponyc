@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     name: x86-64 Linux musl alpine3.23
     container:
-      image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
+      image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
@@ -61,7 +61,7 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Release Runtime
@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     name: x86-64 Linux musl alpine3.24
     container:
-      image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
+      image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
@@ -100,7 +100,7 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Release Runtime
@@ -181,7 +181,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull Docker image
-        run: docker pull ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+        run: docker pull ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
       - name: Build libs
         env:
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
@@ -193,15 +193,15 @@ jobs:
             -e GITHUB_ACTOR \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
-            ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908 \
-            python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
+            ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016 \
+            python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Release Runtime
         run: |
           docker run --rm \
             --user pony \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
-            ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908 \
+            ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016 \
             bash -c "cmake --preset armv8-a-release && cmake --build --preset armv8-a-release"
       - name: Test with Release Runtime
         run: |
@@ -211,7 +211,7 @@ jobs:
             --security-opt seccomp=unconfined \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
-            ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908 \
+            ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016 \
             bash -c "PONY_DEBUG=1 ctest --preset armv8-a-release -L ci-core && ctest --preset armv8-a-release -R '^(stdlib|full-programs)$'"
       - name: Send alert on failure
         if: ${{ failure() }}
@@ -244,7 +244,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull Docker image
-        run: docker pull ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
+        run: docker pull ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016
       - name: Build libs
         env:
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
@@ -256,15 +256,15 @@ jobs:
             -e GITHUB_ACTOR \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
-            ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908 \
-            python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
+            ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016 \
+            python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Release Runtime
         run: |
           docker run --rm \
             --user pony \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
-            ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908 \
+            ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016 \
             bash -c "cmake --preset armv8-a-release && cmake --build --preset armv8-a-release"
       - name: Test with Release Runtime
         run: |
@@ -274,7 +274,7 @@ jobs:
             --security-opt seccomp=unconfined \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
-            ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908 \
+            ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016 \
             bash -c "PONY_DEBUG=1 ctest --preset armv8-a-release -L ci-core && ctest --preset armv8-a-release -R '^(stdlib|full-programs)$'"
       - name: Send alert on failure
         if: ${{ failure() }}
@@ -307,7 +307,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull Docker image
-        run: docker pull ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
+        run: docker pull ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016
       - name: Build libs
         env:
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
@@ -319,15 +319,15 @@ jobs:
             -e GITHUB_ACTOR \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
-            ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908 \
-            python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
+            ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016 \
+            python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Release Runtime
         run: |
           docker run --rm \
             --user pony \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
-            ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908 \
+            ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016 \
             bash -c "cmake --preset armv8-a-release && cmake --build --preset armv8-a-release"
       - name: Test with Release Runtime
         run: |
@@ -337,7 +337,7 @@ jobs:
             --security-opt seccomp=unconfined \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
-            ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908 \
+            ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016 \
             bash -c "PONY_DEBUG=1 ctest --preset armv8-a-release -L ci-core && ctest --preset armv8-a-release -R '^(stdlib|full-programs)$'"
       - name: Send alert on failure
         if: ${{ failure() }}
@@ -361,7 +361,7 @@ jobs:
     runs-on: ubuntu-latest
     name: x86-64 Linux glibc
     container:
-      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
@@ -371,7 +371,7 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Release Runtime
