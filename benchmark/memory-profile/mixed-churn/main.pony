@@ -87,7 +87,7 @@ Churn-shape flags, all off by default:
   normal runs at the same `--total`.
 
 The seams only exist in arena builds, so a binary compiled from this source
-does not link against a runtime built with the classic or memalign allocator.
+does not link against a runtime built with the memalign allocator.
 
 Runs until `total` batches have been processed, then prints a header with the
 effective knob values, then:

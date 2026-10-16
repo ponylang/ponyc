@@ -231,4 +231,4 @@ Every mapping header contains a `kind` field (`MAPPING_REGION`, `MAPPING_ARENA`,
 
 See "Thread cache" for the `POOL_CACHE_SENTINEL` double-free check. Gated like `ARENA_CHECK`.
 
-The arena backend is incompatible with AddressSanitizer, Valgrind, and pooltrack.
+The arena backend is incompatible with AddressSanitizer and Valgrind; use `pool_memalign` for those builds.

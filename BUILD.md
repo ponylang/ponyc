@@ -219,24 +219,15 @@ cmake --build --preset windows-arm64-release
 
 ### Unsupported Windows build options
 
-Several `use=` build options aren't supported on Windows. The supported ones are `systematic_testing`, `pool_classic`, `pool_retain`, `pooltrack`, `runtimestats`, and `runtimestats_messages`. The rest depend on POSIX interfaces not available on Windows: `pool_memalign` needs `posix_memalign`, the sanitizers need `-fsanitize=` runtimes that aren't shipped for Windows, and `coverage` needs `-fprofile-arcs` support. `cmake --preset windows-x86-64 -DPONY_USES=...` rejects the unsupported options with a clear error rather than failing partway through the build.
-
-Supported doesn't mean each one builds alone: `pool_retain` and `pooltrack` need `pool_classic` alongside them, on Windows as on every other platform. See the runtime allocator section below.
+Several `use=` build options aren't supported on Windows. The supported ones are `systematic_testing`, `runtimestats`, and `runtimestats_messages`. The rest depend on POSIX interfaces not available on Windows: `pool_memalign` needs `posix_memalign`, the sanitizers need `-fsanitize=` runtimes that aren't shipped for Windows, and `coverage` needs `-fprofile-arcs` support. `cmake --preset windows-x86-64 -DPONY_USES=...` rejects the unsupported options with a clear error rather than failing partway through the build.
 
 ---
 
-## The Runtime Allocator, and pool_classic
+## The Runtime Allocator
 
 The runtime's default allocator on every platform is the arena allocator designed in [discussion #5735](https://github.com/ponylang/ponyc/discussions/5735): it gets memory from the operating system in large shared regions, carves them into thread-owned arenas, reuses freed memory across threads and size classes, and gives an empty arena's physical pages back to the operating system.
 
-`use=pool_classic` selects the classic pool on any platform:
-
-```bash
-cmake --preset release -DPONY_USES=pool_classic
-cmake --build --preset release
-```
-
-The arena allocator carries no AddressSanitizer, Valgrind, or pooltrack instrumentation, so combining it with `address_sanitizer`, `valgrind`, or `pooltrack` is rejected at compile time: a clean run that checked nothing misleads. Pair those options with `pool_classic` (or, for AddressSanitizer, `pool_memalign`). `use=pool_retain` changes how the classic pool returns memory, so it needs `pool_classic` too.
+The arena allocator carries no AddressSanitizer or Valgrind instrumentation, so combining it with `address_sanitizer` or `valgrind` is rejected at compile time: a clean run that checked nothing misleads. Pair those options with `pool_memalign`, which routes allocations through `posix_memalign`/`free` where the tools can track them.
 
 One sizing limit to know about the arena allocator: memory comes from the operating system in 256 MiB regions (64 MiB on 32-bit platforms) whose address space is kept for the life of the process — emptied regions give back their physical pages but stay mapped for reuse. On Unix, reserving a region briefly maps twice its size before trimming, so a process running near an address-space cap needs twice the region size in headroom whenever the allocator opens a new region. Windows reserves a region at its alignment in one call and needs no such headroom.
 

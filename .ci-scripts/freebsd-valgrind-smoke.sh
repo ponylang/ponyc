@@ -3,40 +3,37 @@
 # invoked from .github/workflows/ponyc-tier3.yml. POSIX sh, not bash: FreeBSD's
 # base system has no bash. Expects to run from the ponyc source root.
 #
-# use=valgrind annotates the classic pool so Valgrind can understand its
-# custom allocation; the arena allocator (the default) carries no
-# annotations and rejects the combination, so the smoke builds
-# pool_classic,valgrind. FreeBSD ships a modern Valgrind port, so this is the
-# one BSD where running a Pony program under Valgrind actually works — unlike
-# DragonFly, whose Valgrind 3.15 is too old and hangs on the runtime's memory
-# arena (https://github.com/ponylang/ponyc/issues/5435). This smoke guards two
-# things:
-#   1. the combination still builds — `cmake --build` compiles the annotated
-#      runtime into ponyc; a build that can't compile or link is caught here.
+# use=valgrind enables Valgrind annotations in the runtime; the arena
+# allocator (the default) has no annotations and rejects the combination, so
+# the smoke builds pool_memalign,valgrind. pool_memalign delegates to
+# posix_memalign/free, which Valgrind tracks natively — no custom
+# annotations needed at the pool level. The non-pool annotations (mpmcq,
+# messageq, directory) still apply. FreeBSD ships a modern Valgrind port, so
+# this is the one BSD where running a Pony program under Valgrind actually
+# works — unlike DragonFly, whose Valgrind 3.15 is too old and hangs on the
+# runtime's memory arena (https://github.com/ponylang/ponyc/issues/5435).
+# This smoke guards two things:
+#   1. the combination still builds.
 #   2. a Pony program compiled with it runs to completion *under Valgrind*
 #      without hanging — the DragonFly failure mode.
-# It deliberately does NOT assert that Memcheck comes back clean: Pony's custom
-# allocator isn't fully Valgrind-clean (Valgrind flags the pool allocator's
-# intrusive free-list reuse at thread teardown), and getting there is a separate
-# concern from "the build works and runs".
 set -eu
 
 # Configure the debug build from scratch with valgrind (remove the cmake build dir
 # first); the prebuilt LLVM in build/libs is a separate dir and untouched, so it
-# is not rebuilt. A from-scratch
-# configure is required because the valgrind annotations differ from any plain
-# debug build already present (the tier-3 job builds one, and the earlier smokes
-# leave their own). This script is self-contained: it rebuilds from scratch, so
-# it can run as its own CI step regardless of what came before.
+# is not rebuilt. A from-scratch configure is required because pool_memalign
+# changes the runtime's allocator from the default arena to posix_memalign, so
+# the binary differs from a plain debug build. This script is self-contained: it
+# rebuilds from scratch, so it can run as its own CI step regardless of what came
+# before.
 rm -rf build/build_x86-64-debug
-cmake --preset x86-64-debug -DPONY_USES=pool_classic,valgrind
+cmake --preset x86-64-debug -DPONY_USES=pool_memalign,valgrind
 # The `cmake --build` below is itself the first assertion: it compiles ponyc with
 # the Valgrind-annotated runtime. A use=valgrind build that can't compile or
 # link fails here, at build time.
 cmake --build --preset x86-64-debug
 
 # The use options set PONY_OUTPUT_SUFFIX, so the build output lands in
-# build/debug-valgrind-pool_classic. Derive it rather than hardcoding (the
+# build/debug-valgrind-pool_memalign. Derive it rather than hardcoding (the
 # suffix order is CMake-determined and could grow more segments).
 out=$(find build -maxdepth 1 -type d -name 'debug-valgrind*' | head -1)
 if [ -z "$out" ] || [ ! -x "$out/ponyc" ]; then
@@ -61,8 +58,8 @@ PONYPATH="$PWD/packages" "$out/ponyc" --debug --cpu x86-64 -o "$smoke" "$smoke"
 # completion under Valgrind on FreeBSD, where DragonFly's older Valgrind hangs on
 # the runtime's memory arena (#5435). `timeout` is the real assertion here — a
 # hang surfaces as a non-zero (124) exit, not as missing output. We do not pass
-# --error-exitcode or inspect Memcheck's error/leak summary on purpose (see the
-# header): this checks that it builds and runs, not that it's Memcheck-clean.
+# --error-exitcode or inspect Memcheck's error/leak summary: this checks that it
+# builds and runs, not that it's Memcheck-clean.
 log="$smoke/valgrind.log"
 rc=0
 timeout 300 valgrind "$smoke/valgrind-smoke" >"$smoke/out.txt" 2>"$log" || rc=$?
