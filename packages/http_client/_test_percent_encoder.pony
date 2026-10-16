@@ -105,8 +105,8 @@ class \nodoc\ iso _PropertyQueryParamsRoundtrip
     ph: PropertyHelper)
   =>
     (let key, let value) = arg1
-    let params = recover val [(key, value)] end
-    let result = QueryParams(params)
+    let pairs = recover val [(key, value)] end
+    let result = QueryParams(pairs)
     // ASCII letters are unreserved, so they pass through unchanged
     ph.assert_eq[String val](key + "=" + value, result)
 

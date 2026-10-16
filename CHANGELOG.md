@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix iftype specialization on method-level type parameters ([PR #6292](https://github.com/ponylang/ponyc/pull/6292))
 - Fix match without else in trait default method always taking the first arm ([PR #6297](https://github.com/ponylang/ponyc/pull/6297))
 - Fix subtype checking for intersections that collectively satisfy an interface ([PR #6304](https://github.com/ponylang/ponyc/pull/6304))
+- Detect locals and parameters that shadow inherited methods ([PR #6305](https://github.com/ponylang/ponyc/pull/6305))
 
 ### Added
 
@@ -19,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Remove Path.from_slash and Path.to_slash ([PR #6276](https://github.com/ponylang/ponyc/pull/6276))
 - Use forward slash as the path separator on all platforms ([PR #6276](https://github.com/ponylang/ponyc/pull/6276))
 - Remove the classic pool allocator ([PR #6301](https://github.com/ponylang/ponyc/pull/6301))
+- Locals and parameters that shadow inherited methods are now a compile error ([PR #6305](https://github.com/ponylang/ponyc/pull/6305))
 
 ## [0.76.0] - 2026-10-14
 

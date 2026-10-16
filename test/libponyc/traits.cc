@@ -752,3 +752,141 @@ TEST_F(TraitsTest, InterfaceStructuralMissingSpecializations)
 
   TEST_ERROR(src);
 }
+
+
+// Member shadowing
+
+TEST_F(TraitsTest, ParamShadowsOwnMethod)
+{
+  const char* src =
+    "actor A\n"
+    "  fun foo(foo: U32) => None";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(TraitsTest, ParamShadowsOwnField)
+{
+  const char* src =
+    "class A\n"
+    "  let x: U32 = 0\n"
+    "  fun foo(x: U32) => None";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(TraitsTest, ParamShadowsInheritedMethod)
+{
+  const char* src =
+    "interface Foo\n"
+    "  fun apply(): USize => 42\n"
+
+    "class Bar is Foo\n"
+    "  new create(apply: {(): USize}) => None";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(TraitsTest, LocalShadowsInheritedMethod)
+{
+  const char* src =
+    "interface Foo\n"
+    "  fun apply(): USize => 42\n"
+
+    "class Bar is Foo\n"
+    "  new create() =>\n"
+    "    let apply: USize = 10";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(TraitsTest, InheritedBodyLocalShadowsMethod)
+{
+  const char* src =
+    "interface ShadowWarrior\n"
+    "  fun boo(): String =>\n"
+    "    let name: String = \"abc\"\n"
+    "    name\n"
+
+    "class X is ShadowWarrior\n"
+    "  fun name(): String => \"X\"";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(TraitsTest, NoShadowInLambda)
+{
+  const char* src =
+    "interface Foo\n"
+    "  fun name(): String => \"Foo\"\n"
+
+    "class Bar is Foo\n"
+    "  new create() =>\n"
+    "    let f = {(name: String): String => name}";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(TraitsTest, InheritedMethodNoConflict)
+{
+  const char* src =
+    "interface Foo\n"
+    "  fun apply(): USize => 42\n"
+
+    "class Bar is Foo\n"
+    "  new create() => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(TraitsTest, CaseInsensitiveClashWithInheritedMethod)
+{
+  const char* src =
+    "interface Foo\n"
+    "  fun apply(): USize => 42\n"
+
+    "class Bar is Foo\n"
+    "  new create() =>\n"
+    "    let Apply: USize = 10";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(TraitsTest, MatchCaptureShadowsInheritedMethod)
+{
+  const char* src =
+    "interface Foo\n"
+    "  fun apply(): USize => 42\n"
+
+    "class Bar is Foo\n"
+    "  new create() =>\n"
+    "    match USize(10)\n"
+    "    | let apply: USize => None\n"
+    "    end";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(TraitsTest, ParamShadowsInheritedBehaviour)
+{
+  const char* src =
+    "trait Foo\n"
+    "  be run()\n"
+
+    "actor Bar is Foo\n"
+    "  be run() => None\n"
+    "  fun foo(run: U32) => None";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(TraitsTest, ParamShadowsInheritedMethodGroup)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  fun bar(): None => None\n"
+    "  fun bar(): None iftype A <: Stringable val => None\n"
+    "  fun baz(bar: U32) => None";
+
+  TEST_ERROR(src);
+}
