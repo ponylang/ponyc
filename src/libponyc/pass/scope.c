@@ -62,6 +62,22 @@ static bool set_scope(pass_opt_t* opt, ast_t* scope, ast_t* name, ast_t* value,
   if(!ast_set(scope, s, value, status, allow_shadowing, opt->strtab))
   {
     ast_t* prev = ast_get(scope, s, NULL);
+
+    // If the conflict is with a method, suppress the error and force-add the
+    // local. check_member_shadowing (traits.c) reports method-vs-local
+    // conflicts after the entity's member table is complete. Removing that
+    // check causes these conflicts to be silently accepted.
+    if(prev != NULL)
+    {
+      token_id prev_id = ast_id(prev);
+      if(prev_id == TK_FUN || prev_id == TK_BE || prev_id == TK_NEW ||
+        prev_id == TK_METHODGROUP)
+      {
+        ast_set(scope, s, value, status, true, opt->strtab);
+        return true;
+      }
+    }
+
     ast_t* prev_nocase = ast_get_case(scope, s, NULL, opt->strtab);
 
     ast_error(opt->check.errors, name, "can't reuse name '%s'", s);

@@ -861,10 +861,10 @@ class \nodoc\ iso _TestParseErrors is UnitTest
       end
     _assert_parse_error(h, ctrl, "raw control char")
 
-  fun _assert_parse_error(h: TestHelper, input: String, label: String) =>
+  fun _assert_parse_error(h: TestHelper, input: String, msg: String) =>
     match \exhaustive\ JSONParser.parse(input)
     | let _: JSONParseError => None // expected
-    | let _: JSONValue => h.fail("Expected error for: " + label)
+    | let _: JSONValue => h.fail("Expected error for: " + msg)
     end
 
 class \nodoc\ iso _TestParseErrorLoneSurrogates is UnitTest
@@ -880,10 +880,10 @@ class \nodoc\ iso _TestParseErrorLoneSurrogates is UnitTest
     // High surrogate followed by non-surrogate
     _assert_parse_error(h, "\"\\uD800\\u0041\"", "high + non-surrogate")
 
-  fun _assert_parse_error(h: TestHelper, input: String, label: String) =>
+  fun _assert_parse_error(h: TestHelper, input: String, msg: String) =>
     match \exhaustive\ JSONParser.parse(input)
     | let _: JSONParseError => None // expected
-    | let _: JSONValue => h.fail("Expected error for: " + label)
+    | let _: JSONValue => h.fail("Expected error for: " + msg)
     end
 
 // ===================================================================
@@ -2483,11 +2483,11 @@ class \nodoc\ iso _TestJSONPathFilterFunctionParse is UnitTest
         // LogicalType function in comparison
         ("""$[?match(@.a, "x") == true]""", "match in comparison")
       ]
-    for (path_str, label) in invalid.values() do
+    for (path_str, msg) in invalid.values() do
       match \exhaustive\ JSONPathParser.parse(path_str)
       | let _: JSONPathParseError => None
       | let _: JSONPath =>
-        h.fail("Expected error for (" + label + "): " + path_str)
+        h.fail("Expected error for (" + msg + "): " + path_str)
       end
     end
 
@@ -2942,7 +2942,7 @@ class \nodoc\ iso _TestTokenParserEndPosition is UnitTest
   fun _check(
     h: TestHelper,
     input: String,
-    label: String,
+    msg: String,
     expected_start: USize,
     expected_end: USize)
   =>
@@ -2953,7 +2953,7 @@ class \nodoc\ iso _TestTokenParserEndPosition is UnitTest
     end
     try
       let last = events(events.size() - 1)?
-      h.assert_eq[String](label, last._1)
+      h.assert_eq[String](msg, last._1)
       h.assert_eq[USize](expected_start, last._2)
       h.assert_eq[USize](expected_end, last._3)
     else
@@ -2980,7 +2980,7 @@ class \nodoc\ iso _TestTokenParserStringPosition is UnitTest
   fun _check(
     h: TestHelper,
     input: String,
-    label: String,
+    msg: String,
     expected_start: USize,
     expected_end: USize)
   =>
@@ -2991,7 +2991,7 @@ class \nodoc\ iso _TestTokenParserStringPosition is UnitTest
     end
     for ev in events.values() do
       if (ev._1 == "String") or (ev._1 == "Key") then
-        h.assert_eq[String](label, ev._1)
+        h.assert_eq[String](msg, ev._1)
         h.assert_eq[USize](expected_start, ev._2)
         h.assert_eq[USize](expected_end, ev._3)
         return

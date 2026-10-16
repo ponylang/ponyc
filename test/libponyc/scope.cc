@@ -243,22 +243,6 @@ TEST_F(ScopeTest, SameScopeNameClash)
 }
 
 
-TEST_F(ScopeTest, ParentScopeNameClash)
-{
-  const char* src1 =
-    "actor A\n"
-    "  fun foo(foo2:U32) => 3";
-
-  TEST_COMPILE(src1);
-
-  const char* src2 =
-    "actor A\n"
-    "  fun foo(foo:U32) => 3";
-
-  TEST_ERROR(src2);
-}
-
-
 TEST_F(ScopeTest, SiblingScopeNoClash)
 {
   const char* src =

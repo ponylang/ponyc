@@ -2215,11 +2215,11 @@ class \nodoc\ iso _TestSetRemoveAbsent is UnitTest
 
   fun _expect(
     h: TestHelper,
-    label: String,
+    msg: String,
     got: HashSet[U64, _TrieHash],
     want: Array[U64])
   =>
-    h.assert_eq[USize](want.size(), got.size(), label + ": size")
+    h.assert_eq[USize](want.size(), got.size(), msg + ": size")
     for v in want.values() do
-      h.assert_true(got.contains(v), label + ": element missing")
+      h.assert_true(got.contains(v), msg + ": element missing")
     end

@@ -108,3 +108,33 @@ primitive Checker
 
 The call `check(x)` failed with a subtype error because the compiler checked each intersection member individually. It now checks the intersection's members collectively against the interface's method list, so `(HasRows & HasCols)` is accepted as a subtype of `Sized`.
 
+## Detect locals and parameters that shadow inherited methods
+
+The compiler now reports an error when a local variable or parameter reuses the name of a method inherited from a trait or interface. Previously, only methods defined directly on the type were checked — inherited methods were silently shadowed, which could hide the inherited method and cause unexpected behavior.
+
+## Locals and parameters that shadow inherited methods are now a compile error
+
+Code that previously compiled may now fail if a local variable or parameter has the same name as a method inherited from a trait or interface. Rename the variable or parameter to fix the error.
+
+Before:
+
+```pony
+interface Tickable
+  fun label(): String => "default"
+
+class MyTimer is Tickable
+  fun format(label: String): String =>
+    "Timer: " + label
+```
+
+After:
+
+```pony
+interface Tickable
+  fun label(): String => "default"
+
+class MyTimer is Tickable
+  fun format(msg: String): String =>
+    "Timer: " + msg
+```
+

@@ -781,6 +781,128 @@ static bool provided_methods(ast_t* entity, pass_opt_t* opt)
 }
 
 
+static bool is_local_decl(token_id id)
+{
+  return id == TK_VAR || id == TK_LET || id == TK_PARAM ||
+    id == TK_MATCH_CAPTURE;
+}
+
+static bool is_entity_method(token_id id)
+{
+  return id == TK_FUN || id == TK_BE || id == TK_NEW ||
+    id == TK_METHODGROUP;
+}
+
+// Walk an AST subtree checking each scope's local declarations against the
+// entity's member table. Stops at nested entities (object literals, lambdas).
+static bool check_shadows_in_subtree(ast_t* ast, ast_t* entity,
+  pass_opt_t* opt)
+{
+  if(ast == NULL)
+    return true;
+
+  token_id id = ast_id(ast);
+  if(id == TK_OBJECT || id == TK_LAMBDA || id == TK_BARELAMBDA)
+    return true;
+
+  bool ok = true;
+
+  symtab_t* symtab = ast_get_symtab(ast);
+  if(symtab != NULL)
+  {
+    symtab_t* entity_symtab = ast_get_symtab(entity);
+    pony_assert(entity_symtab != NULL);
+
+    size_t i = HASHMAP_BEGIN;
+    symbol_t* sym;
+
+    while((sym = symtab_next(symtab, &i)) != NULL)
+    {
+      if(sym->def == NULL || sym->status == SYM_NOCASE)
+        continue;
+
+      if(!is_local_decl(ast_id(sym->def)))
+        continue;
+
+      sym_status_t member_status;
+      ast_t* member = symtab_find(entity_symtab, sym->name, &member_status);
+
+      if(member != NULL && is_entity_method(ast_id(member)))
+      {
+        ast_error(opt->check.errors, sym->def,
+          "can't reuse name '%s'", sym->name);
+        ast_error_continue(opt->check.errors, member,
+          "previous use of '%s'", sym->name);
+        ok = false;
+      }
+
+      if(member == NULL)
+      {
+        ast_t* member_nocase = symtab_find_case(entity_symtab, sym->name,
+          NULL, opt->strtab);
+
+        if(member_nocase != NULL && is_entity_method(ast_id(member_nocase)))
+        {
+          const char* member_name;
+          if(is_method(member_nocase))
+            member_name = ast_name(ast_childidx(member_nocase, 1));
+          else if(ast_id(member_nocase) == TK_METHODGROUP)
+            member_name = ast_name(ast_childidx(ast_child(member_nocase), 1));
+          else
+            member_name = ast_name(ast_child(member_nocase));
+
+          ast_error(opt->check.errors, sym->def,
+            "can't reuse name '%s'", sym->name);
+          ast_error_continue(opt->check.errors, member_nocase,
+            "previous use of '%s' differs only by case", member_name);
+          ok = false;
+        }
+      }
+    }
+  }
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+  {
+    if(!check_shadows_in_subtree(child, entity, opt))
+      ok = false;
+  }
+
+  return ok;
+}
+
+// Check all method bodies for locals that shadow entity members. Called after
+// provided_methods has populated the entity's symbol table.
+//
+// set_scope (scope.c) suppresses method-vs-local conflicts during the scope
+// pass and defers them here. Removing this check causes those conflicts to be
+// silently accepted.
+static bool check_member_shadowing(ast_t* entity, pass_opt_t* opt)
+{
+  ast_t* members = ast_childidx(entity, 4);
+  bool ok = true;
+
+  for(ast_t* member = ast_child(members); member != NULL;
+    member = ast_sibling(member))
+  {
+    if(is_method(member))
+    {
+      if(!check_shadows_in_subtree(member, entity, opt))
+        ok = false;
+    }
+    else if(ast_id(member) == TK_METHODGROUP)
+    {
+      for(ast_t* m = ast_child(member); m != NULL; m = ast_sibling(m))
+      {
+        if(!check_shadows_in_subtree(m, entity, opt))
+          ok = false;
+      }
+    }
+  }
+
+  return ok;
+}
+
+
 // Check that the given entity, if concrete, has bodies for all methods.
 static bool check_concrete_bodies(ast_t* entity, pass_opt_t* opt)
 {
@@ -893,6 +1015,7 @@ static bool trait_entity(ast_t* entity, pass_opt_t* opt)
 
   bool r =
     provided_methods(entity, opt) &&
+    check_member_shadowing(entity, opt) &&
     check_concrete_bodies(entity, opt);
 
   tidy_up(entity);
