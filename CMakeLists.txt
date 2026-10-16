@@ -693,7 +693,12 @@ add_compile_definitions(
 )
 
 include(CheckIPOSupported)
-if(PONY_USE_LTO AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+if(PONY_SANITIZERS_ENABLED)
+    # Sanitizers change which template instantiations get emitted, surfacing
+    # weak-comdat resolution bugs in ld.bfd's ThinLTO plugin. Skip LTO for
+    # sanitizer builds; they test correctness, not optimized codegen.
+    message("Sanitizers enabled — skipping IPO/LTO")
+elseif(PONY_USE_LTO AND CMAKE_SIZEOF_VOID_P EQUAL 8)
     if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
         # cl.exe's /GL produces LTCG bitcode that lld-link can't read;
         # use the ClangCL toolset for LTO on Windows.
