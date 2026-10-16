@@ -14,19 +14,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20261016
             name: x86-64-unknown-linux-ubuntu24.04
             triple-os: linux-ubuntu24.04
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016
             name: x86-64-unknown-linux-alpine3.23
             triple-os: linux-alpine3.23
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016
             name: x86-64-unknown-linux-alpine3.24
             triple-os: linux-alpine3.24
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
             name: x86-64-unknown-linux-ubuntu26.04
             triple-os: linux-ubuntu26.04
             triple-vendor: unknown
@@ -80,16 +80,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016
             name: arm64-unknown-linux-alpine3.23
             triple-os: linux-alpine3.23
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016
             name: arm64-unknown-linux-alpine3.24
             triple-os: linux-alpine3.24
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20261016
             name: arm64-unknown-linux-ubuntu24.04
             triple-os: linux-ubuntu24.04
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
             name: arm64-unknown-linux-ubuntu26.04
             triple-os: linux-ubuntu26.04
 
@@ -157,8 +157,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform x86-macos-15-intel --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
-      - name: Install Cloudsmith
-        run: pip3 install --break-system-packages --ignore-installed --upgrade cloudsmith-cli
+      - name: Install cloudsmith-uploader
+        run: |
+          bash .ci-scripts/install-cloudsmith-uploader.bash x86-64-apple-darwin
+          echo "/tmp" >> $GITHUB_PATH
       - name: Nightly
         run: bash .ci-scripts/x86-64-nightly.bash
         env:
@@ -190,8 +192,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
-      - name: Install Cloudsmith
-        run: pip3 install --upgrade --break-system-packages --ignore-installed cloudsmith-cli
+      - name: Install cloudsmith-uploader
+        run: |
+          bash .ci-scripts/install-cloudsmith-uploader.bash arm64-apple-darwin
+          echo "/tmp" >> $GITHUB_PATH
       - name: Nightly
         run: bash .ci-scripts/arm64-apple-darwin-nightly.bash
         env:
@@ -219,8 +223,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Install Dependencies
-        run: python.exe -m pip install --upgrade cloudsmith-cli
+      - name: Install cloudsmith-uploader
+        run: |
+          Invoke-WebRequest https://github.com/ponylang/cloudsmith-uploader/releases/latest/download/cloudsmith-uploader-x86-64-pc-windows-msvc.zip -OutFile C:\cloudsmith-uploader.zip
+          Expand-Archive -Path C:\cloudsmith-uploader.zip -DestinationPath C:\cloudsmith-uploader
+          echo "C:\cloudsmith-uploader\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Install LibreSSL
         run: .\.ci-scripts\windows-install-libressl.ps1
       - name: Build libs
@@ -239,7 +246,7 @@ jobs:
       - name: Upload
         run: |
           $version = (Get-Date).ToString("yyyyMMdd")
-          cloudsmith push raw --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/nightlies build\ponyc-x86-64-pc-windows-msvc.zip
+          cloudsmith-uploader --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/nightlies build\ponyc-x86-64-pc-windows-msvc.zip
           # Fail the step here if Cloudsmith (the primary) failed, rather than
           # letting a successful GHCR push below mask it in the step exit code.
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -270,13 +277,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Install Dependencies
+      - name: Install cloudsmith-uploader
         run: |
-          # Keep pydantic below 2.14 because mcp 1.9.1 imports an internal
-          # pydantic function removed in 2.14.
-          # Keep cloudsmith-cli below 1.19 because it adds PyJWT[crypto],
-          # which depends on cryptography without a prebuilt win_arm64 wheel.
-          python.exe -m pip install --upgrade "cloudsmith-cli<1.19.0" "pydantic<2.14.0"
+          Invoke-WebRequest https://github.com/ponylang/cloudsmith-uploader/releases/latest/download/cloudsmith-uploader-arm64-pc-windows-msvc.zip -OutFile C:\cloudsmith-uploader.zip
+          Expand-Archive -Path C:\cloudsmith-uploader.zip -DestinationPath C:\cloudsmith-uploader
+          echo "C:\cloudsmith-uploader\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Install LibreSSL
         run: .\.ci-scripts\windows-install-libressl.ps1
       - name: Build libs
@@ -295,7 +300,7 @@ jobs:
       - name: Upload
         run: |
           $version = (Get-Date).ToString("yyyyMMdd")
-          cloudsmith push raw --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/nightlies build\ponyc-arm64-pc-windows-msvc.zip
+          cloudsmith-uploader --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/nightlies build\ponyc-arm64-pc-windows-msvc.zip
           # Fail the step here if Cloudsmith (the primary) failed, rather than
           # letting a successful GHCR push below mask it in the step exit code.
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -26,7 +26,7 @@ jobs:
 
     name: x86-64-unknown-linux-ubuntu26.04 udp swarm [debug]
     container:
-      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
       options: --user pony
 
     steps:
@@ -37,7 +37,7 @@ jobs:
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
           LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '-- cmake -DJOBS=4 -P lib/build-libs.cmake') || '' }}
