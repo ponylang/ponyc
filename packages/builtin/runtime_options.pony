@@ -140,6 +140,5 @@ struct RuntimeOptions
     rto.ponymemoryprofile = 8
     ```
 
-    Only the arena allocator acts on it; a program built with pool_classic
-    ignores it.
+    Only the arena allocator acts on it; the memalign backend ignores it.
     """

@@ -36,27 +36,16 @@ set(_pony_known_uses
     address_sanitizer
     undefined_behavior_sanitizer
     coverage
-    pooltrack
     systematic_testing
     runtimestats
     runtimestats_messages
     pool_memalign
-    pool_classic
-    pool_retain
     reach_instrument)
 
 # The subset of the above that Windows (MSVC) accepts. See the MSVC check
-# below. Accepted is not the same as buildable alone: pool_retain and pooltrack
-# need pool_classic alongside them, on Windows as on every other platform, and
-# pool.h stops the build when either is set without it. When you add an option
-# here, add a matching row to the use_directives_windows matrix in
-# ponyc-weekly-checks.yml -- in a combination that builds -- or it builds on
-# Windows but is never tested there.
+# below.
 set(_pony_windows_uses
     systematic_testing
-    pool_classic
-    pool_retain
-    pooltrack
     runtimestats
     runtimestats_messages
     reach_instrument)
@@ -124,8 +113,6 @@ foreach(_use IN LISTS _pony_uses)
             message(FATAL_ERROR "Coverage instrumentation is not supported on OpenBSD: the base toolchain's profiling runtime is incomplete, so coverage builds fail to link. See BUILD.md")
         endif()
         _pony_set_use(COVERAGE ON)
-    elseif(_use STREQUAL "pooltrack")
-        _pony_set_use(POOLTRACK ON)
     elseif(_use STREQUAL "systematic_testing")
         _pony_set_use(SYSTEMATIC_TESTING ON)
     elseif(_use STREQUAL "runtimestats")
@@ -134,10 +121,6 @@ foreach(_use IN LISTS _pony_uses)
         _pony_set_use(RUNTIMESTATS_MESSAGES ON)
     elseif(_use STREQUAL "pool_memalign")
         _pony_set_use(POOL_MEMALIGN ON)
-    elseif(_use STREQUAL "pool_classic")
-        _pony_set_use(POOL_CLASSIC ON)
-    elseif(_use STREQUAL "pool_retain")
-        _pony_set_use(POOL_RETAIN ON)
     elseif(_use STREQUAL "runtime_tracing")
         message(FATAL_ERROR
             "runtime_tracing was removed: tracing is now always compiled in "

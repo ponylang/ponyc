@@ -124,11 +124,8 @@ TEST(Alloc, DecommitReturnsThePages)
 
 TEST(Alloc, DiscardLeavesRangeWritable)
 {
-  // Unlike a decommit, a discarded range takes no commit to use again: the
-  // classic pool discards a freed block's pages and hands the block straight
-  // back out. The memory here comes from ponyint_virt_alloc, which is where
-  // that pool's blocks come from. Content across a discard is not asserted --
-  // the OS may drop it.
+  // Unlike a decommit, a discarded range takes no commit to use again.
+  // Content across a discard is not asserted -- the OS may drop it.
   size_t size = 1024 * 1024;
   char* p = (char*)ponyint_virt_alloc(size);
   ASSERT_NE(p, (char*)NULL);

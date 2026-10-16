@@ -65,12 +65,6 @@ jobs:
             directives: pool_memalign
           - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
             debugger: lldb
-            directives: pool_classic
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
-            debugger: lldb
-            directives: pool_classic,pool_retain
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016
-            debugger: lldb
             directives: runtimestats
 
     name: use ${{ matrix.directives }}
@@ -179,83 +173,8 @@ jobs:
 
   # == Step 3 =================================================================
 
-  # Windows counterpart of the use_directives job above. Windows needs a separate
-  # job: a windows runner and the multi-config Visual Studio generator rather than
-  # the Ubuntu container matrix. Add rows as more Windows-supported options become
-  # worth checking here.
-  use_directives_windows:
-    needs: [check-for-changes, coverage]
-    if: >-
-      !cancelled() &&
-      needs.check-for-changes.outputs.has-changes == 'true'
-    runs-on: windows-2025-vs2026
-    defaults:
-      run:
-        shell: pwsh
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        include:
-          # Windows defaults to the arena allocator, so this row builds the
-          # classic pool there, as PonyUses.cmake requires for every entry in
-          # its Windows allowlist.
-          - directives: pool_classic
-    name: 'use ${{ matrix.directives }} (Windows)'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-        with:
-          ref: ${{ inputs.ref || github.sha }}
-      - name: Install Dependencies
-        run: .\.ci-scripts\windows-install-deps.ps1
-      - name: Install LibreSSL
-        run: .\.ci-scripts\windows-install-libressl.ps1
-      - name: Configure Networking
-        run: .\.ci-scripts\windows-configure-networking.ps1
-      - name: Build libs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
-      - name: Configure
-        # Quote the arg: a matrix value with a comma (e.g. pool_classic,pool_retain)
-        # is otherwise parsed by pwsh as an array and breaks the command.
-        run: cmake --preset windows-x86-64 "-DPONY_USES=${{ matrix.directives }}"
-      - name: Build Debug Runtime
-        run: cmake --build --preset windows-x86-64-debug
-      - name: Test with Debug Runtime
-        run: |
-          $env:PONY_TEST_DEBUGGER = & .ci-scripts/test-debugger.ps1 lldb
-          $env:PONY_DEBUG = "1"
-          ctest --preset windows-x86-64-debug -L ci-core
-          Remove-Item Env:PONY_DEBUG
-          ctest --preset windows-x86-64-debug -R "^(stdlib|full-programs)$"
-      - name: Build Release Runtime
-        run: cmake --build --preset windows-x86-64-release
-      - name: Test with Release Runtime
-        run: |
-          $env:PONY_TEST_DEBUGGER = & .ci-scripts/test-debugger.ps1 lldb
-          $env:PONY_DEBUG = "1"
-          ctest --preset windows-x86-64-release -L ci-core
-          Remove-Item Env:PONY_DEBUG
-          ctest --preset windows-x86-64-release -R "^(stdlib|full-programs)$"
-      - name: Send alert on failure
-        if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
-        with:
-          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
-          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
-          organization-url: 'https://ponylang.zulipchat.com/'
-          to: notifications
-          type: stream
-          topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
-
-  # == Step 4 =================================================================
-
   systematic_testing_tests:
-    needs: [check-for-changes, use_directives_windows]
+    needs: [check-for-changes, coverage]
     if: >-
       !cancelled() &&
       needs.check-for-changes.outputs.has-changes == 'true'
@@ -304,7 +223,7 @@ jobs:
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
   thin_lto_smoke:
-    needs: [check-for-changes, use_directives_windows]
+    needs: [check-for-changes, coverage]
     if: >-
       !cancelled() &&
       needs.check-for-changes.outputs.has-changes == 'true'
@@ -351,7 +270,7 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  # == Step 5 =================================================================
+  # == Step 4 =================================================================
 
   always_assert:
     needs: [check-for-changes, systematic_testing_tests, thin_lto_smoke]
@@ -411,7 +330,7 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  # == Step 6 =================================================================
+  # == Step 5 =================================================================
 
   with_sanitizers:
     needs: [check-for-changes, always_assert]
@@ -503,7 +422,7 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  # == Step 7 =================================================================
+  # == Step 6 =================================================================
 
   x86_64_macos_with_sanitizers:
     needs: [check-for-changes, with_sanitizers, arm64_macos_with_sanitizers]

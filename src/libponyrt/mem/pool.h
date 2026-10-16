@@ -6,46 +6,32 @@
 
 #include <platform.h>
 
-#if defined(USE_POOL_MEMALIGN) && defined(USE_POOL_CLASSIC)
-#  error "pool_memalign and pool_classic select different allocators; use one"
-#endif
-
 /* The arena allocator is the default on every platform. */
 #if defined(USE_POOL_MEMALIGN)
 #  define POOL_USE_MEMALIGN
-#elif defined(USE_POOL_CLASSIC)
-#  define POOL_USE_CLASSIC
 #else
 #  define POOL_USE_ARENA
 #endif
 
-#if defined(USE_POOL_RETAIN) && !defined(POOL_USE_CLASSIC)
-#  error "pool_retain modifies the classic pool; add pool_classic"
-#endif
-
 /* The arena allocator's memory comes straight from mmap and carries no
- * AddressSanitizer, Valgrind, or pooltrack instrumentation, so those
- * builds would report clean runs while checking nothing of it. The
- * allocator's own release-build checks are its memory-safety net; a
- * quietly unprotected build is worse than a rejected one.
+ * AddressSanitizer or Valgrind instrumentation, so those builds would
+ * report clean runs while checking nothing of it. The allocator's own
+ * release-build checks are its memory-safety net; a quietly unprotected
+ * build is worse than a rejected one.
  */
 #if defined(POOL_USE_ARENA) && defined(USE_ADDRESS_SANITIZER)
-#  error "address_sanitizer cannot track the arena allocator; add pool_memalign or pool_classic"
+#  error "address_sanitizer cannot track the arena allocator; add pool_memalign"
 #endif
 
 #if defined(POOL_USE_ARENA) && defined(USE_VALGRIND)
-#  error "valgrind has no annotations for the arena allocator; add pool_classic"
-#endif
-
-#if defined(USE_POOLTRACK) && !defined(POOL_USE_CLASSIC)
-#  error "pooltrack instruments only the classic pool; add pool_classic"
+#  error "valgrind has no annotations for the arena allocator; add pool_memalign"
 #endif
 
 PONY_EXTERN_C_BEGIN
 
 /* Because of the way free memory is reused as its own linked list container,
- * the minimum allocation size is 32 bytes for the classic and arena pool
- * implementations and 16 bytes for the memalign pool implementation.
+ * the minimum allocation size is 32 bytes for the arena pool implementation
+ * and 16 bytes for the memalign pool implementation.
  *
  * The interface guarantees a returned pointer is non-null, aligned (POOL_MIN
  * always, POOL_ALIGN once the granted size reaches it), overlaps no live
@@ -53,7 +39,7 @@ PONY_EXTERN_C_BEGIN
  * comes back at the same address is backend behavior, not a guarantee.
  */
 
-#if defined(POOL_USE_CLASSIC) || defined(POOL_USE_ARENA)
+#if defined(POOL_USE_ARENA)
 #define POOL_MIN_BITS 5
 #else
 #define POOL_MIN_BITS 4
@@ -89,7 +75,7 @@ void ponyint_pool_thread_cleanup();
  * thread cleanup. drain only drains this thread's own inbox, crediting
  * what other threads delivered to it. Nothing notifies an owner of a
  * delivery, so an owner reclaims foreign frees on its next drain. Only
- * the arena allocator has inboxes; the other backends define these as
+ * the arena allocator has inboxes; the memalign backend defines these as
  * no-ops.
  */
 void ponyint_pool_suspend_flush();
@@ -102,7 +88,7 @@ void ponyint_pool_drain();
  * decommits its arenas' dirty pages, budget-retained spans included, and
  * unmaps its stash of kept oversized mappings. A thread calls it at its
  * return moment, once holding the memory no longer pays; it rewarms when it
- * runs again. The other backends define it as a no-op.
+ * runs again. The memalign backend defines it as a no-op.
  */
 void ponyint_pool_return_idle();
 
@@ -121,7 +107,7 @@ size_t ponyint_pool_used_size(size_t size);
 
 size_t ponyint_pool_adjust_size(size_t size);
 
-#if defined(POOL_USE_CLASSIC) || defined(POOL_USE_ARENA)
+#if defined(POOL_USE_ARENA)
 #define POOL_INDEX(SIZE) \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 0)), 0, \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 1)), 1, \

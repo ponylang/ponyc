@@ -249,8 +249,7 @@ BENCHMARK_REGISTER_F(PoolBench, size_sweep_churn)
 // cache_cap of the batch and the rest reach the slab. For a capacity-1 class
 // (16 KB and up, one object per slab) there is no partial-slab list to reuse a
 // held slab, so past the cache every alloc drives a slab reserve and every free
-// a slab release -- the work the classic pool does with a free-list push and
-// pop. The 16 KB rows ramp the depth across the class's default-profile cap
+// a slab release. The 16 KB rows ramp the depth across the class's default-profile cap
 // of 40 (the 640 KiB budget over 16 KiB) to show the crossover as the cache
 // is outrun; 256 KB and 1 MB's deeper rows pass their floor cap of 8 almost
 // at once. The 32 B row is the control: a class with many objects per slab
