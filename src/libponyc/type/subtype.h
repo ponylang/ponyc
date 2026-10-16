@@ -63,6 +63,8 @@ bool is_entity(ast_t* type, token_id entity);
 
 bool contains_dontcare(ast_t* ast);
 
+void subtype_reset_isect_depth(void);
+
 PONY_EXTERN_C_END
 
 #endif

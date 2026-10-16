@@ -8,6 +8,7 @@
 #include <ast/stringtab.h>
 #include <pass/pass.h>
 #include <pkg/package.h>
+#include <type/subtype.h>
 #include <type/subtype_cache.h>
 #include <../libponyrt/pony.h>
 #include <../libponyrt/mem/pool.h>
@@ -257,6 +258,7 @@ void PassTest::SetUp()
   // free to assume an empty cache on entry without remembering to
   // call subtype_cache_clear themselves.
   subtype_cache_clear();
+  subtype_reset_isect_depth();
   pass_opt_init(&opt);
   opt.argv0 = test_argv0;
   codegen_pass_init(&opt);

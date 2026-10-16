@@ -39,6 +39,7 @@ static bool is_typeparam_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt);
 static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt);
+static bool guards_equivalent(ast_t* a, ast_t* b, pass_opt_t* opt);
 
 static void struct_cant_be_x(ast_t* sub, ast_t* super, errorframe_t* errorf,
   const char* entity, pass_opt_t* opt)
@@ -746,6 +747,314 @@ static bool is_union_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   return true;
 }
 
+static ast_t* find_method_on_def(ast_t* def, const char* name)
+{
+  ast_t* raw = ast_get(def, name, NULL);
+
+  if(raw != NULL && ast_id(raw) == TK_METHODGROUP)
+    raw = ast_child(raw);
+
+  if(raw == NULL)
+    return NULL;
+
+  if(ast_id(raw) != TK_FUN && ast_id(raw) != TK_BE && ast_id(raw) != TK_NEW)
+    return NULL;
+
+  return raw;
+}
+
+// is_isect_sub_interface can re-enter itself through is_fun_sub_fun when
+// method parameter or return types contain intersections against interfaces.
+// Reification creates fresh AST nodes at each level, so pointer-identity
+// cycle detection can't catch the recursion. Bail out conservatively.
+static __pony_thread_local size_t isect_iface_depth = 0;
+#define ISECT_IFACE_DEPTH_LIMIT 4
+
+void subtype_reset_isect_depth(void)
+{
+  isect_iface_depth = 0;
+}
+
+static bool is_isect_sub_interface(ast_t* sub, ast_t* super,
+  check_cap_t check_cap, errorframe_t* errorf, pass_opt_t* opt)
+{
+  if(isect_iface_depth >= ISECT_IFACE_DEPTH_LIMIT)
+    return false;
+
+  ast_t* super_def = (ast_t*)ast_data(super);
+  pony_assert(ast_id(super_def) == TK_INTERFACE);
+
+  pass_id super_pass = (pass_id)ast_checkflag(super_def, AST_FLAG_PASS_MASK);
+  pony_assert(super_pass >= PASS_TRAITS);
+  (void)super_pass;
+
+  bool super_bare = is_bare(super, opt);
+
+  ast_t* super_typeargs = ast_childidx(super, 2);
+  ast_t* super_typeparams = ast_childidx(super_def, 1);
+  ast_t* super_members = ast_childidx(super_def, 4);
+  ast_t* super_member = ast_child(super_members);
+
+  bool ret = true;
+  isect_iface_depth++;
+
+  while(super_member != NULL)
+  {
+    ast_t* super_default = super_member;
+    ast_t* super_group = NULL;
+    if(ast_id(super_default) == TK_METHODGROUP)
+    {
+      super_group = super_default;
+      super_default = ast_child(super_default);
+    }
+
+    ast_t* super_member_id = ast_childidx(super_default, 1);
+
+    ast_t* r_super_member = reify_method_def(super_default, super_typeparams,
+      super_typeargs, opt);
+    pony_assert(r_super_member != NULL);
+
+    // Search across all members of the intersection for a compatible method.
+    bool found = false;
+    ast_t* found_child = NULL;
+
+    for(ast_t* child = ast_child(sub);
+      child != NULL;
+      child = ast_sibling(child))
+    {
+      if(ast_id(child) != TK_NOMINAL)
+        continue;
+
+      ast_t* child_def = (ast_t*)ast_data(child);
+      if(child_def == NULL)
+        continue;
+
+      pass_id child_pass =
+        (pass_id)ast_checkflag(child_def, AST_FLAG_PASS_MASK);
+      pony_assert(child_pass >= PASS_TRAITS);
+      (void)child_pass;
+
+      // Skip struct members — they have no descriptor for interface dispatch.
+      if(ast_id(child_def) == TK_STRUCT)
+        continue;
+
+      // Skip nosupertype members.
+      if(ast_has_annotation(child_def, "nosupertype", opt->strtab))
+        continue;
+
+      // Skip members with mismatched bareness.
+      if(is_bare(child, opt) != super_bare)
+        continue;
+
+      ast_t* sub_default = find_method_on_def(child_def,
+        ast_name(super_member_id));
+
+      if(sub_default == NULL)
+        continue;
+
+      ast_t* sub_typeargs = ast_childidx(child, 2);
+      ast_t* sub_typeparams = ast_childidx(child_def, 1);
+
+      ast_t* r_sub_member = reify_method_def(sub_default, sub_typeparams,
+        sub_typeargs, opt);
+      pony_assert(r_sub_member != NULL);
+
+      bool ok = is_fun_sub_fun(r_sub_member, r_super_member, NULL, opt);
+      ast_free_unattached(r_sub_member);
+
+      if(ok)
+      {
+        found = true;
+        found_child = child;
+        break;
+      }
+    }
+
+    ast_free_unattached(r_super_member);
+
+    if(!found)
+    {
+      if(errorf != NULL)
+      {
+        ast_error_frame(errorf, sub,
+          "no element of %s provides method '%s' required by %s",
+          ast_print_type(sub, opt->strtab),
+          ast_name(super_member_id),
+          ast_print_type(super, opt->strtab));
+      }
+
+      ret = false;
+      super_member = ast_sibling(super_member);
+      continue;
+    }
+
+    // If the super has specializations, check them against the member that
+    // provided the default method.
+    if((super_group != NULL) && (ast_sibling(super_default) != NULL) &&
+      (found_child != NULL))
+    {
+      ast_t* child_def = (ast_t*)ast_data(found_child);
+      ast_t* sub_raw = ast_get(child_def, ast_name(super_member_id), NULL);
+
+      if((sub_raw == NULL) || (ast_id(sub_raw) != TK_METHODGROUP))
+      {
+        if(errorf != NULL)
+        {
+          ast_error_frame(errorf, sub,
+            "no element of %s provides specializations for method '%s' "
+            "required by %s",
+            ast_print_type(sub, opt->strtab),
+            ast_name(super_member_id),
+            ast_print_type(super, opt->strtab));
+        }
+        ret = false;
+      }
+      else
+      {
+        ast_t* sub_typeargs = ast_childidx(found_child, 2);
+        ast_t* sub_typeparams = ast_childidx(child_def, 1);
+
+        ast_t* super_spec = ast_sibling(super_default);
+        while(super_spec != NULL)
+        {
+          ast_t* r_super_spec = reify_method_def(super_spec,
+            super_typeparams, super_typeargs, opt);
+          pony_assert(r_super_spec != NULL);
+
+          ast_t* sub_spec = ast_sibling(ast_child(sub_raw));
+          bool spec_found = false;
+          while(sub_spec != NULL)
+          {
+            ast_t* r_sub_spec = reify_method_def(sub_spec,
+              sub_typeparams, sub_typeargs, opt);
+            pony_assert(r_sub_spec != NULL);
+
+            if(is_fun_sub_fun(r_sub_spec, r_super_spec, NULL, opt) &&
+              guards_equivalent(ast_childidx(r_sub_spec, 5),
+                ast_childidx(r_super_spec, 5), opt))
+              spec_found = true;
+
+            ast_free_unattached(r_sub_spec);
+            if(spec_found)
+              break;
+            sub_spec = ast_sibling(sub_spec);
+          }
+
+          if(!spec_found)
+          {
+            if(errorf != NULL)
+            {
+              ast_error_frame(errorf, sub,
+                "no element of %s provides a required specialization for "
+                "method '%s' of %s",
+                ast_print_type(sub, opt->strtab),
+                ast_name(super_member_id),
+                ast_print_type(super, opt->strtab));
+            }
+            ret = false;
+          }
+
+          ast_free_unattached(r_super_spec);
+          super_spec = ast_sibling(super_spec);
+        }
+      }
+    }
+
+    super_member = ast_sibling(super_member);
+  }
+
+  if(!ret)
+  {
+    isect_iface_depth--;
+    return false;
+  }
+
+  // Check capability: the intersection's effective cap must be a subcap of
+  // the interface's cap. Pick the most specific cap found by pairwise
+  // comparison across nominal members.
+  if(check_cap != CHECK_CAP_IGNORE)
+  {
+    ast_t* super_cap = cap_fetch(super);
+    ast_t* super_eph = ast_sibling(super_cap);
+    token_id super_tcap = ast_id(super_cap);
+    token_id super_teph = ast_id(super_eph);
+
+    token_id isect_cap = TK_NONE;
+    token_id isect_eph = TK_NONE;
+    bool first = true;
+
+    for(ast_t* child = ast_child(sub);
+      child != NULL;
+      child = ast_sibling(child))
+    {
+      if(ast_id(child) != TK_NOMINAL)
+        continue;
+
+      ast_t* child_cap = cap_fetch(child);
+      ast_t* child_eph = ast_sibling(child_cap);
+      token_id tcap = ast_id(child_cap);
+      token_id teph = ast_id(child_eph);
+
+      if(first)
+      {
+        isect_cap = tcap;
+        isect_eph = teph;
+        first = false;
+      }
+      else if(is_cap_sub_cap(tcap, teph, isect_cap, isect_eph))
+      {
+        isect_cap = tcap;
+        isect_eph = teph;
+      }
+    }
+
+    if(first)
+    {
+      isect_iface_depth--;
+      return false;
+    }
+
+    bool cap_ok = false;
+    switch(check_cap)
+    {
+      case CHECK_CAP_SUB:
+        cap_ok = is_cap_sub_cap(isect_cap, isect_eph, super_tcap, super_teph);
+        break;
+
+      case CHECK_CAP_EQ:
+        cap_ok = is_cap_sub_cap_constraint(isect_cap, isect_eph, super_tcap,
+          super_teph);
+        break;
+
+      case CHECK_CAP_BOUND:
+        cap_ok = is_cap_sub_cap_bound(isect_cap, isect_eph, super_tcap,
+          super_teph);
+        break;
+
+      case CHECK_CAP_IGNORE:
+        cap_ok = true;
+        break;
+    }
+
+    if(!cap_ok)
+    {
+      if(errorf != NULL)
+      {
+        ast_error_frame(errorf, sub,
+          "%s is not a subtype of %s: the intersection's effective capability "
+          "is not a subcap of the interface's capability",
+          ast_print_type(sub, opt->strtab),
+          ast_print_type(super, opt->strtab));
+      }
+      isect_iface_depth--;
+      return false;
+    }
+  }
+
+  isect_iface_depth--;
+  return true;
+}
+
 static bool is_isect_sub_isect(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt)
 {
@@ -782,11 +1091,13 @@ static bool is_isect_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
       if(super_def == NULL)
         return false;
 
-      // TODO: can satisfy the interface in aggregate
       // (T1 & T2) <: I k
+      // Try the aggregate structural check first; fall through on failure
+      // to the per-member check, which also covers non-nominal members.
       if(ast_id(super_def) == TK_INTERFACE)
       {
-        // return is_isect_sub_interface(sub, super, errorf);
+        if(is_isect_sub_interface(sub, super, check_cap, NULL, opt))
+          return true;
       }
       break;
     }
