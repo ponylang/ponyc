@@ -410,12 +410,192 @@ TEST_F(SubTypeTest, IsSubTypeIntersectInterface)
   pass_opt_t opt;
   pass_opt_init(&opt);
 
-  // TODO: Fix this, intersect of non-independent and combinable types
   // (I1 & I2) <: I3
-  //ASSERT_TRUE(is_subtype(type_of("i1and2"), type_of("i3"), NULL, &opt));
+  ASSERT_TRUE(is_subtype(type_of("i1and2"), type_of("i3"), NULL, &opt));
 
   // I3 <: (I1 & I2)
   ASSERT_TRUE(is_subtype(type_of("i3"), type_of("i1and2"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeIntersectClassesInterface)
+{
+  const char* src =
+    "interface I\n"
+    "  fun foo(): U32\n"
+    "  fun bar(): U32\n"
+
+    "class HasFoo\n"
+    "  fun foo(): U32 => 1\n"
+
+    "class HasBar\n"
+    "  fun bar(): U32 => 2\n"
+
+    "interface Test\n"
+    "  fun z(i: I, foobar: (HasFoo & HasBar))";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  // (HasFoo & HasBar) <: I — aggregate methods cover the interface
+  ASSERT_TRUE(is_subtype(type_of("foobar"), type_of("i"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeIntersectPartialCoverage)
+{
+  const char* src =
+    "interface I\n"
+    "  fun foo(): U32\n"
+    "  fun bar(): U32\n"
+    "  fun baz(): U32\n"
+
+    "class HasFoo\n"
+    "  fun foo(): U32 => 1\n"
+
+    "class HasBar\n"
+    "  fun bar(): U32 => 2\n"
+
+    "interface Test\n"
+    "  fun z(i: I, foobar: (HasFoo & HasBar))";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  // (HasFoo & HasBar) is NOT <: I — baz() is missing
+  ASSERT_FALSE(is_subtype(type_of("foobar"), type_of("i"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeIntersectSingleMemberSatisfies)
+{
+  const char* src =
+    "interface I\n"
+    "  fun foo(): U32\n"
+
+    "class HasFoo\n"
+    "  fun foo(): U32 => 1\n"
+
+    "class HasBar\n"
+    "  fun bar(): U32 => 2\n"
+
+    "interface Test\n"
+    "  fun z(i: I, foobar: (HasFoo & HasBar))";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  // (HasFoo & HasBar) <: I — HasFoo alone covers I
+  ASSERT_TRUE(is_subtype(type_of("foobar"), type_of("i"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeIntersectCapMismatch)
+{
+  const char* src =
+    "interface I\n"
+    "  fun foo(): U32\n"
+    "  fun bar(): U32\n"
+
+    "class HasFoo\n"
+    "  fun foo(): U32 => 1\n"
+
+    "class HasBar\n"
+    "  fun bar(): U32 => 2\n"
+
+    "interface Test\n"
+    "  fun z(i: I, i_box: I box,\n"
+    "    foobar: (HasFoo & HasBar),\n"
+    "    foobar_tag: (HasFoo tag & HasBar tag))";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  // (HasFoo ref & HasBar ref) <: I box — ref <: box
+  ASSERT_TRUE(is_subtype(type_of("foobar"), type_of("i_box"), NULL, &opt));
+
+  // (HasFoo tag & HasBar tag) is NOT <: I ref — tag is not <: ref
+  ASSERT_FALSE(is_subtype(type_of("foobar_tag"), type_of("i"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeIntersectThreeMembers)
+{
+  const char* src =
+    "interface I\n"
+    "  fun foo(): U32\n"
+    "  fun bar(): U32\n"
+    "  fun baz(): U32\n"
+
+    "class HasFoo\n"
+    "  fun foo(): U32 => 1\n"
+
+    "class HasBar\n"
+    "  fun bar(): U32 => 2\n"
+
+    "class HasBaz\n"
+    "  fun baz(): U32 => 3\n"
+
+    "interface Test\n"
+    "  fun z(i: I, foobarbaz: (HasFoo & HasBar & HasBaz))";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  // (HasFoo & HasBar & HasBaz) <: I — three members collectively cover I
+  ASSERT_TRUE(is_subtype(type_of("foobarbaz"), type_of("i"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}
+
+
+TEST_F(SubTypeTest, IsSubTypeIntersectSignatureMismatch)
+{
+  const char* src =
+    "interface I\n"
+    "  fun foo(): U32\n"
+
+    "class WrongFoo\n"
+    "  fun foo(): U64 => 1\n"
+
+    "class RightFoo\n"
+    "  fun foo(): U32 => 1\n"
+
+    "interface Test\n"
+    "  fun z(i: I,\n"
+    "    wrong_only: (WrongFoo & RightFoo),\n"
+    "    wrong_no_right: (WrongFoo & WrongFoo))";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  // (WrongFoo & RightFoo) <: I — RightFoo has the compatible signature
+  ASSERT_TRUE(is_subtype(type_of("wrong_only"), type_of("i"), NULL, &opt));
+
+  // (WrongFoo & WrongFoo) is NOT <: I — no member has a compatible foo()
+  ASSERT_FALSE(is_subtype(type_of("wrong_no_right"), type_of("i"), NULL, &opt));
 
   pass_opt_init(&opt);
 }
