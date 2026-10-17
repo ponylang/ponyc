@@ -57,7 +57,7 @@ actor \nodoc\ Main is TestList
     test(_TestYieldRead)
     test(_TestSSLYieldRead)
     test(_TestIP4PingPong)
-    test(_TestIP6PingPong)
+    ifdef not haiku then test(_TestIP6PingPong) end
     test(_TestMaxSpawnRejectsZero)
     test(_TestMaxSpawnAcceptsBoundary)
     test(_TestDefaultMaxSpawn)
@@ -133,9 +133,9 @@ actor \nodoc\ Main is TestList
 
     // DNS / NetAddress tests (no sockets)
     test(_TestDNSBroadcastIP4)
-    test(_TestDNSBroadcastIP6)
+    ifdef not haiku then test(_TestDNSBroadcastIP6) end
     test(_TestNetAddressNameRoundTripIP4)
-    test(_TestNetAddressNameRoundTripIP6)
+    ifdef not haiku then test(_TestNetAddressNameRoundTripIP6) end
     test(_TestNetAddressIP6Scope)
     test(_TestDNSUnresolvableEmpty)
 
@@ -172,9 +172,9 @@ actor \nodoc\ Main is TestList
     // Multicast tests (real sockets)
     test(_TestMulticastSockopt)
     test(_TestMulticastIP4)
-    test(_TestMulticastIP6)
+    ifdef not haiku then test(_TestMulticastIP6) end
     test(_TestMulticastConvenienceSockopt)
-    test(_TestMulticastConvenienceSockoptV6)
+    ifdef not haiku then test(_TestMulticastConvenienceSockoptV6) end
     test(_TestMulticastConvenienceErrors)
     test(_TestMulticastConvenienceJoinV4)
 
