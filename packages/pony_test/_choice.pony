@@ -19,8 +19,8 @@ class val _IntChoice is (Equatable[_IntChoice] & Stringable)
     (value == other.value) and (min == other.min) and
       (max == other.max) and (shrink_towards == other.shrink_towards)
 
-  fun string(): String iso^ =>
-    recover
+  fun string(): String =>
+    recover val
       String()
         .> append("IntChoice(")
         .> append(value.string())
@@ -46,8 +46,8 @@ class val _FloatChoice is (Equatable[_FloatChoice] & Stringable)
   fun eq(other: box->_FloatChoice): Bool =>
     (value == other.value) and (min == other.min) and (max == other.max)
 
-  fun string(): String iso^ =>
-    recover
+  fun string(): String =>
+    recover val
       String()
         .> append("FloatChoice(")
         .> append(value.string())
@@ -79,8 +79,8 @@ class val _U128Choice is (Equatable[_U128Choice] & Stringable)
     (value == other.value) and (min == other.min) and
       (max == other.max) and (shrink_towards == other.shrink_towards)
 
-  fun string(): String iso^ =>
-    recover
+  fun string(): String =>
+    recover val
       String()
         .> append("U128Choice(")
         .> append(value.string())
@@ -104,9 +104,9 @@ class val _BoolChoice is (Equatable[_BoolChoice] & Stringable)
   fun eq(other: box->_BoolChoice): Bool =>
     (value == other.value) and (forced == other.forced)
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     let f = if forced then ", forced" else "" end
-    ("BoolChoice(" + value.string() + f + ")").string()
+    "BoolChoice(" + value.string() + f + ")"
 
 type _Choice is (_IntChoice | _FloatChoice | _BoolChoice | _U128Choice)
 

@@ -171,8 +171,8 @@ class val Client
     """
     this._supports_window_work_done_progress
 
-  fun string(): String iso^ =>
-    recover iso
+  fun string(): String =>
+    recover val
       let s = String.create()
         .> append(
           try
@@ -220,5 +220,5 @@ class val Client
       if this.supports_window_work_done_progress() then
         s.append("\tserver-initiated workDoneProgress\r\n")
       end
-      consume s
+      s
     end

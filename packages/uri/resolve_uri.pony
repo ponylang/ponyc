@@ -117,6 +117,6 @@ primitive BaseURINotAbsolute is Stringable
   RFC 3986 section 5.2.2 requires the base URI to be an absolute URI.
   A relative reference cannot serve as a resolution base.
   """
-  fun string(): String iso^ => "BaseURINotAbsolute".clone()
+  fun string(): String => "BaseURINotAbsolute"
 
 type ResolveURIError is BaseURINotAbsolute

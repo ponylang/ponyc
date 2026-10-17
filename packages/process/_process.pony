@@ -108,8 +108,8 @@ class val Exited is (Stringable & Equatable[ProcessExitStatus])
     """
     _exit_code
 
-  fun string(): String iso^ =>
-    recover iso
+  fun string(): String =>
+    recover val
       String(10)
         .> append("Exited(")
         .> append(_exit_code.string())
@@ -139,8 +139,8 @@ class val Signaled is (Stringable & Equatable[ProcessExitStatus])
     """
     _signal
 
-  fun string(): String iso^ =>
-    recover iso
+  fun string(): String =>
+    recover val
       String(12)
         .> append("Signaled(")
         .> append(_signal.string())

@@ -9,10 +9,10 @@ trait Message is Stringable
     Return the JSON representation of this message.
     """
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     let content: String val = this.json().print()
-    let size_str: String val = content.size().string()
-    recover iso
+    let size_str = content.size().string()
+    recover val
       String.create(
         content.size() + size_str.size() + 20)
         .> append("Content-Length: ")
@@ -22,7 +22,7 @@ trait Message is Stringable
     end
 
   fun into_bytes(): Array[U8] iso^ =>
-    string().iso_array()
+    string().clone().iso_array()
 
 primitive Err
   """

@@ -11,8 +11,8 @@ class val IRegexpParseError
     message = message'
     offset = offset'
 
-  fun string(): String iso^ =>
-    ("I-Regexp error at offset " + offset.string() + ": " + message).clone()
+  fun string(): String =>
+    "I-Regexp error at offset " + offset.string() + ": " + message
 
 class val IRegexp
   """

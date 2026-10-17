@@ -21,18 +21,16 @@ class box Command
     _options = options'
     _args = args'
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     """
     Returns a representational string for this command.
     """
-    let s: String iso = fullname().clone()
+    var s = fullname()
     for o in _options.values() do
-      s.append(" ")
-      s.append(o.deb_string())
+      s = s + " " + o.deb_string()
     end
     for a in _args.values() do
-      s.append(" ")
-      s.append(a.deb_string())
+      s = s + " " + a.deb_string()
     end
     s
 

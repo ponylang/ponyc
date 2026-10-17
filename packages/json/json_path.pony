@@ -100,10 +100,11 @@ class val JSONPathParseError is Stringable
     message = message'
     offset = offset'
 
-  fun string(): String iso^ =>
-    let s = recover iso String(64) end
-    s.append("JSONPath parse error at offset ")
-    s.append(offset.string())
-    s.append(": ")
-    s.append(message)
-    consume s
+  fun string(): String =>
+    recover val
+      String(64)
+        .> append("JSONPath parse error at offset ")
+        .> append(offset.string())
+        .> append(": ")
+        .> append(message)
+    end

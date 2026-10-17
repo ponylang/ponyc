@@ -73,8 +73,8 @@ class val PropertyParams is Stringable
     regression_db = regression_db'
     max_distinct_failures = max_distinct_failures'.max(1)
 
-  fun string(): String iso^ =>
-    recover
+  fun string(): String =>
+    recover val
       let s = String()
         .> append("Params(seed=")
         .> append(seed.string())

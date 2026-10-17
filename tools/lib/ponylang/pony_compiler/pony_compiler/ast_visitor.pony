@@ -19,18 +19,14 @@ primitive Continue is Equatable[VisitResult]
   """
   Keep traversing.
   """
-  fun string(): String iso^ =>
-    recover iso
-      String.create(8) .> append("Continue")
-    end
+  fun string(): String =>
+    "Continue"
 
 primitive Stop is Equatable[VisitResult]
   """
   Stop traversing.
   """
-  fun string(): String iso^ =>
-    recover iso
-      String.create(4) .> append("Stop")
-    end
+  fun string(): String =>
+    "Stop"
 
 type VisitResult is (Continue | Stop)

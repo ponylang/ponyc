@@ -41,10 +41,8 @@ class val Position is (Comparable[Position] & Hashable & Stringable)
   fun hash(): USize =>
     _line.hash() xor _column.hash() // TODO: better hashing support for Pony
 
-  fun string(): String iso^ =>
-    recover iso
-      String .> append(_line.string() + ":" + _column.string())
-    end
+  fun string(): String =>
+    _line.string() + ":" + _column.string()
 
   fun line(): USize => _line
   fun column(): USize => _column
@@ -70,10 +68,8 @@ class val FilePosition is (Equatable[FilePosition] & Hashable & Stringable)
   fun hash(): USize =>
     position.hash() xor file.hash()
 
-  fun string(): String iso^ =>
-    recover iso
-      String .> append(file + " " + position.string())
-    end
+  fun string(): String =>
+    file + " " + position.string()
 
   fun line(): USize => position.line()
   fun column(): USize => position.column()

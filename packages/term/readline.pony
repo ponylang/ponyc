@@ -308,7 +308,7 @@ class Readline is ANSINotify
         _out.print(completion)
       end
 
-      _edit = strings.CommonPrefix(r)
+      _edit = strings.CommonPrefix(r).clone()
       end_key()
     end
 

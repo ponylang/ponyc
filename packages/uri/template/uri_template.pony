@@ -50,8 +50,8 @@ class val URITemplate
     """
     _URITemplateExpander.expand(_parts, vars)
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     """
     Return the original template string.
     """
-    _template.clone()
+    _template

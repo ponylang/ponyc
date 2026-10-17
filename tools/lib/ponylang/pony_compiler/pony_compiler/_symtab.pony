@@ -65,23 +65,19 @@ struct SymStatus
 
   new ref create() => None
 
-  fun box string(): String iso^ =>
-    let label =
-      match status
-      | SymStati.none() => "NONE"
-      | SymStati.nocase() => "NO_CASE"
-      | SymStati.defined() => "DEFINED"
-      | SymStati.undefined() => "UNDEFINED"
-      | SymStati.consumed() => "CONSUMED"
-      | SymStati.consumed_same_expr() =>
-        "CONSUMED_SAME_EXPR"
-      | SymStati.ffidecl() => "FFIDECL"
-      | SymStati.err() => "ERROR"
-      else
-        "IMPOSSIBLE"
-      end
-    recover iso
-      String.create() .> append(label)
+  fun box string(): String =>
+    match status
+    | SymStati.none() => "NONE"
+    | SymStati.nocase() => "NO_CASE"
+    | SymStati.defined() => "DEFINED"
+    | SymStati.undefined() => "UNDEFINED"
+    | SymStati.consumed() => "CONSUMED"
+    | SymStati.consumed_same_expr() =>
+      "CONSUMED_SAME_EXPR"
+    | SymStati.ffidecl() => "FFIDECL"
+    | SymStati.err() => "ERROR"
+    else
+      "IMPOSSIBLE"
     end
 
 primitive SymStati

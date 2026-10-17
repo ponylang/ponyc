@@ -181,27 +181,29 @@ class val URI is (Stringable & Equatable[URI])
     query = query'
     fragment = fragment'
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     """
     Reconstruct the full URI string per RFC 3986 section 5.3.
     """
-    let out = recover iso String end
-    match scheme
-    | let s: String => out.append(s); out.push(':')
+    recover val
+      let out = String
+      match scheme
+      | let s: String => out.append(s); out.push(':')
+      end
+      match authority
+      | let a: URIAuthority =>
+        out.append("//")
+        out.append(a.string())
+      end
+      out.append(path)
+      match query
+      | let q: String => out.push('?'); out.append(q)
+      end
+      match fragment
+      | let f: String => out.push('#'); out.append(f)
+      end
+      out
     end
-    match authority
-    | let a: URIAuthority =>
-      out.append("//")
-      out.append(a.string())
-    end
-    out.append(path)
-    match query
-    | let q: String => out.push('?'); out.append(q)
-    end
-    match fragment
-    | let f: String => out.push('#'); out.append(f)
-    end
-    out
 
   fun query_params(): (FormURLEncoded val | None) =>
     """
