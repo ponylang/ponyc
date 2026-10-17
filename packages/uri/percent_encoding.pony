@@ -2,7 +2,7 @@ primitive InvalidPercentEncoding is Stringable
   """
   Percent-encoded sequence is truncated or contains non-hex digits.
   """
-  fun string(): String iso^ => "InvalidPercentEncoding".clone()
+  fun string(): String => "InvalidPercentEncoding"
 
 primitive URIPartUserinfo
   """

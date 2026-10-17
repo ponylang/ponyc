@@ -1687,7 +1687,7 @@ class \nodoc\ val _MapAction is Stringable
     seed = seed'
     value = value'
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     "op" + op.string() + "/k" + _MapGen.key(seed).string() +
       "=" + value.string()
 

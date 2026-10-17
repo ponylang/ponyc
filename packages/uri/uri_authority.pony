@@ -29,19 +29,21 @@ class val URIAuthority is (Stringable & Equatable[URIAuthority])
     host = host'
     port = port'
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     """
     Reconstruct the authority string in `[userinfo@]host[:port]` format.
     """
-    let out = recover iso String end
-    match userinfo
-    | let u: String => out.append(u); out.push('@')
+    recover val
+      let out = String
+      match userinfo
+      | let u: String => out.append(u); out.push('@')
+      end
+      out.append(host)
+      match port
+      | let p: U16 => out.push(':'); out.append(p.string())
+      end
+      out
     end
-    out.append(host)
-    match port
-    | let p: U16 => out.push(':'); out.append(p.string())
-    end
-    out
 
   fun eq(that: URIAuthority box): Bool =>
     """

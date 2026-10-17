@@ -436,7 +436,7 @@ trait val SignedInteger[A: SignedInteger[A, B] val,
 
   fun bytewidth(): USize
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     _ToString._u64(abs().u64(), i64() < 0)
 
 trait val UnsignedInteger[A: UnsignedInteger[A] val] is Integer[A]
@@ -510,7 +510,7 @@ trait val UnsignedInteger[A: UnsignedInteger[A] val] is Integer[A]
 
   fun bytewidth(): USize
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     _ToString._u64(u64(), false)
 
 trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
@@ -717,7 +717,7 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
 
   fun copysign(sign: A): A
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     _ToString._f64(f64())
 
 type Number is (Int | Float)

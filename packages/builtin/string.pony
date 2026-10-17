@@ -1666,7 +1666,7 @@ actor Main
   fun hash64(): U64 =>
     @ponyint_hash_block64(_ptr, _size)
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     clone()
 
   fun values(): StringBytes^ =>

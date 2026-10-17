@@ -51,8 +51,8 @@ class val Origin is (Equatable[Origin] & Stringable)
   fun eq(that: Origin box): Bool =>
     (secure == that.secure) and (host == that.host) and (port == that.port)
 
-  fun string(): String iso^ =>
-    recover
+  fun string(): String =>
+    recover val
       String
         .> append(if secure then "https" else "http" end)
         .> append("://")

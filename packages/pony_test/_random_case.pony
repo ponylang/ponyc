@@ -1746,13 +1746,13 @@ primitive \nodoc\ _TempDir
 
 // --- Stateful property tests ---
 primitive \nodoc\ _NoOp is Stringable
-  fun string(): String iso^ => "no-op".string()
+  fun string(): String => "no-op"
 
 primitive \nodoc\ _Inc is Stringable
-  fun string(): String iso^ => "inc".string()
+  fun string(): String => "inc"
 
 primitive \nodoc\ _Dec is Stringable
-  fun string(): String iso^ => "dec".string()
+  fun string(): String => "dec"
 
 type _CounterCmd is (_Inc | _Dec)
 

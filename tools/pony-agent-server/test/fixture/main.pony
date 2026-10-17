@@ -41,7 +41,7 @@ primitive Helpers
   fun do_recover(): String iso^ =>
     recover iso
       let x: USize = 42
-      x.string()
+      x.string().clone()
     end
 
 actor Worker
@@ -162,7 +162,7 @@ class ScopeFixture
     let outer_ref: String ref = "world".clone()
     recover iso
       let inner_local: USize = 42
-      inner_local.string()
+      inner_local.string().clone()
     end
 
 primitive UnionProducer
