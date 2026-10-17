@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.77.0] - 2026-10-17
 
 ### Fixed
 
@@ -10,9 +10,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix match without else in trait default method always taking the first arm ([PR #6297](https://github.com/ponylang/ponyc/pull/6297))
 - Fix subtype checking for intersections that collectively satisfy an interface ([PR #6304](https://github.com/ponylang/ponyc/pull/6304))
 - Detect locals and parameters that shadow inherited methods ([PR #6305](https://github.com/ponylang/ponyc/pull/6305))
-
-### Added
-
 
 ### Changed
 
