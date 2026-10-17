@@ -337,6 +337,17 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     }
   }
 
+  if(ast_has_annotation(m->fun->ast, "noalloc", c->opt->strtab))
+  {
+    LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
+    LLVMValueRef target = c_m->func;
+
+    if(c_m->func_handler != NULL)
+      target = c_m->func_handler;
+
+    LLVMSetMetadataStr(target, "pony.noalloc", md);
+  }
+
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   if(n->name == c->str__final)
