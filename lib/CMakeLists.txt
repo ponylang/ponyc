@@ -251,21 +251,20 @@ set(LLVM_ENABLE_Z3_SOLVER OFF CACHE BOOL "ponyc specific override of LLVM cache 
 set(LLVM_INCLUDE_BENCHMARKS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_INCLUDE_TESTS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_TOOL_REMARKS_SHLIB_BUILD OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
-# Extension.def registers PonyLTO in libLLVMLTO.a and (via clang's
-# BackendUtil.cpp) in libclangCodeGen.a.  Static archives carry unresolved
-# symbols without error, but any shared library or executable that bundles
-# them fails to link because getPonyLTOPluginInfo is provided by libponylto,
-# which is linked only into the final ponyc binary.  Disable every shared
-# library and standalone tool that would otherwise fail.
-set(LLVM_TOOL_LTO_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo")
-set(LLVM_TOOL_LLVM_LTO_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo")
-set(LLVM_TOOL_LLVM_LTO2_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo")
-set(LLVM_TOOL_BUGPOINT_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo")
-set(LLVM_TOOL_GOLD_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo")
-set(LLVM_TOOL_OPT_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo")
-set(LLD_BUILD_TOOLS OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo — lld libraries still build")
-set(CLANG_TOOL_CLANG_SHLIB_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo — clang static libs still build")
-set(CLANG_TOOL_CLANG_IMPORT_TEST_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo — links clangCodeGen")
+# A no-op PonyLTO stub (lib/ponylto_stub.cc) is registered as an LLVM static
+# extension so that any tool linking LLVMExtensions can resolve
+# getPonyLTOPluginInfo.  That makes lld linkable, so LLD_BUILD_TOOLS is ON.
+# The remaining tools stay off — ponyc doesn't need them, and skipping them
+# saves build time.
+set(LLVM_TOOL_LTO_BUILD OFF CACHE BOOL "ponyc: not needed")
+set(LLVM_TOOL_LLVM_LTO_BUILD OFF CACHE BOOL "ponyc: not needed")
+set(LLVM_TOOL_LLVM_LTO2_BUILD OFF CACHE BOOL "ponyc: not needed")
+set(LLVM_TOOL_BUGPOINT_BUILD OFF CACHE BOOL "ponyc: not needed")
+set(LLVM_TOOL_GOLD_BUILD OFF CACHE BOOL "ponyc: not needed")
+set(LLVM_TOOL_OPT_BUILD OFF CACHE BOOL "ponyc: not needed")
+set(CLANG_TOOL_CLANG_SHLIB_BUILD OFF CACHE BOOL "ponyc: not needed")
+set(CLANG_TOOL_CLANG_IMPORT_TEST_BUILD OFF CACHE BOOL "ponyc: not needed")
+set(LLD_BUILD_TOOLS ON CACHE BOOL "ponyc: build the lld driver binary (stub resolves getPonyLTOPluginInfo)" FORCE)
 if(NOT MSVC)
   set(LLVM_ENABLE_ZLIB FORCE_ON CACHE STRING "ponyc specific override of LLVM cache entry")
 else()
@@ -302,15 +301,19 @@ set(CLANG_ENABLE_STATIC_ANALYZER OFF CACHE BOOL "ponyc specific override of clan
 # clang-fuzzer subtree on every platform.
 set(CLANG_TOOL_CLANG_FUZZER_BUILD OFF CACHE BOOL "ponyc: skip the unused clang-fuzzer subtree")
 
-add_subdirectory(llvm/src/llvm)
+# PonyLTO stub — see ponylto_stub.cc.  Define the target before
+# add_subdirectory so process_llvm_pass_plugins (called at the end of
+# the LLVM build) can set link properties on it.
+add_library(PonyLTO STATIC ponylto_stub.cc)
+set_target_properties(PonyLTO PROPERTIES CXX_STANDARD 17)
+target_include_directories(PonyLTO PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/llvm/src/llvm/include
+    ${CMAKE_BINARY_DIR}/llvm/src/llvm/include
+)
+set_property(GLOBAL APPEND PROPERTY LLVM_STATIC_EXTENSIONS PonyLTO)
+set_property(GLOBAL APPEND PROPERTY LLVM_EXPORTS PonyLTO)
+install(TARGETS PonyLTO
+    EXPORT LLVMExports
+    ARCHIVE DESTINATION lib COMPONENT PonyLTO)
 
-# Register the PonyLTO pass plugin via LLVM's Extension.def mechanism.
-# process_llvm_pass_plugins(GEN_CONFIG) above wrote an empty Extension.def
-# (no static extensions registered). Overwrite it with a HANDLE_EXTENSION
-# entry for PonyLTO so that LTOBackend.cpp's existing #include of
-# Extension.def generates the getPonyLTOPluginInfo() declaration and call.
-# This runs at configure time, before any compilation, so LTOBackend.cpp
-# sees the updated file when it builds.
-set(_ext_def "${CMAKE_BINARY_DIR}/llvm/src/llvm/include/llvm/Support/Extension.def")
-file(WRITE "${_ext_def}"
-  "//extension handlers\nHANDLE_EXTENSION(PonyLTO)\n#undef HANDLE_EXTENSION\n")
+add_subdirectory(llvm/src/llvm)
