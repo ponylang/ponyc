@@ -1,7 +1,7 @@
 use "files"
 use "collections"
 
-class val Locator is (Hashable & Stringable)
+class val Locator is (Hashable & Stringable & Equatable[Locator val])
   """
   Encapsulation of the bundle dependency's locator
   string, parsed into distinct fields.
@@ -81,6 +81,11 @@ class val Locator is (Hashable & Stringable)
 
   fun is_local_direct(): Bool =>
     not is_vcs() and is_local()
+
+  fun eq(other: Locator val): Bool =>
+    this.repo_path.eq(other.repo_path) and
+      this.vcs_suffix.eq(other.vcs_suffix) and
+      this.bundle_path.eq(other.bundle_path)
 
 primitive _Flattened
   fun apply(path: String): String val =>

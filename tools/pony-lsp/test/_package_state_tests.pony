@@ -101,11 +101,21 @@ actor FakeChannel is Channel
   """
   Fake communication channel for testing.
   """
+
+  let _out: (OutStream | None)
+  new create() =>
+    _out = None
+
+  new with_stdout(stdout: OutStream) =>
+    _out = stdout
   be send(msg: Message val) =>
     None
 
   be log(data: String val, message_type: MessageType = Debug) =>
-    None
+    match _out
+    | let o: OutStream =>
+      o.print("[" + message_type.string() + "] " + data)
+    end
 
   be set_notifier(notifier: Notifier tag) =>
     None

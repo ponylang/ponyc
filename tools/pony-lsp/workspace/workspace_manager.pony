@@ -37,7 +37,7 @@ actor WorkspaceManager
     """
 
   new create(
-    workspace_folders: Array[String val] val,
+    workspace_folders: WorkspaceFolders,
     file_auth': FileAuth,
     channel': Channel,
     request_sender': RequestSender,
@@ -45,7 +45,7 @@ actor WorkspaceManager
     compiler': LspCompiler)
   =>
     _file_auth = file_auth'
-    _folders = WorkspaceFolders(_file_auth, workspace_folders)
+    _folders = workspace_folders
     _client = client'
     _channel = channel'
     _request_sender = request_sender'
@@ -312,11 +312,7 @@ actor WorkspaceManager
     Does all the notifying and bookkeeping before
     actually triggering the compilation.
     """
-    this._channel.log(
-      "Compiling module " +
-      module.data.folder.path +
-      " with dependencies: " +
-      ", ".join(module.data.dependencies.values()))
+    this._channel.log("Compiling module " + module.data.string())
 
     let token = this._compilation_token(module.data.folder)
     if this._client.supports_window_work_done_progress()

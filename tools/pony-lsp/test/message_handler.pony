@@ -38,8 +38,13 @@ actor TestCompiler is LspCompiler
     end
 
   be compile(
+<<<<<<< HEAD
     module: FilePath,
     paths: Array[String val] val,
+=======
+    package: FilePath,
+    paths: Array[FilePath val] val,
+>>>>>>> 9232df4ab (Add workspace scanner test and fix transitive dependency discovery)
     notify: CompilerNotify tag)
   =>
     """

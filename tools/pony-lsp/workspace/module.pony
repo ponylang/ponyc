@@ -3,7 +3,7 @@ use "files"
 use "itertools"
 use "json"
 
-class val ModuleData
+class val ModuleData is Comparable[ModuleData]
   """
   Data obtained for a module during workspace scanning or ad-hoc when
   discovering new modules.
@@ -16,36 +16,17 @@ class val ModuleData
   """
   let name: String
   let folder: FilePath
-  // dependencies, either full paths or repo names
-  let dependencies: Array[String] val
-  // absolute paths (derived from folder and dependencies)
-  let dependency_paths: Array[String] val
+  // dependencies, full paths
+  let dependencies: Array[FilePath] val
 
   new val create(
     name': String,
     folder': FilePath,
-    dependencies': Set[String] val = recover val Set[String].create() end)
+    dependencies': Array[FilePath] val = recover val Array[FilePath].create() end)
   =>
     name = name'
     folder = folder'
-    dependencies =
-      recover val
-        Iter[String](dependencies'.values())
-          .collect(Array[String].create(dependencies'.size()))
-      end
-    dependency_paths =
-      recover val
-        Iter[String](dependencies.values())
-          .map[String](
-            {(dep): String? =>
-              if dep.contains(Path.sep()) then
-                dep
-              else
-                folder.join("_corral")?.join(dep)?.path
-              end
-            })
-          .collect(Array[String].create(dependencies.size()))
-      end
+    dependencies = dependencies'
 
   fun debug(): String =>
     """
@@ -53,13 +34,23 @@ class val ModuleData
     """
     var dp_arr = JSONArray
     for dp in dependencies.values() do
-      dp_arr = dp_arr.push(dp)
+      dp_arr = dp_arr.push(dp.path)
     end
     JSONObject
       .update("name", name)
       .update("folder", folder.path)
       .update("dependencies", dp_arr)
       .print()
+
+
+  fun string(): String iso^ =>
+    debug().clone()
+
+  fun eq(that: ModuleData val): Bool =>
+    this.name.eq(that.name) and this.folder.path.eq(that.folder.path)
+  fun lt(that: ModuleData val): Bool =>
+    this.name.lt(that.name)
+
 
 primitive ModuleDataBuilder
   """

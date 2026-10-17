@@ -429,8 +429,11 @@ actor LanguageServer is (Notifier & RequestSender)
           end
         end
       end
-      let workspace_folders: Array[String val] val =
-        consume workspace_folders_builder
+      let workspace_folders =
+        WorkspaceFolders.create(
+          this._file_auth,
+          consume workspace_folders_builder
+        )
       this._mgr =
         WorkspaceManager.create(
           workspace_folders,
@@ -441,11 +444,10 @@ actor LanguageServer is (Notifier & RequestSender)
           this._compiler
         )
       let scanner = WorkspaceScanner.create(this._channel)
-      for workspace_folder in workspace_folders.values() do
-        let workspace_name = try workspace_names(workspace_folder)? end
+      for workspace_folder in workspace_folders.folders.values() do
+        let workspace_name = try workspace_names(workspace_folder.path)? end
         let workspace_modules =
           scanner.scan(
-            this._file_auth,
             workspace_folder,
             workspace_name
           )
