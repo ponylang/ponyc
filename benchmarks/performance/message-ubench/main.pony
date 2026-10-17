@@ -91,7 +91,7 @@ actor Coordinator
     _bench_start = now
 
     let pingers: Array[Pinger] iso = recover Array[Pinger](num_pingers) end
-    for i in Range(0, num_pingers) do
+    for i in Range.till(0, num_pingers) do
       pingers.push(Pinger(i.u32()))
     end
     let pingers': Array[Pinger] val = consume pingers
@@ -105,7 +105,7 @@ actor Coordinator
     for p in _pingers.values() do
       p.go()
     end
-    for _ in Range(0, _initial_pings) do
+    for _ in Range.till(0, _initial_pings) do
       for p in _pingers.values() do
         p.ping(42)
       end

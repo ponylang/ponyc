@@ -156,7 +156,7 @@ class \nodoc\ iso _TestListLong is UnitTest
   fun apply(h: TestHelper) ? =>
     let n: USize = 200_000
     let source = Array[USize](n)
-    for i in mut.Range(0, n) do source.push(i) end
+    for i in _Range.till(0, n) do source.push(i) end
 
     // `Lists.apply` reverses, so building the list exercises `reverse`
     let l = Lists[USize](source)
@@ -348,7 +348,7 @@ class \nodoc\ iso _TestMap is UnitTest
     h.assert_error({() ? => m12("b")? })
 
     var map = Map[USize, None]
-    for n in mut.Range(0, 100) do
+    for n in _Range.till(0, 100) do
       try
         map(USize.max_value())?
         h.fail("expected error for nonexistent key")
@@ -433,13 +433,13 @@ class \nodoc\ iso _TestVec is UnitTest
     let n: USize = 33_000 // resize up to 4 levels in depth
 
     // push
-    for i in mut.Range(0, n) do
+    for i in _Range.till(0, n) do
       v = v.push(i)
       h.assert_eq[USize](v(i)?, i)
     end
 
     // update
-    for i in mut.Range(0, n) do
+    for i in _Range.till(0, n) do
       v = v.update(i, -i)?
       h.assert_eq[USize](v(i)?, -i)
     end
@@ -452,15 +452,15 @@ class \nodoc\ iso _TestVec is UnitTest
     h.assert_eq[USize](v.size(), idx)
 
     // pop
-    for i in mut.Range(0, n) do
+    for i in _Range.till(0, n) do
       v = v.pop()?
       h.assert_error({() ? => v(n - i)? })
       h.assert_eq[USize](v.size(), n - i - 1)
     end
 
     // concat
-    v = Vec[USize].concat(mut.Range(0, n))
-    for i in mut.Range(0, n) do
+    v = Vec[USize].concat(_Range.till(0, n))
+    for i in _Range.till(0, n) do
       h.assert_eq[USize](v(i)?, i)
     end
 
@@ -500,7 +500,7 @@ class \nodoc\ iso _TestVecIterators is UnitTest
   fun apply(h: TestHelper) ? =>
     let n: USize = 33_000 // resize up to 4 levels in depth
     var vec = Vec[USize]
-    for i in mut.Range(0, n) do vec = vec.push(i) end
+    for i in _Range.till(0, n) do vec = vec.push(i) end
     var c = vec.size()
     for (i, v) in vec.pairs() do
       c = c - 1
@@ -515,10 +515,10 @@ class \nodoc\ iso _TestVecFind is UnitTest
     // 1_100 elements fill 34 leaf nodes and leave 12 in the tail, so the
     // search crosses the boundary between the root trie and the tail.
     let n: USize = 1_100
-    let v = Vec[USize].concat(mut.Range(0, n))
+    let v = Vec[USize].concat(_Range.till(0, n))
 
     // each value is found at its own index
-    for i in mut.Range(0, n) do
+    for i in _Range.till(0, n) do
       h.assert_eq[USize](v.find(i)?, i)
     end
 
@@ -535,8 +535,8 @@ class \nodoc\ iso _TestVecFind is UnitTest
     // nth counts appearances from offset, starting at zero
     let period: USize = 4
     var repeats = Vec[USize]
-    for i in mut.Range(0, n) do repeats = repeats.push(i % period) end
-    for k in mut.Range(0, n / period) do
+    for i in _Range.till(0, n) do repeats = repeats.push(i % period) end
+    for k in _Range.till(0, n / period) do
       h.assert_eq[USize](repeats.find(1, 0, k)?, 1 + (k * period))
     end
     h.assert_error({() ? => repeats.find(1, 0, n / period)? })
@@ -554,9 +554,9 @@ class \nodoc\ iso _TestVecContains is UnitTest
     // 1_100 elements fill 34 leaf nodes and leave 12 in the tail, so the
     // search crosses the boundary between the root trie and the tail.
     let n: USize = 1_100
-    let v = Vec[USize].concat(mut.Range(0, n))
+    let v = Vec[USize].concat(_Range.till(0, n))
 
-    for i in mut.Range(0, n) do
+    for i in _Range.till(0, n) do
       h.assert_true(v.contains(i))
     end
     h.assert_false(v.contains(n))
@@ -575,26 +575,26 @@ class \nodoc\ iso _TestVecSlice is UnitTest
     // begins at index 1_088.
     let n: USize = 1_100
     let tail_offset = (n / 32) * 32
-    let v = Vec[USize].concat(mut.Range(0, n))
+    let v = Vec[USize].concat(_Range.till(0, n))
 
     // the default range copies the whole vector
     let all = v.slice()
     h.assert_eq[USize](all.size(), n)
-    for i in mut.Range(0, n) do
+    for i in _Range.till(0, n) do
       h.assert_eq[USize](all(i)?, i)
     end
 
     // an interior range begins at from and stops before to
     let mid = v.slice(10, 20)
     h.assert_eq[USize](mid.size(), 10)
-    for i in mut.Range(0, 10) do
+    for i in _Range.till(0, 10) do
       h.assert_eq[USize](mid(i)?, 10 + i)
     end
 
     // a range spanning the root/tail boundary
     let edge = v.slice(tail_offset - 2, tail_offset + 2)
     h.assert_eq[USize](edge.size(), 4)
-    for i in mut.Range(0, 4) do
+    for i in _Range.till(0, 4) do
       h.assert_eq[USize](edge(i)?, (tail_offset - 2) + i)
     end
 
@@ -654,7 +654,7 @@ class \nodoc\ iso _TestVecRemoveOverrun is UnitTest
 
   fun _check(h: TestHelper, size: USize, i: USize, n: USize) ? =>
     let elements = Array[USize](size)
-    for x in mut.Range(0, size) do elements.push(x) end
+    for x in _Range.till(0, size) do elements.push(x) end
 
     let expected = Array[USize](size) .> append(elements)
     expected.remove(i, n)
@@ -674,23 +674,23 @@ class \nodoc\ iso _TestVecReverse is UnitTest
     // 1_100 elements fill 34 leaf nodes and leave 12 in the tail, so the
     // reversed vector is read from both the root trie and the tail.
     let n: USize = 1_100
-    let v = Vec[USize].concat(mut.Range(0, n))
+    let v = Vec[USize].concat(_Range.till(0, n))
 
     let r = v.reverse()
     h.assert_eq[USize](r.size(), n)
-    for i in mut.Range(0, n) do
+    for i in _Range.till(0, n) do
       h.assert_eq[USize](r(i)?, (n - 1) - i)
     end
 
     // reversing twice restores the original order
     let rr = r.reverse()
     h.assert_eq[USize](rr.size(), n)
-    for i in mut.Range(0, n) do
+    for i in _Range.till(0, n) do
       h.assert_eq[USize](rr(i)?, i)
     end
 
     // the vector reversed from is left alone
-    for i in mut.Range(0, n) do
+    for i in _Range.till(0, n) do
       h.assert_eq[USize](v(i)?, i)
     end
 
@@ -798,8 +798,10 @@ class \nodoc\ iso _ListModelProperty is Property[(USize, Array[_ListAction])]
           // exercises nothing
           let config = bits or 1
           let ops = Array[U8]
-          for op in mut.Range[U8](0, 8) do
-            if (config and (USize(1) << op.usize())) != 0 then ops.push(op) end
+          for op in _Range[U8].till(0, 8) do
+            if (config and (USize(1) << op.usize())) != 0 then
+              ops.push(op)
+            end
           end
           Generators.seq_of[_ListAction, Array[_ListAction]](
             Generators.zip3[U8, USize, USize](
@@ -1062,8 +1064,10 @@ primitive \nodoc\ _VecGen
           // exercises nothing
           let config = bits or 1
           let ops = Array[U8]
-          for op in mut.Range[U8](0, 7) do
-            if (config and (USize(1) << op.usize())) != 0 then ops.push(op) end
+          for op in _Range[U8].till(0, 7) do
+            if (config and (USize(1) << op.usize())) != 0 then
+              ops.push(op)
+            end
           end
           Generators.seq_of[_VecAction, Array[_VecAction]](
             Generators.zip3[U8, USize, USize](
@@ -1092,7 +1096,7 @@ primitive \nodoc\ _VecCheck
     """
     let out = Array[USize](v.size())
     try
-      for i in mut.Range(0, v.size()) do out.push(v(i)?) end
+      for i in _Range.till(0, v.size()) do out.push(v(i)?) end
     end
     out
 
@@ -1158,7 +1162,7 @@ class \nodoc\ iso _VecModelProperty is Property[(USize, Array[_VecAction])]
         // 1_056 elements, where the root gains its second level
         let count = b % 300
         let added = Array[USize](count)
-        for j in mut.Range(0, count) do added.push(a + j) end
+        for j in _Range.till(0, count) do added.push(a + j) end
         v = v.concat(added.values())
         model.append(added)
       end
@@ -1186,7 +1190,7 @@ class \nodoc\ iso _VecLawsProperty is Property[(Array[USize], USize, USize)]
 
     // reverse maps index i to n - 1 - i
     let backwards = Array[USize](n)
-    for i in mut.Range(0, n) do backwards.push(elements((n - 1) - i)?) end
+    for i in _Range.till(0, n) do backwards.push(elements((n - 1) - i)?) end
     h.assert_array_eq[USize](
       backwards, _VecCheck.contents(v.reverse()), "reverse")
 
@@ -1228,7 +1232,7 @@ class \nodoc\ iso _VecIteratorsProperty is Property[Array[USize]]
     let v = _VecGen.build(arg1)
 
     let indices = Array[USize](n)
-    for i in mut.Range(0, n) do indices.push(i) end
+    for i in _Range.till(0, n) do indices.push(i) end
 
     let seen_values = Array[USize](n)
     for x in v.values() do seen_values.push(x) end
@@ -1284,7 +1288,7 @@ class \nodoc\ iso _VecFindContainsProperty is Property[(Array[USize], USize)]
 
     // nth selects the nth appearance
     var found = Array[USize](hits.size())
-    for k in mut.Range(0, hits.size()) do
+    for k in _Range.till(0, hits.size()) do
       found.push(try v.find(probe, 0, k)? else USize.max_value() end)
     end
     h.assert_array_eq[USize](hits, found, "find nth")
@@ -1429,7 +1433,7 @@ primitive \nodoc\ _VecShape
     code and the check and cancel out.
     """
     var cap: USize = 32
-    for _ in mut.Range(0, depth) do cap = cap * 32 end
+    for _ in _Range.till(0, depth) do cap = cap * 32 end
     cap
 
 class \nodoc\ iso _VecStructureProperty is Property[(USize, Array[_VecAction])]
@@ -1495,7 +1499,7 @@ class \nodoc\ iso _VecStructureProperty is Property[(USize, Array[_VecAction])]
         // batches large enough that a sequence of them carries the vector
         // past 1_056 elements, where the root gains its second level
         let count = b % 300
-        for j in mut.Range(0, count) do v = v.push(a + j) end
+        for j in _Range.till(0, count) do v = v.push(a + j) end
         size = size + count
       end
 
@@ -1550,7 +1554,7 @@ class \nodoc\ iso _TestMapRemoveAbsentKey is UnitTest
   fun name(): String => "collections/persistent/Map (remove absent key)"
 
   fun apply(h: TestHelper) ? =>
-    for d in mut.Range[USize](0, 6) do
+    for d in _Range[USize].till(0, 6) do
       let at: String val = " at depth " + d.string()
 
       // two keys sharing every level above `d` and differing at `d`, so the
@@ -1634,7 +1638,7 @@ class \nodoc\ iso _TestMapRemoveAbsentKey is UnitTest
     with different `last` values split exactly at `depth`.
     """
     let levels = Array[U32](depth + 1)
-    for _ in mut.Range[USize](0, depth) do levels.push(1) end
+    for _ in _Range[USize].till(0, depth) do levels.push(1) end
     levels.push(last)
     levels
 
@@ -1770,8 +1774,10 @@ class \nodoc\ iso _MapModelProperty is Property[(USize, Array[_MapAction])]
           // exercises nothing
           let config = bits or 1
           let ops = Array[U8]
-          for op in mut.Range[U8](0, 8) do
-            if (config and (USize(1) << op.usize())) != 0 then ops.push(op) end
+          for op in _Range[U8].till(0, 8) do
+            if (config and (USize(1) << op.usize())) != 0 then
+              ops.push(op)
+            end
           end
           Generators.seq_of[_MapAction, Array[_MapAction]](
             _MapGen.actions(Generators.one_of[U8](ops)), 1, 60)
@@ -1845,7 +1851,7 @@ class \nodoc\ iso _MapModelProperty is Property[(USize, Array[_MapAction])]
         end
       | 6 =>
         let batch = Array[(U64, U64)]
-        for j in mut.Range[U64](0, 1 + (v % 8)) do
+        for j in _Range[U64].till(0, 1 + (v % 8)) do
           let k' = _MapGen.key(action.seed + j)
           batch.push((k', v + j))
           model(k') = v + j
@@ -1975,7 +1981,7 @@ class \nodoc\ iso _TestMapDefaultHash is UnitTest
     var p = Map[String, U64]
     let model = mut.Map[String, U64]
 
-    for i in mut.Range(0, count) do
+    for i in _Range.till(0, count) do
       let k: String val = "key" + i.string()
       let v = (i * 7919).u64()
       p = p(k) = v
@@ -2003,7 +2009,7 @@ class \nodoc\ iso _TestMapDefaultHash is UnitTest
 
     // whatever the default hash does with these, none of them is in the map,
     // so none of them may change it
-    for i in mut.Range(0, count) do
+    for i in _Range.till(0, count) do
       let absent: String val = "absent" + i.string()
       let before = p
       h.assert_error({() ? => before.remove(absent)? }, "absent " + i.string())
@@ -2074,7 +2080,7 @@ primitive \nodoc\ _MapShape
     end
 
     var found: USize = 0
-    for idx in mut.Range[U32](0, 32) do
+    for idx in _Range[U32].till(0, 32) do
       let c_idx = node.compressed_idx(idx)
       if c_idx != -1 then
         // the bits a key in this slot has from the root down to here

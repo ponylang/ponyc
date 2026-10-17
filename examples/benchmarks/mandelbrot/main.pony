@@ -26,7 +26,7 @@ actor Main
       var r = recover Array[F32](length) end
       var i = recover Array[F32](length) end
 
-      for j in Range(0, c.width) do
+      for j in Range.till(0, c.width) do
         r.push((recip_width * j.f32()) - 1.5)
         i.push((recip_width * j.f32()) - 1.0)
       end
@@ -71,7 +71,7 @@ actor Main
     var x: USize = 0
     var y: USize = 0
 
-    for i in Range(0, actors - 1) do
+    for i in Range.till(0, actors - 1) do
       x = i * c.chunks
       y = x + c.chunks
       Worker.mandelbrot(

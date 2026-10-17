@@ -61,7 +61,7 @@ class val _MapCollisions[
 
   fun ref update_mut(hash: U32, entry: _MapEntry[K, V, H]): Bool ? =>
     let idx = _Bits.mask32(hash, _Bits.collision_depth())
-    for i in mut.Range(0, bins(idx.usize_unsafe())?.size()) do
+    for i in _Range.till(0, bins(idx.usize_unsafe())?.size()) do
       let e = bins(idx.usize_unsafe())?(i)?
       if H.eq(entry.key, e.key) then
         bins(idx.usize_unsafe())?(i)? = entry

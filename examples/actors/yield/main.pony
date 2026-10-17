@@ -54,7 +54,7 @@ actor LonelyPony
     """
     Run a simple loop and time it for benchmarking.
     """
-    var r = Range[U64](0,_n)
+    var r = Range[U64].till(0, _n)
     _sw.start()
     for i in r do
       if _debug then

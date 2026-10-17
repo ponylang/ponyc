@@ -475,7 +475,7 @@ class List[A] is ResizableSeq[A]
     ```
     """
     try
-      for i in Range(0, offset) do
+      for i in Range.till(0, offset) do
         if iter.has_next() then
           iter.next()?
         else
@@ -483,7 +483,7 @@ class List[A] is ResizableSeq[A]
         end
       end
 
-      for i in Range(0, len) do
+      for i in Range.till(0, len) do
         if iter.has_next() then
           push(iter.next()?)
         else
@@ -795,7 +795,7 @@ class List[A] is ResizableSeq[A]
       try
         var node = index(n)?
 
-        for i in Range(n, size()) do
+        for i in Range.till(n, size()) do
           l.push(node()?)
           node = node.next() as this->ListNode[A]
         end
@@ -818,7 +818,7 @@ class List[A] is ResizableSeq[A]
       try
         var node = head()?
 
-        for i in Range(0, n.min(size())) do
+        for i in Range.till(0, n.min(size())) do
           l.push(node()?)
           node = node.next() as this->ListNode[A]
         end
@@ -845,7 +845,7 @@ class List[A] is ResizableSeq[A]
       try
         var node = head()?
 
-        for i in Range(0, size()) do
+        for i in Range.till(0, size()) do
           let item = node()?
           if f(item) then l.push(item) else return l end
           node = node.next() as this->ListNode[A]

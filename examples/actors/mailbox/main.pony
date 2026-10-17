@@ -6,7 +6,7 @@ actor Mailer
   """
 
   be ping(receiver: Main, pass: U32) =>
-    for i in Range[U32](0, pass) do
+    for i in Range[U32].till(0, pass) do
       receiver.pong()
     end
 
@@ -30,7 +30,7 @@ actor Main
     _pongs = _pongs + 1
 
   fun ref start_messaging() =>
-    for i in Range[U32](0, _size) do
+    for i in Range[U32].till(0, _size) do
       Mailer.ping(this, _pass)
     end
 

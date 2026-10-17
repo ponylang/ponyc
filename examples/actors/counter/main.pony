@@ -25,7 +25,7 @@ actor Main
     var count: U32 = try env.args(1)?.u32()? else 10 end
     var counter = Counter
 
-    for i in Range[U32](0, count) do
+    for i in Range[U32].till(0, count) do
       counter.increment()
     end
 

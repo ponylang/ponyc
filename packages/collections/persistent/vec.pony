@@ -73,7 +73,7 @@ class val Vec[A: Any #share]
     if i >= _size then error end
     var vec = this
     var prev = value
-    for idx in mut.Range(i, _size) do
+    for idx in _Range.till(i, _size) do
       vec = vec.update(idx, prev = this(idx)?)?
     end
     vec.push(this(_size - 1)?)
@@ -86,7 +86,7 @@ class val Vec[A: Any #share]
     """
     if i >= _size then error end
     var vec = pop()?
-    for idx in mut.Range(i + 1, _size) do
+    for idx in _Range.till(i + 1, _size) do
       vec = vec.update(idx - 1, this(idx)?)?
     end
     vec
@@ -100,8 +100,8 @@ class val Vec[A: Any #share]
     if i >= _size then error end
     let count = n.min(_size - i)
     var vec = this
-    for _ in mut.Range(0, count) do vec = vec.pop()? end
-    for idx in mut.Range(i, _size - count) do
+    for _ in _Range.till(0, count) do vec = vec.pop()? end
+    for idx in _Range.till(i, _size - count) do
       vec = vec.update(idx, this(idx + count)?)?
     end
     vec
@@ -184,7 +184,7 @@ class val Vec[A: Any #share]
     for comparison.
     """
     var n: USize = 0
-    for i in mut.Range(offset, _size) do
+    for i in _Range.till(offset, _size) do
       if predicate(this(i)?, value) then
         if n == nth then return i end
         n = n + 1
@@ -210,10 +210,13 @@ class val Vec[A: Any #share]
     Return a vector that is a clone of a portion of this vector. The range is
     exclusive and saturated.
     """
+    let to' = _size.min(to)
     var vec = Vec[A]
-    try
-      for i in mut.Range(from, _size.min(to), step) do
-        vec = vec.push(this(i)?)
+    if from < to' then
+      try
+        for i in _Range.till(from, to', step) do
+          vec = vec.push(this(i)?)
+        end
       end
     end
     vec
@@ -224,9 +227,7 @@ class val Vec[A: Any #share]
     """
     var vec = Vec[A]
     try
-      // counting up and subtracting avoids the underflow that
-      // `Reverse(_size - 1, 0)` produces on an empty vector
-      for i in mut.Range(0, _size) do
+      for i in _Range.till(0, _size) do
         vec = vec.push(this((_size - 1) - i)?)
       end
     end

@@ -1,137 +1,134 @@
 class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
   """
-  Produces `[min, max)` with a step of `inc` for any `Number` type.
+  A bounded numeric sequence with a given step size. Two named constructors
+  control whether the far bound is included:
+
+  * `Range.till` — excludes the far bound
+  * `Range.through` — includes the far bound
+
+  Direction is inferred: when `from < to` the range ascends, when `from > to`
+  it descends. Step is always a positive magnitude.
+
+  A zero or negative step, or a non-finite float argument (NaN or infinity),
+  produces an empty range.
 
   ```pony
-  // iterating with for-loop
-  for i in Range(0, 10) do
+  // 0, 1, 2, 3, 4
+  for i in Range.till(0, 5) do
     env.out.print(i.string())
   end
 
-  // iterating over Range of U8 with while-loop
-  let range = Range[U8](5, 100, 5)
-  while range.has_next() do
-    try
-      handle_u8(range.next()?)
-    end
+  // 5, 4, 3, 2, 1, 0
+  for i in Range.through(5, 0) do
+    env.out.print(i.string())
   end
-  ```
 
-  Supports `min` being smaller than `max` with negative `inc`
-  but only for signed integer types and floats:
-
-  ```pony
-  var previous = 11
-  for left in Range[I64](10, -5, -1) do
-    if not (left < previous) then
-      error
-    end
-    previous = left
-  end
-  ```
-
-  If `inc` is nonzero, but cannot produce progress towards `max`
-  because of its sign, the `Range` is considered empty and will not
-  produce any iterations. The `Range` is also empty if either `min`
-  equals `max`, independent of the value of `inc`, or if `inc` is
-  zero.
-
-  ```pony
-  let empty_range1 = Range(0, 10, -1)
-  let empty_range2 = Range(0, 10, 0)
-  let empty_range3 = Range(10, 10)
-  empty_range1.is_empty() == true
-  empty_range2.is_empty() == true
-  empty_range3.is_empty() == true
-  ```
-
-  Note that when using unsigned integers, a negative literal wraps
-  around so while `Range[ISize](0, 10, -1)` is empty as above,
-  `Range[USize](0, 10, -1)` produces a single value of `min` or
-  `[0]` here.
-
-  When using `Range` with floating point types (`F32` and `F64`)
-  `inc` steps < 1.0 are possible. If any arguments contains NaN,
-  the `Range` is considered empty. It is also empty if the lower
-  bound `min` or the step `inc` are +Inf or -Inf. However, if only
-  the upper bound `max` is +Inf or -Inf and the step parameter
-  `inc` has the same sign, then the `Range` is considered infinite
-  and will iterate indefinitely.
-
-  ```pony
-  let p_inf: F64 = F64.max_value() + F64.max_value()
-  let n_inf: F64 = -p_inf
-  let nan: F64 = F64(0) / F64(0)
-
-  let infinite_range1 = Range[F64](0, p_inf, 1)
-  let infinite_range2 = Range[F64](0, n_inf, -1_000_000)
-  infinite_range1.is_infinite() == true
-  infinite_range2.is_infinite() == true
-
-  for i in Range[F64](0.5, 100, nan) do
-    // will not be executed as `inc` is nan
-  end
-  for i in Range[F64](0.5, 100, p_inf) do
-    // will not be executed as `inc` is +Inf
+  // with a step size
+  for i in Range.till(0, 10, 2) do
+    env.out.print(i.string())  // 0, 2, 4, 6, 8
   end
   ```
   """
-  let _min: A
-  let _max: A
-  let _inc: A
+  let _from: A
+  let _to: A
+  let _step: A
+  // `through` sets true when from <= to; `till` when from < to
   let _forward: Bool
-  let _infinite: Bool
+  let _inclusive: Bool
+  // true when constructor args are invalid; rewind cannot clear this
   let _empty: Bool
   var _idx: A
+  // set when _idx wraps past the type boundary, preventing infinite loops
+  var _done: Bool = false
 
-  new create(min: A, max: A, inc: A = 1) =>
-    _min = min
-    _max = max
-    _inc = inc
-    _forward = (_min < _max) and (_inc > 0)
-    (let min_finite, let max_finite, let inc_finite) =
-      iftype A <: FloatingPoint[A] then
-        (_min.finite(), _max.finite(), _inc.finite())
+  new through(from: A, to: A, step: A = 1) =>
+    """
+    Inclusive of the far bound.
+
+    `Range.through(0, 3)` yields 0, 1, 2, 3.
+    `Range.through(3, 0)` yields 3, 2, 1, 0.
+    `Range.through(5, 5)` yields 5.
+    """
+    _from = from
+    _to = to
+    _step = step
+    _forward = from <= to
+    _inclusive = true
+    _idx = from
+    _empty =
+      if step <= 0 then true
       else
-        (true, true, true)
+        iftype A <: FloatingPoint[A] then
+          (not from.finite()) or (not to.finite()) or (not step.finite())
+        else
+          false
+        end
       end
-    let progress =
-      ((_min < _max) and (_inc > 0)) or
-      ((_min > _max) and (_inc < 0)) // false if any is NaN!
-    if progress and min_finite and inc_finite then
-      _empty = false
-      // ok to use not max_finite for max_infinite since progress
-      // excludes _max == nan
-      _infinite = not max_finite
-      _idx = _min
-    else
-      _empty = true
-      _infinite = false
-      _idx = _max // has_next() will return false without code modification
-    end
+
+  new till(from: A, to: A, step: A = 1) =>
+    """
+    Exclusive of the far bound.
+
+    `Range.till(0, 3)` yields 0, 1, 2.
+    `Range.till(3, 0)` yields 3, 2, 1.
+    `Range.till(5, 5)` yields nothing.
+    """
+    _from = from
+    _to = to
+    _step = step
+    _forward = from < to
+    _inclusive = false
+    _idx = from
+    _empty =
+      if step <= 0 then true
+      else
+        iftype A <: FloatingPoint[A] then
+          (not from.finite()) or (not to.finite()) or (not step.finite())
+        else
+          false
+        end
+      end
 
   fun has_next(): Bool =>
-    if _infinite then
-      return true
-    end
+    """
+    True when the iterator has not yet reached the far bound.
+    """
+    if _empty or _done then return false end
     if _forward then
-      _idx < _max
+      if _inclusive then
+        (_idx >= _from) and (_idx <= _to)
+      else
+        (_idx >= _from) and (_idx < _to)
+      end
     else
-      _idx > _max
+      if _inclusive then
+        (_idx <= _from) and (_idx >= _to)
+      else
+        (_idx <= _from) and (_idx > _to)
+      end
     end
 
   fun ref next(): A ? =>
+    """
+    Return the current value and advance. Errors when exhausted.
+    """
     if has_next() then
-      _idx = _idx + _inc
+      let current = _idx
+      if _forward then
+        _idx = current + _step
+        if _idx < current then _done = true end
+      else
+        _idx = current - _step
+        if _idx > current then _done = true end
+      end
+      current
     else
       error
     end
 
   fun ref rewind() =>
-    _idx = _min
-
-  fun is_infinite(): Bool =>
-    _infinite
-
-  fun is_empty(): Bool =>
-    _empty
+    """
+    Reset the iterator to its starting position.
+    """
+    _idx = _from
+    _done = false

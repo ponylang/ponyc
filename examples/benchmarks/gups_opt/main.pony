@@ -88,7 +88,7 @@ actor Main
     var updaters =
       recover Array[Updater](actor_count) end
 
-    for i in Range(0, actor_count) do
+    for i in Range.till(0, actor_count) do
       updaters.push(
         Updater(
           this,
@@ -166,7 +166,7 @@ actor Updater
     var offset = index * size
 
     try
-      for i in Range(0, size) do
+      for i in Range.till(0, size) do
         _table(i)? = (i + offset).u64()
       end
     end
@@ -187,7 +187,7 @@ actor Updater
     """
     let chk = _chunk
 
-    for i in Range(0, _updaters) do
+    for i in Range.till(0, _updaters) do
       _output.push(
         try
           _reuse.pop()?
@@ -197,7 +197,7 @@ actor Updater
         )
     end
 
-    for i in Range(0, _chunk) do
+    for i in Range.till(0, _chunk) do
       var datum = _rand = PolyRand(_rand)
       var updater =
         ((datum >> _loglocal.u64()) and _mask.u64())
@@ -234,7 +234,7 @@ actor Updater
 
   be receive(data: Array[U64] iso) =>
     try
-      for i in Range(0, data.size()) do
+      for i in Range.till(0, data.size()) do
         let datum = data(i)?
         var j =
           ((datum >> _loglocal.u64()) and _mask.u64())
@@ -272,7 +272,7 @@ primitive PolyRand
     var temp = U64(1)
 
     try
-      for i in Range(0, 64) do
+      for i in Range.till(0, 64) do
         m2(i)? = temp
         temp = this(temp)
         temp = this(temp)
@@ -286,7 +286,7 @@ primitive PolyRand
       while i > 0 do
         temp = 0
 
-        for j in Range[U64](0, 64) do
+        for j in Range[U64].till(0, 64) do
           if ((r >> j) and 1) != 0 then
             temp = temp xor m2(j.usize())?
           end

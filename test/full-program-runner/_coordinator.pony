@@ -50,7 +50,7 @@ actor _Coordinator is _TesterNotify
 
     _env.out.print(_Colors.info(start_message, true))
 
-    for i in Range(0, _options.max_parallel) do
+    for i in Range.till(0, _options.max_parallel) do
       _run_test()
     end
 
