@@ -181,52 +181,54 @@ class val URI is (Stringable & Equatable[URI])
     query = query'
     fragment = fragment'
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     """
     Reconstruct the full URI string per RFC 3986 section 5.3.
     """
-    let out = recover iso String end
-    match scheme
-    | let s: String => out.append(s); out.push(':')
-    end
-    match authority
-    | let a: URIAuthority =>
-      out.append("//")
-      out.append(a.string())
-    else
-      // RFC 3986 §3.3: a path cannot begin "//" when authority is absent.
-      try
-        if (path(0)? == '/') and (path(1)? == '/') then
-          out.append("/.")
-        end
+    recover val
+      let out = String
+      match scheme
+      | let s: String => out.append(s); out.push(':')
       end
-      // RFC 3986 §3.3: in a relative-path reference, the first segment
-      // cannot contain a colon.
-      if scheme is None then
+      match authority
+      | let a: URIAuthority =>
+        out.append("//")
+        out.append(a.string())
+      else
+        // RFC 3986 §3.3: a path cannot begin "//" when authority is absent.
         try
-          if path(0)? != '/' then
-            var i: USize = 0
-            while true do
-              let c = path(i)?
-              if c == '/' then break end
-              if c == ':' then
-                out.append("./")
-                break
+          if (path(0)? == '/') and (path(1)? == '/') then
+            out.append("/.")
+          end
+        end
+        // RFC 3986 §3.3: in a relative-path reference, the first segment
+        // cannot contain a colon.
+        if scheme is None then
+          try
+            if path(0)? != '/' then
+              var i: USize = 0
+              while true do
+                let c = path(i)?
+                if c == '/' then break end
+                if c == ':' then
+                  out.append("./")
+                  break
+                end
+                i = i + 1
               end
-              i = i + 1
             end
           end
         end
       end
+      out.append(path)
+      match query
+      | let q: String => out.push('?'); out.append(q)
+      end
+      match fragment
+      | let f: String => out.push('#'); out.append(f)
+      end
+      out
     end
-    out.append(path)
-    match query
-    | let q: String => out.push('?'); out.append(q)
-    end
-    match fragment
-    | let f: String => out.push('#'); out.append(f)
-    end
-    out
 
   fun query_params(): (FormURLEncoded val | None) =>
     """

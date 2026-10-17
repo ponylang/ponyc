@@ -11,9 +11,9 @@ class IntPairPropertySample is Stringable
     int1 = int1'
     int2 = int2'
 
-  fun string(): String iso^ =>
-    let num1: String val = _StringifyIntArg(choice, int1)
-    let num2: String val = _StringifyIntArg(choice, int2)
+  fun string(): String =>
+    let num1 = _StringifyIntArg(choice, int1)
+    let num2 = _StringifyIntArg(choice, int2)
     "".join(["("; num1; ", "; num2; ")"].values())
 
 trait IntPairProperty is Property[IntPairPropertySample]

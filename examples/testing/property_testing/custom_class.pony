@@ -4,25 +4,25 @@ primitive Blue is Stringable
   """
   A pony color.
   """
-  fun string(): String iso^ => "blue".clone()
+  fun string(): String => "blue"
 
 primitive Green is Stringable
   """
   A pony color.
   """
-  fun string(): String iso^ => "green".clone()
+  fun string(): String => "green"
 
 primitive Pink is Stringable
   """
   A pony color.
   """
-  fun string(): String iso^ => "pink".clone()
+  fun string(): String => "pink"
 
 primitive Rose is Stringable
   """
   A pony color.
   """
-  fun string(): String iso^ => "rose".clone()
+  fun string(): String => "rose"
 
 type Color is ( Blue | Green | Pink | Rose )
 
@@ -47,8 +47,8 @@ class MyLittlePony is Stringable
   fun is_cute(): Bool =>
     (cuteness > 10) or (color is Pink)
 
-  fun string(): String iso^ =>
-    recover
+  fun string(): String =>
+    recover val
       String(17 + name.size())
         .> append(
           "Pony(\"" + name + "\", " +

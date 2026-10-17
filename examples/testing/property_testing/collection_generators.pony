@@ -29,13 +29,8 @@ class val _OperationOnCollection[T, R = String]
     idx = idx'
     op = op'
 
-  fun string(): String iso^ =>
-    recover
-      String
-        .> append(
-          "_OperationOnCollection(" +
-            idx.string() + ")")
-    end
+  fun string(): String =>
+    "_OperationOnCollection(" + idx.string() + ")"
 
 class _OperationOnCollectionProperty
   is Property[

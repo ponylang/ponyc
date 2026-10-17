@@ -4,12 +4,11 @@ primitive CommonPrefix
   empty.
   """
 
-  fun apply(data: ReadSeq[Stringable]): String iso^ =>
-    var res = "".clone()
+  fun apply(data: ReadSeq[Stringable]): String =>
     try
       let iter = data.values()
       if iter.has_next() then
-        res = iter.next()?.string()
+        var res: String = iter.next()?.string()
         for d in iter do
           var idx: USize = 0
           let s = d.string()
@@ -21,6 +20,10 @@ primitive CommonPrefix
           end
           res = res.substring(0, idx.isize())
         end
+        res
+      else
+        ""
       end
+    else
+      ""
     end
-    res

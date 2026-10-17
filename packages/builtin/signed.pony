@@ -745,7 +745,7 @@ primitive I128 is SignedInteger[I128, U128]
   fun hash(): USize => u128().hash()
   fun hash64(): U64 => u128().hash64()
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     _ToString._u128(abs().u128(), this < 0)
 
   fun mul(y: I128): I128 =>

@@ -7,11 +7,11 @@ primitive _ToString
   """
   Worker type providing simple to string conversions for numbers.
   """
-  fun _u64(x: U64, neg: Bool): String iso^ =>
+  fun _u64(x: U64, neg: Bool): String =>
     let table = "0123456789"
     let base: U64 = 10
 
-    recover
+    recover val
       var s = String(31)
       var value = x
 
@@ -30,11 +30,11 @@ primitive _ToString
       s .> reverse_in_place()
     end
 
-  fun _u128(x: U128, neg: Bool): String iso^ =>
+  fun _u128(x: U128, neg: Bool): String =>
     let table = "0123456789"
     let base: U128 = 10
 
-    recover
+    recover val
       var s = String(31)
       var value = x
 
@@ -53,8 +53,8 @@ primitive _ToString
       s .> reverse_in_place()
     end
 
-  fun _f64(x: F64): String iso^ =>
-    recover
+  fun _f64(x: F64): String =>
+    recover val
       var s = String(31)
       var f = String(31) .> append("%g")
 

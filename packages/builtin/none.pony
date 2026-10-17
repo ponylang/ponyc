@@ -1,3 +1,3 @@
 primitive None is Stringable
-  fun string(): String iso^ =>
-    "None".string()
+  fun string(): String =>
+    "None"

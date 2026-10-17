@@ -17,8 +17,8 @@ class val JSONDecodeError is Stringable
     """
     message = message'
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     """
     Return the error message.
     """
-    message.clone()
+    message
