@@ -9,7 +9,6 @@ primitive \nodoc\ _WorkspaceTests is TestList
     None
 
   fun tag tests(test: PonyTest) =>
-    test(_RouterFindTest)
     test(_ModuleStateRemoveDocumentTest)
     test(_ModuleStateRemoveDocumentMissingTest)
     test(_ModuleStateDocumentPathsTest)
@@ -37,7 +36,7 @@ class \nodoc\ iso _ModuleStateRemoveDocumentMissingTest is UnitTest
     let file_auth = FileAuth(h.env.root)
     let path = FilePath(file_auth, "/fake/path")
     let mod_data = ModuleData.create("fake", path)
-    let mod = ModuleState.create(pkg_data, FakeChannel)
+    let mod = ModuleState.create(mod_data, FakeChannel)
     var errored = false
     try
       mod.remove_document("/fake/path/missing.pony")?

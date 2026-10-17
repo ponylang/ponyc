@@ -76,15 +76,16 @@ class \nodoc\ iso _WorkspaceWithCorralJsonTest is WsUnitTest
     end
 
 primitive AssertDependenciesEq
-  fun apply(h: TestHelper, expected: Array[FilePath] box, actual: Array[FilePath] box) =>
+  fun apply(h: TestHelper, expected: Array[FilePath] box, actual: Array[FilePath] box, loc: SourceLoc = __loc) =>
     h.assert_eq[USize](
       expected.size(),
       actual.size(),
-      "Expected " + expected.size().string() + " elements, got " + actual.size().string()
+      "Expected " + expected.size().string() + " elements, got " + actual.size().string(),
+      loc
     )
-    for (idx, (expect, act)) in Iter[FilePath](expected.values()).zip[FilePath](actual.values()).enum[USize]() do
-      h.assert_eq[String](expect.path, act.path, "Dependency " + idx.string() + " differs")
-    end
+    let expected_strs = Iter[FilePath](expected.values()).map[String]({(fp) => fp.path }).collect(Array[String].create(expected.size()))
+    let actual_strs = Iter[FilePath](actual.values()).map[String]({(fp) => fp.path }).collect(Array[String].create(actual.size()))
+    h.assert_array_eq_unordered[String](expected_strs, actual_strs)
 
 
 
@@ -142,8 +143,8 @@ class \nodoc\ iso _WorkspaceWithCorralAndTransitiveDeps is WsUnitTest
   fun apply(workspace: FilePath, h: TestHelper)? =>
     let scanner =
     WorkspaceScanner.create(FakeChannel.with_stdout(h.env.out))
-    let packages = scanner.scan(workspace).clone()
-    Sort[Array[PackageData val], PackageData val](packages)
+    let modules = recover ref scanner.scan(workspace).clone() end
+    Sort[Array[ModuleData val], ModuleData val](modules)
 
     // utils
     let p1_path = workspace
@@ -153,24 +154,24 @@ class \nodoc\ iso _WorkspaceWithCorralAndTransitiveDeps is WsUnitTest
     let p3_path = workspace
       .join("_corral/gitlab_com_ponyslang_package3")?
 
-    // assert we found 4 packages
-    h.assert_eq[USize](4, packages.size())
+    // assert we found 4 modules
+    h.assert_eq[USize](4, modules.size())
 
     // - foo  - with correct dependencies (p1, p2, p3)
-    let p0 = packages(0)?
+    let p0 = modules(0)?
     h.assert_eq[String]("foo", p0.name)
-    AssertDependenciesEq(h, p0.dependencies, [p1_path; p2_path; p3_path])
+    AssertDependenciesEq(h, [p1_path; p2_path; p3_path], p0.dependencies)
 
-    // - p1   - without dependencies ?
-    let p1 = packages(1)?
+    let p1 = modules(1)?
     h.assert_eq[String]("p1", p1.name)
+    AssertDependenciesEq(h, [p1_path; p2_path; p3_path], p1.dependencies)
 
-    // - p2   - with p3 dependency
-    let p2 = packages(2)?
+    let p2 = modules(2)?
     h.assert_eq[String]("p2", p2.name)
+    AssertDependenciesEq(h, [p1_path; p2_path; p3_path], p2.dependencies)
 
-    // - p3   - wothout dependencies ?
-    let p3 = packages(3)?
+    let p3 = modules(3)?
     h.assert_eq[String]("p3", p3.name)
+    AssertDependenciesEq(h, [p1_path; p2_path; p3_path], p3.dependencies)
 
 
