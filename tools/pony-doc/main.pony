@@ -13,19 +13,24 @@ use @ponyint_pool_free_size[None](
 actor Main
   """
   CLI entry point for pony-doc. Parses command-line arguments, compiles the
-  target module, extracts the documentation IR, and generates MkDocs output.
+  target module, extracts the documentation IR, and generates output via
+  the selected backend (MkDocs or Info).
   """
   new create(env: Env) =>
     let cs =
       try
         CommandSpec.leaf(
           "pony-doc",
-          "Generate MkDocs documentation for Pony modules",
+          "Generate documentation for Pony modules",
           [
             OptionSpec.string(
               "output",
               "Output directory"
               where short' = 'o', default' = ".")
+            OptionSpec.string(
+              "backend",
+              "Output backend: mkdocs or info"
+              where short' = 'b', default' = "mkdocs")
             OptionSpec.bool(
               "include-private",
               "Include private types and methods"
@@ -74,6 +79,20 @@ actor Main
     // Get include_private flag
     let include_private = cmd.option("include-private").bool()
 
+    // Get backend
+    let backend_name = cmd.option("backend").string()
+    let backend: Backend val =
+      match backend_name
+      | "mkdocs" => MkDocsBackend
+      | "info" => InfoBackend
+      else
+        env.err.print(
+          "error: unknown backend '" + backend_name +
+            "' (expected 'mkdocs' or 'info')")
+        env.exitcode(1)
+        return
+      end
+
     // Build module search paths
     let argv0 = try env.args(0)? else "" end
     let module_paths = _build_module_paths(env.vars, argv0)
@@ -92,10 +111,17 @@ actor Main
       // Generate output
       let output_fp = FilePath(file_auth, output_dir_path)
       try
-        MkDocsBackend.generate(doc_program, output_fp, include_private)?
-        env.out.print(
-          "Documentation generated in " +
-            output_dir_path + "/" + doc_program.name + "-docs/")
+        backend.generate(doc_program, output_fp, include_private)?
+        match backend_name
+        | "info" =>
+          env.out.print(
+            "Documentation generated: " +
+              output_dir_path + "/" + doc_program.name + ".info")
+        else
+          env.out.print(
+            "Documentation generated in " +
+              output_dir_path + "/" + doc_program.name + "-docs/")
+        end
       else
         env.err.print("error: failed to write documentation output")
         env.exitcode(1)
