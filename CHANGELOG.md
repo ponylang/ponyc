@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add GNU Info backend to pony-doc ([PR #6310](https://github.com/ponylang/ponyc/pull/6310))
 
 ### Changed
 
