@@ -1475,6 +1475,19 @@ static bool check_annotation_location(pass_opt_t* opt, ast_t* ast,
 
         return false;
     }
+  } else if(strcmp(str, "noalloc") == 0) {
+    switch(ast_id(ast_parent(ast)))
+    {
+      case TK_NEW:
+      case TK_FUN:
+      case TK_BE:
+        break;
+
+      default:
+        ast_error(opt->check.errors, loc,
+          "a 'noalloc' annotation can only appear on a method declaration");
+        return false;
+    }
   } else if(strcmp(str, "inline") == 0) {
     if(ast_id(ast_parent(ast)) != TK_FUN)
     {
