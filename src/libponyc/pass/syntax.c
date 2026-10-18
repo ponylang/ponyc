@@ -1475,6 +1475,33 @@ static bool check_annotation_location(pass_opt_t* opt, ast_t* ast,
 
         return false;
     }
+  } else if(strcmp(str, "noalloc") == 0) {
+    switch(ast_id(ast_parent(ast)))
+    {
+      case TK_NEW:
+      case TK_FUN:
+      case TK_BE:
+        break;
+
+      default:
+        ast_error(opt->check.errors, loc,
+          "a 'noalloc' annotation can only appear on a method declaration");
+        return false;
+    }
+
+    ast_t* enclosing_type = ast_parent(ast_parent(ast));
+
+    if((enclosing_type != NULL) &&
+      (ast_id(enclosing_type) == TK_MEMBERS))
+      enclosing_type = ast_parent(enclosing_type);
+
+    if((enclosing_type != NULL) &&
+      (ast_id(enclosing_type) == TK_INTERFACE))
+    {
+      ast_error(opt->check.errors, loc,
+        "a 'noalloc' annotation cannot appear on an interface method");
+      return false;
+    }
   } else if(strcmp(str, "inline") == 0) {
     if(ast_id(ast_parent(ast)) != TK_FUN)
     {
