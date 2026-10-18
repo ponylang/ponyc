@@ -48,3 +48,19 @@ primitive MkDocsLinkFormat is LinkFormat
   fun open_bracket(): String => "\\["
 
   fun close_bracket(): String => "\\]"
+
+primitive InfoLinkFormat is LinkFormat
+  """
+  GNU Info cross-reference format.
+
+  Produces `*note Name: tqfn.` cross-references. The trailing period is
+  syntactically required by the Info format. Brackets are plain `[`/`]`
+  since Info has no bracket escaping requirement.
+  """
+
+  fun link(name: String, tqfn: String): String =>
+    "*note " + name + ": " + tqfn + "."
+
+  fun open_bracket(): String => "["
+
+  fun close_bracket(): String => "]"
