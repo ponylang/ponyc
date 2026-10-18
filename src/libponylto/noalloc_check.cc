@@ -144,7 +144,8 @@ PreservedAnalyses NoAllocCheck::run(Module &M, ModuleAnalysisManager &)
       msg += "' is marked \\noalloc\\ but performs ";
       msg += found.description;
 
-      DiagnosticInfoGeneric diag(found.call, Twine(msg), DS_Error);
+      Twine twine(msg);
+      DiagnosticInfoGeneric diag(found.call, twine, DS_Error);
       F.getContext().diagnose(diag);
     }
   }
