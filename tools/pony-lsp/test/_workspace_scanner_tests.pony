@@ -11,9 +11,10 @@ primitive _WorkspaceScannerTests is TestList
   fun tag tests(test: PonyTest) =>
     test(WsTest(_WorkspaceWithCorralJsonTest))
     test(WsTest(_WorkspaceWithCorralAndTransitiveDeps))
+    test(WsTest(_WorkspaceWithCorralAndCyclicDependencies))
 
 class \nodoc\ iso _WorkspaceWithCorralJsonTest is WsUnitTest
-  fun name(): String => "workspace/scanner/corral"
+  fun name(): String => "workspace/scanner/corral/single"
 
   fun setup_workspace(ws: WorkspaceBuilder ref) =>
     ws.file("corral.json", """
@@ -44,7 +45,7 @@ class \nodoc\ iso _WorkspaceWithCorralJsonTest is WsUnitTest
       .file("main.pony", PonyMainSrc())
 
   fun apply(workspace: FilePath, h: TestHelper)? =>
-    let scanner = WorkspaceScanner.create(FakeChannel)
+    let scanner = WorkspaceScanner.create(FakeChannel.with_stdout(h.env.out))
     let packages = scanner.scan(workspace)
     // assert we found foo and dependency package1 (with dependencies)
     let p1_name = "github_com_ponylang_package1"
@@ -68,10 +69,10 @@ class \nodoc\ iso _WorkspaceWithCorralJsonTest is WsUnitTest
           package.folder.path,
           workspace.join("foo")?.path
         )
-        AssertDependenciesEq(h, package.dependencies, [p1_locator_path])
+        AssertDependenciesEq(h, [p1_locator_path], package.dependencies)
       elseif package.name == "package1" then
         h.assert_eq[String](package.folder.path, p1_path)
-        AssertDependenciesEq(h, package.dependencies, [p1_locator_path])
+        AssertDependenciesEq(h, [], package.dependencies)
       end
     end
 
@@ -85,7 +86,7 @@ primitive AssertDependenciesEq
     )
     let expected_strs = Iter[FilePath](expected.values()).map[String]({(fp) => fp.path }).collect(Array[String].create(expected.size()))
     let actual_strs = Iter[FilePath](actual.values()).map[String]({(fp) => fp.path }).collect(Array[String].create(actual.size()))
-    h.assert_array_eq_unordered[String](expected_strs, actual_strs)
+    h.assert_array_eq_unordered[String](expected_strs, actual_strs where loc = loc)
 
 
 
@@ -142,7 +143,7 @@ class \nodoc\ iso _WorkspaceWithCorralAndTransitiveDeps is WsUnitTest
 
   fun apply(workspace: FilePath, h: TestHelper)? =>
     let scanner =
-    WorkspaceScanner.create(FakeChannel.with_stdout(h.env.out))
+      WorkspaceScanner.create(FakeChannel.with_stdout(h.env.out))
     let modules = recover ref scanner.scan(workspace).clone() end
     Sort[Array[ModuleData val], ModuleData val](modules)
 
@@ -162,16 +163,123 @@ class \nodoc\ iso _WorkspaceWithCorralAndTransitiveDeps is WsUnitTest
     h.assert_eq[String]("foo", p0.name)
     AssertDependenciesEq(h, [p1_path; p2_path; p3_path], p0.dependencies)
 
+    // p1 with no dependencies
     let p1 = modules(1)?
     h.assert_eq[String]("p1", p1.name)
-    AssertDependenciesEq(h, [p1_path; p2_path; p3_path], p1.dependencies)
+    AssertDependenciesEq(h, [], p1.dependencies)
 
+    // p2 with p3 as dependency
     let p2 = modules(2)?
     h.assert_eq[String]("p2", p2.name)
-    AssertDependenciesEq(h, [p1_path; p2_path; p3_path], p2.dependencies)
+    AssertDependenciesEq(h, [p3_path], p2.dependencies)
 
+    // p3 without dependencies
     let p3 = modules(3)?
     h.assert_eq[String]("p3", p3.name)
-    AssertDependenciesEq(h, [p1_path; p2_path; p3_path], p3.dependencies)
+    AssertDependenciesEq(h, [], p3.dependencies)
+
+
+class \nodoc\ iso _WorkspaceWithCorralAndCyclicDependencies is WsUnitTest
+  fun name(): String => "workspace/scanner/corral/cyclic"
+
+  fun setup_workspace(ws: WorkspaceBuilder) =>
+    ws.file("corral.json", """
+      {
+        "packages": ["cyclic"],
+        "deps": [
+          {
+            "locator": "github.com/ponylang/package1.git",
+            "version": "0.6.2"
+          },
+          {
+            "locator": "github.com/ponylang/package2.git",
+            "version": "1.2.3"
+          }
+        ],
+        "info": {
+          "description": "ws-test-cyclic",
+          "homepage": "",
+          "license": "",
+          "documentation_url": "",
+          "version": "0.2.0",
+          "name": "ws-test"
+        }
+      }
+    """)
+    ws.dir("cyclic").file("main.pony", PonyMainSrc())
+    let corral_dir = ws.dir("_corral")
+    corral_dir.dir("github_com_ponylang_package1").file("corral.json", """
+      {
+        "packages": [],
+        "deps": [
+          {
+            "locator": "github.com/ponylang/package2.git",
+            "version": "1.2.3"
+          }
+        ],
+        "info": {
+          "description": "ws-test-cyclic-p1",
+          "homepage": "",
+          "license": "",
+          "documentation_url": "",
+          "version": "0.2.0",
+          "name": "ws-test"
+        }
+      }
+    """).dir("p1").file("main.pony", PonyMainSrc())
+    corral_dir.dir("github_com_ponylang_package2").file("corral.json", """
+      {
+        "packages": ["p2"],
+        "deps": [
+          {
+            "locator": "github.com/ponylang/package1.git",
+            "version": "0.6.2"
+          }
+        ],
+        "info": {
+          "description": "ws-test-cyclic-p2",
+          "homepage": "",
+          "license": "",
+          "documentation_url": "",
+          "version": "0.2.0",
+          "name": "ws-test"
+        }
+      }
+    """).dir("p2").file("main.pony", PonyMainSrc())
+
+  fun apply(workspace: FilePath, h: TestHelper)? =>
+    let scanner =
+      WorkspaceScanner.create(FakeChannel.with_stdout(h.env.out))
+    let modules = recover ref scanner.scan(workspace).clone() end
+    Sort[Array[ModuleData val], ModuleData val](modules)
+    // debugging
+    for module in modules.values() do
+      h.log(module.string())
+    end
+
+    // utils
+    let p1_path = workspace
+      .join("_corral/github_com_ponylang_package1")?
+    let p2_path = workspace
+      .join("_corral/github_com_ponylang_package2")?
+
+    // assert we found 4 modules
+    h.assert_eq[USize](3, modules.size())
+
+    // - foo  - with correct dependencies (p1, p2, p3)
+    let p0 = modules(0)?
+    h.assert_eq[String]("cyclic", p0.name)
+    AssertDependenciesEq(h, [p1_path; p2_path], p0.dependencies)
+
+    // p1 depending on p2
+    let p1 = modules(1)?
+    h.assert_eq[String]("p1", p1.name)
+    AssertDependenciesEq(h, [p2_path], p1.dependencies)
+
+    // p2 depending on p1
+    let p2 = modules(2)?
+    h.assert_eq[String]("p2", p2.name)
+    AssertDependenciesEq(h, [p1_path], p2.dependencies)
+
 
 

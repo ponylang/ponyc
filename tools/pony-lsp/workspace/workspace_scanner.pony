@@ -17,7 +17,6 @@ class WorkspaceScanner
 
   fun _scan_corral_dir(
     corral_dir: FilePath,
-    workspace_name: String,
     visited: Set[String] ref = Set[String].create(),
     top_level_corral_dir: (FilePath | None) = None
   ): Array[ModuleData] val ? =>
@@ -52,13 +51,14 @@ class WorkspaceScanner
         JSONObject
       end
 
-    // extract modules from corral packages and dependencies
+    // extract modules from corral packages
     let all_modules: Array[String] ref = Array[String].create(32)
     let module_paths = Set[String].create(all_modules.size())
     let json_pkgs = JSONPathParser.compile("$.packages.*")?.query(corral_json)
     for json_package in json_pkgs.values() do
 
       let package = json_package as String
+      // packages are always relative to the corral.json location
       let pp = corral_dir.join(package)?
       Fact(pp.exists(), "Package path " + pp.path + " does not exist")?
       if not module_paths.contains(pp.path) then
@@ -66,8 +66,9 @@ class WorkspaceScanner
         all_modules.push(package)
       end
     end
-    // find additional mouldes inside `dir` not listed in corral.json packages
+    // find additional modules inside `dir` not listed in corral.json packages
     // some projects don't list their packages
+    // but ignore anything inside _corral dir
     let walk_handler =
       object is WalkHandler
         var pony_modules: Set[String] = Set[String].create(4)
@@ -75,14 +76,20 @@ class WorkspaceScanner
           dir_path: FilePath val,
           dir_entries: Array[String val] ref)
         =>
-          let has_pony_file = Iter[String val](dir_entries.values())
-              .any({(a) => Path.ext(a) == "pony" })
-          if has_pony_file and not pony_modules.contains(dir_path.path) then
-            pony_modules.set(dir_path.path)
+          // do not descend into _corral dir
+          if Path.base(dir_path.path) == "_corral" then
+            _channel.log("Ignoring " + dir_path.path)
+            dir_entries.clear()
+            return
+          else
+            let has_pony_file = Iter[String val](dir_entries.values())
+                .any({(a) => Path.ext(a) == "pony" })
+            if has_pony_file and not pony_modules.contains(dir_path.path) then
+              pony_modules.set(dir_path.path)
+            end
           end
       end
     corral_dir.walk(walk_handler)
-    //_channel.log("Walked")
 
     for mod in walk_handler.pony_modules.values() do
       if not module_paths.contains(mod) then
@@ -121,29 +128,33 @@ class WorkspaceScanner
           end
         _channel.log("Locator: " + locator_dir.path)
         _channel.log("Visited: " + ", ".join(visited.values()))
-        if not visited.contains(locator_dir.path) then
-          dependencies.insert_if_absent(locator_dir.path, locator_dir)
-          visited.set(locator_dir.path)
 
-          // scan for transitive dependencies but only if we havent visited
-          // before to avoid endless loops over cyclic dependencies
+        // get modules and dependencies from dependency
+        dependencies.insert_if_absent(locator_dir.path, locator_dir)
+        if not visited.contains(locator_dir.path) then
+          visited.set(locator_dir.path)
           let corral_dependency_packages =
             this._scan_corral_dir(
-              locator_dir,
-              workspace_name,
-              visited,
-              top_level_dir
-          )?
+                locator_dir,
+                visited,
+                top_level_dir
+            )?
+
           _channel.log("Locator Packages: " + ",".join(corral_dependency_packages.values()))
           for sub_package in corral_dependency_packages.values() do
+            // register transitive dependencies as ours
             for sub_dependency in sub_package.dependencies.values() do
               dependencies.insert_if_absent(sub_dependency.path, sub_dependency)
             end
+            // register packages within dependencies as modules as well
+            result.push(sub_package)
           end
         end
       end
     end
     let num_deps = dependencies.size()
+    // stupid hack removing possible self-dependencies through cyclic dependencies
+    try dependencies.remove(corral_dir.path)? end
     let dependencies_val: Array[FilePath] val =
       recover val
         Iter[FilePath]((consume dependencies).values()).collect(Array[FilePath].create(num_deps))
@@ -173,6 +184,7 @@ class WorkspaceScanner
         ))
       end
     end
+
     result
 
   fun scan(
@@ -210,8 +222,7 @@ class WorkspaceScanner
             if Iter[String val](dir_entries.values()).any(is_corral) then
               try
                 let corral_packages = that._scan_corral_dir(
-                  dir_path,
-                  name
+                  dir_path
                   where
                   visited = visited
                 )?
