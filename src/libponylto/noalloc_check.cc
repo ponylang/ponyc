@@ -18,6 +18,7 @@ static const char* const alloc_names[] = {
   "pony_alloc_large_final",
   "pony_realloc",
   "pony_alloc_msg",
+  "pony_create",
 };
 
 static constexpr size_t alloc_names_count =
@@ -38,6 +39,9 @@ static const char* user_facing_name(StringRef name)
 {
   if(name == "pony_alloc_msg")
     return "a message send";
+
+  if(name == "pony_create")
+    return "an actor creation";
 
   return "a heap allocation";
 }
