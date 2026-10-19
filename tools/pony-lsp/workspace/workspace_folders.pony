@@ -34,7 +34,11 @@ class val WorkspaceFolders
           return true
         end
       end
-      dir_path = Path.dir(dir_path)
+      let parent = Path.dir(dir_path)
+      if parent == dir_path then
+        break
+      end
+      dir_path = parent
     end
     false
 
