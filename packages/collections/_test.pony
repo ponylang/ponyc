@@ -615,226 +615,187 @@ class \nodoc\ iso _TestSort is UnitTest
 class \nodoc\ iso _TestRange is UnitTest
   fun name(): String => "collections/Range"
 
-  fun apply(h: TestHelper) =>
-    // Create testing constants
+  fun apply(h: TestHelper) ? =>
+    // till — ascending
+    _expect[USize](h, Range.till(0, 5), [0; 1; 2; 3; 4])
+    _expect[U8](h, Range[U8].till(0, 3), [0; 1; 2])
+    _expect[I8](h, Range[I8].till(-2, 2), [-2; -1; 0; 1])
+    _expect[ISize](h, Range[ISize].till(-10, -7), [-10; -9; -8])
+
+    // till — descending
+    _expect[USize](h, Range.till(5, 0), [5; 4; 3; 2; 1])
+    _expect[I8](h, Range[I8].till(2, -2), [2; 1; 0; -1])
+    _expect[ISize](h, Range[ISize].till(1, -1), [1; 0])
+
+    // through — ascending
+    _expect[USize](h, Range.through(0, 5), [0; 1; 2; 3; 4; 5])
+    _expect[U8](h, Range[U8].through(0, 3), [0; 1; 2; 3])
+    _expect[I8](h, Range[I8].through(-2, 2), [-2; -1; 0; 1; 2])
+
+    // through — descending
+    _expect[USize](h, Range.through(5, 0), [5; 4; 3; 2; 1; 0])
+    _expect[I32](h, Range[I32].through(2, -2), [2; 1; 0; -1; -2])
+    _expect[ISize](h, Range[ISize].through(1, -1), [1; 0; -1])
+
+    // step > 1
+    _expect[USize](h, Range.till(0, 10, 3), [0; 3; 6; 9])
+    _expect[USize](h, Range.through(0, 9, 3), [0; 3; 6; 9])
+    _expect[I32](h, Range[I32].till(10, 0, 3), [10; 7; 4; 1])
+    _expect[I32](h, Range[I32].through(9, 0, 3), [9; 6; 3; 0])
+    _expect[USize](h, Range.till(0, 10, 2), [0; 2; 4; 6; 8])
+    _expect[USize](h, Range.through(0, 10, 2), [0; 2; 4; 6; 8; 10])
+    _expect[USize](h, Range.till(0, 1, 2), [0])
+    _expect[USize](h, Range.through(0, 1, 2), [0])
+
+    // single element via through(n, n)
+    _expect[USize](h, Range.through(5, 5), [5])
+    _expect[I8](h, Range[I8].through(0, 0), [0])
+    _expect[F64](h, Range[F64].through(1.0, 1.0), [1.0])
+
+    // empty via till(n, n)
+    _expect[USize](h, Range.till(5, 5), Array[USize])
+    _expect[I8](h, Range[I8].till(0, 0), Array[I8])
+
+    // overflow safety — unsigned descending past zero
+    _expect[U8](h, Range[U8].through(2, 0), [2; 1; 0])
+    _expect[USize](h, Range.through(2, 0), [2; 1; 0])
+
+    // overflow safety — unsigned ascending near max
+    _expect[U8](h, Range[U8].through(250, 255), [250; 251; 252; 253; 254; 255])
+
+    // overflow safety — full range (must terminate, not loop forever)
+    let full_asc = Array[U8] .> concat(Range[U8].through(0, 255))
+    h.assert_eq[USize](full_asc.size(), 256)
+    h.assert_eq[U8](full_asc(0)?, 0)
+    h.assert_eq[U8](full_asc(255)?, 255)
+
+    let full_desc = Array[U8] .> concat(Range[U8].through(255, 0))
+    h.assert_eq[USize](full_desc.size(), 256)
+    h.assert_eq[U8](full_desc(0)?, 255)
+    h.assert_eq[U8](full_desc(255)?, 0)
+
+    let full_i8 = Array[I8] .> concat(Range[I8].through(-128, 127))
+    h.assert_eq[USize](full_i8.size(), 256)
+    h.assert_eq[I8](full_i8(0)?, -128)
+    h.assert_eq[I8](full_i8(255)?, 127)
+
+    let full_i8_desc = Array[I8] .> concat(Range[I8].through(127, -128))
+    h.assert_eq[USize](full_i8_desc.size(), 256)
+    h.assert_eq[I8](full_i8_desc(0)?, 127)
+    h.assert_eq[I8](full_i8_desc(255)?, -128)
+
+    // overflow safety — step-induced wraparound
+    let step_wrap = Array[U8] .> concat(Range[U8].till(0, 255, 2))
+    h.assert_eq[USize](step_wrap.size(), 128)
+    h.assert_eq[U8](step_wrap(0)?, 0)
+    h.assert_eq[U8](step_wrap(127)?, 254)
+    _expect[U8](h, Range[U8].through(253, 255, 5), [253])
+
+    // step > 1 — unsigned descending
+    _expect[USize](h, Range.till(10, 0, 3), [10; 7; 4; 1])
+    _expect[USize](h, Range.through(9, 0, 3), [9; 6; 3; 0])
+
+    // float
+    _expect[F32](h, Range[F32].till(-0.1, 0.2, 0.1), [-0.1; 0.0; 0.1])
+    _expect[F64](h, Range[F64].till(-0.1, 0.2, 0.1), [-0.1; 0.0; 0.1])
+    _expect[F64](h, Range[F64].through(0.2, -0.1, 0.1), [0.2; 0.1; 0.0; -0.1])
+    _expect[F32](h, Range[F32].through(0.2, -0.1, 0.1), [0.2; 0.1; 0.0; -0.1])
+    _expect[F32](h, Range[F32].till(0.2, -0.1, 0.1), [0.2; 0.1; 0.0])
+    _expect[F32](h, Range[F32].till(0.0, F32.epsilon(), F32.epsilon()), [0.0])
+    _expect[F64](h, Range[F64].till(0.0, F64.epsilon(), F64.epsilon()), [0.0])
+
+    // empty range on step <= 0
+    _expect[USize](h, Range.till(0, 10, 0), Array[USize])
+    _expect[USize](h, Range.through(0, 10, 0), Array[USize])
+    _expect[I32](h, Range[I32].till(0, 10, -1), Array[I32])
+    _expect[I32](h, Range[I32].through(0, 10, -1), Array[I32])
+
+    // empty range on non-finite floats
     let p_inf = F64.max_value() + F64.max_value()
     let n_inf = -p_inf
     let nan = F64(0) / F64(0)
+    _expect[F64](h, Range[F64].till(nan, 10, 1), Array[F64])
+    _expect[F64](h, Range[F64].till(0, nan, 1), Array[F64])
+    _expect[F64](h, Range[F64].till(0, 10, nan), Array[F64])
+    _expect[F64](h, Range[F64].till(p_inf, 10, 1), Array[F64])
+    _expect[F64](h, Range[F64].till(0, p_inf, 1), Array[F64])
+    _expect[F64](h, Range[F64].till(0, 10, p_inf), Array[F64])
+    _expect[F64](h, Range[F64].till(n_inf, 10, 1), Array[F64])
+    _expect[F64](h, Range[F64].till(0, n_inf, 1), Array[F64])
+    _expect[F64](h, Range[F64].till(0, 10, n_inf), Array[F64])
+    _expect[F64](h, Range[F64].through(nan, 10, 1), Array[F64])
+    _expect[F64](h, Range[F64].through(0, nan, 1), Array[F64])
+    _expect[F64](h, Range[F64].through(0, 10, nan), Array[F64])
+    _expect[F64](h, Range[F64].through(p_inf, 10, 1), Array[F64])
+    _expect[F64](h, Range[F64].through(0, p_inf, 1), Array[F64])
+    _expect[F64](h, Range[F64].through(0, 10, p_inf), Array[F64])
+    _expect[F64](h, Range[F64].through(n_inf, 10, 1), Array[F64])
+    _expect[F64](h, Range[F64].through(0, n_inf, 1), Array[F64])
+    _expect[F64](h, Range[F64].through(0, 10, n_inf), Array[F64])
 
-    // Test finite ranges
-    _assert_range[I8](h, -1, 1, 1, [-1; 0])
-    _assert_range[I8](h, 2, -2, -1, [2; 1; 0; -1])
-    _assert_range[I8](h, -10, -7, 1, [-10; -9; -8])
-    _assert_range[ISize](h, -1, 1, 1, [-1; 0])
-    _assert_range[ISize](h, 2, -2, -1, [2; 1; 0; -1])
-    _assert_range[ISize](h, -10, -7, 1, [-10; -9; -8])
-    _assert_range[USize](h, 0, 10, -1, [0])
-    _assert_range[USize](h, 0, 1, 1, [0])
-    _assert_range[USize](h, 0, 1, 2, [0])
-    _assert_range[USize](h, 0, 10, 1, [0; 1; 2; 3; 4; 5; 6; 7; 8; 9])
-    _assert_range[USize](h, 0, 10, 2, [0; 2; 4; 6; 8])
-    _assert_range[F32](h, -0.1, 0.2, 0.1, [-0.1; 0.0; 0.1])
-    _assert_range[F32](h, 0.1, -0.2, -0.1, [0.1; 0.0; -0.1])
-    _assert_range[F32](h, 0.0, F32.epsilon(), F32.epsilon(), [0.0])
-    _assert_range[F64](h, -0.1, 0.2, 0.1, [-0.1; 0.0; 0.1])
-    _assert_range[F64](h, 0.1, -0.2, -0.1, [0.1; 0.0; -0.1])
-    _assert_range[F64](h, 0.0, F64.epsilon(), F64.epsilon(), [0.0])
+    // empty range on non-finite F32
+    let f32_nan = F32(0) / F32(0)
+    let f32_inf = F32.max_value() + F32.max_value()
+    _expect[F32](h, Range[F32].till(f32_nan, 10, 1), Array[F32])
+    _expect[F32](h, Range[F32].till(0, f32_inf, 1), Array[F32])
+    _expect[F32](h, Range[F32].through(f32_nan, 10, 1), Array[F32])
+    _expect[F32](h, Range[F32].through(0, f32_inf, 1), Array[F32])
 
-    // Test empty ranges
-    _assert_empty[I8](h, 0, 1, -1)
-    _assert_empty[I8](h, 0, 1, 0)
-    _assert_empty[I8](h, 1, 0, 0)
-    _assert_empty[I8](h, 1, 0, 1)
-    _assert_empty[ISize](h, 0, 1, -1)
-    _assert_empty[ISize](h, 0, 1, 0)
-    _assert_empty[ISize](h, 1, 0, 0)
-    _assert_empty[ISize](h, 1, 0, 1)
-    _assert_empty[ISize](h, 0, 10, -1)
-    _assert_empty[USize](h, 10, 0, 1)
-    _assert_empty[USize](h, 10, 10, 1)
-    _assert_empty[USize](h, 10, 10, -1)
-    _assert_empty[USize](h, 10, 10, 0)
-    _assert_empty[USize](h, -10, -10, 1)
-    _assert_empty[USize](h, -10, -10, -1)
-    _assert_empty[USize](h, -10, -10, 0)
-    _assert_empty[USize](h, 0, 0, 1)
-    _assert_empty[USize](h, 0, 0, -1)
-    _assert_empty[USize](h, 0, 0, 2)
-    _assert_empty[F32](h, 0.0, 0.0, 1.0)
-    _assert_empty[F32](h, 0.0, 0.0, F32.epsilon())
-    _assert_empty[F64](h, 0.0, 0.0, 1.0)
-    _assert_empty[F64](h, 0.0, 0.0, F64.epsilon())
-    _assert_empty[F64](h, -0.1, 0.2, -0.1)
-    _assert_empty[F64](h, 0.2, -0.1, 0.0)
-    _assert_empty[F64](h, 0.2, -0.1, 0.1)
-    _assert_empty[F64](h, nan, 0, 1)
-    _assert_empty[F64](h, 0, nan, 1)
-    _assert_empty[F64](h, 0, 100, nan)
-    _assert_empty[F64](h, p_inf, 10, -1)
-    _assert_empty[F64](h, n_inf, p_inf, 1)
-    _assert_empty[F64](h, p_inf, n_inf, -1)
-    _assert_empty[F64](h, 10, p_inf, 0)
-    _assert_empty[F64](h, 0, 10, p_inf)
-    _assert_empty[F64](h, 100, 10, n_inf)
-    _assert_empty[F64](h, 0, 10, -1)
-    _assert_empty[F64](h, 0, 10, n_inf)
-    _assert_empty[F64](h, 0, 10, p_inf)
-    _assert_empty[F64](h, 0, -10, n_inf)
-    _assert_empty[F64](h, 10, 0, p_inf)
-    _assert_empty[F64](h, 10, 0, n_inf)
-    _assert_empty[F64](h, 10, 10, p_inf)
-    _assert_empty[F64](h, 10, 10, n_inf)
-    _assert_empty[F64](h, -10, -10, p_inf)
-    _assert_empty[F64](h, -10, -10, n_inf)
-    _assert_empty[F64](h, 0, p_inf, 0)
-    _assert_empty[F64](h, 0, p_inf, -10)
-    _assert_empty[F64](h, 0, p_inf, n_inf)
-    _assert_empty[F64](h, 0, n_inf, 0)
-    _assert_empty[F64](h, 0, n_inf, 10)
-    _assert_empty[F64](h, 0, n_inf, p_inf)
-    _assert_empty[F64](h, 0, p_inf, p_inf)
-    _assert_empty[F64](h, 0, n_inf, n_inf)
-    _assert_empty[F64](h, p_inf, 0, 0)
-    _assert_empty[F64](h, p_inf, 0, 10)
-    _assert_empty[F64](h, p_inf, 0, p_inf)
-    _assert_empty[F64](h, p_inf, 0, -10)
-    _assert_empty[F64](h, p_inf, 0, n_inf)
-    _assert_empty[F64](h, p_inf, n_inf, 10)
-    _assert_empty[F64](h, p_inf, n_inf, p_inf)
-    _assert_empty[F64](h, n_inf, 0, 0)
-    _assert_empty[F64](h, n_inf, 0, -10)
-    _assert_empty[F64](h, n_inf, 0, n_inf)
-    _assert_empty[F64](h, n_inf, 0, 10)
-    _assert_empty[F64](h, n_inf, 0, p_inf)
-    _assert_empty[F64](h, n_inf, p_inf, -10)
-    _assert_empty[F64](h, n_inf, p_inf, n_inf)
-    _assert_empty[F64](h, p_inf, p_inf, 0)
-    _assert_empty[F64](h, p_inf, p_inf, 1)
-    _assert_empty[F64](h, p_inf, p_inf, -1)
-    _assert_empty[F64](h, p_inf, p_inf, p_inf)
-    _assert_empty[F64](h, p_inf, p_inf, n_inf)
-    _assert_empty[F64](h, n_inf, n_inf, 0)
-    _assert_empty[F64](h, n_inf, n_inf, 1)
-    _assert_empty[F64](h, n_inf, n_inf, -1)
-    _assert_empty[F64](h, n_inf, n_inf, p_inf)
-    _assert_empty[F64](h, n_inf, n_inf, n_inf)
-    _assert_empty[F64](h, 0, 10, nan)
-    _assert_empty[F64](h, 0, p_inf, nan)
-    _assert_empty[F64](h, 0, n_inf, nan)
-    _assert_empty[F64](h, 0, nan, p_inf)
-    _assert_empty[F64](h, 0, nan, n_inf)
-    _assert_empty[F64](h, 10, 10, nan)
-    _assert_empty[F64](h, -10, -10, nan)
-    _assert_empty[F64](h, p_inf, 0, nan)
-    _assert_empty[F64](h, n_inf, 0, nan)
-    _assert_empty[F64](h, nan, 0, p_inf)
-    _assert_empty[F64](h, nan, 0, n_inf)
-    _assert_empty[F64](h, p_inf, p_inf, nan)
-    _assert_empty[F64](h, n_inf, n_inf, nan)
-    _assert_empty[F64](h, nan, nan, 0)
-    _assert_empty[F64](h, nan, nan, 1)
-    _assert_empty[F64](h, nan, nan, p_inf)
-    _assert_empty[F64](h, nan, nan, n_inf)
+    // next() past end
+    let r = Range.till(0, 2)
+    r.next()?
+    r.next()?
+    try
+      r.next()?
+      h.fail("next() should error when range is exhausted")
+    end
 
-    // Test infinite ranges
-    _assert_infinite[F64](h, 0, p_inf, 10)
-    _assert_infinite[F64](h, 0, n_inf, -10)
+    // rewind
+    let r2 = Range.till(0, 3)
+    r2.next()?
+    r2.next()?
+    r2.rewind()
+    h.assert_eq[USize](r2.next()?, 0)
 
-  fun _assert_infinite[N: (Real[N] val & Number)](
+    // rewind on through
+    let r3 = Range.through(0, 2)
+    while r3.has_next() do r3.next()? end
+    r3.rewind()
+    h.assert_eq[USize](r3.next()?, 0)
+
+    // rewind after overflow-induced _done
+    let r4 = Range[U8].through(253, 255)
+    while r4.has_next() do r4.next()? end
+    r4.rewind()
+    _expect[U8](h, r4, [253; 254; 255])
+
+    // rewind after descending unsigned overflow
+    let r6 = Range[U8].through(2, 0)
+    while r6.has_next() do r6.next()? end
+    r6.rewind()
+    _expect[U8](h, r6, [2; 1; 0])
+
+    // through(n, n) at unsigned type boundary
+    _expect[U8](h, Range[U8].through(255, 255), [255])
+    _expect[U8](h, Range[U8].through(0, 0), [0])
+
+    // through ascending with ISize
+    _expect[ISize](h, Range[ISize].through(-3, 3), [-3; -2; -1; 0; 1; 2; 3])
+    _expect[ISize](h, Range[ISize].through(3, -3), [3; 2; 1; 0; -1; -2; -3])
+
+    // rewind does not resurrect an empty range from bad inputs
+    let r5 = Range.till(0, 10, 0)
+    h.assert_false(r5.has_next())
+    r5.rewind()
+    h.assert_false(r5.has_next())
+
+  fun _expect[A: (Real[A] val & Number)](
     h: TestHelper,
-    min: N,
-    max: N,
-    step: N = 1
+    range: Range[A],
+    expected: Array[A] val
   ) =>
-    let range: Range[N] = Range[N](min, max, step)
-    let range_str =
-      "Range(" + min.string() + ", " + max.string() +
-        ", " + step.string() + ")"
-
-    h.assert_true(
-      range.is_infinite(), range_str + " should be infinite")
-    h.assert_true(
-      range.has_next(),
-      range_str + " infinite range should always have a next value")
-    h.assert_false(
-      range.is_empty(),
-      range_str + " infinite range should not be empty")
-    try
-      let nextval = range.next()?
-      h.assert_true(
-        range.has_next(),
-        range_str +
-          " infinite range should always have a next value")
-      h.assert_eq[N](nextval, min)
-    else
-      h.fail(
-        range_str +
-          ".next(): first call should not fail but should produce " +
-          min.string())
-    end
-    try
-      range.next()?
-      h.assert_true(
-        range.has_next(),
-        range_str +
-          " infinite range should always have a next value")
-    else
-      h.fail(range_str + ".next(): subsequent call should not fail")
-    end
-
-  fun _assert_empty[N: (Real[N] val & Number)](
-    h: TestHelper,
-    min: N,
-    max: N,
-    step: N = 1
-  ) =>
-    let range: Range[N] = Range[N](min, max, step)
-    let range_str =
-      "Range(" + min.string() + ", " + max.string() +
-        ", " + step.string() + ")"
-
-    h.assert_true(
-      range.is_empty(), range_str + " should be empty")
-    h.assert_false(
-      range.has_next(),
-      range_str + " empty range should not have a next value")
-    h.assert_false(
-      range.is_infinite(),
-      range_str + " empty range should not be infinite")
-    try
-      range.next()?
-      h.fail(
-        range_str + ".next(): first call should error")
-    end
-    try
-      range.next()?
-      h.fail(
-        range_str + ".next(): subsequent call should error")
-    end
-
-  fun _assert_range[N: (Real[N] val & Number)](
-    h: TestHelper,
-    min: N,
-    max: N,
-    step: N = 1,
-    expected: Array[N] val
-  ) =>
-
-    let range: Range[N] = Range[N](min, max, step)
-    let range_str =
-      "Range(" + min.string() + ", " + max.string() +
-        ", " + step.string() + ")"
-
-    h.assert_false(
-      range.is_infinite(),
-      range_str + " should not be infinite")
-    h.assert_false(
-      range.is_empty(), range_str + " should not be empty")
-    let collector = Array[N].create(0) .> concat(range)
-    h.assert_array_eq[N](
-      expected,
-      collector,
-      range_str + " should produce expected elements")
+    let actual = Array[A] .> concat(range)
+    h.assert_array_eq[A](expected, actual)
 
 class \nodoc\ iso _TestHeap is UnitTest
   fun name(): String => "collections/BinaryHeap"
@@ -847,7 +808,7 @@ class \nodoc\ iso _TestHeap is UnitTest
     let len = rand.int[USize](100)
 
     let ns = Array[USize](len)
-    for _ in Range(0, len) do
+    for _ in Range.till(0, len) do
       ns.push(rand.int[USize](100))
     end
 
@@ -887,7 +848,7 @@ class \nodoc\ iso _TestHeap is UnitTest
     var prev = h.pop()?
     _verify[P](t, h)?
 
-    for _ in Range(1, ns.size()) do
+    for _ in Range.till(1, ns.size()) do
       let n = h.pop()?
       t.assert_true((prev == n) or P(prev, n))
       prev = n

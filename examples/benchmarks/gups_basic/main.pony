@@ -86,14 +86,14 @@ actor Main
         recover
           var updaters = Array[Updater](count)
 
-          for i in Range(0, count) do
+          for i in Range.till(0, count) do
             updaters.push(Updater(i, size))
           end
 
           consume updaters
         end
 
-      for i in Range(0, _streamer_count) do
+      for i in Range.till(0, _streamer_count) do
         Streamer(
           this, _to, size, c.chunk, c.chunk * c.iterate * i)(
           c.iterate)
@@ -152,12 +152,12 @@ actor Streamer
     var list =
       recover Array[Array[U64] iso](upts) end
 
-    for i in Range(0, upts) do
+    for i in Range.till(0, upts) do
       list.push(recover Array[U64](chks) end)
     end
 
     try
-      for i in Range(0, chks) do
+      for i in Range.till(0, chks) do
         var datum = rand()
         var updater =
           ((datum >> shift) and mask).usize()
@@ -194,7 +194,7 @@ actor Updater
 
     var offset = index.u64() * size.u64()
 
-    for i in Range[U64](0, size.u64()) do
+    for i in Range[U64].till(0, size.u64()) do
       table.push(i + offset)
     end
 
@@ -240,7 +240,7 @@ class PolyRand
       var m2 = Array[U64](64)
       last = 1
 
-      for i in Range(0, 63) do
+      for i in Range.till(0, 63) do
         m2.push(last)
         apply()
         apply()
@@ -252,7 +252,7 @@ class PolyRand
       while i > 0 do
         var temp: U64 = 0
 
-        for j in Range(0, 64) do
+        for j in Range.till(0, 64) do
           if ((last >> j.u64()) and 1) != 0 then
             try temp = temp xor m2(j)? end
           end

@@ -19,7 +19,7 @@ actor Processor
 actor Main
   new create(env: Env) =>
     let s = Scheduler.schedulers(SchedulerInfoAuth(env.root))
-    for i in Range(0, s) do
+    for i in Range.till(0, s) do
       Processor
     end
 ```

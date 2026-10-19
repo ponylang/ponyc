@@ -135,7 +135,7 @@ class \nodoc\ iso _GenRndTest is UnitTest
     let rnd2 = Randomness(0)
     let rnd3 = Randomness(1)
     var same: U32 = 0
-    for x in Range(0, 100) do
+    for x in Range.till(0, 100) do
       let g1 = gen.generate(rnd1)?
       let g2 = gen.generate(rnd2)?
       let g3 = gen.generate(rnd3)?
@@ -156,7 +156,7 @@ class \nodoc\ iso _GenFilterTest is UnitTest
           (u, (u % 2) == 0)
       })
     let rnd = Randomness(Time.millis())
-    for x in Range(0, 100) do
+    for x in Range.till(0, 100) do
       let v = gen.generate(rnd)?
       h.assert_true((v % 2) == 0)
     end
@@ -169,7 +169,7 @@ class \nodoc\ iso _GenUnionTest is UnitTest
     let rnd = Randomness(Time.millis())
     var got_string: Bool = false
     var got_u8: Bool = false
-    for x in Range(0, 100) do
+    for x in Range.till(0, 100) do
       match \exhaustive\ gen.generate(rnd)?
       | let vs: String => got_string = true
       | let vs: U8 => got_u8 = true
@@ -192,7 +192,7 @@ class \nodoc\ iso _GenFrequencyTest is UnitTest
     let rnd: Randomness ref = Randomness(Time.millis())
 
     let generated = Array[U8](100)
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       generated.push(gen.generate(rnd)?)
     end
     h.assert_false(
@@ -225,7 +225,7 @@ class \nodoc\ iso _GenOneOfTest is UnitTest
   fun apply(h: TestHelper) ? =>
     let gen = Generators.one_of[U8]([as U8: 0; 1])
     let rnd = Randomness(Time.millis())
-    for x in Range(0, 100) do
+    for x in Range.till(0, 100) do
       let v = gen.generate(rnd)?
       h.assert_true(
         (v == 0) or (v == 1),
@@ -255,7 +255,7 @@ class \nodoc\ iso _SeqOfTest is UnitTest
         0,
         10)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = seq_gen.generate(rnd)?
       h.assert_true(
         (sample.size() >= 0) and (sample.size() <= 10),
@@ -271,7 +271,7 @@ class \nodoc\ iso _SetOfTest is UnitTest
         Generators.u8()
         where to = 1024)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample: Set[U8] = set_gen.generate(rnd)?
       h.assert_true(sample.size() <= 256, "something about U8 is not right")
     end
@@ -281,7 +281,7 @@ class \nodoc\ iso _SetOfMaxTest is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
-    for size in Range[USize](1, U8.max_value().usize()) do
+    for size in Range[USize].till(1, U8.max_value().usize()) do
       let set_gen =
         Generators.set_of[U8](
           Generators.u8()
@@ -299,7 +299,7 @@ class \nodoc\ iso _SetOfEmptyTest is UnitTest
         Generators.u8()
         where to = 0)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample: Set[U8] = set_gen.generate(rnd)?
       h.assert_true(sample.size() == 0, "non-empty set created.")
     end
@@ -342,7 +342,7 @@ class \nodoc\ iso _MapOfMaxTest is UnitTest
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
 
-    for size in Range(1, U8.max_value().usize()) do
+    for size in Range.till(1, U8.max_value().usize()) do
       let map_gen =
         Generators.map_of[String, I64](
           Generators.zip2[String, I64](
@@ -398,7 +398,7 @@ class \nodoc\ iso _MapIsOfMaxTest is UnitTest
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
 
-    for size in Range(1, U8.max_value().usize()) do
+    for size in Range.till(1, U8.max_value().usize()) do
       let map_is_gen =
         Generators.map_is_of[String, I64](
           Generators.zip2[String, I64](
@@ -436,7 +436,7 @@ class \nodoc\ iso _SetOfMinTest is UnitTest
         Generators.u8()
         where from = 1)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample: Set[U8] = set_gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
@@ -452,7 +452,7 @@ class \nodoc\ iso _SetIsOfMinTest is UnitTest
         Generators.ascii(where from = 1, to = 10)
         where from = 1)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample: SetIs[String] = set_is_gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
@@ -472,7 +472,7 @@ class \nodoc\ iso _MapOfMinTest is UnitTest
           Generators.i64(-10, 10))
         where from = 1)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = map_gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
@@ -492,7 +492,7 @@ class \nodoc\ iso _MapIsOfMinTest is UnitTest
           Generators.i64(-10, 10))
         where from = 1)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = map_is_gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
@@ -507,7 +507,7 @@ class \nodoc\ iso _ASCIIRangeTest is UnitTest
     let ascii_gen =
       Generators.ascii(where from = 1, to = 1, range = ASCIIAll)
 
-    for i in Range[USize](0, 100) do
+    for i in Range[USize].till(0, 100) do
       let sample = ascii_gen.generate(rnd)?
       h.assert_true(
         ASCIIAll().contains(sample),
@@ -520,7 +520,7 @@ class \nodoc\ iso _GenF32Test is UnitTest
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
     let gen = Generators.f32(where from = 5.0, to = 10.0)
-    for i in Range[USize](0, 100) do
+    for i in Range[USize].till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(sample >= 5.0, "f32 below min")
       h.assert_true(sample <= 10.0, "f32 above max")
@@ -532,7 +532,7 @@ class \nodoc\ iso _GenF32ReversedTest is UnitTest
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
     let gen = Generators.f32(where from = 10.0, to = 5.0)
-    for i in Range[USize](0, 100) do
+    for i in Range[USize].till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(sample >= 5.0, "f32 below min when from > to")
       h.assert_true(sample <= 10.0, "f32 above max when from > to")
@@ -545,7 +545,7 @@ class \nodoc\ iso _GenF32FullRangeTest is UnitTest
     let rnd = Randomness(Time.millis())
     let gen =
       Generators.f32(where from = -F32.max_value(), to = F32.max_value())
-    for i in Range[USize](0, 100) do
+    for i in Range[USize].till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(sample.finite(), "f32 full range produced non-finite")
     end
@@ -568,7 +568,7 @@ class \nodoc\ iso _GenF64Test is UnitTest
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
     let gen = Generators.f64(where from = 50.0, to = 100.0)
-    for i in Range[USize](0, 100) do
+    for i in Range[USize].till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(sample >= 50.0, "f64 below min")
       h.assert_true(sample <= 100.0, "f64 above max")
@@ -580,7 +580,7 @@ class \nodoc\ iso _GenF64ReversedTest is UnitTest
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
     let gen = Generators.f64(where from = 100.0, to = 50.0)
-    for i in Range[USize](0, 100) do
+    for i in Range[USize].till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(sample >= 50.0, "f64 below min when from > to")
       h.assert_true(sample <= 100.0, "f64 above max when from > to")
@@ -593,7 +593,7 @@ class \nodoc\ iso _GenF64FullRangeTest is UnitTest
     let rnd = Randomness(Time.millis())
     let gen =
       Generators.f64(where from = -F64.max_value(), to = F64.max_value())
-    for i in Range[USize](0, 100) do
+    for i in Range[USize].till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(sample.finite(), "f64 full range produced non-finite")
     end
@@ -621,7 +621,7 @@ class \nodoc\ iso _UTF32CodePointStringTest is UnitTest
         50,
         100)
 
-    for i in Range[USize](0, 100) do
+    for i in Range[USize].till(0, 100) do
       let sample = string_gen.generate(rnd)?
       for cp in sample.runes() do
         h.assert_true(
@@ -839,7 +839,7 @@ class \nodoc\ iso _VecOfEmptyTest is UnitTest
         Generators.u8()
         where to = 0)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_eq[USize](sample.size(), 0, "non-empty vec created")
     end
@@ -853,7 +853,7 @@ class \nodoc\ iso _VecOfFromToReversedTest is UnitTest
         Generators.u8()
         where from = 10, to = 5)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 5,
@@ -868,7 +868,7 @@ class \nodoc\ iso _VecOfMaxTest is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
-    for size in Range[USize](1, 50) do
+    for size in Range[USize].till(1, 50) do
       let gen =
         Generators.vec_of[U8](
           Generators.u8()
@@ -886,7 +886,7 @@ class \nodoc\ iso _VecOfMinTest is UnitTest
         Generators.u8()
         where from = 1)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
@@ -902,7 +902,7 @@ class \nodoc\ iso _PersistentListOfEmptyTest is UnitTest
         Generators.u8()
         where to = 0)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_eq[USize](sample.size(), 0, "non-empty list created")
     end
@@ -912,7 +912,7 @@ class \nodoc\ iso _PersistentListOfMaxTest is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
-    for size in Range[USize](1, 50) do
+    for size in Range[USize].till(1, 50) do
       let gen =
         Generators.persistent_list_of[U8](
           Generators.u8()
@@ -930,7 +930,7 @@ class \nodoc\ iso _PersistentListOfMinTest is UnitTest
         Generators.u8()
         where from = 1)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
@@ -960,7 +960,7 @@ class \nodoc\ iso _PersistentSetOfEmptyTest is UnitTest
         Generators.u8()
         where to = 0)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_eq[USize](sample.size(), 0, "non-empty set created")
     end
@@ -970,7 +970,7 @@ class \nodoc\ iso _PersistentSetOfMaxTest is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
-    for size in Range[USize](1, U8.max_value().usize()) do
+    for size in Range[USize].till(1, U8.max_value().usize()) do
       let gen =
         Generators.persistent_set_of[U8](
           Generators.u8()
@@ -988,7 +988,7 @@ class \nodoc\ iso _PersistentSetOfMinTest is UnitTest
         Generators.u8()
         where from = 1)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
@@ -1004,7 +1004,7 @@ class \nodoc\ iso _PersistentSetIsOfEmptyTest is UnitTest
         Generators.u8()
         where to = 0)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_eq[USize](sample.size(), 0, "non-empty SetIs created")
     end
@@ -1014,7 +1014,7 @@ class \nodoc\ iso _PersistentSetIsOfMaxTest is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
-    for size in Range[USize](1, U8.max_value().usize()) do
+    for size in Range[USize].till(1, U8.max_value().usize()) do
       let gen =
         Generators.persistent_set_is_of[U8](
           Generators.u8()
@@ -1032,7 +1032,7 @@ class \nodoc\ iso _PersistentSetIsOfMinTest is UnitTest
         Generators.u8()
         where from = 1)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
@@ -1091,7 +1091,7 @@ class \nodoc\ iso _PersistentMapOfMaxTest is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
-    for size in Range[USize](1, U8.max_value().usize()) do
+    for size in Range[USize].till(1, U8.max_value().usize()) do
       let gen =
         Generators.persistent_map_of[U8, U8](
           Generators.zip2[U8, U8](
@@ -1113,7 +1113,7 @@ class \nodoc\ iso _PersistentMapOfMinTest is UnitTest
           Generators.u8())
         where from = 1)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
@@ -1139,7 +1139,7 @@ class \nodoc\ iso _PersistentMapIsOfMaxTest is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let rnd = Randomness(Time.millis())
-    for size in Range[USize](1, U8.max_value().usize()) do
+    for size in Range[USize].till(1, U8.max_value().usize()) do
       let gen =
         Generators.persistent_map_is_of[U8, U8](
           Generators.zip2[U8, U8](
@@ -1161,7 +1161,7 @@ class \nodoc\ iso _PersistentMapIsOfMinTest is UnitTest
           Generators.u8())
         where from = 1)
     let rnd = Randomness(Time.millis())
-    for i in Range(0, 100) do
+    for i in Range.till(0, 100) do
       let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,

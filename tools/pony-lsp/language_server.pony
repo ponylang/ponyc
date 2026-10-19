@@ -288,7 +288,7 @@ actor LanguageServer is (Notifier & RequestSender)
   fun ref handle_response(r: ResponseMessage val) =>
     match this._state
     | _Initialized | _Uninitialized =>
-      for i in Range[USize](0, this._expect_responses_for.size()) do
+      for i in Range[USize].till(0, this._expect_responses_for.size()) do
         try
           (let expected_request_id, let expected_method, let maybe_notify) =
             this._expect_responses_for(i)?

@@ -52,7 +52,7 @@ primitive Extractor
       // Sort remaining modules alphabetically by qualified name,
       // skipping test modules
       let remaining = Array[(ast.Module val, String)]
-      for i in Range(1, all_modules.size()) do
+      for i in Range.till(1, all_modules.size()) do
         try
           (let mod, _) = all_modules(i)?
           let qn = mod.qualified_name
@@ -94,7 +94,7 @@ primitive Extractor
     Sort modules in-place by qualified name.
     """
     // Simple insertion sort — module count is small
-    for i in Range(1, modules.size()) do
+    for i in Range.till(1, modules.size()) do
       try
         var j = i
         while (j > 0) and
@@ -659,7 +659,7 @@ primitive Extractor
     Sort entities by name, ignoring leading underscore.
     """
     // Simple insertion sort in-place — entity count per package is small
-    for i in Range(1, entities.size()) do
+    for i in Range.till(1, entities.size()) do
       try
         var j = i
         while (j > 0) and

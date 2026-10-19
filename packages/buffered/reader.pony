@@ -47,7 +47,7 @@ class Reader
         while true do
           let len = rb.i32_be()?
           let items = rb.i32_be()?.usize()
-          for range in Range(0, items) do
+          for range in Range.till(0, items) do
             let f = rb.f32_be()?
             let str_len = rb.i32_be()?.usize()
             let str = String.from_array(rb.block(str_len)?)

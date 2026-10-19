@@ -133,7 +133,7 @@ class \nodoc\ iso _TestIterRepeatValue is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let repeater = Iter[String].repeat_value("a")
-    for _ in Range(0, 3) do
+    for _ in Range.till(0, 3) do
       h.assert_eq[String]("a", repeater.next()?)
     end
 
@@ -330,8 +330,8 @@ class \nodoc\ iso _TestIterFlatMap is UnitTest
       [as U8: 'a'; 'b'; 'c'; 'd'])
 
     let iter =
-      Iter[U8](Range[U8](1, 3))
-        .flat_map[U8]({(n) => Range[U8](0, n) })
+      Iter[U8](Range[U8].till(1, 3))
+        .flat_map[U8]({(n): Iterator[U8] => Range[U8].till(0, n) })
     h.assert_eq[U8](0, iter.next()?)
     h.assert_eq[U8](0, iter.next()?)
     h.assert_eq[U8](1, iter.next()?)
@@ -354,7 +354,7 @@ class \nodoc\ iso _TestIterInterleave is UnitTest
   fun name(): String => "itertools/Iter.interleave"
 
   fun apply(h: TestHelper) ? =>
-    let iter = Iter[USize](Range(0, 4)).interleave(Range(4, 6))
+    let iter = Iter[USize](Range.till(0, 4)).interleave(Range.till(4, 6))
     let expected = [as USize: 0; 4; 1; 5; 2; 3]
 
     var i: USize = 0
@@ -367,7 +367,8 @@ class \nodoc\ iso _TestIterInterleaveShortest is UnitTest
   fun name(): String => "itertools/Iter.interleave_shortest"
 
   fun apply(h: TestHelper) ? =>
-    let iter = Iter[USize](Range(0, 4)).interleave_shortest(Range(4, 6))
+    let iter =
+      Iter[USize](Range.till(0, 4)).interleave_shortest(Range.till(4, 6))
     let expected = [as USize: 0; 4; 1; 5; 2]
 
     var i: USize = 0
@@ -380,7 +381,7 @@ class \nodoc\ iso _TestIterIntersperse is UnitTest
   fun name(): String => "itertools/Iter.intersperse"
 
   fun apply(h: TestHelper) ? =>
-    let iter = Iter[USize](Range(0, 3)).intersperse(8)
+    let iter = Iter[USize](Range.till(0, 3)).intersperse(8)
     let expected = [as USize: 0; 8; 1; 8; 2]
 
     var i: USize = 0
@@ -527,7 +528,7 @@ class \nodoc\ iso _TestIterStepBy is UnitTest
   fun name(): String => "itertools/Iter.step_by"
 
   fun apply(h: TestHelper) ? =>
-    let iter = Iter[USize](Range(0, 10)).step_by(2)
+    let iter = Iter[USize](Range.till(0, 10)).step_by(2)
     let expected = [as USize: 1; 3; 5; 7; 9]
 
     var i: USize = 0
@@ -594,7 +595,7 @@ class \nodoc\ iso _TestIterTakeWhile is UnitTest
         .collect(Array[I64]))
 
     let infinite =
-      Iter[USize](Range(0, 3))
+      Iter[USize](Range.till(0, 3))
         .cycle()
         .take_while({(n) => n < 2 })
     h.assert_eq[USize](0, infinite.next()?)
@@ -758,11 +759,11 @@ class \nodoc\ iso _IterFlatMapProperty is Property[Array[USize]]
   fun ref property(input: Array[USize], h: PropertyHelper) =>
     let expected = Array[USize]
     for v in input.values() do
-      for i in Range(0, v) do expected.push(i) end
+      for i in Range.till(0, v) do expected.push(i) end
     end
     let actual =
       Iter[USize](input.values())
-        .flat_map[USize]({(x: USize): Iterator[USize] => Range(0, x) })
+        .flat_map[USize]({(x: USize): Iterator[USize] => Range.till(0, x) })
         .collect(Array[USize])
     h.assert_array_eq[USize](expected, actual)
 
@@ -791,7 +792,7 @@ class \nodoc\ iso _TestIterChainDeepPath is UnitTest
   fun apply(h: TestHelper) =>
     let n: USize = 1_000_000
     let outers = Array[Iterator[USize]](n + 1)
-    for _ in Range(0, n) do
+    for _ in Range.till(0, n) do
       outers.push(Array[USize].create().values())
     end
     outers.push([as USize: 42].values())
@@ -806,7 +807,7 @@ class \nodoc\ iso _TestIterDedupDeepPath is UnitTest
   fun apply(h: TestHelper) =>
     let n: USize = 1_000_000
     let input = Array[USize](n + 1)
-    for _ in Range(0, n) do input.push(0) end
+    for _ in Range.till(0, n) do input.push(0) end
     input.push(1)
     let result =
       Iter[USize](input.values()).dedup().collect(Array[USize])
@@ -818,7 +819,7 @@ class \nodoc\ iso _TestIterFilterDeepPath is UnitTest
   fun apply(h: TestHelper) =>
     let n: USize = 1_000_000
     let result =
-      Iter[USize](Range(0, n + 1))
+      Iter[USize](Range.till(0, n + 1))
         .filter({(x: USize): Bool => x == n })
         .collect(Array[USize])
     h.assert_eq[USize](1, result.size())
@@ -830,7 +831,7 @@ class \nodoc\ iso _TestIterFilterMapDeepPath is UnitTest
   fun apply(h: TestHelper) =>
     let n: USize = 1_000_000
     let result =
-      Iter[USize](Range(0, n + 1))
+      Iter[USize](Range.till(0, n + 1))
         .filter_map[USize]({(x: USize): (USize | None) =>
           if x == n then x end
         })
@@ -844,10 +845,10 @@ class \nodoc\ iso _TestIterFlatMapDeepPath is UnitTest
   fun apply(h: TestHelper) =>
     let n: USize = 1_000_000
     let result =
-      Iter[USize](Range(0, n + 1))
+      Iter[USize](Range.till(0, n + 1))
         .flat_map[USize]({(x: USize): Iterator[USize] =>
-          if x == n then Range[USize](0, 3)
-          else Range[USize](0, 0)
+          if x == n then Range[USize].till(0, 3)
+          else Range[USize].till(0, 0)
           end
         })
         .collect(Array[USize])
@@ -859,7 +860,7 @@ class \nodoc\ iso _TestIterUniqueDeepPath is UnitTest
   fun apply(h: TestHelper) =>
     let n: USize = 1_000_000
     let input = Array[USize](n + 1)
-    for _ in Range(0, n) do input.push(0) end
+    for _ in Range.till(0, n) do input.push(0) end
     input.push(1)
     let result =
       Iter[USize](input.values()).unique().collect(Array[USize])
@@ -870,7 +871,7 @@ class \nodoc\ iso _TestIterRunDeepPath is UnitTest
 
   fun apply(h: TestHelper) =>
     let n: USize = 1_000_000
-    let iter = Iter[USize](Range(0, n))
+    let iter = Iter[USize](Range.till(0, n))
     iter.run()
     h.assert_false(iter.has_next())
 

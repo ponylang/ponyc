@@ -51,6 +51,6 @@ actor Main
   fun ref start_messaging(out: OutStream) =>
     let r = Receiver(out)
     out.print("Starting " + _size.string() + " senders.")
-    for i in Range[U32](0, _size) do
+    for i in Range[U32].till(0, _size) do
       Sender(r).fire()
     end

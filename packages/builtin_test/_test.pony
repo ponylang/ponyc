@@ -1666,7 +1666,7 @@ class \nodoc\ iso _TestArraySlice is UnitTest
     h.assert_eq[String]("two", d(3)?)
     h.assert_eq[String]("one", d(4)?)
 
-    let e = a.permute(Reverse(4, 0, 2))?
+    let e = a.permute(Range.through(4, 0, 2))?
     h.assert_eq[USize](e.size(), 3)
     h.assert_eq[String]("five", e(0)?)
     h.assert_eq[String]("three", e(1)?)

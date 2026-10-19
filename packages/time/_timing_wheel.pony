@@ -18,7 +18,7 @@ class _TimingWheel
     _adjust = if index > 0 then 1 else 0 end
     _list = Array[List[Timer]](_max())
 
-    for i in Range(0, _max()) do
+    for i in Range.till(0, _max()) do
       _list.push(List[Timer])
     end
 

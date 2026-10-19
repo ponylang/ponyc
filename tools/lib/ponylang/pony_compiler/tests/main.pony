@@ -562,7 +562,7 @@ class \nodoc\ _CompileErrorTest is UnitTest
               .expected_errors.size().string() +
             " Errors, got " +
             e.size().string())
-        for i in Range(0, e.size()) do
+        for i in Range.till(0, e.size()) do
           let err = e(i)?
           (let expected_file,
             let expected_position,
@@ -660,7 +660,7 @@ class \nodoc\ _ParallelCompilerTest is UnitTest
     let count =
       Scheduler.schedulers(
         SchedulerInfoAuth(h.env.root)).usize().max(2)
-    for i in Range(0, count) do
+    for i in Range.till(0, count) do
       let token: String val = i.string()
       h.expect_action(token)
       ParallelCompiler.create(
