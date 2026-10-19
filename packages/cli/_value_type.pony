@@ -502,15 +502,17 @@ class _StringSeq is ReadSeq[String]
   new val from_concat(ss0: _StringSeq val, ss1: _StringSeq val) =>
     strings = ss0.strings.concat(ss1.strings.values())
 
-  fun string(): String iso^ =>
-    let str = recover String() end
-    str.push('[')
-    for s in strings.values() do
-      if str.size() > 1 then str.push(',') end
-      str.append(s)
+  fun string(): String =>
+    recover val
+      let str = String
+      str.push('[')
+      for s in strings.values() do
+        if str.size() > 1 then str.push(',') end
+        str.append(s)
+      end
+      str.push(']')
+      str
     end
-    str.push(']')
-    str
 
   fun size(): USize => strings.size()
   fun apply(i: USize): this->String ? => strings(i)?

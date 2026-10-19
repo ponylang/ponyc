@@ -3,8 +3,8 @@ use @pony_exitcode[None](code: I32)
 trait val Marker
 
 primitive Tagged is (Stringable & Marker)
-  fun string(): String iso^ =>
-    "tagged".clone()
+  fun string(): String =>
+    "tagged"
 
 class Container[A: Any val]
   var _data: A

@@ -1350,8 +1350,8 @@ class \nodoc\ val _SpyResults
       false
     end
 
-  fun string(): String iso^ =>
-    recover
+  fun string(): String =>
+    recover val
       String
         .> append("disposes=" + disposes.string())
         .> append(" failures=" + failures.string())

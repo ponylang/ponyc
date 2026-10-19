@@ -98,7 +98,7 @@ actor Main
     // and require pass catchup on the generated AST.
     let cc6: Change = ((0, 0), "bob", Dependency, (Link,
       object val is Stringable
-        fun string(): String iso^ => "obj".clone()
+        fun string(): String => "obj"
       end.string()))
     if not CheckChange.check(cc6) then
       @fprintf(@pony_os_stdout(), "FAIL: object literal in tuple element\n".cstring())

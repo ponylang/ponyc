@@ -128,7 +128,7 @@ class \nodoc\ iso _WorkspaceConfigurationTest is UnitTest
                       JSONArray
                         .push("/pony/path")
                         .push("/foo/bar")))
-              ).string().iso_array())
+              ).string().clone().iso_array())
         end,
         {(h: TestHelper, harness: TestHarness ref): Bool => true })
     let workspace_dir =

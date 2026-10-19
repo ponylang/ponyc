@@ -44,7 +44,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
             | Methods.workspace().configuration() =>
               // this will initialize the compiler
               server(
-                ResponseMessage.create(req.id, JSONArray).string().iso_array())
+                ResponseMessage.create(req.id, JSONArray).string().clone().iso_array())
               // send did_open notification to trigger compilation
               server(
                 Notification(
@@ -59,7 +59,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
                         .update("languageId", "pony")
                         .update("version", I64(1))
                         .update("text", "don't care"))
-                ).string().iso_array()
+                ).string().clone().iso_array()
               )
             end
 
@@ -116,7 +116,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
             end
             // send initialized notification
             server(
-              Notification(Methods.initialized(), None).string().iso_array())
+              Notification(Methods.initialized(), None).string().clone().iso_array())
         end,
         {(h: TestHelper, harness: TestHarness ref): Bool => true }
         where

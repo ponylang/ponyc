@@ -655,10 +655,8 @@ actor SwarmListener is TCPListenerActor
     EchoServer(TCPServerAuth(_listen_auth), fd, _config)
 
   fun ref _on_listening() =>
-    // port().string() already returns a sendable `String iso^`; no `recover`
-    // (which couldn't touch the `_tcp_listener` field anyway).
     let port = _tcp_listener.local_address().port().string()
-    _spawner.listener_ready(this, consume port)
+    _spawner.listener_ready(this, port)
 
   fun ref _on_listen_failure() =>
     @printf("FAIL: listener could not start\n".cstring())

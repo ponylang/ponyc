@@ -15,14 +15,14 @@ class val ProcessError
     error_type = error_type'
     message = message'
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     match message
     | let m: String =>
-      recover
+      recover val
         let etc = error_type.string()
         let len = etc.size() + 2 + m.size()
         String(len)
-          .> append(consume etc)
+          .> append(etc)
           .> append(": ")
           .> append(m)
       end
@@ -53,7 +53,7 @@ primitive ExecveError
   never ran. Arrives through `ProcessNotify.failed`. For a path that does not
   name a runnable file in the first place, see `ExecutableNotFound`.
   """
-  fun string(): String iso^ => "ExecveError".clone()
+  fun string(): String => "ExecveError"
 
 primitive ExecutableNotFound
   """
@@ -61,65 +61,65 @@ primitive ExecutableNotFound
   to execute; it is missing or is a directory. Distinct from `ExecveError`,
   which is `execve` failing in the child after the process was started.
   """
-  fun string(): String iso^ => "ExecutableNotFound".clone()
+  fun string(): String => "ExecutableNotFound"
 
 primitive UnsupportedKernel
   """
   The platform cannot report a child's exit. On Linux this means the kernel is
   older than 5.3 and lacks `pidfd_open`.
   """
-  fun string(): String iso^ => "UnsupportedKernel".clone()
+  fun string(): String => "UnsupportedKernel"
 
 primitive PipeError
   """
   A pipe to communicate with the child could not be opened. Returned by
   `StartProcess`.
   """
-  fun string(): String iso^ => "PipeError".clone()
+  fun string(): String => "PipeError"
 
 primitive ForkError
   """
   The child process could not be created (`fork` on posix, `CreateProcess` on
   Windows). Returned by `StartProcess`.
   """
-  fun string(): String iso^ => "ForkError".clone()
+  fun string(): String => "ForkError"
 
 primitive WaitpidError
   """
   The child's exit status could not be read. Arrives through
   `ProcessNotify.failed` as a terminal error in place of `dispose`.
   """
-  fun string(): String iso^ => "WaitpidError".clone()
+  fun string(): String => "WaitpidError"
 
 primitive WriteError
   """
   Writing to the child's STDIN failed. Arrives through `ProcessNotify.failed`.
   """
-  fun string(): String iso^ => "WriteError".clone()
+  fun string(): String => "WriteError"
 
 primitive KillError
   """
   Currently unused.
   """
-  fun string(): String iso^ => "KillError".clone()
+  fun string(): String => "KillError"
 
 primitive CapError
   """
   The path does not have the `FileExec` capability, so we are not permitted to
   execute it. Returned by `StartProcess`.
   """
-  fun string(): String iso^ => "CapError".clone()
+  fun string(): String => "CapError"
 
 primitive ChdirError
   """
   The child could not change to the requested working directory. Arrives
   through `ProcessNotify.failed`.
   """
-  fun string(): String iso^ => "ChdirError".clone()
+  fun string(): String => "ChdirError"
 
 primitive UnknownError
   """
   The child reported a startup failure we could not classify. Arrives through
   `ProcessNotify.failed`.
   """
-  fun string(): String iso^ => "UnknownError".clone()
+  fun string(): String => "UnknownError"

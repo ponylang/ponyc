@@ -673,7 +673,7 @@ primitive U128 is UnsignedInteger[U128]
   fun hash64(): U64 =>
     ((this >> 64).u64() xor this.u64()).hash64()
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     _ToString._u128(this, false)
 
   fun mul(y: U128): U128 =>
