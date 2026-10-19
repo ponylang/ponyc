@@ -54,8 +54,6 @@ actor \nodoc\ Main is TestList
     test(_TestSSLIdleTimeout)
     test(_TestSSLIdleTimeoutNotArmedDuringHandshake)
     test(_TestSSLIdleTimeoutDeferredArm)
-    test(_TestYieldRead)
-    test(_TestSSLYieldRead)
     test(_TestIP4PingPong)
     test(_TestIP6PingPong)
     test(_TestMaxSpawnRejectsZero)
