@@ -3,6 +3,7 @@ use @snprintf[I32](str: Pointer[U8] tag, size: USize, fmt: Pointer[U8] tag, ...)
 use @_snprintf[I32](
   str: Pointer[U8] tag, count: USize, fmt: Pointer[U8] tag, ...)
   if windows
+use @_scprintf[I32](fmt: Pointer[U8] tag, ...) if windows
 
 primitive _FormatFloat
   """
@@ -22,7 +23,6 @@ primitive _FormatFloat
     var prec' = if prec == -1 then 6 else prec end
 
     recover
-      var s = String((prec' + 8).max(width.max(31)))
       var f = String(31) .> append("%")
 
       if width > 0 then f.append(width.string()) end
@@ -38,6 +38,18 @@ primitive _FormatFloat
       else
         f.append("g")
       end
+
+      // Ask snprintf how many characters the formatted value needs, then
+      // allocate a buffer large enough. On POSIX, snprintf(NULL, 0, ...)
+      // returns the required length; on Windows, _scprintf does the same.
+      let needed: USize =
+        ifdef windows then
+          @_scprintf(f.cstring(), x).usize()
+        else
+          @snprintf(Pointer[U8], USize(0), f.cstring(), x).usize()
+        end
+
+      var s = String((needed + 1).max(width.max(31)))
 
       ifdef windows then
         @_snprintf(s.cstring(), s.space(), f.cstring(), x)
