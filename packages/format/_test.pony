@@ -10,6 +10,7 @@ actor \nodoc\ Main is TestList
     test(_TestApply)
     test(_TestFloat)
     test(_TestInt)
+    test(_TestIntUTF32)
 
 class \nodoc\ iso _TestApply is UnitTest
   fun name(): String => "format/apply"
@@ -217,3 +218,23 @@ class \nodoc\ iso _TestInt is UnitTest
       "-0000a  ",
       Format.int[I128](
         -10, FormatHexSmallBare, PrefixDefault, 5, 8, AlignLeft))
+
+class \nodoc\ iso _TestIntUTF32 is UnitTest
+  fun name(): String => "format/int_utf32"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[String]("A", Format.int[U8](65, FormatUTF32))
+    h.assert_eq[String]("A", Format.int[U16](65, FormatUTF32))
+    h.assert_eq[String]("A", Format.int[U32](65, FormatUTF32))
+    h.assert_eq[String]("A", Format.int[U64](65, FormatUTF32))
+    h.assert_eq[String]("A", Format.int[U128](65, FormatUTF32))
+    h.assert_eq[String]("A", Format.int[I8](65, FormatUTF32))
+    h.assert_eq[String]("A", Format.int[I16](65, FormatUTF32))
+    h.assert_eq[String]("A", Format.int[I32](65, FormatUTF32))
+    h.assert_eq[String]("A", Format.int[I64](65, FormatUTF32))
+    h.assert_eq[String]("A", Format.int[I128](65, FormatUTF32))
+
+    // U+00E9 (2-byte UTF-8), fits in U8
+    h.assert_eq[String]("é", Format.int[U8](0xE9, FormatUTF32))
+    // U+263A (3-byte UTF-8), fits in U16
+    h.assert_eq[String]("☺", Format.int[U16](0x263A, FormatUTF32))

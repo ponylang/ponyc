@@ -73,6 +73,10 @@ primitive _FormatInt
     fill: U32)
     : String iso^
   =>
+    match fmt
+    | FormatUTF32 => return recover String.from_utf32(x.u32()) end
+    end
+
     (var base', var typestring, var table) = _fmt_int(fmt)
     var prestring = _prefix(neg, prefix)
     var prec' = if prec == -1 then 0 else prec end
@@ -111,6 +115,10 @@ primitive _FormatInt
     fill: U32)
     : String iso^
   =>
+    match fmt
+    | FormatUTF32 => return recover String.from_utf32(x.u32()) end
+    end
+
     (var base', var typestring, var table) = _fmt_int(fmt)
     var prestring = _prefix(neg, prefix)
     var prec' = if prec == -1 then 0 else prec end
