@@ -11,6 +11,12 @@ primitive StrykerReporter is Reporter
     Print the Stryker JSON report to stdout.
     """
     env.out.print(_build(outcomes))
+    for o in outcomes.values() do
+      if o.result is MutantSurvived then
+        env.exitcode(1)
+        return
+      end
+    end
 
   fun write_file(
     outcomes: Array[MutantOutcome] val,
