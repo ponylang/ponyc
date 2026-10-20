@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix Base64.encode_url emitting NUL bytes instead of stripping padding ([PR #6313](https://github.com/ponylang/ponyc/pull/6313))
 
 ### Added
 
