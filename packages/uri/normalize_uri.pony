@@ -48,11 +48,13 @@ primitive NormalizeURI
           | None => None
           end
 
-        // Lowercase host, then normalize percent-encoding
-        let lower_host: String val = a.host.lower()
-        let norm_host =
-          match \exhaustive\ _NormalizePercentEncoding(lower_host)
-          | let s: String => s
+        // Lowercasing must happen after decoding so that a decoded letter
+        // (e.g. %41 → 'A') is lowercased along with the rest of the host.
+        // Uses _LowerOutsidePercent rather than .lower() to preserve the
+        // uppercase hex digits that _NormalizePercentEncoding produces.
+        let norm_host: String val =
+          match \exhaustive\ _NormalizePercentEncoding(a.host)
+          | let s: String => _LowerOutsidePercent(s)
           | let e: InvalidPercentEncoding val => return e
           end
 
@@ -132,6 +134,63 @@ primitive NormalizeURI
       final_path,
       norm_query,
       norm_fragment)
+
+primitive _LowerOutsidePercent
+  """
+  Lowercase ASCII letters in a string, skipping characters inside `%XX`
+  percent-encoded triplets. This preserves the uppercase hex digits that
+  `_NormalizePercentEncoding` produces while lowercasing literal host
+  characters per RFC 3986 section 6.2.2.1.
+  """
+  fun apply(input: String val): String val =>
+    var has_upper = false
+    var i: USize = 0
+    while i < input.size() do
+      try
+        let c = input(i)?
+        if c == '%' then
+          i = i + 3
+        elseif (c >= 'A') and (c <= 'Z') then
+          has_upper = true
+          break
+        else
+          i = i + 1
+        end
+      else
+        break
+      end
+    end
+
+    if not has_upper then
+      return input
+    end
+
+    let out = String(input.size())
+    i = 0
+    while i < input.size() do
+      try
+        let c = input(i)?
+        if c == '%' then
+          out.push(c)
+          if (i + 1) < input.size() then
+            out.push(input(i + 1)?)
+          end
+          if (i + 2) < input.size() then
+            out.push(input(i + 2)?)
+          end
+          i = i + 3
+        elseif (c >= 'A') and (c <= 'Z') then
+          out.push(c + 32)
+          i = i + 1
+        else
+          out.push(c)
+          i = i + 1
+        end
+      else
+        break
+      end
+    end
+    out.clone()
 
 primitive _SchemeDefaultPort
   """

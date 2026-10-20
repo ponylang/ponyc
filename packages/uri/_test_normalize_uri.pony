@@ -472,6 +472,18 @@ class \nodoc\ iso _TestNormalizeURIKnownGood is UnitTest
     _assert_normalize(
       h, "ftp://example.com", "ftp://example.com")
 
+    // Percent-encoded uppercase letter in host decoded and lowercased
+    _assert_normalize(
+      h, "http://%41B.example/", "http://ab.example/")
+
+    // Already-lowercase percent-encoded letter in host
+    _assert_normalize(
+      h, "http://%61b.example/", "http://ab.example/")
+
+    // Percent-encoded reserved char with uppercase hex preserved in host
+    _assert_normalize(
+      h, "http://host%2Aname.example/", "http://host%2Aname.example/")
+
     // -- Combined 6.2.2 + 6.2.3 --
     _assert_normalize(
       h,
@@ -512,6 +524,13 @@ class \nodoc\ iso _TestURIEquivalentKnownGood is UnitTest
     // Not equivalent: different paths
     _assert_equivalent(
       h, "http://example.com/a", "http://example.com/b", false)
+
+    // Equivalent: percent-encoded uppercase letter in host
+    _assert_equivalent(
+      h, "http://%41B.example/", "http://ab.example/", true)
+
+    // Equivalent: bare authority with percent-encoded host
+    _assert_equivalent(h, "//%50", "//P", true)
 
     // Reflexive: any URI equivalent to itself
     _assert_equivalent(
@@ -690,6 +709,9 @@ primitive \nodoc\ _NormalizableURIInputGenerator
         "Example.Org"
         "LOCALHOST"
         "ex%61mple.com"
+        "%41B.example"
+        "%50"
+        "host%2Aname"
         "[FE80::1]"
         "192.168.1.1"
       ])
