@@ -39,6 +39,14 @@ actor Main
               "scope",
               "Filter mutants to this source file path"
               where default' = "")
+            OptionSpec.u64(
+              "ponymaxthreads",
+              "Set --ponymaxthreads for the test binary (0 = omit flag)"
+              where default' = 1)
+            OptionSpec.bool(
+              "ponynoscale",
+              "Pass --ponynoscale to the test binary"
+              where default' = true)
           ],
           [
             ArgSpec.string("binary", "Path to the test binary")
@@ -112,12 +120,17 @@ actor Main
         end
 
       let binary_path = FilePath(auth, binary)
+      let ponymaxthreads = cmd.option("ponymaxthreads").u64()
+      let ponynoscale = cmd.option("ponynoscale").bool()
       let args: Array[String] val =
         recover val
-          Array[String]
-            .> push(binary)
-            .> push("--ponynoscale")
-            .> push("--ponymaxthreads=1")
+          let a = Array[String]
+          a.push(binary)
+          if ponynoscale then a.push("--ponynoscale") end
+          if ponymaxthreads > 0 then
+            a.push("--ponymaxthreads=" + ponymaxthreads.string())
+          end
+          a
         end
       let base_vars: Array[String] val = env.vars
 
