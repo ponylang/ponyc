@@ -219,6 +219,26 @@ class \nodoc\ iso _TestInt is UnitTest
       Format.int[I128](
         -10, FormatHexSmallBare, PrefixDefault, 5, 8, AlignLeft))
 
+    // Multi-byte UTF-8 fill must produce valid UTF-8.
+    // U+00E9 'é' is C3 A9 in UTF-8 (2 bytes).
+    h.assert_eq[String](
+      "ééé5",
+      Format.int[U8](5 where width = 4, fill = 0xE9, align = AlignRight))
+    h.assert_eq[String](
+      "5ééé",
+      Format.int[U8](5 where width = 4, fill = 0xE9, align = AlignLeft))
+    h.assert_eq[String](
+      "é5éé",
+      Format.int[U8](5 where width = 4, fill = 0xE9, align = AlignCenter))
+
+    // U+20AC '€' is E2 82 AC in UTF-8 (3 bytes).
+    h.assert_eq[String](
+      "€0",
+      Format.int[U8](0 where width = 2, fill = 0x20AC, align = AlignRight))
+    h.assert_eq[String](
+      "0€",
+      Format.int[U8](0 where width = 2, fill = 0x20AC, align = AlignLeft))
+
 class \nodoc\ iso _TestIntUTF32 is UnitTest
   fun name(): String => "format/int_utf32"
 
