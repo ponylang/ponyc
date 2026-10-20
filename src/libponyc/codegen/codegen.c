@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "genmutate.h"
 #include "pony_version.h"
 #include "genexe.h"
 #include "genprim.h"
@@ -1081,6 +1082,13 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
   if(opt->limit == PASS_PAINT)
     return true;
 
+  if(opt->mutate)
+  {
+    mutate_init(&c->mutate);
+    c->mutant_selector = mutate_declare_selector(c);
+    c->mutate_enabled = mutate_declare_enabled(c);
+  }
+
   if(!gentypes(c))
     return false;
 
@@ -1167,6 +1175,7 @@ void codegen_cleanup(compile_t* c)
   LLVMDisposeTargetData(c->target_data);
   LLVMDisposeTargetMachine(c->machine);
   reach_free(c->reach);
+  mutate_cleanup(&c->mutate);
 }
 
 void codegen_switch_module(compile_t* c, size_t index)

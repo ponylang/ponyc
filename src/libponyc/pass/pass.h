@@ -350,7 +350,28 @@ typedef struct pass_opt_t
   strlist_t* lib_search_paths;
 
   bool fat_lto;
+  bool mutate;
+
+  uint8_t mutate_operators;
+
+  size_t mutate_scope_count;
+  struct mutate_scope_t* mutate_scopes;
 } pass_opt_t;
+
+#define MUTATE_OP_AOR  (1 << 0)
+#define MUTATE_OP_BOR  (1 << 1)
+#define MUTATE_OP_ROR  (1 << 2)
+#define MUTATE_OP_SOR  (1 << 3)
+#define MUTATE_OP_UOI  (1 << 4)
+#define MUTATE_OP_ALL  (MUTATE_OP_AOR | MUTATE_OP_BOR | MUTATE_OP_ROR \
+                        | MUTATE_OP_SOR | MUTATE_OP_UOI)
+
+typedef struct mutate_scope_t
+{
+  const char* file;
+  size_t start_line;
+  size_t end_line;
+} mutate_scope_t;
 
 /** Limit processing to the specified pass. All passes up to and including the
  * specified pass will occur.

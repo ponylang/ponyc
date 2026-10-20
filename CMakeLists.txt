@@ -856,6 +856,7 @@ else()
     add_subdirectory(tools/pony-doc)
     add_subdirectory(tools/pony-dep)
     add_subdirectory(tools/pony-agent-server)
+    add_subdirectory(tools/pony-mutate)
 
     # Test binaries compiled with the just-built ponyc. Built on demand, NOT under
     # ALL: each runs ponyc to compile builtin and the stdlib packages, so building
@@ -1037,9 +1038,24 @@ else()
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/CheckGrammar.cmake)
 
+    add_test(NAME mutation-runtime
+        COMMAND ${CMAKE_COMMAND}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DOUTPUT=${PONY_OUTPUT_DIR}/mutation-runtime
+            -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-runtime
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationRuntime.cmake)
+
+    add_test(NAME mutation-runner
+        COMMAND ${CMAKE_COMMAND}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DRUNNER=${PONY_OUTPUT_DIR}/pony-mutate${CMAKE_EXECUTABLE_SUFFIX}
+            -DOUTPUT=${PONY_OUTPUT_DIR}/mutation-runner
+            -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-runtime
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationRunner.cmake)
+
     set_tests_properties(full-programs
         full-program-runner-rejects-broken-config
-        stdlib validate-grammar
+        stdlib validate-grammar mutation-runtime mutation-runner
         PROPERTIES LABELS ci-core)
     set_tests_properties(stdlib
         PROPERTIES TIMEOUT 1800)
@@ -1054,6 +1070,7 @@ else()
         ${PONY_OUTPUT_DIR}/pony-doc${CMAKE_EXECUTABLE_SUFFIX}
         ${PONY_OUTPUT_DIR}/pony-dep${CMAKE_EXECUTABLE_SUFFIX}
         ${PONY_OUTPUT_DIR}/pony-agent-server${CMAKE_EXECUTABLE_SUFFIX}
+        ${PONY_OUTPUT_DIR}/pony-mutate${CMAKE_EXECUTABLE_SUFFIX}
         DESTINATION ${PONY_VERSIONED_DIR}/bin)
 
     # Runtime + compiler static libs, into the lib dir ponyc searches at run time

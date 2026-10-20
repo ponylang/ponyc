@@ -17,6 +17,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+PONY_EXTERN_C_BEGIN
+PONY_API int32_t pony_mutant_selector = 0;
+PONY_API int32_t pony_mutate_enabled = 0;
+PONY_EXTERN_C_END
+
 typedef struct options_t
 {
   // concurrent options
@@ -324,6 +329,33 @@ PONY_API int pony_init(int argc, char** argv)
   Main_runtime_override_defaults_oo(&opt);
 
   argc = parse_opts(argc, argv, &opt);
+
+  if(pony_mutate_enabled)
+  {
+    const char* mutant_env = getenv("PONY_MUTANT_ID");
+    if(mutant_env != NULL)
+    {
+      char* end;
+      long val = strtol(mutant_env, &end, 10);
+
+      if(*end != '\0' || end == mutant_env)
+      {
+        fprintf(stderr,
+          "warning: PONY_MUTANT_ID '%s' is not a valid integer, ignoring\n",
+          mutant_env);
+      }
+      else if(val < INT32_MIN || val > INT32_MAX)
+      {
+        fprintf(stderr,
+          "warning: PONY_MUTANT_ID '%s' is out of range, ignoring\n",
+          mutant_env);
+      }
+      else
+      {
+        pony_mutant_selector = (int32_t)val;
+      }
+    }
+  }
 
   if (opt.ponyhelp) {
     printf("%s", PONYRT_HELP);

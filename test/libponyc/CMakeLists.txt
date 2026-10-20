@@ -19,6 +19,7 @@ add_executable(libponyc.tests
     dontcare.cc
     ffi.cc
     finalisers.cc
+    genmutate.cc
     flatten.cc
     host.cc
     id.cc
