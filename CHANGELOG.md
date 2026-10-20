@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix Base64.encode_url emitting NUL bytes instead of stripping padding ([PR #6313](https://github.com/ponylang/ponyc/pull/6313))
 - Fix String.find and contains matching past the end of the string ([PR #6314](https://github.com/ponylang/ponyc/pull/6314))
+- Fix Format.float with FormatFix truncating output longer than 30 characters ([PR #6315](https://github.com/ponylang/ponyc/pull/6315))
 
 ### Added
 
