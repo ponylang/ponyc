@@ -109,11 +109,13 @@ primitive Base64
 
         if srclen == 2 then
           out.push(_enc_byte(out3, at62, at63)?)
-        else
+        elseif pad != 0 then
           out.push(pad)
         end
 
-        out.push(pad)
+        if pad != 0 then
+          out.push(pad)
+        end
       end
 
       if lineblocks > 0 then
