@@ -8,6 +8,7 @@ actor \nodoc\ Main is TestList
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
     test(_TestApply)
+    test(_TestFloat)
     test(_TestInt)
 
 class \nodoc\ iso _TestApply is UnitTest
@@ -23,6 +24,46 @@ class \nodoc\ iso _TestApply is UnitTest
     h.assert_eq[String](
       "   fmt   ",
       Format("fmt", FormatDefault, PrefixDefault, -1, 9, AlignCenter))
+
+class \nodoc\ iso _TestFloat is UnitTest
+  fun name(): String => "format/float"
+
+  fun apply(h: TestHelper) =>
+    // FormatFix with a large exponent needs hundreds of digits for the integer
+    // part.
+    let large: String val =
+      Format.float[F64](1e300 where fmt = FormatFix, prec = 0)
+    h.assert_eq[USize](301, large.size())
+    h.assert_true(large.at("1000000000000000", 0))
+
+    let large_neg: String val =
+      Format.float[F64](-1e300 where fmt = FormatFix, prec = 0)
+    h.assert_eq[USize](302, large_neg.size())
+    h.assert_true(large_neg.at("-1000000000000000", 0))
+
+    // Default precision adds six decimal digits
+    let large_prec: String val =
+      Format.float[F64](1e300 where fmt = FormatFix)
+    h.assert_eq[USize](308, large_prec.size())
+    h.assert_true(large_prec.at(".000000", large_prec.size().isize() - 7))
+
+    // Normal values
+    h.assert_eq[String](
+      "3.140000",
+      Format.float[F64](3.14 where fmt = FormatFix))
+    h.assert_eq[String](
+      "0.000000",
+      Format.float[F64](0.0 where fmt = FormatFix))
+
+    // FormatExp is unaffected (compact output) but verify it works
+    h.assert_eq[String](
+      "1.000000e+300",
+      Format.float[F64](1e300 where fmt = FormatExp))
+
+    // FormatGeneral
+    h.assert_eq[String](
+      "1e+300",
+      Format.float[F64](1e300 where fmt = FormatGeneral))
 
 class \nodoc\ iso _TestInt is UnitTest
   fun name(): String => "format/int"
