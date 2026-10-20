@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix String.find and contains matching past the end of the string ([PR #6314](https://github.com/ponylang/ponyc/pull/6314))
 - Fix Format.float with FormatFix truncating output longer than 30 characters ([PR #6315](https://github.com/ponylang/ponyc/pull/6315))
 - Fix Sort stack overflow on degenerate inputs ([PR #6316](https://github.com/ponylang/ponyc/pull/6316))
+- Fix Base64.decode returning extra bytes for unpadded input with non-zero trailing bits ([PR #6317](https://github.com/ponylang/ponyc/pull/6317))
 
 ### Added
 
