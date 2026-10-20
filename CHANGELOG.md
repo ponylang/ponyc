@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Format.int producing invalid UTF-8 with multi-byte fill characters ([PR #6320](https://github.com/ponylang/ponyc/pull/6320))
 - Fix Format.apply not applying prec for strings ([PR #6322](https://github.com/ponylang/ponyc/pull/6322))
 - Fix NormalizeURI host lowercasing order for percent-encoded characters ([PR #6323](https://github.com/ponylang/ponyc/pull/6323))
+- Fix IRegexpCompiler.parse rejecting literal ^ ([PR #6324](https://github.com/ponylang/ponyc/pull/6324))
 
 ### Added
 
