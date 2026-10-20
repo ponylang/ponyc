@@ -57,6 +57,7 @@ actor _Worker
   var _monitor: (ProcessMonitor | None) = None
   var _timer: (Timer tag | None) = None
   var _timed_out: Bool = false
+  var _generation: U64 = 0
   let _timers: Timers
 
   new create(
@@ -80,6 +81,8 @@ actor _Worker
 
   be run(mutant: Mutant) =>
     _timed_out = false
+    _generation = _generation + 1
+    let gen = _generation
     let vars = _make_vars(mutant.id)
     let notifier = _MutantNotify(this, mutant, Time.nanos())
 
@@ -97,7 +100,7 @@ actor _Worker
         let mon: ProcessMonitor tag = pm
         let timer =
           Timer(
-            _TimeoutNotify(this, mon),
+            _TimeoutNotify(this, mon, gen),
             _timeout_ns,
             0)
         _timer = timer
@@ -107,8 +110,10 @@ actor _Worker
       _done(MutantOutcome(mutant, MutantKilled, 0))
     end
 
-  be _timeout() =>
-    _timed_out = true
+  be _timeout(gen: U64) =>
+    if gen == _generation then
+      _timed_out = true
+    end
 
   be _done(outcome: MutantOutcome) =>
     match _timer
@@ -140,12 +145,18 @@ actor _Worker
 class iso _TimeoutNotify is TimerNotify
   let _worker: _Worker tag
   let _monitor: ProcessMonitor tag
+  let _generation: U64
 
-  new iso create(worker: _Worker tag, monitor: ProcessMonitor tag) =>
+  new iso create(
+    worker: _Worker tag,
+    monitor: ProcessMonitor tag,
+    generation: U64)
+  =>
     _worker = worker
     _monitor = monitor
+    _generation = generation
 
   fun ref apply(timer: Timer, count: U64): Bool =>
-    _worker._timeout()
+    _worker._timeout(_generation)
     _monitor.dispose()
     false
