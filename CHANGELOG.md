@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix Base64.encode_url emitting NUL bytes instead of stripping padding ([PR #6313](https://github.com/ponylang/ponyc/pull/6313))
+- Fix String.find and contains matching past the end of the string ([PR #6314](https://github.com/ponylang/ponyc/pull/6314))
 
 ### Added
 
