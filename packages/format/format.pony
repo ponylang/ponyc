@@ -68,7 +68,7 @@ primitive Format
 
       match \exhaustive\ align
       | AlignLeft =>
-        s.append(str)
+        s.append(str, 0, copy_len)
         for i in Range(s.size(), len) do
           s.push_utf32(fill)
         end
@@ -76,13 +76,13 @@ primitive Format
         for i in Range(0, len - copy_len) do
           s.push_utf32(fill)
         end
-        s.append(str)
+        s.append(str, 0, copy_len)
       | AlignCenter =>
         let half = (len - copy_len) / 2
         for i in Range(0, half) do
           s.push_utf32(fill)
         end
-        s.append(str)
+        s.append(str, 0, copy_len)
         for i in Range(s.size(), len) do
           s.push_utf32(fill)
         end
