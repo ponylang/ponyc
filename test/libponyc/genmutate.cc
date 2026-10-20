@@ -3,6 +3,7 @@
 
 #include <codegen/codegen.h>
 #include <codegen/genmutate.h>
+#include <mem/pool.h>
 
 #include "util.h"
 
@@ -1030,4 +1031,106 @@ TEST_F(GenMutateCodegenTest, AllOperatorsDefault)
 
   ASSERT_TRUE(has_mutant("aor", "add", "sub"));
   ASSERT_TRUE(has_mutant("ror", "eq", "ne"));
+}
+
+
+TEST_F(GenMutateCodegenTest, ScopeFilterMatchingFile)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = U64(3) + U64(5)\n";
+
+  opt.mutate = true;
+
+  size_t alloc_size = sizeof(mutate_scope_t);
+  mutate_scope_t* scopes =
+    (mutate_scope_t*)ponyint_pool_alloc_size(alloc_size);
+  char* file = (char*)ponyint_pool_alloc_size(1);
+  file[0] = '\0';
+  scopes[0].file = file;
+  scopes[0].start_line = 0;
+  scopes[0].end_line = 0;
+  opt.mutate_scopes = scopes;
+  opt.mutate_scope_count = 1;
+
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(compile->mutate.mutant_count, 0u);
+  ASSERT_TRUE(has_mutant("aor", "add", "sub"));
+}
+
+
+TEST_F(GenMutateCodegenTest, ScopeFilterNonMatchingFile)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = U64(3) + U64(5)\n";
+
+  opt.mutate = true;
+
+  size_t alloc_size = sizeof(mutate_scope_t);
+  mutate_scope_t* scopes =
+    (mutate_scope_t*)ponyint_pool_alloc_size(alloc_size);
+  const char* name = "nonexistent.pony";
+  size_t name_len = strlen(name) + 1;
+  char* file = (char*)ponyint_pool_alloc_size(name_len);
+  memcpy(file, name, name_len);
+  scopes[0].file = file;
+  scopes[0].start_line = 0;
+  scopes[0].end_line = 0;
+  opt.mutate_scopes = scopes;
+  opt.mutate_scope_count = 1;
+
+  DO(test_compile(src, "ir"));
+
+  ASSERT_EQ(compile->mutate.mutant_count, 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, ScopeFilterLineRange)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = U64(3) + U64(5)\n"
+    "    let b = U64(1) - U64(2)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+
+  size_t alloc_size = sizeof(mutate_scope_t);
+  mutate_scope_t* scopes =
+    (mutate_scope_t*)ponyint_pool_alloc_size(alloc_size);
+  char* file = (char*)ponyint_pool_alloc_size(1);
+  file[0] = '\0';
+  scopes[0].file = file;
+  scopes[0].start_line = 3;
+  scopes[0].end_line = 3;
+  opt.mutate_scopes = scopes;
+  opt.mutate_scope_count = 1;
+
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("aor", "add", "sub"));
+  ASSERT_FALSE(has_mutant("aor", "sub", "add"));
+}
+
+
+TEST_F(GenMutateCodegenTest, ScopeFilterNoScopeMeansAll)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = U64(3) + U64(5)\n"
+    "    let b = U64(1) - U64(2)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("aor", "add", "sub"));
+  ASSERT_TRUE(has_mutant("aor", "sub", "add"));
 }
