@@ -96,7 +96,7 @@ primitive IsPrime[A: (UnsignedInteger[A] val & Unsigned)]
       None
     else
       var i: A = _low_prime_table(table_end - 1)
-      while (i * i) <= n do
+      while i <= (n / i) do
         if (n %% i) == 0 then return false end
         if (n %% (i + 2)) == 0 then return false end
         i = i + 6
