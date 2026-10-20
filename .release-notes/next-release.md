@@ -57,3 +57,13 @@ Base64.decode[Array[U8] iso]("QR")?  // [65] — 12 bits, one byte plus discarde
 
 `JSONParser.parse` accepted input containing a valid JSON value followed by an incomplete token — for example, `"nulln"` or `1 "x`. Instead of reporting an error, it silently ignored the trailing content and returned the first value. It now returns a parse error for any input where content remains after the first value.
 
+## Fix Format.int with FormatUTF32 printing decimal digits for U8, U16, I8, and I16
+
+`Format.int` with `FormatUTF32` produced the decimal representation instead of the UTF-32 character for `U8`, `U16`, `I8`, and `I16` values.
+
+```pony
+// was: "65"
+// now: "A"
+Format.int[U8](65, FormatUTF32)
+```
+
