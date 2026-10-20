@@ -76,6 +76,7 @@ actor \nodoc\ Main is TestList
     test(_TestStringContains)
     test(_TestStringCount)
     test(_TestStringCut)
+    test(_TestStringFind)
     test(_TestStringFromArray)
     test(_TestStringFromCPointer)
     test(_TestStringFromIsoArray)
@@ -907,6 +908,12 @@ class \nodoc\ iso _TestStringSplitBy is UnitTest
     h.assert_eq[String](r(0)?, "try with trailing ")
     h.assert_eq[String](r(1)?, "patternpattern")
 
+    // Delimiter must not read past _size.
+    let v: String val = "abcd".trim(0, 2)
+    r = v.split_by("bc")
+    h.assert_eq[USize](r.size(), 1)
+    h.assert_eq[String](r(0)?, "ab")
+
 class \nodoc\ iso _TestStringAdd is UnitTest
   """
   Test String.add
@@ -957,6 +964,12 @@ class \nodoc\ iso _TestStringCount is UnitTest
     h.assert_eq[USize]("atatbat".count("at"), 3)
     h.assert_eq[USize]("atata".count("ata"), 1)
     h.assert_eq[USize]("tttt".count("tt"), 2)
+
+    // Needle must not read past _size.
+    let v: String val = "abcd".trim(0, 2)
+    h.assert_eq[USize](v.count("ab"), 1)
+    h.assert_eq[USize](v.count("bc"), 0)
+    h.assert_eq[USize](v.count("abcd"), 0)
 
 class \nodoc\ iso _TestStringCompare is UnitTest
   """
@@ -1062,6 +1075,29 @@ class \nodoc\ iso _TestStringContains is UnitTest
     h.assert_eq[Bool](s.contains(" hello"), false)
     h.assert_eq[Bool](s.contains("?!"), false)
 
+    // Needle must not read past _size.
+    let v: String val = "abcd".trim(0, 2) // "ab" backed by "abcd"
+    h.assert_eq[Bool](v.contains("ab"), true)
+    h.assert_eq[Bool](v.contains("b"), true)
+    h.assert_eq[Bool](v.contains("bc"), false)
+    h.assert_eq[Bool](v.contains("cd"), false)
+    h.assert_eq[Bool](v.contains("abcd"), false)
+    h.assert_eq[Bool](v.contains("abc"), false)
+
+    // Needle at the exact end boundary.
+    h.assert_eq[Bool]("abc".contains("c"), true)
+    h.assert_eq[Bool]("abc".contains("bc"), true)
+    h.assert_eq[Bool]("abc".contains("abc"), true)
+    h.assert_eq[Bool]("abc".contains("abcd"), false)
+
+    // Needle longer than the string.
+    h.assert_eq[Bool]("a".contains("ab"), false)
+    h.assert_eq[Bool]("".contains("a"), false)
+
+    // Out-of-range negative offset must not overflow the loop guard.
+    h.assert_eq[Bool]("".contains("x", -1), false)
+    h.assert_eq[Bool]("a".contains("xy", -2), false)
+
 class \nodoc\ iso _TestStringReadInt is UnitTest
   """
   Test converting string at given index to integer.
@@ -1150,6 +1186,41 @@ class \nodoc\ iso _TestStringUTF32 is UnitTest
     h.assert_eq[U8](0x8E, s(3)?)
     h.assert_eq[U32](0x2070E, s.utf32(0)?._1)
 
+class \nodoc\ iso _TestStringFind is UnitTest
+  fun name(): String => "builtin/String.find"
+
+  fun apply(h: TestHelper) ? =>
+    let s = "-foo-bar-baz-"
+    h.assert_eq[ISize](s.find("-")?, 0)
+    h.assert_eq[ISize](s.find("-", 1)?, 4)
+    h.assert_eq[ISize](s.find("-", 0, 1)?, 4)
+    h.assert_eq[ISize](s.find("-bar")?, 4)
+    h.assert_eq[ISize](s.find("baz")?, 9)
+    h.assert_error({() ? => s.find("xyz")? })
+    h.assert_error({() ? => s.find("")? })
+
+    // Needle at the exact end boundary.
+    h.assert_eq[ISize]("abc".find("c")?, 2)
+    h.assert_eq[ISize]("abc".find("bc")?, 1)
+    h.assert_eq[ISize]("abc".find("abc")?, 0)
+    h.assert_error({() ? => "abc".find("abcd")? })
+
+    // Needle must not read past _size.
+    let v: String val = "abcd".trim(0, 2)
+    h.assert_eq[ISize](v.find("ab")?, 0)
+    h.assert_eq[ISize](v.find("b")?, 1)
+    h.assert_error({() ? => v.find("bc")? })
+    h.assert_error({() ? => v.find("cd")? })
+    h.assert_error({() ? => v.find("abcd")? })
+
+    // Needle longer than the string.
+    h.assert_error({() ? => "a".find("ab")? })
+    h.assert_error({() ? => "".find("a")? })
+
+    // Out-of-range negative offset must not overflow the loop guard.
+    h.assert_error({() ? => "".find("x", -1)? })
+    h.assert_error({() ? => "a".find("xy", -2)? })
+
 class \nodoc\ iso _TestStringRFind is UnitTest
   fun name(): String => "builtin/String.rfind"
 
@@ -1158,6 +1229,27 @@ class \nodoc\ iso _TestStringRFind is UnitTest
     h.assert_eq[ISize](s.rfind("-")?, 12)
     h.assert_eq[ISize](s.rfind("-", -2)?, 8)
     h.assert_eq[ISize](s.rfind("-bar", 7)?, 4)
+
+    // Needle at the exact end boundary.
+    h.assert_eq[ISize]("abc".rfind("c")?, 2)
+    h.assert_eq[ISize]("abc".rfind("bc")?, 1)
+    h.assert_eq[ISize]("abc".rfind("abc")?, 0)
+    h.assert_error({() ? => "abc".rfind("abcd")? })
+
+    // Needle must not read past _size.
+    let v: String val = "abcd".trim(0, 2)
+    h.assert_eq[ISize](v.rfind("ab")?, 0)
+    h.assert_eq[ISize](v.rfind("b")?, 1)
+    h.assert_error({() ? => v.rfind("bc")? })
+    h.assert_error({() ? => v.rfind("cd")? })
+    h.assert_error({() ? => v.rfind("abcd")? })
+
+    // Large offset exercises the start-position clamp.
+    h.assert_eq[ISize](v.rfind("b", 5)?, 1)
+
+    // Needle longer than the string.
+    h.assert_error({() ? => "a".rfind("ab")? })
+    h.assert_error({() ? => "".rfind("a")? })
 
 class \nodoc\ iso _TestStringFromArray is UnitTest
   fun name(): String => "builtin/String.from_array"

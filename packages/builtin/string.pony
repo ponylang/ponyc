@@ -647,10 +647,12 @@ actor Main
     Return the index of the n-th instance of s in the string starting from the
     beginning. Raise an error if there is no n-th occurrence of s or s is empty.
     """
+    if s._size > _size then error end
     var i = offset_to_index(offset)
     var steps = nth + 1
+    let last = _size - s._size
 
-    while i < _size do
+    while i <= last do
       var j: USize = 0
 
       let same = while j < s._size do
@@ -674,10 +676,14 @@ actor Main
   fun rfind(s: String box, offset: ISize = -1, nth: USize = 0): ISize ? =>
     """
     Return the index of n-th instance of `s` in the string starting from the
-    end. The `offset` represents the highest index to included in the search.
+    end. The `offset` represents the highest index to include in the search.
     Raise an error if there is no n-th occurrence of `s` or `s` is empty.
     """
+    if s._size > _size then error end
     var i = (offset_to_index(offset) + 1) - s._size
+    let max_i = _size - s._size
+
+    if i > max_i then i = max_i end
 
     var steps = nth + 1
 
@@ -704,12 +710,14 @@ actor Main
 
   fun contains(s: String box, offset: ISize = 0, nth: USize = 0): Bool =>
     """
-    Returns true if contains s as a substring, false otherwise.
+    Returns true if the string contains s as a substring, false otherwise.
     """
+    if s._size > _size then return false end
     var i = offset_to_index(offset)
     var steps = nth + 1
+    let last = _size - s._size
 
-    while i < _size do
+    while i <= last do
       var j: USize = 0
 
       let same = while j < s._size do
