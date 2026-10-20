@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix JSONParser.parse accepting trailing incomplete tokens ([PR #6318](https://github.com/ponylang/ponyc/pull/6318))
 - Fix Format.int with FormatUTF32 printing decimal digits for U8, U16, I8, and I16 ([PR #6319](https://github.com/ponylang/ponyc/pull/6319))
 - Fix Format.int producing invalid UTF-8 with multi-byte fill characters ([PR #6320](https://github.com/ponylang/ponyc/pull/6320))
+- Fix Format.apply not applying prec for strings ([PR #6322](https://github.com/ponylang/ponyc/pull/6322))
 
 ### Added
 
