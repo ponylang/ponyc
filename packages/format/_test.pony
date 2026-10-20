@@ -26,6 +26,41 @@ class \nodoc\ iso _TestApply is UnitTest
       "   fmt   ",
       Format("fmt", FormatDefault, PrefixDefault, -1, 9, AlignCenter))
 
+    // prec truncates the string before padding
+    h.assert_eq[String](
+      "he",
+      Format("hello" where prec = 2))
+    h.assert_eq[String](
+      "he    ",
+      Format("hello" where prec = 2, width = 6))
+    h.assert_eq[String](
+      "    he",
+      Format("hello" where prec = 2, width = 6, align = AlignRight))
+    h.assert_eq[String](
+      "  he  ",
+      Format("hello" where prec = 2, width = 6, align = AlignCenter))
+
+    // prec = 0 produces an empty string, filled to width
+    h.assert_eq[String](
+      "***",
+      Format("hello" where prec = 0, width = 3, fill = '*'))
+    h.assert_eq[String](
+      "***",
+      Format("hello" where prec = 0, width = 3, align = AlignRight,
+        fill = '*'))
+    h.assert_eq[String](
+      "***",
+      Format("hello" where prec = 0, width = 3, align = AlignCenter,
+        fill = '*'))
+
+    // prec >= size does not truncate
+    h.assert_eq[String](
+      "hi",
+      Format("hi" where prec = 10))
+    h.assert_eq[String](
+      "hello",
+      Format("hello" where prec = 5))
+
 class \nodoc\ iso _TestFloat is UnitTest
   fun name(): String => "format/float"
 
