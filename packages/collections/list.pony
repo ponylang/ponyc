@@ -935,7 +935,7 @@ class List[A] is ResizableSeq[A]
     let rnodes = my_list.rnodes()  // node with "c" is before node with "a"
     ```
     """
-    ListNodes[A, this->ListNode[A]](_head, true)
+    ListNodes[A, this->ListNode[A]](_tail, true)
 
   fun values(): ListValues[A, this->ListNode[A]]^ =>
     """
@@ -957,7 +957,7 @@ class List[A] is ResizableSeq[A]
     let rvalues = my_list.rvalues()  // value "c" is before value "a"
     ```
     """
-    ListValues[A, this->ListNode[A]](_head, true)
+    ListValues[A, this->ListNode[A]](_tail, true)
 
   fun ref _increment() =>
     """
