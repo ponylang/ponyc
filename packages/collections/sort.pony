@@ -1,25 +1,18 @@
 primitive Sort[A: Seq[B] ref, B: Comparable[B] #read]
   """
-  Implementation of dual-pivot quicksort. It operates in-place on the
-  provided Seq, using a small amount of additional memory. The nature of
-  the element-relation is expressed via the supplied comparator.
+  Implementation of introsort: dual-pivot quicksort with a heapsort
+  fallback when recursion depth exceeds O(log n). Sorts in-place, using
+  a small amount of additional memory. Elements must satisfy the
+  `Comparable` interface.
 
-  (The following is paraphrased from
-  [Wikipedia](https://en.wikipedia.org/wiki/Quicksort).)
-
-  Quicksort is a common implementation of a sort algorithm which can sort
-  items of any type for which a "less-than" relation (formally, a total
-  order) is defined.
-
-  On average, the algorithm takes O(n log n) comparisons to sort n items.
-  In the worst case, it makes O(n2) comparisons, though this behavior is
-  rare. Multi-pivot implementations (of which dual-pivot is one) make
-  efficient use of modern processor caches.
+  Dual-pivot quicksort partitions around two pivots into three regions,
+  making efficient use of modern processor caches. When the quicksort
+  partitioning degenerates (e.g. on already-sorted, reverse-sorted, or
+  all-equal input), the affected subarray is heapsorted instead,
+  keeping the worst case at O(n log n).
 
   ## Example program
-  The following takes a reverse-alphabetical array of Strings ("third",
-  "second", "first"), and sorts it in place alphabetically using the
-  default String Comparator.
+  The following sorts a reverse-alphabetical array of Strings in place.
 
   It outputs:
 
@@ -43,11 +36,28 @@ primitive Sort[A: Seq[B] ref, B: Comparable[B] #read]
     """
     Sort the given seq.
     """
-    try _sort(a, 0, a.size().isize() - 1)? end
+    try
+      let n = a.size()
+      let depth = _log2(n) * 2
+      _sort(a, 0, n.isize() - 1, depth)?
+    end
     a
 
-  fun _sort(a: A, lo: ISize, hi: ISize) ? =>
+  fun _log2(n: USize): USize =>
+    var x = n
+    var log: USize = 0
+    while x > 1 do
+      x = x >> 1
+      log = log + 1
+    end
+    log
+
+  fun _sort(a: A, lo: ISize, hi: ISize, depth: USize) ? =>
     if hi <= lo then return end
+    if depth == 0 then
+      _heapsort(a, lo, hi)?
+      return
+    end
     // choose outermost elements as pivots
     if a(lo.usize())? > a(hi.usize())? then _swap(a, lo, hi)? end
     (var p, var q) = (a(lo.usize())?, a(hi.usize())?)
@@ -74,9 +84,43 @@ primitive Sort[A: Seq[B] ref, B: Comparable[B] #read]
     _swap(a, lo, l)?
     _swap(a, hi, g)?
     // recursively sort 3 partitions
-    _sort(a, lo, l - 1)?
-    _sort(a, l + 1, g - 1)?
-    _sort(a, g + 1, hi)?
+    _sort(a, lo, l - 1, depth - 1)?
+    _sort(a, l + 1, g - 1, depth - 1)?
+    _sort(a, g + 1, hi, depth - 1)?
+
+  fun _heapsort(a: A, lo: ISize, hi: ISize) ? =>
+    let n = (hi - lo) + 1
+    // build max-heap
+    var i = (n / 2) - 1
+    while i >= 0 do
+      _sift_down(a, i, n, lo)?
+      i = i - 1
+    end
+    // extract elements from heap
+    var end_idx = n - 1
+    while end_idx > 0 do
+      _swap(a, lo, lo + end_idx)?
+      _sift_down(a, 0, end_idx, lo)?
+      end_idx = end_idx - 1
+    end
+
+  fun _sift_down(a: A, start: ISize, count: ISize, lo: ISize) ? =>
+    var root = start
+    var child = (2 * root) + 1
+    while child < count do
+      if ((child + 1) < count) and
+        (a((lo + child).usize())? < a((lo + child + 1).usize())?)
+      then
+        child = child + 1
+      end
+      if a((lo + root).usize())? < a((lo + child).usize())? then
+        _swap(a, lo + root, lo + child)?
+        root = child
+        child = (2 * root) + 1
+      else
+        return
+      end
+    end
 
   fun _swap(a: A, i: ISize, j: ISize) ? =>
     a(j.usize())? = a(i.usize())? = a(j.usize())?

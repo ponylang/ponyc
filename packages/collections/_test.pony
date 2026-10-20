@@ -33,6 +33,7 @@ actor \nodoc\ Main is TestList
     test(_TestRange)
     test(_TestRing)
     test(_TestSort)
+    test(_TestSortDegenerate)
 
 class \nodoc\ iso _TestList is UnitTest
   fun name(): String => "collections/List"
@@ -604,6 +605,8 @@ class \nodoc\ iso _TestSort is UnitTest
       h,
       [""; "%*&^*&^&"; "***"; "Hello"; "bar"; "f00"; "foo"; "foo"],
       [""; "Hello"; "foo"; "bar"; "foo"; "f00"; "%*&^*&^&"; "***"])
+    test_sort[USize](h, [], [])
+    test_sort[USize](h, [42], [42])
 
   fun test_sort[A: (Comparable[A] val & Stringable val)](
     h: TestHelper,
@@ -611,6 +614,59 @@ class \nodoc\ iso _TestSort is UnitTest
     unsorted: Array[A])
   =>
     h.assert_array_eq[A](sorted, Sort[Array[A], A](unsorted))
+
+class \nodoc\ iso _TestSortDegenerate is UnitTest
+  """
+  These inputs cause dual-pivot quicksort to degenerate to O(n) recursion
+  depth. Without the heapsort fallback, they overflow the stack at moderate
+  array sizes.
+  """
+  fun name(): String => "collections/Sort.degenerate"
+
+  fun apply(h: TestHelper) =>
+    let n: USize = 50_000
+
+    let sorted = Array[USize](n)
+    var i: USize = 0
+    while i < n do
+      sorted.push(i)
+      i = i + 1
+    end
+    Sort[Array[USize], USize](sorted)
+    _assert_sorted(h, sorted, n)
+
+    let reversed = Array[USize](n)
+    i = n
+    while i > 0 do
+      i = i - 1
+      reversed.push(i)
+    end
+    Sort[Array[USize], USize](reversed)
+    _assert_sorted(h, reversed, n)
+
+    let equal = Array[USize](n)
+    i = 0
+    while i < n do
+      equal.push(42)
+      i = i + 1
+    end
+    Sort[Array[USize], USize](equal)
+    _assert_sorted(h, equal, n)
+
+  fun _assert_sorted(h: TestHelper, a: Array[USize], n: USize) =>
+    h.assert_eq[USize](a.size(), n)
+    try
+      var i: USize = 1
+      while i < n do
+        if a(i - 1)? > a(i)? then
+          h.fail("array not sorted at index " + i.string())
+          return
+        end
+        i = i + 1
+      end
+    else
+      h.fail("array access out of bounds during sort verification")
+    end
 
 class \nodoc\ iso _TestRange is UnitTest
   fun name(): String => "collections/Range"
