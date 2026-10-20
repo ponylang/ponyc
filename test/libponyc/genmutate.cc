@@ -3,7 +3,7 @@
 
 #include <codegen/codegen.h>
 #include <codegen/genmutate.h>
-#include <mem/pool.h>
+#include <../libponyrt/mem/pool.h>
 
 #include "util.h"
 

@@ -9,6 +9,9 @@
 file(MAKE_DIRECTORY "${OUTPUT}")
 
 set(_bin "${OUTPUT}/mutation-runner-test")
+if(WIN32)
+    set(_bin "${_bin}.exe")
+endif()
 
 # Compile with --mutate, scoped to main.pony
 execute_process(
