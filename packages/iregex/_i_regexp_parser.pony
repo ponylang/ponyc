@@ -428,19 +428,19 @@ class _IRegexpParser
       _fail("Unexpected end of pattern")
       error
     end
-    try
-      (let cp, let len) = _source.utf32(_offset.isize())?
-      // Check that it's not a metacharacter (all metacharacters are ASCII)
-      if (cp < 0x80) and _is_metachar(cp.u8()) then
-        _fail("Unexpected metacharacter: " + String.from_utf32(cp))
+    (let cp, let len) =
+      try
+        _source.utf32(_offset.isize())?
+      else
+        _fail("Invalid character encoding")
         error
       end
-      _offset = _offset + len.usize()
-      _Literal(cp)
-    else
-      _fail("Invalid character encoding")
+    if (cp < 0x80) and _is_metachar(cp.u8()) then
+      _fail("Unexpected metacharacter: " + String.from_utf32(cp))
       error
     end
+    _offset = _offset + len.usize()
+    _Literal(cp)
 
   // --- Character classification helpers ---
   fun _is_metachar(c: U8): Bool =>
@@ -449,7 +449,7 @@ class _IRegexpParser
     """
     (c == '(') or (c == ')') or (c == '*') or (c == '+') or
     (c == '.') or (c == '?') or (c == '[') or (c == '\\') or
-    (c == ']') or (c == '^') or (c == '{') or (c == '|') or (c == '}')
+    (c == ']') or (c == '{') or (c == '|') or (c == '}')
 
   fun _is_escapable_metachar(c: U8): Bool =>
     """

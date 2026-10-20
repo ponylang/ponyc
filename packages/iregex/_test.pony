@@ -51,7 +51,7 @@ primitive \nodoc\ _IRegexpGen
     end
 
   fun _gen_atom(rnd: Randomness): String =>
-    match rnd.usize(0, 6)
+    match rnd.usize(0, 7)
     | 0 => String.from_array([rnd.u8('a', 'z')])
     | 1 => "."
     | 2 => "\\n"
@@ -59,6 +59,7 @@ primitive \nodoc\ _IRegexpGen
     | 4 => "[a-z]"
     | 5 => "[^0-9]"
     | 6 => "\\p{L}"
+    | 7 => "^"
     else "a"
     end
 
@@ -158,8 +159,7 @@ class \nodoc\ iso _IRegexpLiteralRoundtripProperty is Property[String]
     for byte in sample.values() do
       if (byte == '(') or (byte == ')') or (byte == '*') or (byte == '+') or
         (byte == '.') or (byte == '?') or (byte == '[') or (byte == '\\') or
-        (byte == ']') or (byte == '^') or (byte == '{') or (byte == '|') or
-        (byte == '}')
+        (byte == ']') or (byte == '{') or (byte == '|') or (byte == '}')
       then
         buf.push('\\')
       end
@@ -216,6 +216,7 @@ class \nodoc\ iso _TestIRegexpParse is UnitTest
         "\\^"; "\\\\"; "\\{"; "\\}"; "\\-"
         "\\p{L}"; "\\p{Lu}"; "\\p{Nd}"; "\\P{L}"
         "[a-z0-9]"; "[-a]"; "[a-]"
+        "^"; "a^b"; "$"; "_"
         "" // empty pattern matches empty string
       ]
     for pattern in valid.values() do
@@ -321,6 +322,16 @@ class \nodoc\ iso _TestIRegexpIsMatch is UnitTest
     _assert_match(h, "(a|b)c", "ac", true)
     _assert_match(h, "(a|b)c", "bc", true)
     _assert_match(h, "(a|b)c", "cc", false)
+
+    // Bare ^ and $ are literals in I-Regexp (no anchors)
+    _assert_match(h, "^", "^", true)
+    _assert_match(h, "^", "a", false)
+    _assert_match(h, "a^b", "a^b", true)
+    _assert_match(h, "a^b", "axb", false)
+    _assert_match(h, "$", "$", true)
+
+    // Other NormalChar symbols
+    _assert_match(h, "_", "_", true)
 
     // Empty pattern matches empty string
     _assert_match(h, "", "", true)
