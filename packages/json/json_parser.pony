@@ -47,6 +47,11 @@ primitive JSONParser
       else
         JSONParseError("Empty input", 0, 1)
       end
+    elseif parser.incomplete() then
+      JSONParseError(
+        "Trailing content after JSON value",
+        parser.token_end(),
+        parser.line())
     else
       try vs(0)? else _Unreachable(); JSONParseError("Empty input", 0, 1) end
     end
