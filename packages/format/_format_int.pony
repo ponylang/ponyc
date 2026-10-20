@@ -34,12 +34,12 @@ primitive _FormatInt
     end
 
   fun _pad(s: String ref, width: USize, align: Align, fill: U32) =>
-    var pre: USize = 0
-    var post: USize = 0
+    s.reverse_in_place()
 
     if s.size() < width then
       let rem = width - s.size()
-      let fills = String.from_utf32(fill)
+      var pre: USize = 0
+      var post: USize = 0
 
       match \exhaustive\ align
       | AlignLeft => post = rem
@@ -47,19 +47,20 @@ primitive _FormatInt
       | AlignCenter => pre = rem / 2; post = rem - pre
       end
 
-      while pre > 0 do
-        s.append(fills)
-        pre = pre - 1
+      if pre > 0 then
+        let fills = String.from_utf32(fill)
+        let prefix = String(pre * fills.size())
+        while pre > 0 do
+          prefix.append(fills)
+          pre = pre - 1
+        end
+        s.insert_in_place(0, prefix)
       end
-
-      s.reverse_in_place()
 
       while post > 0 do
-        s.append(fills)
+        s.push_utf32(fill)
         post = post - 1
       end
-    else
-      s.reverse_in_place()
     end
 
   fun u8(
