@@ -84,3 +84,7 @@ Format.int[U8](0 where width = 2, fill = 0xE9)
 
 `Format.apply` did not apply the `prec` parameter. `Format("hello" where prec = 2)` returned `"hello"` instead of `"he"`. When `width` was also set, output was wider than `width` — `Format("hello" where prec = 2, width = 4, align = AlignRight)` returned `"  hello"` (7 characters) instead of `"  he"` (4 characters).
 
+## Fix NormalizeURI not lowercasing characters decoded from percent-encoding in the host
+
+`NormalizeURI` left decoded uppercase letters in the host un-lowered. `NormalizeURI` on `http://%41B.example/` produced `http://Ab.example/` instead of `http://ab.example/`, and normalizing the result again changed it, breaking idempotency. `URIEquivalent` reported `http://%41B.example/` and `http://ab.example/` as not equivalent.
+
