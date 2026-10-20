@@ -851,6 +851,14 @@ class \nodoc\ iso _TestParseErrors is UnitTest
     _assert_parse_error(h, "1..2", "double dot")
     _assert_parse_error(h, "-", "lone minus")
 
+    // Trailing incomplete token after a valid value
+    _assert_parse_error(h, "nulln", "keyword + partial keyword")
+    _assert_parse_error(h, "null n", "keyword + ws + partial keyword")
+    _assert_parse_error(h, """1 "x""", "number + unterminated string")
+    _assert_parse_error(h, "true tru", "keyword + partial keyword")
+    _assert_parse_error(h, "[1] n", "array + partial keyword")
+    _assert_parse_error(h, """{"a":1} "x""", "object + unterminated string")
+
     // Raw control char (byte < 0x20)
     let ctrl =
       recover val
