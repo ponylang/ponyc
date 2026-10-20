@@ -8,6 +8,7 @@ actor \nodoc\ Main is TestList
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
     test(_TestBase64Decode)
+    test(_TestBase64DecodeTrailingBits)
     test(_TestBase64Encode)
     test(_TestBase64EncodeDecodeProperty)
     test(_TestBase64EncodeDecode)
@@ -19,6 +20,7 @@ actor \nodoc\ Main is TestList
     test(_TestBase64URLRoundtrip)
     test(_TestBase64URLRoundtripProperty)
     test(_TestBase64URLUnpaddedProperty)
+    test(_TestBase64DecodeSizeProperty)
 
 class \nodoc\ iso _TestBase64Encode is UnitTest
   """
@@ -59,6 +61,35 @@ class \nodoc\ iso _TestBase64Decode is UnitTest
     h.assert_eq[String]("foob", Base64.decode[String iso]("Zm9vYg")?)
     h.assert_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE")?)
     h.assert_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy")?)
+
+class \nodoc\ iso _TestBase64DecodeTrailingBits is UnitTest
+  """
+  Unpadded input whose trailing bits are non-zero must not produce extra bytes.
+  The trailing bits (four after two characters, two after three) are padding and
+  must be discarded. A single character (six bits) produces no output at all.
+  """
+  fun name(): String => "encode/Base64.decode_trailing_bits"
+
+  fun apply(h: TestHelper) ? =>
+    // 1 character: 6 bits, not enough for a byte
+    let q = Base64.decode[Array[U8] iso]("Q")?
+    h.assert_eq[USize](0, q.size())
+
+    // 2 characters with non-zero trailing 4 bits
+    h.assert_array_eq[U8](
+      [as U8: 65], Base64.decode[Array[U8] iso]("QR")?)
+
+    // 3 characters with non-zero trailing 2 bits
+    h.assert_array_eq[U8](
+      [as U8: 65; 20], Base64.decode[Array[U8] iso]("QRS")?)
+
+    // Same cases through decode_url
+    let q' = Base64.decode_url[Array[U8] iso]("Q")?
+    h.assert_eq[USize](0, q'.size())
+    h.assert_array_eq[U8](
+      [as U8: 65], Base64.decode_url[Array[U8] iso]("QR")?)
+    h.assert_array_eq[U8](
+      [as U8: 65; 20], Base64.decode_url[Array[U8] iso]("QRS")?)
 
 class \nodoc\ iso _TestBase64EncodeDecode is UnitTest
   """
@@ -299,6 +330,26 @@ class \nodoc\ iso _TestBase64URLAlphabetOracleProperty is UnitTest
         ph.assert_eq[String](translated, url)
       })?
 
+class \nodoc\ iso _TestBase64DecodeSizeProperty is UnitTest
+  """
+  Decoding an arbitrary valid Base64 string of n characters produces exactly
+  (n * 6) / 8 bytes. This catches trailing-bit leaks that roundtrip properties
+  miss, because encode always zero-pads trailing bits.
+  """
+  fun name(): String => "encode/Base64.property/decode_size"
+
+  fun apply(h: TestHelper) ? =>
+    h.for_all[Array[U8]](
+      recover val _B64.b64_chars() end)(
+      {(sample, ph) ? =>
+        let n = sample.size()
+        let decoded = Base64.decode[Array[U8] iso](sample)?
+        ph.assert_eq[USize](
+          (n * 6) / 8,
+          decoded.size(),
+          "decoded size wrong for " + n.string() + "-char input")
+      })?
+
 primitive \nodoc\ _B64
   fun bytes(
     min: USize = 0,
@@ -313,6 +364,22 @@ primitive \nodoc\ _B64
         ]),
       min,
       max)
+
+  fun b64_chars(min: USize = 0, max: USize = 64): Generator[Array[U8]] =>
+    Generators.array_of[U8](_b64_char(), min, max)
+
+  fun _b64_char(): Generator[U8] =>
+    let alphabet: Array[U8] val =
+      recover val
+        let a = Array[U8](64)
+        for v in Range[U8]('A', '[') do a.push(v) end
+        for v in Range[U8]('a', '{') do a.push(v) end
+        for v in Range[U8]('0', ':') do a.push(v) end
+        a.push('+')
+        a.push('/')
+        a
+      end
+    Generators.one_of[U8](alphabet)
 
   fun is_url_char(b: U8): Bool =>
     ((b >= 'A') and (b <= 'Z')) or

@@ -21,7 +21,6 @@ actor Main
 ```
 """
 use "collections"
-use "assert"
 
 primitive Base64
   """
@@ -195,14 +194,6 @@ primitive Base64
         state = 0
       else
         error
-      end
-    end
-
-    if output != 0 then
-      Fact(input != pad)?
-
-      match state
-      | 1 | 2 => out.push(output)
       end
     end
 
