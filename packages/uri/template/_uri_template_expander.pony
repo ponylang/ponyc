@@ -79,7 +79,7 @@ primitive _URITemplateExpander
     let actual_value =
       match varspec.modifier
       | let prefix: _ModPrefix =>
-        _prefix_codepoints(value, prefix.max_length)
+        _prefix_characters(value, prefix.max_length, allow_reserved)
       else
         value
       end
@@ -181,28 +181,42 @@ primitive _URITemplateExpander
       end
     end
 
-  fun _prefix_codepoints(value: String, max_length: USize): String val =>
+  fun _prefix_characters(
+    value: String,
+    max_length: USize,
+    allow_reserved: Bool)
+    : String val
+  =>
     """
-    Return the first `max_length` Unicode codepoints of `value`.
+    Return the first `max_length` characters of `value`.
 
-    Prefix modifier :N counts codepoints, not bytes, per RFC 6570.
+    RFC 6570 2.4.1: the prefix length counts characters, not octets, "in
+    order to avoid splitting ... within a pct-encoded triplet." Under
+    reserved expansion (`+` and `#`), an existing `%XX` triplet in the
+    value counts as one character.
     """
     var byte_offset: USize = 0
-    var codepoint_count: USize = 0
+    var char_count: USize = 0
 
-    while (codepoint_count < max_length) and (byte_offset < value.size()) do
+    while (char_count < max_length) and (byte_offset < value.size()) do
       try
-        (let cp, let len) = value.utf32(byte_offset.isize())?
-        byte_offset = byte_offset + len.usize()
-        codepoint_count = codepoint_count + 1
+        if allow_reserved and (value(byte_offset)? == '%') and
+          ((byte_offset + 2) < value.size()) and
+          _PctEncode._is_hex_digit(value(byte_offset + 1)?) and
+          _PctEncode._is_hex_digit(value(byte_offset + 2)?)
+        then
+          byte_offset = byte_offset + 3
+        else
+          (_, let len) = value.utf32(byte_offset.isize())?
+          byte_offset = byte_offset + len.usize()
+        end
+        char_count = char_count + 1
       else
-        // Invalid UTF-8, stop here
         break
       end
     end
 
     if byte_offset >= value.size() then
-      // No truncation needed
       value
     else
       value.substring(0, byte_offset.isize())

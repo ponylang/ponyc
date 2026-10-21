@@ -451,6 +451,56 @@ class \nodoc\ iso _TestPrefixUnicode is UnitTest
       h.fail("failed to parse template")
     end
 
+class \nodoc\ iso _TestPrefixPctTriplet is UnitTest
+  """
+  RFC 6570 2.4.1: under reserved (+) and fragment (#) expansion, a
+  pct-encoded triplet in the variable value counts as one character
+  for the prefix modifier.
+  """
+  fun name(): String => "uri/template/prefix pct-encoded triplet"
+
+  fun apply(h: TestHelper) =>
+    let vars = URITemplateVariables
+    vars.set("y", "%41b")
+
+    // Reserved expansion: %41 is one character, b is another
+    _assert_expand(h, "{+y}", "%41b", vars)
+    _assert_expand(h, "{+y:1}", "%41", vars)
+    _assert_expand(h, "{+y:2}", "%41b", vars)
+    _assert_expand(h, "{+y:3}", "%41b", vars)
+
+    // Fragment expansion: same triplet counting
+    _assert_expand(h, "{#y:2}", "#%41b", vars)
+
+    // Simple expansion: % is just a character, encoded to %25
+    _assert_expand(h, "{y:1}", "%25", vars)
+
+    // Consecutive triplets: each counts as one character
+    let vars2 = URITemplateVariables
+    vars2.set("w", "%41%42")
+    _assert_expand(h, "{+w:1}", "%41", vars2)
+    _assert_expand(h, "{+w:2}", "%41%42", vars2)
+
+    // Lone % not followed by two hex digits is not a triplet
+    let vars3 = URITemplateVariables
+    vars3.set("z", "%Gx")
+    _assert_expand(h, "{+z:1}", "%25", vars3)
+
+  fun _assert_expand(
+    h: TestHelper,
+    template: String,
+    expected: String,
+    vars: URITemplateVariables box)
+  =>
+    try
+      let tpl = URITemplate(template)?
+      let result: String val = tpl.expand(vars)
+      h.assert_eq[String val](
+        expected, result where msg = "template: " + template)
+    else
+      h.fail("failed to parse template: " + template)
+    end
+
 class \nodoc\ iso _TestLiteralPctEncoding is UnitTest
   """
   RFC 6570 Section 3.1: literal characters not allowed in URI syntax
