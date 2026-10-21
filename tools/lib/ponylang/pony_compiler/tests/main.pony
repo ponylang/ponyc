@@ -251,25 +251,25 @@ class \nodoc\ _DefinitionTest is UnitTest
   let expected:
     Array[(Position, Array[Position] val, TokenId)] val =
     [
-      // nominal reference to type in a different file
-      (Position(7, 20),
-        [Position(4, 1)], TokenIds.tk_class())
       (Position(8, 5),
         [Position(5, 3)], TokenIds.tk_fvar())
-      // constructor ref in a different file
-      (Position(10, 16),
-        [Position(54, 3)], TokenIds.tk_new())
-      // function ref in a different file
-      (Position(10, 30),
-        [Position(926, 3)], TokenIds.tk_fun())
       (Position(12, 6),
         [Position(7, 14)], TokenIds.tk_param())
+      // nominal reference to type in a different file
+      (Position(111, 12),
+        [Position(1, 1)], TokenIds.tk_class())
+      // constructor ref in a different file
+      (Position(111, 30),
+        [Position(4, 3)], TokenIds.tk_new())
+      // function ref in a different file
+      (Position(112, 25),
+        [Position(7, 3)], TokenIds.tk_fun())
       // field ref in a different file
-      (Position(12, 10),
-        [Position(19, 3)], TokenIds.tk_flet())
+      (Position(115, 24),
+        [Position(2, 3)], TokenIds.tk_flet())
       // behavior ref in a different file
-      (Position(12, 15),
-        [Position(20, 3)], TokenIds.tk_be())
+      (Position(114, 7),
+        [Position(16, 3)], TokenIds.tk_be())
       // function on a union type receiver
       (Position(71, 35),
         [Position(53, 3); Position(59, 3)],
