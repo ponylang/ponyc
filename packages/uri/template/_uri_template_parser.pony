@@ -345,6 +345,16 @@ primitive _URITemplateParser
         start)
     end
 
+    try
+      if (digits > 1) and (template(start)? == '0') then
+        return URITemplateParseError(
+          "prefix length has leading zero", start)
+      end
+    else
+      _Unreachable()
+      return URITemplateParseError("internal error", start)
+    end
+
     if value > 9999 then
       return URITemplateParseError("prefix length exceeds 9999", start)
     end
