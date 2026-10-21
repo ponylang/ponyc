@@ -18,6 +18,7 @@ actor \nodoc\ Main is TestList
     test(_TestHelpFalse)
     test(_TestHelpMultipleArgs)
     test(_TestHyphenArg)
+    test(_TestInvalidOptionFormat)
     test(_TestLongsEq)
     test(_TestLongsNext)
     test(_TestMinimal)
@@ -201,6 +202,46 @@ class \nodoc\ iso _TestHyphenArg is UnitTest
 
     h.assert_eq[String]("minimal", cmd.fullname())
     h.assert_eq[String]("-", cmd.arg("name").string())
+
+class \nodoc\ iso _TestInvalidOptionFormat is UnitTest
+  fun name(): String => "cli/invalid_option_format"
+
+  fun apply(h: TestHelper) ? =>
+    let cs =
+      CommandSpec.leaf(
+        "app",
+        "",
+        [ OptionSpec.bool("aa", "" where short' = 'a', default' = false)
+        ],
+        [ ArgSpec.string("rest", "" where default' = "none")
+          ArgSpec.i64("num", "" where default' = 0)
+        ])?
+
+    // Tokens that look like malformed options should be rejected
+    for bad in ["-=x"; "-="; "-!"; "-@"].values() do
+      match CommandParser(cs).parse(["app"; bad])
+      | let se: SyntaxError =>
+        h.assert_true(
+          se.string().contains("unrecognized option format"),
+          bad + " should give 'unrecognized option format' but got: " +
+            se.string())
+      else
+        h.fail(bad + " should be a SyntaxError")
+      end
+    end
+
+    // Negative numbers as positional args must still work
+    let cmd1 = CommandParser(cs).parse(["app"; "-5"; "-3"]) as Command
+    h.assert_eq[String]("-5", cmd1.arg("rest").string())
+    h.assert_eq[I64](-3, cmd1.arg("num").i64())
+
+    // Bare hyphen as a positional arg must still work
+    let cmd2 = CommandParser(cs).parse(["app"; "-"]) as Command
+    h.assert_eq[String]("-", cmd2.arg("rest").string())
+
+    // After --, malformed tokens are positional args, not errors
+    let cmd3 = CommandParser(cs).parse(["app"; "--"; "-=x"]) as Command
+    h.assert_eq[String]("-=x", cmd3.arg("rest").string())
 
 class \nodoc\ iso _TestBools is UnitTest
   fun name(): String => "cli/bools"
