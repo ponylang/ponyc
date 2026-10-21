@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix List.rvalues() and List.rnodes() yielding only the first element ([PR #6326](https://github.com/ponylang/ponyc/pull/6326))
 - Fix signed mod producing wrong results when divisor is min_value ([PR #6328](https://github.com/ponylang/ponyc/pull/6328))
 - Fix URITemplate.expand not percent-encoding non-ASCII literal characters ([PR #6330](https://github.com/ponylang/ponyc/pull/6330))
+- Fix HashMap.insert_if_absent returning wrong value when insertion triggers resize ([PR #6329](https://github.com/ponylang/ponyc/pull/6329))
 
 ### Added
 
