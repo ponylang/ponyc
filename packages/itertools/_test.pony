@@ -20,6 +20,7 @@ actor \nodoc\ Main is TestList
     test.property(_IterDedupProperty)
     test(_TestIterDedupDeepPath)
     test(_TestIterDedupEdgeCases)
+    test(_TestIterDedupNoneElement)
     test(_TestIterEnum)
     test(_TestIterFilter)
     test.property(_IterFilterProperty)
@@ -38,6 +39,7 @@ actor \nodoc\ Main is TestList
     test(_TestIterInterleaveShortest)
     test(_TestIterIntersperse)
     test(_TestIterLast)
+    test(_TestIterMaybeNoneElement)
     test(_TestIterMap)
     test(_TestIterNextOr)
     test(_TestIterNth)
@@ -49,6 +51,7 @@ actor \nodoc\ Main is TestList
     test(_TestIterStepBy)
     test(_TestIterTake)
     test(_TestIterTakeWhile)
+    test(_TestIterTakeWhileNoneElement)
     test(_TestIterUnique)
     test.property(_IterUniqueProperty)
     test(_TestIterUniqueDeepPath)
@@ -1075,3 +1078,84 @@ class \nodoc\ iso _TestIterUniqueEdgeCases is UnitTest
     // empty iterator
     let e = Iter[USize](Array[USize].create().values()).unique()
     h.assert_false(e.has_next())
+
+class \nodoc\ iso _TestIterDedupNoneElement is UnitTest
+  fun name(): String => "itertools/Iter.dedup (None element)"
+
+  fun apply(h: TestHelper) ? =>
+    let input = [as (USize | None): None; None; USize(1); None]
+    let iter = Iter[(USize | None)](input.values()).dedup()
+
+    h.assert_true(iter.has_next())
+    match iter.next()?
+    | None => None
+    else h.fail("expected None as first element")
+    end
+
+    h.assert_true(iter.has_next())
+    match iter.next()?
+    | let n: USize => h.assert_eq[USize](1, n)
+    else h.fail("expected USize(1) as second element")
+    end
+
+    h.assert_true(iter.has_next())
+    match iter.next()?
+    | None => None
+    else h.fail("expected None as third element")
+    end
+
+    h.assert_false(iter.has_next())
+
+    // Iter[None] — all elements are None, should dedup to one
+    let iter2 = Iter[None]([as None: None; None; None].values()).dedup()
+    h.assert_true(iter2.has_next())
+    iter2.next()?
+    h.assert_false(iter2.has_next())
+
+class \nodoc\ iso _TestIterTakeWhileNoneElement is UnitTest
+  fun name(): String => "itertools/Iter.take_while (None element)"
+
+  fun apply(h: TestHelper) ? =>
+    let input = [as (USize | None): USize(1); None; USize(2)]
+    let iter = Iter[(USize | None)](input.values())
+      .take_while({(x) => true })
+
+    h.assert_true(iter.has_next())
+    match iter.next()?
+    | let n: USize => h.assert_eq[USize](1, n)
+    else h.fail("expected USize(1)")
+    end
+
+    h.assert_true(iter.has_next())
+    match iter.next()?
+    | None => None
+    else h.fail("expected None")
+    end
+
+    h.assert_true(iter.has_next())
+    match iter.next()?
+    | let n: USize => h.assert_eq[USize](2, n)
+    else h.fail("expected USize(2)")
+    end
+
+    h.assert_false(iter.has_next())
+
+class \nodoc\ iso _TestIterMaybeNoneElement is UnitTest
+  fun name(): String => "itertools/Iter.maybe (None element)"
+
+  fun apply(h: TestHelper) ? =>
+    let iter = Iter[(USize | None)].maybe(None)
+    h.assert_true(iter.has_next())
+    match iter.next()?
+    | None => None
+    else h.fail("expected None element")
+    end
+    h.assert_false(iter.has_next())
+
+    let iter2 = Iter[(USize | None)].maybe(USize(42))
+    h.assert_true(iter2.has_next())
+    match iter2.next()?
+    | let n: USize => h.assert_eq[USize](42, n)
+    else h.fail("expected USize(42)")
+    end
+    h.assert_false(iter2.has_next())
