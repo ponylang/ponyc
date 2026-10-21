@@ -100,7 +100,14 @@ class CommandParser
           return se
         end
 
-      else // no dashes, must be a command or an arg
+      else
+        if not opt_stop and (token.size() > 1) and
+          (token.compare_sub("-", 1, 0) == Equal) and
+          not _is_num(try token(1)? else 0 end)
+        then
+          return SyntaxError(token, "unrecognized option format")
+        end
+
         if _spec.commands().size() > 0 then
           try
             match _spec.commands()(token)?
@@ -341,6 +348,9 @@ class CommandParser
 
   fun tag _is_alpha(c: U8): Bool =>
     ((c >= 'A') and (c <= 'Z')) or ((c >= 'a') and (c <= 'z'))
+
+  fun tag _is_num(c: U8): Bool =>
+    (c >= '0') and (c <= '9')
 
   fun _command_path(): Array[String] =>
     let path = Array[String]
