@@ -84,7 +84,7 @@ primitive _FormatInt
     let base = base'.u8()
 
     recover
-      var s = String((prec + 1).max(width.max(31)))
+      var s = String((prec' + 1).max(width.max(31)))
       var value = x
 
       try
@@ -126,7 +126,7 @@ primitive _FormatInt
     let base = base'.u16()
 
     recover
-      var s = String((prec + 1).max(width.max(31)))
+      var s = String((prec' + 1).max(width.max(31)))
       var value = x
 
       try
@@ -168,7 +168,7 @@ primitive _FormatInt
     let base = base'.u32()
 
     recover
-      var s = String((prec + 1).max(width.max(31)))
+      var s = String((prec' + 1).max(width.max(31)))
       var value = x
 
       try
@@ -210,7 +210,7 @@ primitive _FormatInt
     let base = base'.u64()
 
     recover
-      var s = String((prec + 1).max(width.max(31)))
+      var s = String((prec' + 1).max(width.max(31)))
       var value = x
 
       try
