@@ -18,11 +18,23 @@ class Iter[A] is Iterator[A]
   new maybe(value: (A | None)) =>
     _iter =
       object is Iterator[A]
-        var _value: (A | None) = consume value
+        var _value: (A | _None) =
+          match \exhaustive\ consume value
+          | let a: A => consume a
+          | None => _None
+          end
 
-        fun has_next(): Bool => _value isnt None
+        fun ref has_next(): Bool =>
+          match _value
+          | _None => false
+          else true
+          end
 
-        fun ref next(): A ? => (_value = None) as A
+        fun ref next(): A ? =>
+          match _value = _None
+          | let a: A => a
+          else error
+          end
       end
 
   new chain(outer_iterator: Iterator[Iterator[A]]) =>
@@ -382,7 +394,7 @@ class Iter[A] is Iterator[A]
     """
     Iter[A!](
       object is Iterator[A!]
-        var _prev_value: (A! | None) = None
+        var _prev_value: (A! | _None) = _None
         var _prev_hash: USize = 0
         var _next: (A! | _None) = _None
 
@@ -405,7 +417,7 @@ class Iter[A] is Iterator[A]
                     _next = cur_value
                     return
                   end
-                | None =>
+                | _None =>
                   _prev_value = cur_value
                   _prev_hash = cur_hash
                   _next = cur_value
@@ -916,17 +928,19 @@ class Iter[A] is Iterator[A]
     Iter[A!](
       object
         var _done: Bool = false
-        var _next: (A! | None) = None
+        var _next: (A! | _None) = _None
 
         fun ref has_next(): Bool =>
-          if _next isnt None then true
-          else _try_next()
+          match _next
+          | _None => _try_next()
+          else true
           end
 
         fun ref next(): A! ? =>
-          if (_next isnt None) or _try_next() then
-            (_next = None) as A!
-          else error
+          match _next = _None
+          | let a: A! => a
+          else
+            if _try_next() then next()? else error end
           end
 
         fun ref _try_next(): Bool =>
@@ -941,8 +955,11 @@ class Iter[A] is Iterator[A]
                 _done = true
                 return false
               end
-            _done = try not f(_next as A!)? else true end
-            if _done then _next = None end
+            match _next
+            | let a: A! =>
+              _done = try not f(a)? else true end
+            end
+            if _done then _next = _None end
             not _done
           end
       end)
