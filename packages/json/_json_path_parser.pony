@@ -20,6 +20,8 @@ class ref _JSONPathParser
     _eat('$')?
     let segments = recover iso Array[_Segment] end
     while _offset < _source.size() do
+      _skip_whitespace()
+      if _offset >= _source.size() then break end
       segments.push(_parse_segment()?)
     end
     consume segments
@@ -638,6 +640,8 @@ class ref _JSONPathParser
     """
     let segs = recover iso Array[_SingularSegment] end
     while _offset < _source.size() do
+      _skip_whitespace()
+      if _offset >= _source.size() then break end
       if _looking_at('.') and (not _looking_at_str("..")) then
         _advance(1)
         let name = _parse_member_name()?
