@@ -36,6 +36,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Iter.maybe, dedup, and take_while dropping None elements ([PR #6343](https://github.com/ponylang/ponyc/pull/6343))
 - Fix String.utf32 decoding UTF-8-encoded surrogates instead of rejecting them ([PR #6348](https://github.com/ponylang/ponyc/pull/6348))
 - Fix CommandParser rejecting negative number positional arguments ([PR #6352](https://github.com/ponylang/ponyc/pull/6352))
+- Fix JSONPathParser accepting invalid string literals ([PR #6353](https://github.com/ponylang/ponyc/pull/6353))
 
 ### Added
 
