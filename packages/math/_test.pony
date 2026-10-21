@@ -20,6 +20,8 @@ actor \nodoc\ Main is TestList
     test(_MersennePrimeTest[U64]("U64"))
     test(_MersennePrimeTest[ULong]("ULong"))
     test(_MersennePrimeTest[USize]("USize"))
+    test(_NearMaxPrimeTest[U16]("U16"))
+    test(_NearMaxPrimeTest[U32]("U32"))
     test(_TestGreatestCommonDivisor)
     test(_TestGreatestCommonDivisorErrorsOnZero)
     test(_TestLeastCommonMultiple)
@@ -93,6 +95,23 @@ primitive \nodoc\ _MersennePrimeTest[A: (UnsignedInteger[A] val & Unsigned)]
           end
           p = p - 1
           x = x >> 1
+        end
+    end
+
+primitive \nodoc\ _NearMaxPrimeTest[A: (UnsignedInteger[A] val & Unsigned)]
+  fun apply(s: String): UnitTest iso^ =>
+    object iso is UnitTest
+      fun name(): String => "math/NearMaxPrime -- " + s
+
+      fun apply(h: TestHelper) =>
+        iftype A <: U16 then
+          h.assert_true(IsPrime[A](65521))
+          h.assert_false(IsPrime[A](65535))
+        elseif A <: U32 then
+          h.assert_true(IsPrime[A](4294967291))
+          h.assert_false(IsPrime[A](4294967295))
+        else
+          h.fail("unsupported type for _NearMaxPrimeTest")
         end
     end
 
