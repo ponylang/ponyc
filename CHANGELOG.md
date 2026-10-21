@@ -42,6 +42,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix CommandParser accepting malformed short option tokens ([PR #6355](https://github.com/ponylang/ponyc/pull/6355))
 - Fix PosixDate.format raising on valid formats whose output is 8192 bytes or longer ([PR #6356](https://github.com/ponylang/ponyc/pull/6356))
 - Fix URITemplateParse accepting prefix lengths with leading zeros ([PR #6357](https://github.com/ponylang/ponyc/pull/6357))
+- Fix ParseURI accepting malformed IPv6 literals ([PR #6358](https://github.com/ponylang/ponyc/pull/6358))
 
 ### Added
 
