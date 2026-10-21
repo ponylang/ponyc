@@ -996,7 +996,7 @@ static LLVMValueRef handle_overflow_saturate(compile_t* c, LLVMValueRef arg,
     to_fmax = LLVMBuildSIToFP(c->builder, to_max, from, "");
   else
     to_fmax = LLVMBuildUIToFP(c->builder, to_max, from, "");
-  LLVMValueRef is_overflow = LLVMBuildFCmp(c->builder, LLVMRealOGT, arg,
+  LLVMValueRef is_overflow = LLVMBuildFCmp(c->builder, LLVMRealOGE, arg,
     to_fmax, "");
   LLVMBuildCondBr(c->builder, is_overflow, overflow, test_underflow);
 
