@@ -348,7 +348,8 @@ class Iter[A] is Iterator[A]
         var _store_iter: ArrayValues[A!, Array[A!]] = store.values()
         var _first_time_through: Bool = true
 
-        fun ref has_next(): Bool => true
+        fun ref has_next(): Bool =>
+          (_first_time_through and _iter.has_next()) or (_store.size() > 0)
 
         fun ref next(): A! ? =>
           if _first_time_through then
