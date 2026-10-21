@@ -117,7 +117,7 @@ primitive Base64
         end
       end
 
-      if lineblocks > 0 then
+      if (lineblocks > 0) and ((blocks > 0) or (srclen >= 1)) then
         out.append(linesep)
       end
     else

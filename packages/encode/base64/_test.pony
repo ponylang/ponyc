@@ -21,6 +21,9 @@ actor \nodoc\ Main is TestList
     test(_TestBase64URLRoundtripProperty)
     test(_TestBase64URLUnpaddedProperty)
     test(_TestBase64DecodeSizeProperty)
+    test(_TestBase64EncodePemLines)
+    test(_TestBase64EncodeMIMELines)
+    test(_TestBase64PemMIMELineProperty)
 
 class \nodoc\ iso _TestBase64Encode is UnitTest
   """
@@ -349,6 +352,114 @@ class \nodoc\ iso _TestBase64DecodeSizeProperty is UnitTest
           decoded.size(),
           "decoded size wrong for " + n.string() + "-char input")
       })?
+
+class \nodoc\ iso _TestBase64EncodePemLines is UnitTest
+  fun name(): String => "encode/Base64.encode_pem_lines"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[USize](
+      0,
+      Base64.encode_pem("").size(),
+      "empty input should produce empty output")
+
+    let a47 = recover val Array[U8].init('x', 47) end
+    let e47: String val = Base64.encode_pem(a47)
+    h.assert_true(_B64Lines.ends_crlf(e47), "47 bytes: ends with CRLF")
+    h.assert_true(_B64Lines.no_empty_lines(e47), "47 bytes: no empty lines")
+
+    let a48 = recover val Array[U8].init('x', 48) end
+    let e48: String val = Base64.encode_pem(a48)
+    h.assert_true(_B64Lines.ends_crlf(e48), "48 bytes: ends with CRLF")
+    h.assert_true(_B64Lines.no_empty_lines(e48), "48 bytes: no empty lines")
+
+    let a49 = recover val Array[U8].init('x', 49) end
+    let e49: String val = Base64.encode_pem(a49)
+    h.assert_true(_B64Lines.ends_crlf(e49), "49 bytes: ends with CRLF")
+    h.assert_true(_B64Lines.no_empty_lines(e49), "49 bytes: no empty lines")
+
+    let a96 = recover val Array[U8].init('x', 96) end
+    let e96: String val = Base64.encode_pem(a96)
+    h.assert_true(_B64Lines.ends_crlf(e96), "96 bytes: ends with CRLF")
+    h.assert_true(_B64Lines.no_empty_lines(e96), "96 bytes: no empty lines")
+
+class \nodoc\ iso _TestBase64EncodeMIMELines is UnitTest
+  fun name(): String => "encode/Base64.encode_mime_lines"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[USize](
+      0,
+      Base64.encode_mime("").size(),
+      "empty input should produce empty output")
+
+    let a56 = recover val Array[U8].init('x', 56) end
+    let e56: String val = Base64.encode_mime(a56)
+    h.assert_true(_B64Lines.ends_crlf(e56), "56 bytes: ends with CRLF")
+    h.assert_true(_B64Lines.no_empty_lines(e56), "56 bytes: no empty lines")
+
+    let a57 = recover val Array[U8].init('x', 57) end
+    let e57: String val = Base64.encode_mime(a57)
+    h.assert_true(_B64Lines.ends_crlf(e57), "57 bytes: ends with CRLF")
+    h.assert_true(_B64Lines.no_empty_lines(e57), "57 bytes: no empty lines")
+
+    let a58 = recover val Array[U8].init('x', 58) end
+    let e58: String val = Base64.encode_mime(a58)
+    h.assert_true(_B64Lines.ends_crlf(e58), "58 bytes: ends with CRLF")
+    h.assert_true(_B64Lines.no_empty_lines(e58), "58 bytes: no empty lines")
+
+    let a114 = recover val Array[U8].init('x', 114) end
+    let e114: String val = Base64.encode_mime(a114)
+    h.assert_true(_B64Lines.ends_crlf(e114), "114 bytes: ends with CRLF")
+    h.assert_true(
+      _B64Lines.no_empty_lines(e114),
+      "114 bytes: no empty lines")
+
+class \nodoc\ iso _TestBase64PemMIMELineProperty is UnitTest
+  fun name(): String => "encode/Base64.property/pem_mime_lines"
+
+  fun apply(h: TestHelper) ? =>
+    h.for_all[Array[U8]](
+      recover val _B64.bytes(0, 256) end)(
+      {(sample, ph) =>
+        let pem: String val = Base64.encode_pem(sample)
+        let mime: String val = Base64.encode_mime(sample)
+        if sample.size() == 0 then
+          ph.assert_eq[USize](
+            0,
+            pem.size(),
+            "pem: empty input should produce empty output")
+          ph.assert_eq[USize](
+            0,
+            mime.size(),
+            "mime: empty input should produce empty output")
+        else
+          ph.assert_true(
+            _B64Lines.ends_crlf(pem),
+            "pem: should end with CRLF for " + sample.size().string() +
+              " bytes")
+          ph.assert_true(
+            _B64Lines.no_empty_lines(pem),
+            "pem: no empty lines for " + sample.size().string() + " bytes")
+          ph.assert_true(
+            _B64Lines.ends_crlf(mime),
+            "mime: should end with CRLF for " + sample.size().string() +
+              " bytes")
+          ph.assert_true(
+            _B64Lines.no_empty_lines(mime),
+            "mime: no empty lines for " + sample.size().string() + " bytes")
+        end
+      })?
+
+primitive \nodoc\ _B64Lines
+  fun ends_crlf(s: String box): Bool =>
+    (s.size() >= 2) and
+      try
+        (s(s.size() - 2)? == '\r') and (s(s.size() - 1)? == '\n')
+      else
+        false
+      end
+
+  fun no_empty_lines(s: String box): Bool =>
+    try s.find("\r\n\r\n")?; false else true end
 
 primitive \nodoc\ _B64
   fun bytes(
