@@ -40,6 +40,9 @@ actor \nodoc\ Main is TestList
     test(_TestParseValidTemplates)
     test(_TestTemplateString)
 
+    // Literal percent-encoding (RFC 6570 Section 3.1)
+    test(_TestLiteralPctEncoding)
+
     // Composite expansion edge cases
     test(_TestEmptyListUndefined)
     test(_TestEmptyPairsUndefined)
