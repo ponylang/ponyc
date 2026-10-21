@@ -34,6 +34,7 @@ actor \nodoc\ Main is TestList
     test(_TestParseErrorEmptyExpression)
     test(_TestParseErrorEmptyVarname)
     test(_TestParseErrorPrefixBounds)
+    test(_TestParseErrorPrefixLeadingZero)
     test(_TestParseErrorDotInVarname)
     test(_TestParseErrorUnexpectedCloseBrace)
     test(_TestParseErrorInvalidLiteralChar)

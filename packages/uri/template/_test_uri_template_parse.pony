@@ -89,6 +89,41 @@ class \nodoc\ iso _TestParseErrorPrefixBounds is UnitTest
         "prefix length exceeds 4 digits", err.message)
     end
 
+class \nodoc\ iso _TestParseErrorPrefixLeadingZero is UnitTest
+  """Prefix lengths with a leading zero produce errors."""
+  fun name(): String => "uri/template/parse error: prefix leading zero"
+
+  fun apply(h: TestHelper) =>
+    match \exhaustive\ URITemplateParse("{a:01}")
+    | let _: URITemplate =>
+      h.fail("expected parse error for :01")
+    | let err: URITemplateParseError =>
+      h.assert_eq[String val](
+        "prefix length has leading zero", err.message)
+      h.assert_eq[USize](3, err.offset
+        where msg = "template: {a:01} offset")
+    end
+
+    match \exhaustive\ URITemplateParse("{a:0009}")
+    | let _: URITemplate =>
+      h.fail("expected parse error for :0009")
+    | let err: URITemplateParseError =>
+      h.assert_eq[String val](
+        "prefix length has leading zero", err.message)
+      h.assert_eq[USize](3, err.offset
+        where msg = "template: {a:0009} offset")
+    end
+
+    match \exhaustive\ URITemplateParse("{var:003}")
+    | let _: URITemplate =>
+      h.fail("expected parse error for :003")
+    | let err: URITemplateParseError =>
+      h.assert_eq[String val](
+        "prefix length has leading zero", err.message)
+      h.assert_eq[USize](5, err.offset
+        where msg = "template: {var:003} offset")
+    end
+
 class \nodoc\ iso _TestParseErrorDotInVarname is UnitTest
   """Leading and consecutive dots in varnames produce errors."""
   fun name(): String => "uri/template/parse error: dots in varname"
