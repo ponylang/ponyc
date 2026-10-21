@@ -76,7 +76,16 @@ actor Main
       return
     end
 
-    let json_path: String val = binary + ".mutants.json"
+    let base: String val =
+      if
+        (binary.size() >= 4) and
+          binary.at(".exe", binary.size().isize() - 4)
+      then
+        binary.trim(0, binary.size() - 4)
+      else
+        binary
+      end
+    let json_path: String val = base + ".mutants.json"
     let auth = FileAuth(env.root)
 
     match \exhaustive\ InfoFile.parse(json_path, auth)
