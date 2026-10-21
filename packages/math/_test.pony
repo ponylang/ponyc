@@ -24,6 +24,7 @@ actor \nodoc\ Main is TestList
     test(_NearMaxPrimeTest[U32]("U32"))
     test(_TestGreatestCommonDivisor)
     test(_TestGreatestCommonDivisorErrorsOnZero)
+    test(_TestGreatestCommonDivisorSigned)
     test(_TestLeastCommonMultiple)
     test(_TestLeastCommonMultipleErrorsOnOverflow)
     test(_TestLeastCommonMultipleErrorsOnZero)
@@ -142,6 +143,29 @@ class \nodoc\ iso _TestGreatestCommonDivisor is UnitTest
     h.assert_eq[U64](4, GreatestCommonDivisor[U64](20,4)?)
     h.assert_eq[U64](5, GreatestCommonDivisor[U64](25,20)?)
     h.assert_eq[U64](5, GreatestCommonDivisor[U64](20,25)?)
+
+class \nodoc\ iso _TestGreatestCommonDivisorSigned is UnitTest
+  """
+  GCD is positive for signed inputs regardless of argument signs.
+  """
+  fun name(): String => "math/GreatestCommonDivisorSigned"
+
+  fun apply(h: TestHelper) ? =>
+    h.assert_eq[I64](2, GreatestCommonDivisor[I64](4, 6)?)
+    h.assert_eq[I64](2, GreatestCommonDivisor[I64](-4, 6)?)
+    h.assert_eq[I64](2, GreatestCommonDivisor[I64](4, -6)?)
+    h.assert_eq[I64](2, GreatestCommonDivisor[I64](-4, -6)?)
+    h.assert_eq[I8](1, GreatestCommonDivisor[I8](1, 1)?)
+    h.assert_eq[I8](1, GreatestCommonDivisor[I8](-1, 1)?)
+    h.assert_eq[I8](1, GreatestCommonDivisor[I8](1, -1)?)
+    h.assert_eq[I8](1, GreatestCommonDivisor[I8](-1, -1)?)
+    h.assert_eq[I32](7, GreatestCommonDivisor[I32](21, 49)?)
+    h.assert_eq[I32](7, GreatestCommonDivisor[I32](-21, 49)?)
+    h.assert_eq[I32](7, GreatestCommonDivisor[I32](21, -49)?)
+    h.assert_eq[I32](7, GreatestCommonDivisor[I32](-21, -49)?)
+    // min_value inputs error because |min_value| exceeds max_value
+    h.assert_error({() ? => GreatestCommonDivisor[I8](-128, -128)? })
+    h.assert_error({() ? => GreatestCommonDivisor[I16](-32768, -32768)? })
 
 class \nodoc\ iso _TestLeastCommonMultipleErrorsOnZero is UnitTest
   """
