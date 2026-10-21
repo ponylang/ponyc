@@ -384,32 +384,61 @@ class Iter[A] is Iterator[A]
       object is Iterator[A!]
         var _prev_value: (A! | None) = None
         var _prev_hash: USize = 0
+        var _next: (A! | _None) = _None
 
-        fun ref has_next(): Bool =>
-          _iter.has_next()
-
-        fun ref next(): A! ? =>
-          while true do
-            let cur_value: A! = _iter.next()?
-            let cur_hash: USize = H.hash(cur_value)
-            match \exhaustive\ _prev_value
-            | let prev_value: A! =>
-              if (_prev_hash == cur_hash) and
-                H.eq(prev_value, cur_value)
-              then
-                None
-              else
-                _prev_value = cur_value
-                _prev_hash = cur_hash
-                return cur_value
+        fun ref _find_next() =>
+          match _next
+          | _None =>
+            try
+              while _iter.has_next() do
+                let cur_value: A! = _iter.next()?
+                let cur_hash: USize = H.hash(cur_value)
+                match \exhaustive\ _prev_value
+                | let prev_value: A! =>
+                  if (_prev_hash == cur_hash) and
+                    H.eq(prev_value, cur_value)
+                  then
+                    None
+                  else
+                    _prev_value = cur_value
+                    _prev_hash = cur_hash
+                    _next = cur_value
+                    return
+                  end
+                | None =>
+                  _prev_value = cur_value
+                  _prev_hash = cur_hash
+                  _next = cur_value
+                  return
+                end
               end
-            | None =>
-              _prev_value = cur_value
-              _prev_hash = cur_hash
-              return cur_value
             end
           end
-          error
+
+        fun ref has_next(): Bool =>
+          match _next
+          | _None =>
+            if _iter.has_next() then
+              _find_next()
+              has_next()
+            else
+              false
+            end
+          else
+            true
+          end
+
+        fun ref next(): A! ? =>
+          match _next = _None
+          | let a: A! => a
+          else
+            if _iter.has_next() then
+              _find_next()
+              next()?
+            else
+              error
+            end
+          end
       end)
 
   fun ref enum[B: (Real[B] val & Number) = USize](): Iter[(B, A)]^ =>
@@ -933,19 +962,47 @@ class Iter[A] is Iterator[A]
     Iter[A!](
       object
         let _set: HashSet[A!, H] = HashSet[A!, H]()
+        var _next: (A! | _None) = _None
 
-        fun ref has_next(): Bool =>
-          _iter.has_next()
-
-        fun ref next(): A! ? =>
-          while true do
-            let v = _iter.next()?
-            if not _set.contains(v) then
-              _set.set(v)
-              return v
+        fun ref _find_next() =>
+          match _next
+          | _None =>
+            try
+              while _iter.has_next() do
+                let v = _iter.next()?
+                if not _set.contains(v) then
+                  _set.set(v)
+                  _next = v
+                  return
+                end
+              end
             end
           end
-          error
+
+        fun ref has_next(): Bool =>
+          match _next
+          | _None =>
+            if _iter.has_next() then
+              _find_next()
+              has_next()
+            else
+              false
+            end
+          else
+            true
+          end
+
+        fun ref next(): A! ? =>
+          match _next = _None
+          | let a: A! => a
+          else
+            if _iter.has_next() then
+              _find_next()
+              next()?
+            else
+              error
+            end
+          end
       end)
 
   fun ref zip[B](i2: Iterator[B]): Iter[(A, B)]^ =>

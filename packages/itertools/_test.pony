@@ -713,6 +713,15 @@ class \nodoc\ iso _IterDedupProperty is Property[Array[USize]]
       last = v
     end
 
+    // has_next() must be false once all elements are consumed
+    let iter = Iter[USize](input.values()).dedup()
+    while iter.has_next() do
+      try iter.next()? end
+    end
+    h.assert_false(
+      iter.has_next(),
+      "has_next() true after exhausting dedup iterator")
+
 class \nodoc\ iso _IterFilterProperty is Property[Array[USize]]
   fun name(): String => "itertools/Iter.filter (property)"
 
@@ -784,6 +793,15 @@ class \nodoc\ iso _IterUniqueProperty is Property[Array[USize]]
     let actual =
       Iter[USize](input.values()).unique().collect(Array[USize])
     h.assert_array_eq[USize](expected, actual)
+
+    // has_next() must be false once all elements are consumed
+    let iter = Iter[USize](input.values()).unique()
+    while iter.has_next() do
+      try iter.next()? end
+    end
+    h.assert_false(
+      iter.has_next(),
+      "has_next() true after exhausting unique iterator")
 
 class \nodoc\ iso _TestIterChainDeepPath is UnitTest
   fun name(): String => "itertools/Iter.chain (deep path)"
@@ -877,7 +895,7 @@ class \nodoc\ iso _TestIterRunDeepPath is UnitTest
 class \nodoc\ iso _TestIterDedupEdgeCases is UnitTest
   fun name(): String => "itertools/Iter.dedup (edge cases)"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     var result = Iter[USize](Array[USize].create().values())
       .dedup().collect(Array[USize])
     h.assert_eq[USize](0, result.size())
@@ -897,6 +915,31 @@ class \nodoc\ iso _TestIterDedupEdgeCases is UnitTest
     result = Iter[USize]([as USize: 1; 2; 1; 2; 1].values())
       .dedup().collect(Array[USize])
     h.assert_array_eq[USize]([as USize: 1; 2; 1; 2; 1], result)
+
+    // has_next() must be false when only duplicates remain
+    h.assert_eq[USize](
+      0, Iter[USize]([as USize: 0; 0].values()).dedup().last()?)
+    h.assert_eq[USize](
+      1, Iter[USize]([as USize: 0; 1; 1; 1].values()).dedup().last()?)
+
+    let d = Iter[USize]([as USize: 0; 0].values()).dedup()
+    h.assert_true(d.has_next())
+    h.assert_eq[USize](0, d.next()?)
+    h.assert_false(d.has_next())
+
+    // has_next() is idempotent
+    let d2 = Iter[USize]([as USize: 1; 1; 2].values()).dedup()
+    h.assert_true(d2.has_next())
+    h.assert_true(d2.has_next())
+    h.assert_eq[USize](1, d2.next()?)
+    h.assert_true(d2.has_next())
+    h.assert_true(d2.has_next())
+    h.assert_eq[USize](2, d2.next()?)
+    h.assert_false(d2.has_next())
+
+    // empty iterator
+    let e = Iter[USize](Array[USize].create().values()).dedup()
+    h.assert_false(e.has_next())
 
 class \nodoc\ iso _TestIterFilterEdgeCases is UnitTest
   fun name(): String => "itertools/Iter.filter (edge cases)"
@@ -956,7 +999,7 @@ class \nodoc\ iso _TestIterFilterMapEdgeCases is UnitTest
 class \nodoc\ iso _TestIterUniqueEdgeCases is UnitTest
   fun name(): String => "itertools/Iter.unique (edge cases)"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     var result = Iter[USize](Array[USize].create().values())
       .unique().collect(Array[USize])
     h.assert_eq[USize](0, result.size())
@@ -976,3 +1019,30 @@ class \nodoc\ iso _TestIterUniqueEdgeCases is UnitTest
     result = Iter[USize]([as USize: 1; 2; 3; 1; 2; 3].values())
       .unique().collect(Array[USize])
     h.assert_array_eq[USize]([as USize: 1; 2; 3], result)
+
+    // has_next() must be false when only duplicates remain
+    h.assert_eq[USize](
+      2, Iter[USize]([as USize: 1; 2; 1].values()).unique().last()?)
+    h.assert_eq[USize](
+      4,
+      Iter[USize]([as USize: 1; 2; 3; 4; 1; 2; 3].values())
+        .unique().last()?)
+
+    let u = Iter[USize]([as USize: 1; 1; 1].values()).unique()
+    h.assert_true(u.has_next())
+    h.assert_eq[USize](1, u.next()?)
+    h.assert_false(u.has_next())
+
+    // has_next() is idempotent
+    let u2 = Iter[USize]([as USize: 1; 2; 1; 2].values()).unique()
+    h.assert_true(u2.has_next())
+    h.assert_true(u2.has_next())
+    h.assert_eq[USize](1, u2.next()?)
+    h.assert_true(u2.has_next())
+    h.assert_true(u2.has_next())
+    h.assert_eq[USize](2, u2.next()?)
+    h.assert_false(u2.has_next())
+
+    // empty iterator
+    let e = Iter[USize](Array[USize].create().values()).unique()
+    h.assert_false(e.has_next())
