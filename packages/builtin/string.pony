@@ -537,7 +537,9 @@ actor Main
           ((c2 and 0xC0) != 0x80) or
           ((c3 and 0xC0) != 0x80) or
           // Overlong encoding.
-          ((c == 0xE0) and (c2 < 0xA0))
+          ((c == 0xE0) and (c2 < 0xA0)) or
+          // Surrogate (U+D800..U+DFFF).
+          ((c == 0xED) and (c2 >= 0xA0))
         then
           err
         else
