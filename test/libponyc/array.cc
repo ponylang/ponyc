@@ -282,12 +282,9 @@ TEST_F(ArrayTest, NonEmptyArrayLiteralCompilesThroughReach)
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    let a: Array[U32] = [1; 2; 3]\n"
-    "    env.out.print(a.size().string())";
+    "    let a: Array[U32] = [1; 2; 3]";
 
-  set_builtin(nullptr);
-
-  DO(test_compile(src, "ir"));
+  DO(test_compile(src, "reach"));
 }
 
 

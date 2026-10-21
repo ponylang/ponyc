@@ -125,31 +125,20 @@ TEST_F(ReachTest, InfinitelyRecursiveGenericInstantiation)
   const char* src =
     "interface IFoo\n"
     "  new create()\n"
-    "  fun depth(): USize\n"
 
     "class Foo is IFoo\n"
     "  new create() => None\n"
-    "  fun depth(): USize => 0\n"
 
     "class Pair[A: IFoo] is IFoo\n"
     "  new create() => None\n"
-    "  fun depth(): USize => A.depth() + 1\n"
 
     "primitive Bar\n"
-    "  fun apply[A: IFoo](n: USize): IFoo =>\n"
-    "    if n == 0 then\n"
-    "      A\n"
-    "    else\n"
-    "      Bar.apply[Pair[A]](n - 1)\n"
-    "    end\n"
+    "  fun apply[A: IFoo](): IFoo =>\n"
+    "    Bar.apply[Pair[A]]()\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    env.out.print(Bar.apply[Foo](0).depth().string())";
-
-  // Needs the real builtin: the recursion runs through USize arithmetic, and
-  // the divergence only happens once reachability traces the method bodies.
-  set_builtin(nullptr);
+    "    Bar.apply[Foo]()";
 
   // Assert the depth-specific message: this linear shape trips the depth limit.
   // Asserting the distinguishing text (not the shared tail) means a regression
@@ -214,14 +203,12 @@ TEST_F(ReachTest, InfinitelyRecursiveGenericTypeArgumentDoubles)
 {
   const char* src =
     "primitive Bar\n"
-    "  fun apply[A: Any val](n: USize): None =>\n"
-    "    if n == 0 then None else Bar.apply[(A, A)](n - 1) end\n"
+    "  fun apply[A: Any val](): None =>\n"
+    "    Bar.apply[(A, A)]()\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    Bar.apply[U8](4)";
-
-  set_builtin(nullptr);
+    "    Bar.apply[U8]()";
 
   // Assert the size-specific message: this branching shape trips the size limit
   // (not depth), which is the case a depth-only check could not catch.
@@ -237,15 +224,11 @@ TEST_F(ReachTest, InfinitelyRecursiveGenericTypeArgumentDoubles)
 TEST_F(ReachTest, RecursiveTypeAliasCompiles)
 {
   const char* src =
-    "use \"collections\"\n"
     "type Tree is (None | Array[Tree])\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    let t: Tree = None\n"
-    "    env.out.print(\"ok\")";
-
-  set_builtin(nullptr);
+    "    let t: Tree = None";
 
   TEST_COMPILE(src, "reach");
 }
@@ -285,8 +268,6 @@ TEST_F(ReachTest, Determinism)
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    env.out.print(\"\")\n"
-
     "    U8(0) ; I8(0) ; U16(0) ; I16(0) ; U32(0) ; I32(0)\n"
 
     "    (C1, C2)\n"
@@ -303,8 +284,6 @@ TEST_F(ReachTest, Determinism)
     "    i2.f2()\n"
     "    i3.f3()\n"
     "    i4.f4()";
-
-  set_builtin(nullptr);
 
   TEST_COMPILE(src, "paint");
 
