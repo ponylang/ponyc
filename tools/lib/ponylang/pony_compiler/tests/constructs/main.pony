@@ -105,3 +105,11 @@ class Matching
 
   fun do_badger(): String =>
     "badger"
+
+class CrossFileRefs
+  fun apply(env: Env) =>
+    let g: Greeter = Greeter.create("Hi")
+    let msg: String = g.greet("World")
+    let a: Announcer = Announcer.create(env.out)
+    a.announce(msg)
+    let gr: String = g.greeting
