@@ -84,7 +84,9 @@ class CommandParser
         end
 
       elseif not opt_stop and
-        ((token.compare_sub("-", 1, 0) == Equal) and (token.size() > 1)) then
+        ((token.compare_sub("-", 1, 0) == Equal) and (token.size() > 1)) and
+        _is_alpha(try token(1)? else 0 end)
+      then
         match \exhaustive\ _parse_short_options(token.substring(1), tokens)
         | let os: Array[Option] =>
           for o in os.values() do
@@ -336,6 +338,9 @@ class CommandParser
 
   fun tag _short_string(c: U8): String =>
     recover String.from_utf32(c.u32()) end
+
+  fun tag _is_alpha(c: U8): Bool =>
+    ((c >= 'A') and (c <= 'Z')) or ((c >= 'a') and (c <= 'z'))
 
   fun _command_path(): Array[String] =>
     let path = Array[String]

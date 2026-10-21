@@ -24,6 +24,7 @@ actor \nodoc\ Main is TestList
     test(_TestMinimalWithHelp)
     test(_TestMultipleEndOfOptions)
     test(_TestMustBeLeaf)
+    test(_TestNegativeNumArg)
     test(_TestOptionStop)
     test(_TestShortsAdj)
     test(_TestShortsEq)
@@ -437,6 +438,47 @@ class \nodoc\ iso _TestEnvs is UnitTest
     h.assert_eq[I64](42, cmd.option("intr").i64())
     h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
+
+class \nodoc\ iso _TestNegativeNumArg is UnitTest
+  fun name(): String => "cli/negative_num_arg"
+
+  fun apply(h: TestHelper) ? =>
+    let cs =
+      CommandSpec.leaf(
+        "app",
+        "",
+        [ OptionSpec.bool("aa", "" where short' = 'a', default' = false)
+          OptionSpec.i64("num", "" where short' = 'n', default' = 0)
+        ],
+        [ ArgSpec.i64("n", "" where default' = 0)
+          ArgSpec.f64("f", "" where default' = 0.0)
+        ])?
+
+    // Negative integer positional arg
+    let cmd1 = CommandParser(cs).parse(["app"; "-5"; "1.0"]) as Command
+    h.assert_eq[I64](-5, cmd1.arg("n").i64())
+    h.assert_eq[F64](1.0, cmd1.arg("f").f64())
+
+    // Negative float positional arg
+    let cmd2 = CommandParser(cs).parse(["app"; "5"; "-1.5"]) as Command
+    h.assert_eq[I64](5, cmd2.arg("n").i64())
+    h.assert_eq[F64](-1.5, cmd2.arg("f").f64())
+
+    // Negative values via -- still work
+    let cmd3 = CommandParser(cs).parse(["app"; "--"; "-5"; "-1.5"]) as Command
+    h.assert_eq[I64](-5, cmd3.arg("n").i64())
+    h.assert_eq[F64](-1.5, cmd3.arg("f").f64())
+
+    // Short options still work
+    let cmd4 = CommandParser(cs).parse(["app"; "-a"; "-5"; "1.0"]) as Command
+    h.assert_eq[Bool](true, cmd4.option("aa").bool())
+    h.assert_eq[I64](-5, cmd4.arg("n").i64())
+
+    // Negative value as option arg still works
+    let cmd5 =
+      CommandParser(cs).parse(["app"; "-n"; "-5"; "0"; "1.0"]) as Command
+    h.assert_eq[I64](-5, cmd5.option("num").i64())
+    h.assert_eq[I64](0, cmd5.arg("n").i64())
 
 class \nodoc\ iso _TestOptionStop is UnitTest
   fun name(): String => "cli/option_stop"
