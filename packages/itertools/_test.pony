@@ -601,6 +601,35 @@ class \nodoc\ iso _TestIterTakeWhile is UnitTest
     h.assert_eq[USize](1, infinite.next()?)
     h.assert_false(infinite.has_next())
 
+    // has_next() must not flip from false to true after predicate rejects
+    let tw = Iter[U64]([as U64: 5; 1].values())
+      .take_while({(x) => x < 3 })
+    h.assert_false(tw.has_next())
+    h.assert_false(tw.has_next())
+
+    // after yielding accepted elements, rejection is permanent
+    let tw2 = Iter[U64]([as U64: 1; 5; 1].values())
+      .take_while({(x) => x < 3 })
+    h.assert_eq[U64](1, tw2.next()?)
+    h.assert_false(tw2.has_next())
+    h.assert_false(tw2.has_next())
+
+    // next() must error when predicate rejects first element
+    h.assert_error(
+      {()? =>
+        Iter[U64]([as U64: 5; 1].values())
+          .take_while({(x) => x < 3 })
+          .next()?
+      })
+
+    // nth must not return a rejected element
+    h.assert_error(
+      {()? =>
+        Iter[U64]([as U64: 5; 1].values())
+          .take_while({(x) => x < 3 })
+          .nth(1)?
+      })
+
 class \nodoc\ iso _TestIterUnique is UnitTest
   fun name(): String => "itertools/Iter.unique"
 

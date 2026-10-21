@@ -942,6 +942,7 @@ class Iter[A] is Iterator[A]
                 return false
               end
             _done = try not f(_next as A!)? else true end
+            if _done then _next = None end
             not _done
           end
       end)
