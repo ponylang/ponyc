@@ -68,6 +68,18 @@ class \nodoc\ iso _PropertyInvalidHostRejected is Property[String val]
         // reg-name containing ':' (RFC 3986 forbids ':' in reg-name)
         "a:b:"
         "a:b:80"
+        // malformed IPv6: two ::
+        "[::1::2]"
+        // malformed IPv6: nine groups
+        "[1:2:3:4:5:6:7:8:9]"
+        // malformed IPv6: five-digit group
+        "[12345::]"
+        // malformed IPv6: IPv4 octet > 255
+        "[::ffff:1.2.3.256]"
+        // bare IPv4 in brackets (not IPv6)
+        "[1.2.3.4]"
+        // degenerate brackets
+        "[.]"; "[:]"; "[:0:]"
       ])
 
   fun ref property(arg1: String val, ph: PropertyHelper) =>
@@ -220,6 +232,122 @@ class \nodoc\ iso _TestParseURIAuthorityColonInHost is UnitTest
           e is InvalidHost,
           "expected InvalidHost for: " + input +
             " but got: " + e.string())
+      end
+    end
+
+class \nodoc\ iso _TestParseURIAuthorityIPv6 is UnitTest
+  """
+  RFC 3986 IPv6address grammar validation: valid literals accepted, malformed
+  literals rejected with InvalidHost.
+  """
+  fun name(): String => "uri/parse_uri_authority/ipv6_validation"
+
+  fun ref apply(h: TestHelper) =>
+    // -- Valid IPv6 addresses --
+    let valid: Array[String val] =
+      [
+        "[::1]"
+        "[::]"
+        "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"
+        "[2001:db8::7]"
+        "[2001:db8:85a3::8a2e:370:7334]"
+        "[fe80::1]"
+        "[1::]"
+        "[1:2::]"
+        "[1:2:3:4:5:6:7::]"
+        "[::1:2:3:4:5:6:7]"
+        "[::1:2]"
+        "[::ffff:192.168.1.1]"
+        "[::ffff:1.2.3.4]"
+        "[::1.2.3.4]"
+        "[::ffff:0:1.2.3.4]"
+        "[1:2:3:4:5:6:1.2.3.4]"
+        "[1:2:3::4:5:1.2.3.4]"
+        "[::ffff:0.0.0.0]"
+        "[::ffff:255.255.255.255]"
+        "[::FFFF:1.2.3.4]"
+        "[ABCD::EF01]"
+      ]
+    for input in valid.values() do
+      match \exhaustive\ ParseURIAuthority(input)
+      | let a: URIAuthority val =>
+        h.assert_eq[String val](input, a.host)
+      | let e: URIParseError val =>
+        h.fail("valid IPv6 rejected: " + input + " error: " + e.string())
+      end
+    end
+
+    // -- Invalid IPv6 addresses --
+    let invalid: Array[String val] =
+      [
+        "[::1::2]"
+        "[1::2::3]"
+        "[1:2:3:4:5:6:7:8:9]"
+        "[12345::]"
+        "[::12345]"
+        "[::ffff:1.2.3.256]"
+        "[::ffff:256.1.1.1]"
+        "[1.2.3.4]"
+        "[.]"
+        "[:]"
+        "[:0:]"
+        "[]"
+        "[::ffff:01.2.3.4]"
+        "[::ffff:1.2.3]"
+        "[::ffff:1.2.3.4.5]"
+        "[1:2:3:4:5:6:7:1.2.3.4]"
+        "[1:2:3:4:5::6:1.2.3.4]"
+        "[1:2:3:4:5:6:7:]"
+        "[:1:2:3:4:5:6:7]"
+      ]
+    for input in invalid.values() do
+      match \exhaustive\ ParseURIAuthority(input)
+      | let a: URIAuthority val =>
+        h.fail("invalid IPv6 accepted: " + input)
+      | let e: URIParseError val =>
+        h.assert_true(
+          e is InvalidHost,
+          "expected InvalidHost for: " + input +
+            " but got: " + e.string())
+      end
+    end
+
+    // Verify through ParseURI as well
+    let uri_invalid: Array[String val] =
+      [
+        "http://[::1::2]/"
+        "http://[1:2:3:4:5:6:7:8:9]/"
+        "http://[12345::]/"
+        "http://[::ffff:1.2.3.256]/"
+        "http://[1.2.3.4]/"
+        "http://[.]/"
+        "http://[:]/"
+      ]
+    for input in uri_invalid.values() do
+      match \exhaustive\ ParseURI(input)
+      | let u: URI val =>
+        h.fail("invalid IPv6 accepted via ParseURI: " + input)
+      | let e: URIParseError val =>
+        h.assert_true(
+          e is InvalidHost,
+          "expected InvalidHost for: " + input +
+            " but got: " + e.string())
+      end
+    end
+
+    let uri_valid: Array[String val] =
+      [
+        "http://[::1]/"
+        "http://[2001:db8::7]/"
+        "http://[::ffff:1.2.3.4]/"
+        "http://[1:2:3:4:5:6:1.2.3.4]/"
+      ]
+    for input in uri_valid.values() do
+      match \exhaustive\ ParseURI(input)
+      | let u: URI val => None
+      | let e: URIParseError val =>
+        h.fail("valid IPv6 rejected via ParseURI: " + input +
+          " error: " + e.string())
       end
     end
 

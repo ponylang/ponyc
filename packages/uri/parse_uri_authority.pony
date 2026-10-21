@@ -194,18 +194,258 @@ primitive ParseURIAuthority
     _valid_ipv6(content)
 
   fun _valid_ipv6(content: String val): Bool =>
-    // Basic validation: only hex digits, ':', and '.' (for IPv4-mapped)
-    for c in content.values() do
-      if not (
-        ((c >= '0') and (c <= '9')) or
-          ((c >= 'A') and (c <= 'F')) or
-          ((c >= 'a') and (c <= 'f')) or
-          (c == ':') or (c == '.'))
-      then
-        return false
+    """
+    RFC 3986 IPv6address grammar. The content is the text between brackets,
+    with no brackets.
+    """
+    if content.size() == 0 then return false end
+
+    // Find :: position (at most one allowed)
+    var dc_pos: ISize = -1
+    try
+      var i: USize = 0
+      while (i + 1) < content.size() do
+        if (content(i)? == ':') and (content(i + 1)? == ':') then
+          dc_pos = i.isize()
+          break
+        end
+        i = i + 1
+      end
+    else
+      _Unreachable()
+    end
+    let has_dc = dc_pos != ISize(-1)
+
+    if has_dc then
+      let after = dc_pos.usize() + 2
+      try
+        var i = after
+        while (i + 1) < content.size() do
+          if (content(i)? == ':') and (content(i + 1)? == ':') then
+            return false
+          end
+          i = i + 1
+        end
+      else
+        _Unreachable()
       end
     end
+
+    if has_dc then
+      let left: String val =
+        content.substring(0, dc_pos)
+      let right: String val =
+        content.substring(dc_pos + 2)
+
+      let left_groups = _count_h16_groups(left)
+      if left_groups == USize.max_value() then return false end
+
+      if right.size() == 0 then
+        // Ends with :: — left side can be 0..7 groups
+        return left_groups <= 7
+      end
+
+      (let right_h16, let has_ipv4) = _parse_right_side(right)
+      if right_h16 == USize.max_value() then return false end
+
+      let total_represented =
+        left_groups + right_h16 + if has_ipv4 then USize(2) else USize(0) end
+      // :: expands to fill 8 groups, so left + right < 8
+      total_represented <= 7
+    else
+      // No :: — must be exactly 8 h16 groups, or 6 h16 + IPv4
+      _parse_no_dc(content)
+    end
+
+  fun _count_h16_groups(s: String val): USize =>
+    """
+    Count colon-separated h16 groups. Returns USize.max_value() on invalid
+    input. An empty string returns 0.
+    """
+    if s.size() == 0 then return 0 end
+    var count: USize = 0
+    var group_start: USize = 0
+    try
+      var i: USize = 0
+      while i < s.size() do
+        if s(i)? == ':' then
+          if not _is_h16(s, group_start, i) then
+            return USize.max_value()
+          end
+          count = count + 1
+          group_start = i + 1
+        end
+        i = i + 1
+      end
+    else
+      _Unreachable()
+    end
+    // Last group after final colon (or entire string if no colons)
+    if not _is_h16(s, group_start, s.size()) then
+      return USize.max_value()
+    end
+    count + 1
+
+  fun _is_h16(s: String val, from: USize, to: USize): Bool =>
+    """
+    1*4HEXDIG
+    """
+    let len = to - from
+    if (len < 1) or (len > 4) then return false end
+    try
+      var i = from
+      while i < to do
+        let c = s(i)?
+        if not _is_hexdig(c) then return false end
+        i = i + 1
+      end
+    else
+      _Unreachable()
+    end
     true
+
+  fun _is_hexdig(c: U8): Bool =>
+    ((c >= '0') and (c <= '9')) or
+      ((c >= 'A') and (c <= 'F')) or
+      ((c >= 'a') and (c <= 'f'))
+
+  fun _parse_right_side(s: String val): (USize, Bool) =>
+    """
+    Parse the portion after :: into h16 count and whether it ends with IPv4.
+    Returns (USize.max_value(), false) on invalid input.
+    """
+    if s.contains(".") then
+      var last_colon = ISize(-1)
+      try
+        var i = s.size()
+        while i > 0 do
+          i = i - 1
+          if s(i)? == ':' then
+            last_colon = i.isize()
+            break
+          end
+        end
+      else
+        _Unreachable()
+      end
+
+      if last_colon == ISize(-1) then
+        // No colon — entire right side is the IPv4 address
+        if _valid_ipv4(s) then
+          return (0, true)
+        else
+          return (USize.max_value(), false)
+        end
+      end
+
+      let h16_part: String val = s.substring(0, last_colon)
+      let ipv4_part: String val =
+        s.substring(last_colon + 1)
+
+      if not _valid_ipv4(ipv4_part) then
+        return (USize.max_value(), false)
+      end
+
+      let h16_count = _count_h16_groups(h16_part)
+      if h16_count == USize.max_value() then
+        return (USize.max_value(), false)
+      end
+      (h16_count, true)
+    else
+      let h16_count = _count_h16_groups(s)
+      if h16_count == USize.max_value() then
+        return (USize.max_value(), false)
+      end
+      (h16_count, false)
+    end
+
+  fun _parse_no_dc(content: String val): Bool =>
+    """
+    No :: present — must be 8 h16 groups or 6 h16 ':' IPv4address.
+    """
+    if content.contains(".") then
+      // RFC 3986: 6( h16 ":" ) IPv4address
+      var last_colon_before_dot = ISize(-1)
+      try
+        var i: USize = 0
+        while i < content.size() do
+          if content(i)? == ':' then
+            last_colon_before_dot = i.isize()
+          elseif content(i)? == '.' then
+            break
+          end
+          i = i + 1
+        end
+      else
+        _Unreachable()
+      end
+
+      if last_colon_before_dot == ISize(-1) then return false end
+
+      let h16_part: String val =
+        content.substring(0, last_colon_before_dot)
+      let ipv4_part: String val =
+        content.substring(last_colon_before_dot + 1)
+
+      if not _valid_ipv4(ipv4_part) then return false end
+
+      let h16_count = _count_h16_groups(h16_part)
+      h16_count == 6
+    else
+      _count_h16_groups(content) == 8
+    end
+
+  fun _valid_ipv4(s: String val): Bool =>
+    """
+    RFC 3986 IPv4address =
+    dec-octet "." dec-octet "." dec-octet "." dec-octet
+    """
+    var octet_count: USize = 0
+    var octet_start: USize = 0
+    try
+      var i: USize = 0
+      while i < s.size() do
+        if s(i)? == '.' then
+          if not _valid_dec_octet(s, octet_start, i) then return false end
+          octet_count = octet_count + 1
+          octet_start = i + 1
+        elseif not ((s(i)? >= '0') and (s(i)? <= '9')) then
+          return false
+        end
+        i = i + 1
+      end
+    else
+      _Unreachable()
+    end
+    if not _valid_dec_octet(s, octet_start, s.size()) then return false end
+    octet_count = octet_count + 1
+    octet_count == 4
+
+  fun _valid_dec_octet(s: String val, from: USize, to: USize): Bool =>
+    """
+    0-255 with no leading zeros (except bare "0").
+    """
+    let len = to - from
+    if (len == 0) or (len > 3) then return false end
+    try
+      if len == 1 then
+        return (s(from)? >= '0') and (s(from)? <= '9')
+      end
+      // No leading zero for multi-digit
+      if s(from)? == '0' then return false end
+      var val': U16 = 0
+      var i = from
+      while i < to do
+        let c = s(i)?
+        if (c < '0') or (c > '9') then return false end
+        val' = (val' * 10) + (c - '0').u16()
+        i = i + 1
+      end
+      val' <= 255
+    else
+      _Unreachable()
+      false
+    end
 
   fun _valid_ipvfuture(content: String val): Bool =>
     // IPvFuture = "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )
