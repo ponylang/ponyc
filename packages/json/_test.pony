@@ -47,6 +47,7 @@ actor \nodoc\ Main is TestList
     test(_TestJSONPathQueryBasic)
     test(_TestJSONPathQueryComplex)
     test(_TestJSONPathQuerySliceStep)
+    test(_TestJSONPathWhitespaceBetweenSegments)
     test(_TestLensComposition)
     test(_TestLensGet)
     test(_TestLensRemove)
@@ -486,6 +487,9 @@ class \nodoc\ iso _JSONPathSafetyProperty is Property[String]
           "$[::-1]"
           "$[::0]"
           "$[1::-1]"
+          "$ .a"
+          "$.a .b"
+          "$.a\t.b"
           "$[?@.a]"
           "$[?@.a > 0]"
           "$[?@.a == 1 && @.b == 2]"
@@ -1506,6 +1510,12 @@ class \nodoc\ iso _TestJSONPathParse is UnitTest
         "$[::-1]"
         "$[1:4:2]"
         "$[::0]"
+        "$ .a"
+        "$.a .b"
+        "$ ..b"
+        "$.a ['b']"
+        "$ [0]"
+        "$.a\t.b"
       ]
     for path_str in valid.values() do
       match \exhaustive\ JSONPathParser.parse(path_str)
@@ -1803,6 +1813,61 @@ class \nodoc\ iso _TestJSONPathQuerySliceStep is UnitTest
     let p12 = JSONPathParser.compile("$[::2]")?
     let r12 = p12.query(obj)
     h.assert_eq[USize](0, r12.size())
+
+class \nodoc\ iso _TestJSONPathWhitespaceBetweenSegments is UnitTest
+  fun name(): String => "json/jsonpath/whitespace-between-segments"
+
+  fun apply(h: TestHelper) ? =>
+    let doc = JSONObject
+      .update("a", JSONObject.update("b", I64(1)))
+
+    // "$.a .b" should produce the same result as "$.a.b"
+    let baseline = JSONPathParser.compile("$.a.b")?
+    let r0 = baseline.query(doc)
+    h.assert_eq[USize](1, r0.size())
+    h.assert_eq[I64](1, r0(0)? as I64)
+
+    let p1 = JSONPathParser.compile("$.a .b")?
+    let r1 = p1.query(doc)
+    h.assert_eq[USize](1, r1.size())
+    h.assert_eq[I64](1, r1(0)? as I64)
+
+    // "$ .a" — space after root
+    let p2 = JSONPathParser.compile("$ .a")?
+    let r2 = p2.query(doc)
+    h.assert_eq[USize](1, r2.size())
+    h.assert_true((r2(0)? as JSONObject).contains("b"))
+
+    // "$.a ['b']" — space before bracket segment
+    let p3 = JSONPathParser.compile("$.a ['b']")?
+    let r3 = p3.query(doc)
+    h.assert_eq[USize](1, r3.size())
+    h.assert_eq[I64](1, r3(0)? as I64)
+
+    // "$ ..b" — space before descendant
+    let p4 = JSONPathParser.compile("$ ..b")?
+    let r4 = p4.query(doc)
+    h.assert_eq[USize](1, r4.size())
+    h.assert_eq[I64](1, r4(0)? as I64)
+
+    // Trailing whitespace should not break parsing
+    let p5 = JSONPathParser.compile("$.a.b ")?
+    let r5 = p5.query(doc)
+    h.assert_eq[USize](1, r5.size())
+    h.assert_eq[I64](1, r5(0)? as I64)
+
+    // Tab between segments
+    let p6 = JSONPathParser.compile("$.a\t.b")?
+    let r6 = p6.query(doc)
+    h.assert_eq[USize](1, r6.size())
+    h.assert_eq[I64](1, r6(0)? as I64)
+
+    // Whitespace between singular query segments inside a filter
+    let filter_doc = JSONArray
+      .push(JSONObject.update("b", I64(1)))
+    let p7 = JSONPathParser.compile("$[?@ .b == 1]")?
+    let r7 = p7.query(filter_doc)
+    h.assert_eq[USize](1, r7.size())
 
 // ===================================================================
 // Example Tests — Token Parser
