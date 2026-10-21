@@ -231,3 +231,7 @@ GreatestCommonDivisor[I8](1, -1)?   // was: -1, now: 1
 
 When both arguments are `min_value()` of a signed type, the positive result cannot be represented and the call now errors. Previously it silently returned the negative `min_value()`.
 
+## Fix JSONPathParser accepting integers RFC 9535 does not allow
+
+`JSONPathParser` accepted queries with negative zero (`$[-0]`), leading zeros (`$[01]`), and a lone minus sign (`$[-:]`) in index and slice positions. RFC 9535 section 2.3.3.1 defines `int = "0" / (["-"] DIGIT1 *DIGIT)`, so these are not well-formed and must be rejected. These queries now return `JSONPathParseError`.
+
