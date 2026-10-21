@@ -19,14 +19,12 @@ primitive _FormatFloat
     fill: U32 = ' ')
     : String iso^
   =>
-    // TODO: prefix, align, fill
+    // TODO: prefix
     var prec' = if prec == -1 then 6 else prec end
 
     recover
-      var f = String(31) .> append("%")
-
-      if width > 0 then f.append(width.string()) end
-      f .> append(".") .> append(prec'.string())
+      var f = String(31) .> append("%.")
+      f.append(prec'.string())
 
       match fmt
       | FormatExp => f.append("e")
@@ -57,5 +55,35 @@ primitive _FormatFloat
         @snprintf(s.cstring(), s.space(), f.cstring(), x)
       end
 
-      s .> recalc()
+      s.recalc()
+
+      if s.size() < width then
+        let rem = width - s.size()
+        var pre: USize = 0
+        var post: USize = 0
+
+        match \exhaustive\ align
+        | AlignLeft => post = rem
+        | AlignRight => pre = rem
+        | AlignCenter => pre = rem / 2; post = rem - pre
+        end
+
+        if pre > 0 then
+          let fills = String.from_utf32(fill)
+          let pad = String(pre * fills.size())
+          var i: USize = pre
+          while i > 0 do
+            pad.append(fills)
+            i = i - 1
+          end
+          s.insert_in_place(0, pad)
+        end
+
+        while post > 0 do
+          s.push_utf32(fill)
+          post = post - 1
+        end
+      end
+
+      s
     end
