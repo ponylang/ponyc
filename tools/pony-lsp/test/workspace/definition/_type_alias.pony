@@ -1,21 +1,26 @@
-use "collections"
+type _TaAlias is U8
 
-type _Alias is U8
+primitive _TaKey
+
+primitive _TaValue
+
+class _TaBox[K, V]
+  new create() => None
+
+type _TaMap[K, V] is _TaBox[K, V]
 
 class _TypeAliasFields
   """
-  Test fixture for goto definition on a type alias usage.
+  Test fixture for goto definition on type alias and type argument usages.
 
-  In `Map[String, U32]`, goto definition on `Map` resolves to the `Map` type
-  alias declaration, and on the type arguments `String` and `U32` to their own
-  declarations. `_Alias` is a simple type alias defined in this file; goto
-  definition on it resolves to that declaration.
+  `_TaMap` is a generic type alias; goto definition on it resolves to the
+  alias declaration. Goto definition on `_TaKey` and `_TaValue` in the type
+  arguments resolves to their own declarations. `_TaAlias` is a simple alias
+  defined in this file.
   """
-  let _data: Map[String, U32] val
-  let _name: String
-  let _alias_field: _Alias
+  let _data: _TaMap[_TaKey, _TaValue]
+  let _alias_field: _TaAlias
 
   new create() =>
-    _data = recover val Map[String, U32] end
-    _name = ""
+    _data = _TaBox[_TaKey, _TaValue]
     _alias_field = 0
