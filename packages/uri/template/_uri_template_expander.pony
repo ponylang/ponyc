@@ -14,7 +14,7 @@ primitive _URITemplateExpander
     for part in parts.values() do
       match \exhaustive\ part
       | let lit: _Literal =>
-        out.append(lit.text)
+        out.append(_PctEncode.encode(lit.text, true))
       | let expr: _Expression =>
         _expand_expression(expr, vars, out)
       end

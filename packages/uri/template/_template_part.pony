@@ -2,7 +2,9 @@ class val _Literal
   """
   A literal text segment of a URI template.
 
-  Literal text is copied verbatim to the expansion output.
+  During expansion, characters allowed in URI syntax (unreserved, reserved,
+  and existing percent-encoded triplets) are copied through; all other bytes
+  are percent-encoded per RFC 6570 Section 3.1.
   """
   let text: String val
 

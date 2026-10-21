@@ -451,6 +451,64 @@ class \nodoc\ iso _TestPrefixUnicode is UnitTest
       h.fail("failed to parse template")
     end
 
+class \nodoc\ iso _TestLiteralPctEncoding is UnitTest
+  """
+  RFC 6570 Section 3.1: literal characters not allowed in URI syntax
+  are percent-encoded during expansion.
+  """
+  fun name(): String => "uri/template/literal pct-encoding"
+
+  fun apply(h: TestHelper) =>
+    let vars = URITemplateVariables
+    vars.set("v", "x")
+
+    // "café" as a literal template: é is 0xC3 0xA9 in UTF-8
+    let cafe =
+      recover val
+        String .> push('c') .> push('a') .> push('f')
+          .> push(0xC3) .> push(0xA9)
+      end
+    _assert_expand(h, cafe, "caf%C3%A9", vars)
+
+    // Pure ASCII literal is unchanged
+    _assert_expand(h, "cafe", "cafe", vars)
+
+    // Non-ASCII literal mixed with expression
+    let euro_template =
+      recover val
+        String .> push('/') .> push(0xE2) .> push(0x82) .> push(0xAC)
+          .> append("/{v}")
+      end
+    _assert_expand(h, euro_template, "/%E2%82%AC/x", vars)
+
+    // 4-byte UTF-8 literal (emoji U+1F600)
+    let emoji =
+      recover val
+        String .> push(0xF0) .> push(0x9F) .> push(0x98) .> push(0x80)
+      end
+    _assert_expand(h, emoji, "%F0%9F%98%80", vars)
+
+    // Existing pct-encoded triplet in literal passes through
+    _assert_expand(h, "100%25done", "100%25done", vars)
+
+    // Reserved characters in literal pass through
+    _assert_expand(h, "/path/to:file", "/path/to:file", vars)
+
+  fun _assert_expand(
+    h: TestHelper,
+    template: String,
+    expected: String,
+    vars: URITemplateVariables box)
+  =>
+    try
+      let tpl = URITemplate(template)?
+      let result: String val = tpl.expand(vars)
+      h.assert_eq[String val](
+        expected, result where msg = "template: " + template)
+    else
+      h.fail("failed to parse template: " + template)
+    end
+
 class \nodoc\ iso _TestTemplateString is UnitTest
   """URITemplate.string() returns the original template."""
   fun name(): String => "uri/template/string roundtrip"
