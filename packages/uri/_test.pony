@@ -28,6 +28,7 @@ actor \nodoc\ Main is TestList
     test.property(_PropertyInvalidPortRejected)
     test.property(_PropertyInvalidHostRejected)
     test(_TestParseURIAuthorityKnownGood)
+    test(_TestParseURIAuthorityColonInHost)
 
     // Path segment tests
     test.property(_PropertyPathSegmentCount)

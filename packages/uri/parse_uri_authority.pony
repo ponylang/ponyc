@@ -130,6 +130,11 @@ primitive ParseURIAuthority
     if colon_pos < end_pos then
       let host_str: String val =
         raw.substring(host_start.isize(), colon_pos.isize())
+      // RFC 3986 reg-name cannot contain ':'. The last-colon scan above
+      // leaves ':' in host_str when the input has multiple colons.
+      if host_str.contains(":") then
+        return InvalidHost
+      end
       let port_str: String val =
         raw.substring((colon_pos + 1).isize(), end_pos.isize())
       match \exhaustive\ _parse_port(port_str)
