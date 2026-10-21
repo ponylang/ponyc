@@ -78,6 +78,20 @@ actor \nodoc\ Main is TestList
     test(_TestJSONPathDescendDeeplyNested)
     test(_TestJSONPathDescendOrder)
     test(_TestJSONPathFilterDeeplyNested)
+    // Regression tests — stack-safe JSONPath parse and eval (issue #5606)
+    test(_TestJSONPathDeepAndLastFalse)
+    test(_TestJSONPathDeepNotParity)
+    test(_TestJSONPathDeepOrLastTrue)
+    test(_TestJSONPathEvalNestedFilterQuery)
+    test(_TestJSONPathParseErrorAtDepth)
+    // Registered by the fix for #5606 (need iterative parse/eval to pass):
+    // test(_TestJSONPathEvalDeeplyNestedAnd)
+    // test(_TestJSONPathEvalDeeplyNestedMixedLogical)
+    // test(_TestJSONPathEvalDeeplyNestedNot)
+    // test(_TestJSONPathEvalDeeplyNestedOr)
+    // test(_TestJSONPathParseDeeplyNestedFilters)
+    // test(_TestJSONPathParseDeeplyNestedFunctions)
+    // test(_TestJSONPathParseDeeplyNestedParens)
     test(_TestTokenParserPositions)
     test(_TestTokenParserEndPosition)
     test(_TestTokenParserStringPosition)
@@ -2963,6 +2977,421 @@ class \nodoc\ iso _TestJSONPathFilterDeeplyNested is UnitTest
     let p = JSONPathParser.compile("$[?@ == @]")?
     let r = p.query(doc)
     h.assert_eq[USize](1, r.size())
+
+// ===================================================================
+// Regression tests — stack-safe JSONPath parse and eval (issue #5606)
+// ===================================================================
+class \nodoc\ iso _TestJSONPathParseDeeplyNestedParens is UnitTest
+  """
+  Parse-time stack safety for nested parenthesized filter expressions.
+  Exercises the `_parse_paren_expr` → `_parse_logical_or_expr` →
+  `_parse_logical_and_expr` → `_parse_basic_expr` → `_parse_paren_expr`
+  recursion cycle at a depth that overflows native recursion. Parentheses
+  produce no extra AST nodes (each level just wraps and unwraps), so the
+  query step is a correctness check, not eval stack safety.
+  """
+  fun name(): String => "json/jsonpath/parse/deeply-nested-parens"
+
+  fun apply(h: TestHelper) =>
+    let depth = _DeepNestingDepth()
+    let prefix_len: USize = 3 // "$[?"
+    let suffix_len: USize = 4 // "@.a" inner + "]" outer
+    var s = recover iso String(prefix_len + (depth * 2) + suffix_len) end
+    s.append("$[?")
+    var i: USize = 0
+    while i < depth do s.push('('); i = i + 1 end
+    s.append("@.a")
+    i = 0
+    while i < depth do s.push(')'); i = i + 1 end
+    s.push(']')
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      let doc = JSONArray.push(JSONObject.update("a", I64(1)))
+      let r = p.query(doc)
+      h.assert_eq[USize](1, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathParseDeeplyNestedFilters is UnitTest
+  """
+  Parse-time stack safety for nested `[?@...]` filter selectors. Exercises
+  the `_parse_filter_selector` → ... → `_parse_filter_selector` recursion
+  cycle through the bracket-selector path. Eval short-circuits early on this
+  query shape, so this is a parse-only stack safety test.
+  """
+  fun name(): String => "json/jsonpath/parse/deeply-nested-filters"
+
+  fun apply(h: TestHelper) =>
+    let depth = _DeepNestingDepth()
+    var s = recover iso String(3 + (depth * 3) + 2 + depth) end
+    s.push('$')
+    var i: USize = 0
+    while i < depth do s.append("[?@"); i = i + 1 end
+    s.append(".a")
+    i = 0
+    while i < depth do s.push(']'); i = i + 1 end
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      let doc = JSONArray.push(JSONObject.update("a", I64(1)))
+      let r = p.query(doc)
+      h.assert_eq[USize](0, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathParseDeeplyNestedFunctions is UnitTest
+  """
+  Parse-time and eval-time stack safety for nested `length()` function calls.
+  Exercises the `_parse_function_call` → `_parse_comparable` →
+  `_parse_function_call` recursion cycle at parse time and the
+  `_FilterCompare._resolve` → `_eval_length` → `_resolve` cycle at eval time.
+  """
+  fun name(): String => "json/jsonpath/parse/deeply-nested-functions"
+
+  fun apply(h: TestHelper) =>
+    let depth = _DeepNestingDepth()
+    var s = recover iso String(3 + (depth * 7) + 3 + depth + 5) end
+    s.append("$[?")
+    var i: USize = 0
+    while i < depth do s.append("length("); i = i + 1 end
+    s.append("@.a")
+    i = 0
+    while i < depth do s.push(')'); i = i + 1 end
+    s.append(" > 0]")
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      let doc = JSONArray.push(JSONObject.update("a", "hello"))
+      let r = p.query(doc)
+      h.assert_eq[USize](0, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathEvalDeeplyNestedOr is UnitTest
+  """
+  Eval-time stack safety for a deeply nested left-leaning `_OrExpr` tree.
+  The parser builds `||` chains with a loop, so parsing succeeds; the
+  evaluator recurses on `.left`/`.right`, overflowing on native recursion.
+  The last-disjunct assertion forces full tree traversal (no short-circuit).
+  """
+  fun name(): String => "json/jsonpath/eval/deeply-nested-or"
+
+  fun apply(h: TestHelper) =>
+    let depth = _DeepNestingDepth()
+    // "$[?@.a == 1 || @.a == 2 || ... || @.a == N]"
+    var s = recover iso String(3 + (depth * 16) + 1) end
+    s.append("$[?@.a == 1")
+    var i: USize = 1
+    while i < depth do
+      i = i + 1
+      s.append(" || @.a == ")
+      s.append(i.string())
+    end
+    s.push(']')
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      // Last disjunct matches — forces full tree traversal.
+      let last_doc = JSONArray
+        .push(JSONObject.update("a", I64.from[USize](depth)))
+      let r = p.query(last_doc)
+      h.assert_eq[USize](1, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathEvalDeeplyNestedAnd is UnitTest
+  """
+  Eval-time stack safety for a deeply nested left-leaning `_AndExpr` tree.
+  All conjuncts are `@.a >= 0`; the all-true case forces full traversal.
+  """
+  fun name(): String => "json/jsonpath/eval/deeply-nested-and"
+
+  fun apply(h: TestHelper) =>
+    let depth = _DeepNestingDepth()
+    // "$[?@.a >= 0 && @.a >= 0 && ... && @.a >= 0]"
+    var s = recover iso String(3 + (depth * 16) + 1) end
+    s.append("$[?@.a >= 0")
+    var i: USize = 1
+    while i < depth do
+      s.append(" && @.a >= 0")
+      i = i + 1
+    end
+    s.push(']')
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      // All true — forces full depth traversal.
+      let doc = JSONArray.push(JSONObject.update("a", I64(0)))
+      let r = p.query(doc)
+      h.assert_eq[USize](1, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathEvalDeeplyNestedNot is UnitTest
+  """
+  Parse-time and eval-time stack safety for deeply nested `_NotExpr` chains.
+  Each `!(` adds a `_NotExpr` wrapper and re-enters through `_parse_paren_expr`.
+  At eval time, `_FilterEval.apply` recurses on each `_NotExpr.expr`.
+  An even nesting depth preserves the inner existence result; odd inverts it.
+  """
+  fun name(): String => "json/jsonpath/eval/deeply-nested-not"
+
+  fun apply(h: TestHelper) =>
+    let depth = _DeepNestingDepth()
+    // "$[?!(!(!(... @.a ...)))]"
+    var s = recover iso String(3 + (depth * 2) + 3 + depth + 1) end
+    s.append("$[?")
+    var i: USize = 0
+    while i < depth do s.append("!("); i = i + 1 end
+    s.append("@.a")
+    i = 0
+    while i < depth do s.push(')'); i = i + 1 end
+    s.push(']')
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      let doc = JSONArray.push(JSONObject.update("a", I64(1)))
+      let r = p.query(doc)
+      // depth is even — double negation preserves existence.
+      h.assert_eq[USize](1, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathEvalDeeplyNestedMixedLogical is UnitTest
+  """
+  Eval-time stack safety for a tree mixing `_OrExpr` and `_AndExpr` nodes.
+  Due to precedence (`&&` binds tighter), `@.m && @.a || @.m && @.a || ...`
+  produces `_OrExpr` nodes containing `_AndExpr` subtrees. All And-pairs
+  except the last have a false left operand (`@.missing`), so only the final
+  pair (`@.a && @.a`) evaluates to true. This forces full traversal of the
+  interleaved tree and produces 0 if truncated.
+  """
+  fun name(): String => "json/jsonpath/eval/deeply-nested-mixed-logical"
+
+  fun apply(h: TestHelper) =>
+    let depth = _DeepNestingDepth()
+    // Build: "$[?@.missing && @.a || @.missing && @.a || ... || @.a && @.a]"
+    // Each OR-separated pair is "@.missing && @.a" except the last which is
+    // "@.a && @.a". Number of pairs: depth / 2 (integer division).
+    let pairs = depth / 2
+    var s = recover iso String(3 + (pairs * 22) + 1) end
+    s.append("$[?")
+    var i: USize = 0
+    while i < (pairs - 1) do
+      if i > 0 then s.append(" || ") end
+      s.append("@.missing && @.a")
+      i = i + 1
+    end
+    if pairs > 1 then s.append(" || ") end
+    s.append("@.a && @.a")
+    s.push(']')
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      let doc = JSONArray.push(JSONObject.update("a", I64(1)))
+      let r = p.query(doc)
+      h.assert_eq[USize](1, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathEvalNestedFilterQuery is UnitTest
+  """
+  Eval-time stack safety for the query→filter→query mutual recursion:
+  `_eval_existence` → `_JSONPathEval` → `_FilterSelector.select` →
+  `_FilterEval.apply`. A nested-filter query `$[?@[?@[?...@.a...]]]` paired
+  with a matching nested document forces the evaluator through the full loop
+  at each level. Uses moderate depth (100) since the matching document must
+  be nested to the same depth.
+  """
+  fun name(): String => "json/jsonpath/eval/nested-filter-query"
+
+  fun apply(h: TestHelper) =>
+    let depth: USize = 100
+    // Build query: "$[?@[?@[?...@.a...]]]"
+    var qs = recover iso String(3 + (depth * 3) + 2 + depth) end
+    qs.push('$')
+    var i: USize = 0
+    while i < depth do qs.append("[?@"); i = i + 1 end
+    qs.append(".a")
+    i = 0
+    while i < depth do qs.push(']'); i = i + 1 end
+    let query_str: String val = consume qs
+
+    // Build matching document: depth array wraps around {"a": 1}.
+    // Query descends N levels, so the document needs exactly N wraps.
+    var doc: JSONValue = JSONObject.update("a", I64(1))
+    i = 0
+    while i < depth do
+      doc = JSONArray.push(doc)
+      i = i + 1
+    end
+
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      let r = p.query(doc)
+      h.assert_eq[USize](1, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathDeepAndLastFalse is UnitTest
+  """
+  A false value deep in a 1000-term `&&` chain must propagate correctly in
+  the iterative evaluator. All terms are `@.a >= 0` (true) except the last
+  which is `@.missing` (false), so the result is 0. A truncating evaluator
+  that ignores deep terms would return 1 instead.
+  """
+  fun name(): String => "json/jsonpath/eval/deep-and-last-false"
+
+  fun apply(h: TestHelper) =>
+    let depth: USize = 1000
+    var s = recover iso String(3 + (depth * 16) + 1) end
+    s.append("$[?@.a >= 0")
+    var i: USize = 1
+    while i < (depth - 1) do
+      s.append(" && @.a >= 0")
+      i = i + 1
+    end
+    s.append(" && @.missing")
+    s.push(']')
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      let doc = JSONArray.push(JSONObject.update("a", I64(1)))
+      let r = p.query(doc)
+      h.assert_eq[USize](0, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathDeepOrLastTrue is UnitTest
+  """
+  A true value deep in a 1000-term `||` chain must propagate correctly in the
+  iterative evaluator. All terms are `@.missing` (false) except the last
+  which is `@.a` (true), so the result is 1. A truncating evaluator returns 0.
+  """
+  fun name(): String => "json/jsonpath/eval/deep-or-last-true"
+
+  fun apply(h: TestHelper) =>
+    let depth: USize = 1000
+    var s = recover iso String(3 + (depth * 16) + 1) end
+    s.append("$[?@.missing")
+    var i: USize = 1
+    while i < (depth - 1) do
+      s.append(" || @.missing")
+      i = i + 1
+    end
+    s.append(" || @.a")
+    s.push(']')
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      let doc = JSONArray.push(JSONObject.update("a", I64(1)))
+      let r = p.query(doc)
+      h.assert_eq[USize](1, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathDeepNotParity is UnitTest
+  """
+  Even negation depth preserves the inner existence result; odd inverts it.
+  Tests both at depth 100 (even → 1 result) and 101 (odd → 0 results) to
+  catch off-by-one errors in iterative NOT handling.
+  """
+  fun name(): String => "json/jsonpath/eval/deep-not-parity"
+
+  fun apply(h: TestHelper) =>
+    let doc = JSONArray.push(JSONObject.update("a", I64(1)))
+
+    // Even depth: 100 negations → existence preserved.
+    _check_not_depth(h, 100, doc, 1)
+
+    // Odd depth: 101 negations → existence inverted.
+    _check_not_depth(h, 101, doc, 0)
+
+  fun _check_not_depth(
+    h: TestHelper,
+    depth: USize,
+    doc: JSONArray val,
+    expected: USize)
+  =>
+    var s = recover iso String(3 + (depth * 2) + 3 + depth + 1) end
+    s.append("$[?")
+    var i: USize = 0
+    while i < depth do s.append("!("); i = i + 1 end
+    s.append("@.a")
+    i = 0
+    while i < depth do s.push(')'); i = i + 1 end
+    s.push(']')
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      let r = p.query(doc)
+      h.assert_eq[USize](expected, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("depth " + depth.string() + " parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathParseErrorAtDepth is UnitTest
+  """
+  Invalid input inside moderate-depth (50) nesting produces
+  `JSONPathParseError`, not a crash or silent acceptance. Covers nested
+  parens, mismatched parens, and nested filter selectors.
+  """
+  fun name(): String => "json/jsonpath/parse/error-at-depth"
+
+  fun apply(h: TestHelper) =>
+    let depth: USize = 50
+
+    // Invalid token inside 50 nested parens.
+    var s1 = recover iso String(3 + (depth * 2) + 6 + depth + 1) end
+    s1.append("$[?")
+    var i: USize = 0
+    while i < depth do s1.push('('); i = i + 1 end
+    s1.append("@.a > !!!")
+    i = 0
+    while i < depth do s1.push(')'); i = i + 1 end
+    s1.push(']')
+    match \exhaustive\ JSONPathParser.parse(consume s1)
+    | let _: JSONPathParseError => None
+    | let _: JSONPath => h.fail("accepted invalid token at depth")
+    end
+
+    // Mismatched parens: N opens, N-1 closes.
+    var s2 = recover iso String(3 + depth + 3 + (depth - 1) + 1) end
+    s2.append("$[?")
+    i = 0
+    while i < depth do s2.push('('); i = i + 1 end
+    s2.append("@.a")
+    i = 0
+    while i < (depth - 1) do s2.push(')'); i = i + 1 end
+    s2.push(']')
+    match \exhaustive\ JSONPathParser.parse(consume s2)
+    | let _: JSONPathParseError => None
+    | let _: JSONPath => h.fail("accepted mismatched parens at depth")
+    end
+
+    // Invalid token inside 50 nested filter selectors.
+    var s3 = recover iso String(1 + (depth * 3) + 6 + depth) end
+    s3.push('$')
+    i = 0
+    while i < depth do s3.append("[?@"); i = i + 1 end
+    s3.append(". > !!!")
+    i = 0
+    while i < depth do s3.push(']'); i = i + 1 end
+    match \exhaustive\ JSONPathParser.parse(consume s3)
+    | let _: JSONPathParseError => None
+    | let _: JSONPath => h.fail("accepted invalid filter at depth")
+    end
 
 class \nodoc\ iso _TestTokenParserPositions is UnitTest
   """
