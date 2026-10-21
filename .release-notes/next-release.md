@@ -254,3 +254,9 @@ end
 
 `Base64.encode_pem` and `Base64.encode_mime` appended an extra CRLF when the input was empty or when its encoding filled the last line exactly (multiples of 48 bytes for PEM, 57 for MIME). Empty input produced `"\r\n"` instead of `""`, and exact-line inputs ended with `"\r\n\r\n"` instead of `"\r\n"`.
 
+## Fix Iter.maybe, dedup, and take_while dropping None elements
+
+`Iter.maybe`, `Iter.dedup`, and `Iter.take_while` silently dropped `None` elements when the element type was `None` or a union containing `None`, such as `(String | None)`.
+
+All three methods now handle `None` elements correctly. One behavior change: `Iter[(T | None)].maybe(None)` now produces a one-element iterator containing `None` rather than an empty iterator.
+
