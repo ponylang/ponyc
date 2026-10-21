@@ -1546,6 +1546,18 @@ class \nodoc\ iso _TestJSONPathParseErrors is UnitTest
         "$!"       // bad segment char
         "$[0"      // unclosed bracket
         "$['open"  // unterminated string
+        "$[-0]"    // negative zero index
+        "$[-0:]"   // negative zero slice start
+        "$[01]"    // leading zero index
+        "$[00]"    // leading zero index
+        "$[0:-0]"  // negative zero slice end
+        "$[0:-01]" // leading zero in negative slice end
+        "$[::01]"  // leading zero in slice step
+        "$[1:2:-0]" // negative zero slice step
+        "$[-:]"    // lone minus in slice start
+        "$[0:-:]"  // lone minus in slice end
+        "$[0,-0]"  // negative zero in comma-separated selector
+        "$[?@.a[-0]>1]" // negative zero in filter singular query
       ]
     for path_str in invalid.values() do
       match \exhaustive\ JSONPathParser.parse(path_str)
