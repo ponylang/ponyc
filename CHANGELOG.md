@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix IRegexpCompiler.parse rejecting literal ^ ([PR #6324](https://github.com/ponylang/ponyc/pull/6324))
 - Fix IsPrime returning wrong results for primes near the type maximum ([PR #6325](https://github.com/ponylang/ponyc/pull/6325))
 - Fix List.rvalues() and List.rnodes() yielding only the first element ([PR #6326](https://github.com/ponylang/ponyc/pull/6326))
+- Fix signed mod producing wrong results when divisor is min_value ([PR #6328](https://github.com/ponylang/ponyc/pull/6328))
 
 ### Added
 
