@@ -138,7 +138,7 @@ class CommandParser
           if _spec is _root_spec() then
             Help.general(_root_spec())
           else
-            Help.for_command(_root_spec(), [_spec.name()])
+            Help.for_command(_root_spec(), _command_path())
           end
       end
     end
@@ -146,9 +146,13 @@ class CommandParser
     // If it's a help command, return a general or specific CommandHelp.
     if _spec.name() == _help_name() then
       try
-        match args("command")?.string()
-        | "" => return Help.general(_root_spec())
-        | let c: String => return Help.for_command(_root_spec(), [c])
+        let command_path = args("command")?.string_seq()
+        if command_path.size() > 0 then
+          let path = Array[String]
+          for s in command_path.values() do
+            path.push(s)
+          end
+          return Help.for_command(_root_spec(), path)
         end
       end
       return Help.general(_root_spec())
@@ -332,6 +336,19 @@ class CommandParser
 
   fun tag _short_string(c: U8): String =>
     recover String.from_utf32(c.u32()) end
+
+  fun _command_path(): Array[String] =>
+    let path = Array[String]
+    _collect_path(path)
+    path
+
+  fun _collect_path(path: Array[String]) =>
+    match _parent
+    | let p: CommandParser box => p._collect_path(path)
+    end
+    if not (_spec is _root_spec()) then
+      path.push(_spec.name())
+    end
 
   fun _help_name(): String =>
     _root_spec().help_name()

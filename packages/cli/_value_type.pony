@@ -102,7 +102,7 @@ class CommandSpec
           "",
           Array[OptionSpec](),
           [
-            ArgSpec.string("command" where default' = "")
+            ArgSpec.string_seq("command")
           ])?
       _commands.update(_help_name, help_cmd)
     end
