@@ -22,6 +22,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix signed mod producing wrong results when divisor is min_value ([PR #6328](https://github.com/ponylang/ponyc/pull/6328))
 - Fix URITemplate.expand not percent-encoding non-ASCII literal characters ([PR #6330](https://github.com/ponylang/ponyc/pull/6330))
 - Fix HashMap.insert_if_absent returning wrong value when insertion triggers resize ([PR #6329](https://github.com/ponylang/ponyc/pull/6329))
+- Fix _FormatInt allocation hint overflow when prec defaults to -1 ([PR #6331](https://github.com/ponylang/ponyc/pull/6331))
 
 ### Added
 
