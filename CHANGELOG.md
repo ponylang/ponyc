@@ -39,6 +39,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix JSONPathParser accepting invalid string literals ([PR #6353](https://github.com/ponylang/ponyc/pull/6353))
 - Fix Iter.cycle() reporting has_next() = true on an empty source iterator ([PR #6351](https://github.com/ponylang/ponyc/pull/6351))
 - Fix ParseURI accepting hosts containing ':' ([PR #6354](https://github.com/ponylang/ponyc/pull/6354))
+- Fix CommandParser accepting malformed short option tokens ([PR #6355](https://github.com/ponylang/ponyc/pull/6355))
 
 ### Added
 
