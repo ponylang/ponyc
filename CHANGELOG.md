@@ -40,6 +40,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Iter.cycle() reporting has_next() = true on an empty source iterator ([PR #6351](https://github.com/ponylang/ponyc/pull/6351))
 - Fix ParseURI accepting hosts containing ':' ([PR #6354](https://github.com/ponylang/ponyc/pull/6354))
 - Fix CommandParser accepting malformed short option tokens ([PR #6355](https://github.com/ponylang/ponyc/pull/6355))
+- Fix PosixDate.format raising on valid formats whose output is 8192 bytes or longer ([PR #6356](https://github.com/ponylang/ponyc/pull/6356))
 
 ### Added
 
