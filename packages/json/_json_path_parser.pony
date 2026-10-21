@@ -283,12 +283,19 @@ class ref _JSONPathParser
   fun ref _try_parse_int(): (I64 | None) =>
     """
     Try to parse an integer. Returns None if not at a digit or '-'.
+    Restores offset on failure so no characters are consumed.
     """
     if _offset >= _source.size() then return None end
     try
       let c = _source(_offset)?
       if _is_digit(c) or (c == '-') then
-        _parse_int()?
+        let saved = _offset
+        try
+          _parse_int()?
+        else
+          _offset = saved
+          error
+        end
       else
         None
       end
@@ -298,7 +305,9 @@ class ref _JSONPathParser
 
   fun ref _parse_int(): I64 ? =>
     """
-    Parse a (possibly negative) integer.
+    Integer per RFC 9535 2.3.3.1:
+    int = "0" / (["-"] DIGIT1 *DIGIT)
+    Rejects negative zero and leading zeros.
     """
     var negative = false
     if _looking_at('-') then
@@ -317,6 +326,15 @@ class ref _JSONPathParser
     end
     let num_str: String val =
       _source.substring(start.isize(), _offset.isize())
+    let digit_count = _offset - start
+    if negative and (num_str == "0") then
+      _fail("Negative zero is not a valid integer (RFC 9535 2.3.3.1)")
+      error
+    end
+    if (digit_count > 1) and (num_str(0)? == '0') then
+      _fail("Leading zeros are not valid (RFC 9535 2.3.3.1)")
+      error
+    end
     let abs_val = num_str.i64()?
     if negative then -abs_val else abs_val end
 
