@@ -665,8 +665,7 @@ class \nodoc\ iso _IRegexpDeepNestingMatchSafetyProperty
 // ===================================================================
 class \nodoc\ iso _TestIRegexpNestedGroups is UnitTest
   """
-  Group nesting at various depths and with various inner contents, verifying
-  correct matching behavior through the parser's recursive descent.
+  Group nesting at various depths and with various inner contents.
   """
   fun name(): String => "iregex/nested-groups"
 
@@ -816,6 +815,30 @@ class \nodoc\ iso _TestIRegexpNestedGroups is UnitTest
     // Quantifiers on nested empty groups
     _assert_match(h, "(())*", "", true)
     _assert_match(h, "(())+", "", true)
+
+    // Deep nesting (issue #5627 — formerly crashed with stack overflow)
+    let deep_depth: USize = 1_000
+    let deep_pat =
+      recover val
+        let s = String((deep_depth * 2) + 1)
+        var j: USize = 0
+        while j < deep_depth do s.push('('); j = j + 1 end
+        s.push('a')
+        j = 0
+        while j < deep_depth do s.push(')'); j = j + 1 end
+        s
+      end
+    match \exhaustive\ IRegexpCompiler.parse(deep_pat)
+    | let re: IRegexp =>
+      h.assert_true(
+        re.is_match("a"),
+        "1k-deep nested 'a' should match 'a'")
+      h.assert_false(
+        re.is_match("b"),
+        "1k-deep nested 'a' should not match 'b'")
+    | let e: IRegexpParseError =>
+      h.fail("1k-deep pattern should compile: " + e.string())
+    end
 
     // Nested groups in search mode
     _assert_search(h, "((a+))", "xxxaaaxxx", true)

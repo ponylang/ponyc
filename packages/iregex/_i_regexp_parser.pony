@@ -1,9 +1,23 @@
+class _ParseFrame
+  """
+  Per-group-nesting state for the iterative parser. Tracks the pieces of the
+  current branch and the completed branches of the current alternation.
+  """
+  embed branches: Array[_RegexNode]
+  embed pieces: Array[_RegexNode]
+
+  new create() =>
+    branches = Array[_RegexNode]
+    pieces = Array[_RegexNode]
+
 class _IRegexpParser
   """
-  Recursive descent parser for I-Regexp (RFC 9485).
+  Iterative parser for I-Regexp (RFC 9485).
 
-  Produces a _RegexNode AST from a pattern string. Raises on invalid input;
-  IRegexpCompiler wraps this and converts errors to IRegexpParseError.
+  Produces a _RegexNode AST from a pattern string. Group nesting is handled
+  with an explicit stack of _ParseFrame objects rather than native-stack
+  recursion, so arbitrarily deep nesting produces a parse error or a valid
+  AST without risking a stack overflow.
 
   Structural scanning is byte-level (all metacharacters are ASCII). Literal
   codepoints are read via String.utf32 for full Unicode support.
@@ -19,7 +33,61 @@ class _IRegexpParser
     """
     Parse a complete I-Regexp. Raises on invalid input.
     """
-    let result = _parse_alternation()?
+    let stack = Array[_ParseFrame]
+    stack.push(_ParseFrame)
+
+    while true do
+      if _looking_at('(') then
+        _advance(1)
+        stack.push(_ParseFrame)
+      elseif _at_leaf_atom_start() then
+        var node = _parse_leaf_atom()?
+        if _at_quantifier() then
+          node = _parse_quantifier(node)?
+        end
+        try
+          stack(stack.size() - 1)?.pieces.push(node)
+        else
+          _Unreachable(__loc); error
+        end
+      elseif _looking_at('|') then
+        _advance(1)
+        try
+          let frame = stack(stack.size() - 1)?
+          frame.branches.push(_fold_pieces(frame.pieces))
+          frame.pieces.clear()
+        else
+          _Unreachable(__loc); error
+        end
+      elseif _looking_at(')') then
+        if stack.size() <= 1 then break end
+        _advance(1)
+        let frame = try stack.pop()? else _Unreachable(__loc); error end
+        let branch = _fold_pieces(frame.pieces)
+        let inner = _fold_alternation(frame.branches, branch)
+        var node: _RegexNode = _Group(inner)
+        if _at_quantifier() then
+          node = _parse_quantifier(node)?
+        end
+        try
+          stack(stack.size() - 1)?.pieces.push(node)
+        else
+          _Unreachable(__loc); error
+        end
+      else
+        break
+      end
+    end
+
+    if stack.size() > 1 then
+      _fail("Expected ')' but reached end of pattern")
+      error
+    end
+
+    let frame = try stack(0)? else _Unreachable(__loc); error end
+    let last_branch = _fold_pieces(frame.pieces)
+    let result = _fold_alternation(frame.branches, last_branch)
+
     if _offset < _source.size() then
       _fail("Unexpected character")
       error
@@ -29,52 +97,41 @@ class _IRegexpParser
   fun error_result(): IRegexpParseError =>
     IRegexpParseError(_error_message, _offset)
 
-  // --- Grammar productions ---
-  fun ref _parse_alternation(): _RegexNode ? =>
-    """
-    i-regexp = branch *( "|" branch)
-    """
-    var left = _parse_branch()?
-    while _looking_at('|') do
-      _advance(1)
-      let right = _parse_branch()?
-      left = _Alternation(left, right)
-    end
-    left
-
-  fun ref _parse_branch(): _RegexNode ? =>
-    """
-    branch = *piece
-    """
-    var pieces = Array[_RegexNode]
-    while _at_atom_start() do
-      pieces.push(_parse_piece()?)
-    end
+  // --- Fold helpers ---
+  fun _fold_pieces(pieces: Array[_RegexNode]): _RegexNode =>
     match pieces.size()
     | 0 => _EmptyMatch
-    | 1 => try pieces(0)? else _EmptyMatch end
+    | 1 => try pieces(0)? else _Unreachable(__loc); _EmptyMatch end
     else
-      // Left-fold into Concatenation tree
-      var result = try pieces(0)? else _EmptyMatch end
+      var result = try pieces(0)? else _Unreachable(__loc); _EmptyMatch end
       var i: USize = 1
       while i < pieces.size() do
-        result = _Concatenation(result, try pieces(i)? else _EmptyMatch end)
+        let piece =
+          try pieces(i)? else _Unreachable(__loc); _EmptyMatch end
+        result = _Concatenation(result, piece)
         i = i + 1
       end
       result
     end
 
-  fun ref _parse_piece(): _RegexNode ? =>
-    """
-    piece = atom [ quantifier ]
-    """
-    let atom = _parse_atom()?
-    if _at_quantifier() then
-      _parse_quantifier(atom)?
-    else
-      atom
+  fun _fold_alternation(
+    branches: Array[_RegexNode],
+    last: _RegexNode)
+    : _RegexNode
+  =>
+    if branches.size() == 0 then return last end
+    var result =
+      try branches(0)? else _Unreachable(__loc); _EmptyMatch end
+    var i: USize = 1
+    while i < branches.size() do
+      let branch =
+        try branches(i)? else _Unreachable(__loc); _EmptyMatch end
+      result = _Alternation(result, branch)
+      i = i + 1
     end
+    _Alternation(result, last)
 
+  // --- Grammar productions ---
   fun ref _parse_quantifier(base: _RegexNode): _RegexNode ? =>
     """
     quantifier = ("*" / "+" / "?") / range-quantifier
@@ -144,16 +201,12 @@ class _IRegexpParser
     end
     n
 
-  fun ref _parse_atom(): _RegexNode ? =>
+  fun ref _parse_leaf_atom(): _RegexNode ? =>
     """
-    atom = NormalChar / charClass / ( "(" i-regexp ")" )
+    atom = NormalChar / charClass
+    Group handling ('(' i-regexp ')') is in parse().
     """
-    if _looking_at('(') then
-      _advance(1)
-      let inner = _parse_alternation()?
-      _eat(')')?
-      _Group(inner)
-    elseif _looking_at('.') or _looking_at('\\') or _looking_at('[') then
+    if _looking_at('.') or _looking_at('\\') or _looking_at('[') then
       _parse_char_class()?
     else
       _parse_normal_char()?
@@ -463,16 +516,16 @@ class _IRegexpParser
     (c == '[') or (c == '\\') or (c == ']') or (c == '^') or // %x5B-5E
     (c == '{') or (c == '|') or (c == '}')                   // %x7B-7D
 
-  fun _at_atom_start(): Bool =>
+  fun _at_leaf_atom_start(): Bool =>
     """
-    Check if current position could be the start of an atom.
+    Check if current position could start a non-group atom.
     """
     if _offset >= _source.size() then return false end
     try
       let c = _source(_offset)?
-      // Not at atom start if at: ), |, *, +, ?, {, }, ], or end
-      not ((c == ')') or (c == '|') or (c == '*') or (c == '+') or
-        (c == '?') or (c == '{') or (c == '}') or (c == ']'))
+      not ((c == '(') or (c == ')') or (c == '|') or (c == '*') or
+        (c == '+') or (c == '?') or (c == '{') or (c == '}') or
+        (c == ']'))
     else
       false
     end
