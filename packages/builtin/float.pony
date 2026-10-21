@@ -490,7 +490,7 @@ primitive F64 is FloatingPoint[F64]
   fun hash64(): U64 => bits().hash64()
 
   fun i128(): I128 =>
-    if this > I128.max_value().f64() then
+    if this >= I128.max_value().f64() then
       return I128.max_value()
     elseif this < I128.min_value().f64() then
       return I128.min_value()
@@ -517,7 +517,7 @@ primitive F64 is FloatingPoint[F64]
     (r xor s) - s
 
   fun u128(): U128 =>
-    if this > U128.max_value().f64() then
+    if this >= U128.max_value().f64() then
       return U128.max_value()
     elseif this < U128.min_value().f64() then
       return U128.min_value()

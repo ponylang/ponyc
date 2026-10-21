@@ -253,6 +253,12 @@ class \nodoc\ _DefinitionTest is UnitTest
     [
       (Position(8, 5),
         [Position(5, 3)], TokenIds.tk_fvar())
+      // constructor ref in a different file
+      (Position(10, 16),
+        [Position(54, 3)], TokenIds.tk_new())
+      // function ref in a different file
+      (Position(10, 30),
+        [Position(934, 3)], TokenIds.tk_fun())
       (Position(12, 6),
         [Position(7, 14)], TokenIds.tk_param())
       // nominal reference to type in a different file
