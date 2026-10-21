@@ -14,6 +14,7 @@ actor \nodoc\ Main is TestList
     test(_TestDuplicate)
     test(_TestEnvs)
     test(_TestHelp)
+    test(_TestHelpCommand)
     test(_TestHelpFalse)
     test(_TestHelpMultipleArgs)
     test(_TestHyphenArg)
@@ -554,6 +555,54 @@ class \nodoc\ iso _TestHelp is UnitTest
     h.log(help)
     h.assert_true(help.contains("Address of the server"))
 
+class \nodoc\ iso _TestHelpCommand is UnitTest
+  fun name(): String => "cli/help-command"
+
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.chat_cli_spec()?
+
+    // "help" with no args yields general help
+    match CommandParser(cs).parse(["ignored"; "--name=test"; "help"])
+    | let ch: CommandHelp =>
+      h.assert_true(ch.help_string().contains("chat"))
+    else
+      h.fail("expected CommandHelp for 'help' with no args")
+    end
+
+    // "help config" yields help for the config command
+    match CommandParser(cs).parse(["ignored"; "--name=test"; "help"; "config"])
+    | let ch: CommandHelp =>
+      h.assert_true(ch.help_string().contains("Configuration commands"))
+    else
+      h.fail("expected CommandHelp for 'help config'")
+    end
+
+    // "help config server" yields help for the config server command
+    match CommandParser(cs).parse(
+      ["ignored"; "--name=test"; "help"; "config"; "server"])
+    | let ch: CommandHelp =>
+      h.assert_true(ch.help_string().contains("Address of the server"))
+    else
+      h.fail("expected CommandHelp for 'help config server'")
+    end
+
+    // "help nonexistent" yields a SyntaxError
+    match CommandParser(cs).parse(
+      ["ignored"; "--name=test"; "help"; "nonexistent"])
+    | let se: SyntaxError => None
+    else
+      h.fail("expected SyntaxError for 'help nonexistent'")
+    end
+
+    // "--help" flag on a nested subcommand yields help for that command
+    match CommandParser(cs).parse(
+      ["ignored"; "--name=test"; "config"; "server"; "--help"])
+    | let ch: CommandHelp =>
+      h.assert_true(ch.help_string().contains("Address of the server"))
+    else
+      h.fail("expected CommandHelp for 'config server --help'")
+    end
+
 class \nodoc\ iso _TestHelpFalse is UnitTest
   fun name(): String => "cli/help-false"
 
@@ -687,7 +736,7 @@ primitive _Fixtures
               [ ArgSpec.string("address", "Address of the server")
               ])?
           ])?
-      ])?
+      ])? .> add_help()?
 
   fun corral_spec(): CommandSpec box ? =>
     """
