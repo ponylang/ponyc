@@ -210,21 +210,26 @@ class ref _JSONPathParser
           error
         end
         let esc = _next()?
-        match esc
-        | '"' => buf.push('"')
-        | '\'' => buf.push('\'')
-        | '\\' => buf.push('\\')
-        | '/' => buf.push('/')
-        | 'b' => buf.push(0x08)
-        | 'f' => buf.push(0x0C)
-        | 'n' => buf.push('\n')
-        | 'r' => buf.push('\r')
-        | 't' => buf.push('\t')
-        | 'u' => _parse_unicode_escape(buf)?
+        if esc == quote then
+          buf.push(quote)
         else
-          _fail("Invalid escape sequence")
-          error
+          match esc
+          | '\\' => buf.push('\\')
+          | '/' => buf.push('/')
+          | 'b' => buf.push(0x08)
+          | 'f' => buf.push(0x0C)
+          | 'n' => buf.push('\n')
+          | 'r' => buf.push('\r')
+          | 't' => buf.push('\t')
+          | 'u' => _parse_unicode_escape(buf)?
+          else
+            _fail("Invalid escape sequence")
+            error
+          end
         end
+      elseif c < 0x20 then
+        _fail("Raw control character in string literal")
+        error
       else
         buf.push(c)
       end
