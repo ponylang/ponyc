@@ -26,6 +26,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Iter.dedup() and Iter.unique() returning has_next() = true when exhausted ([PR #6333](https://github.com/ponylang/ponyc/pull/6333))
 - Fix help for nested CLI subcommands ([PR #6337](https://github.com/ponylang/ponyc/pull/6337))
 - Fix Iter.take_while() returning rejected elements after has_next() returns false ([PR #6338](https://github.com/ponylang/ponyc/pull/6338))
+- Fix Format.float ignoring align and fill parameters ([PR #6341](https://github.com/ponylang/ponyc/pull/6341))
 
 ### Added
 
