@@ -31,6 +31,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix JSONPathParser rejecting whitespace between segments ([PR #6344](https://github.com/ponylang/ponyc/pull/6344))
 - Fix GreatestCommonDivisor returning negative values for signed inputs ([PR #6345](https://github.com/ponylang/ponyc/pull/6345))
 - Fix JSONPathParser accepting integers RFC 9535 does not allow ([PR #6347](https://github.com/ponylang/ponyc/pull/6347))
+- Fix URITemplate prefix modifier splitting pct-encoded triplets under reserved expansion ([PR #6346](https://github.com/ponylang/ponyc/pull/6346))
 
 ### Added
 
