@@ -52,6 +52,14 @@ class CommandParser
       _spec
     end
 
+  fun _command_path(): Array[String] =>
+    match _parent
+    | let p: CommandParser box =>
+      p._command_path() .> push(_spec.name())
+    else
+      Array[String]
+    end
+
   fun _parse_command(
     tokens: Array[String] ref,
     options: Map[String,Option] ref,
@@ -138,7 +146,7 @@ class CommandParser
           if _spec is _root_spec() then
             Help.general(_root_spec())
           else
-            Help.for_command(_root_spec(), [_spec.name()])
+            Help.for_command(_root_spec(), _command_path())
           end
       end
     end

@@ -16,6 +16,7 @@ actor \nodoc\ Main is TestList
     test(_TestHelp)
     test(_TestHelpFalse)
     test(_TestHelpMultipleArgs)
+    test(_TestHelpNestedSubcommand)
     test(_TestHyphenArg)
     test(_TestLongsEq)
     test(_TestLongsNext)
@@ -553,6 +554,41 @@ class \nodoc\ iso _TestHelp is UnitTest
     let help = ch.help_string()
     h.log(help)
     h.assert_true(help.contains("Address of the server"))
+
+class \nodoc\ iso _TestHelpNestedSubcommand is UnitTest
+  fun name(): String => "cli/help-nested-subcommand"
+
+  fun apply(h: TestHelper) ? =>
+    let cs =
+      CommandSpec.parent(
+        "app",
+        "",
+        Array[OptionSpec](),
+        [ CommandSpec.parent(
+            "config",
+            "",
+            Array[OptionSpec](),
+            [ CommandSpec.leaf("server", "")?
+            ])?
+        ])? .> add_help()?
+
+    // Depth 1: --help on a direct subcommand
+    let args1: Array[String] = ["app"; "config"; "--help"]
+    match CommandParser(cs).parse(args1)
+    | let ch: CommandHelp =>
+      h.assert_eq[String]("app config", ch.fullname())
+    else
+      h.fail("depth 1: expected CommandHelp for 'app config --help'")
+    end
+
+    // Depth 2: --help on a second-level subcommand
+    let args2: Array[String] = ["app"; "config"; "server"; "--help"]
+    match CommandParser(cs).parse(args2)
+    | let ch: CommandHelp =>
+      h.assert_eq[String]("app config server", ch.fullname())
+    else
+      h.fail("depth 2: expected CommandHelp for 'app config server --help'")
+    end
 
 class \nodoc\ iso _TestHelpFalse is UnitTest
   fun name(): String => "cli/help-false"
