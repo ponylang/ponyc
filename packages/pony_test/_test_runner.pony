@@ -18,6 +18,7 @@ actor _TestRunner
   let _log_verbose: Bool
   let _env: Env
   let _timers: Timers
+  let _timeout_factor: U64
   let _helper: TestHelper
   var _test_log: Array[String] iso = recover Array[String] end
   embed _expect_actions: Array[String] = Array[String]
@@ -44,7 +45,8 @@ actor _TestRunner
     group: _Group,
     verbose: Bool,
     env: Env,
-    timers: Timers)
+    timers: Timers,
+    timeout_factor: U64 = 1)
   =>
     """
     Create a new test runner.
@@ -54,6 +56,7 @@ actor _TestRunner
     group - The group this test is in, which must be notified when we finish.
     env - The system environment, which is made available to tests.
     timers - The timer group we use to set long test timeouts.
+    timeout_factor - Multiplier applied to long_test timeouts.
     """
     _ponytest = ponytest
     _id = id
@@ -62,6 +65,7 @@ actor _TestRunner
     _log_verbose = verbose
     _env = env
     _timers = timers
+    _timeout_factor = timeout_factor
     _helper = TestHelper._create(this, _env)
 
   be run() =>
@@ -309,7 +313,8 @@ actor _TestRunner
     """
     if not _is_long_test then
       _is_long_test = true
-      _log("Long test, timeout " + timeout.string(), true)
+      let effective_timeout = timeout * _timeout_factor
+      _log("Long test, timeout " + effective_timeout.string(), true)
 
       match _property_phase
       | _SyncSampling => _property_phase = _AsyncSampling
@@ -333,7 +338,7 @@ actor _TestRunner
 
             fun cancel(timer: Timer) => None
           end,
-          timeout)
+          effective_timeout)
       _test_timers.push(timer)
       _timers(consume timer)
     else

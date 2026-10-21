@@ -529,6 +529,10 @@ jobs:
           PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /build/static-smoke /build/static-smoke
           file /build/static-smoke/static-smoke | grep -q 'statically linked'
           /build/static-smoke/static-smoke
+          # The DragonFly VM is slow enough that stdlib tests
+          # intermittently hit their timeouts. Triple the timeouts so the
+          # tests exercise the real kqueue paths without flaking on latency.
+          export PONY_STDLIB_TEST_EXCLUDES="--timeout-factor=3"
           PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
           ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
           ctest --preset x86-64-debug -R pony-doc-tests

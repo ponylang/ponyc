@@ -138,6 +138,10 @@ test take any longer if successful.
 Timeouts should not be used as the standard method of detecting if a test has
 failed.
 
+The `--timeout-factor=N` option multiplies all long_test timeouts by N. Pass it
+when running tests in a slow environment (a QEMU virtual machine, a loaded CI
+runner) so that tests get more time without changing any test source code.
+
 ## Exclusion groups
 
 By default tests run concurrently, up to the number of scheduler threads.
@@ -450,6 +454,7 @@ actor PonyTest
   var _finished: USize = 0
   var _any_found: Bool = false
   var _all_started: Bool = false
+  var _timeout_factor: U64 = 1
   // Filtering options
   var _exclude: String = ""
   var _label: String = ""
@@ -546,7 +551,8 @@ actor PonyTest
         group,
         _verbose,
         _env,
-        _timers)
+        _timers,
+        _timeout_factor)
     _pending.push((runner, group))
 
   fun ref _find_group(group_name: String): _Group =>
@@ -679,6 +685,16 @@ actor PonyTest
         _label = arg.substring(8)
       elseif arg.compare_sub("--only=", 7) is Equal then
         _only = arg.substring(7)
+      elseif arg.compare_sub("--timeout-factor=", 17) is Equal then
+        try
+          let n = arg.substring(17).u64()?
+          if n == 0 then error end
+          _timeout_factor = n
+        else
+          _env.out.print("Invalid timeout factor: " + arg.substring(17))
+          _do_nothing = true
+          return
+        end
       elseif arg == "--shuffle" then
         _ordering = _Shuffled(Time.cycles())
       elseif arg.compare_sub("--shuffle=", 10) is Equal then
@@ -707,6 +723,8 @@ actor PonyTest
         _env.out.print("  --label=label     - Only run tests with given label")
         _env.out.print("  --shuffle[=seed]  - Run tests in a random order, " +
           "optionally specifying a U64 seed.")
+        _env.out.print("  --timeout-factor=N - Multiply long_test timeouts " +
+          "by N (default 1).")
         _do_nothing = true
         return
       end
