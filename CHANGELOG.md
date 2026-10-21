@@ -34,6 +34,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix URITemplate prefix modifier splitting pct-encoded triplets under reserved expansion ([PR #6346](https://github.com/ponylang/ponyc/pull/6346))
 - Fix Base64.encode_pem and Base64.encode_mime producing trailing empty lines ([PR #6342](https://github.com/ponylang/ponyc/pull/6342))
 - Fix Iter.maybe, dedup, and take_while dropping None elements ([PR #6343](https://github.com/ponylang/ponyc/pull/6343))
+- Fix String.utf32 decoding UTF-8-encoded surrogates instead of rejecting them ([PR #6348](https://github.com/ponylang/ponyc/pull/6348))
 
 ### Added
 
