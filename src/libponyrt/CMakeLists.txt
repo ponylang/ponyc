@@ -120,12 +120,27 @@ if(PONY_RUNTIME_BITCODE)
     set(_c_flags ${CMAKE_C_FLAGS})
     separate_arguments(_c_flags)
 
+    # The runtime bitcode is merged into the user's program and re-targeted
+    # at compile time (codegen_stamp_target_attrs overwrites target-cpu and
+    # target-features on every function), so the -march used here only
+    # affects clang's mid-level optimisation decisions.  Compile with the
+    # widest feature set for the CPU family so that those decisions — vector
+    # widths, instruction selection during IR transforms — are as good as
+    # possible regardless of what the end user targets.
     if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86-64"
         OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64"
         OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "amd64"
         OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64"
         OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86")
-        list(APPEND _c_flags -mcx16)
+        list(FILTER _c_flags EXCLUDE REGEX "^-march=")
+        list(FILTER _c_flags EXCLUDE REGEX "^-mtune=")
+        list(APPEND _c_flags -march=x86-64-v4 -mcx16)
+    elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64"
+        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64"
+        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "ARM64")
+        list(FILTER _c_flags EXCLUDE REGEX "^-march=")
+        list(FILTER _c_flags EXCLUDE REGEX "^-mtune=")
+        list(APPEND _c_flags -march=armv8.9-a+crypto+sha3+sm4+dotprod+fp16fml+bf16+i8mm+lse+lse128+rcpc3+pauth+memtag+rng+flagm+predres+ssbs+sb+bti+dit+ls64+hbc+mops+cssc+the+gcs+ite)
     endif()
 
     if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
