@@ -173,7 +173,9 @@ class HashMap[K, V, H: HashFunction[K] val]
       (let i, let found) = _search(key)
       let key' = key
 
-      if not found then
+      if found then
+        _array(i)? as (_, V)
+      else
         _array(i)? = (consume key, consume value)
 
         _size = _size + 1
@@ -181,9 +183,8 @@ class HashMap[K, V, H: HashFunction[K] val]
         if (_size * 4) > (_array.size() * 3) then
           _resize(_array.size() * 2)
         end
+        value'
       end
-
-      _array(i)? as (_, V)
     else
       // This is unreachable, since index will never be out-of-bounds.
       value'

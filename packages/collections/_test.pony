@@ -27,6 +27,7 @@ actor \nodoc\ Main is TestList
     test(_TestListsTake)
     test(_TestListsTakeWhile)
     test(_TestMap)
+    test(_TestMapInsertIfAbsent)
     test(_TestMapHashFunc)
     test(_TestMapRemove)
     test(_TestMapUpsert)
@@ -150,6 +151,31 @@ class \nodoc\ iso _TestMap is UnitTest
 
     let e = d + ("a", 1)
     h.assert_eq[U32](1, e("a")?)
+
+class \nodoc\ iso _TestMapInsertIfAbsent is UnitTest
+  fun name(): String => "collections/Map.insert_if_absent"
+
+  fun apply(h: TestHelper) =>
+    let m = Map[U64, U64]
+    var k: U64 = 0
+    while k < 1000 do
+      let got = m.insert_if_absent(k, k + 1_000_000)
+      h.assert_eq[U64](
+        k + 1_000_000,
+        got,
+        "insert_if_absent(" + k.string() + ") returned wrong value")
+      k = k + 1
+    end
+
+    k = 0
+    while k < 1000 do
+      let got = m.insert_if_absent(k, k + 2_000_000)
+      h.assert_eq[U64](
+        k + 1_000_000,
+        got,
+        "insert_if_absent(" + k.string() + ") should return existing value")
+      k = k + 1
+    end
 
 class \nodoc\ iso _TestMapRemove is UnitTest
   fun name(): String => "collections/Map.remove"
