@@ -37,6 +37,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix String.utf32 decoding UTF-8-encoded surrogates instead of rejecting them ([PR #6348](https://github.com/ponylang/ponyc/pull/6348))
 - Fix CommandParser rejecting negative number positional arguments ([PR #6352](https://github.com/ponylang/ponyc/pull/6352))
 - Fix JSONPathParser accepting invalid string literals ([PR #6353](https://github.com/ponylang/ponyc/pull/6353))
+- Fix Iter.cycle() reporting has_next() = true on an empty source iterator ([PR #6351](https://github.com/ponylang/ponyc/pull/6351))
 
 ### Added
 
