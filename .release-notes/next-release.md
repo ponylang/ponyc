@@ -235,3 +235,18 @@ When both arguments are `min_value()` of a signed type, the positive result cann
 
 `JSONPathParser` accepted queries with negative zero (`$[-0]`), leading zeros (`$[01]`), and a lone minus sign (`$[-:]`) in index and slice positions. RFC 9535 section 2.3.3.1 defines `int = "0" / (["-"] DIGIT1 *DIGIT)`, so these are not well-formed and must be rejected. These queries now return `JSONPathParseError`.
 
+## Fix URITemplate prefix modifier splitting pct-encoded triplets under reserved expansion
+
+`URITemplate.expand` with a prefix modifier (`:N`) under reserved (`+`) or fragment (`#`) expansion split pct-encoded triplets in the variable value. RFC 6570 counts a `%XX` triplet as one character for prefix length; the expansion counted each byte separately, cut after the `%`, and re-encoded the lone `%`.
+
+```pony
+let vars = URITemplateVariables
+vars.set("y", "%41b")
+match URITemplateParse("{+y:1}")
+| let t: URITemplate =>
+  t.expand(vars)
+  // was: "%25"
+  // now: "%41"
+end
+```
+
