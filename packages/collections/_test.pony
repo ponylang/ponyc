@@ -24,6 +24,8 @@ actor \nodoc\ Main is TestList
     test(_TestListsMap)
     test(_TestListsPartition)
     test(_TestListsReverse)
+    test(_TestListsRnodes)
+    test(_TestListsRvalues)
     test(_TestListsTake)
     test(_TestListsTakeWhile)
     test(_TestMap)
@@ -536,6 +538,52 @@ class \nodoc\ iso _TestListsReverse is UnitTest
     h.assert_eq[U32](b(0)?, 2)
     h.assert_eq[U32](b(1)?, 1)
     h.assert_eq[U32](b(2)?, 0)
+
+class \nodoc\ iso _TestListsRnodes is UnitTest
+  fun name(): String => "collections/Lists/rnodes()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = List[U32].from([1; 2; 3])
+    let r = Array[U32]
+    for node in a.rnodes() do r.push(node()?) end
+    h.assert_eq[USize](r.size(), 3)
+    h.assert_eq[U32](r(0)?, 3)
+    h.assert_eq[U32](r(1)?, 2)
+    h.assert_eq[U32](r(2)?, 1)
+
+    let empty = List[U32]
+    var count: USize = 0
+    for _ in empty.rnodes() do count = count + 1 end
+    h.assert_eq[USize](count, 0)
+
+    let single = List[U32].from([42])
+    let s = Array[U32]
+    for node in single.rnodes() do s.push(node()?) end
+    h.assert_eq[USize](s.size(), 1)
+    h.assert_eq[U32](s(0)?, 42)
+
+class \nodoc\ iso _TestListsRvalues is UnitTest
+  fun name(): String => "collections/Lists/rvalues()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = List[U32].from([1; 2; 3])
+    let r = Array[U32]
+    for v in a.rvalues() do r.push(v) end
+    h.assert_eq[USize](r.size(), 3)
+    h.assert_eq[U32](r(0)?, 3)
+    h.assert_eq[U32](r(1)?, 2)
+    h.assert_eq[U32](r(2)?, 1)
+
+    let empty = List[U32]
+    var count: USize = 0
+    for _ in empty.rvalues() do count = count + 1 end
+    h.assert_eq[USize](count, 0)
+
+    let single = List[U32].from([42])
+    let s = Array[U32]
+    for v in single.rvalues() do s.push(v) end
+    h.assert_eq[USize](s.size(), 1)
+    h.assert_eq[U32](s(0)?, 42)
 
 class \nodoc\ iso _TestHashSetContains is UnitTest
   fun name(): String => "collections/HashSet/contains()"
