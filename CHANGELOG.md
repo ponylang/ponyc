@@ -6,12 +6,14 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix runtime bitcode not benefiting from target-specific optimisations ([PR #6362](https://github.com/ponylang/ponyc/pull/6362))
 
 ### Added
 
 
 ### Changed
 
+- Compile runtime bitcode with widest CPU features ([PR #6362](https://github.com/ponylang/ponyc/pull/6362))
 
 ## [0.77.1] - 2026-10-22
 
