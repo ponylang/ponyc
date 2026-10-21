@@ -16,6 +16,7 @@ actor \nodoc\ Main is TestList
     test(_TestIterCollect)
     test(_TestIterCount)
     test(_TestIterCycle)
+    test(_TestIterCycleEmpty)
     test(_TestIterDedup)
     test.property(_IterDedupProperty)
     test(_TestIterDedupDeepPath)
@@ -192,13 +193,16 @@ class \nodoc\ iso _TestIterCycle is UnitTest
     let actual: Array[String] = Array[String]
 
     let cycle = Iter[String](input.values()).cycle()
+    h.assert_true(cycle.has_next())
     try
       actual.push(cycle.next()?) // 1 "a"
       actual.push(cycle.next()?) // 2 "b"
       actual.push(cycle.next()?) // 3 "c"
+      h.assert_true(cycle.has_next())
       actual.push(cycle.next()?) // 4 "a" <= start first cached cycle
       actual.push(cycle.next()?) // 5 "b"
       actual.push(cycle.next()?) // 6 "c"
+      h.assert_true(cycle.has_next())
       actual.push(cycle.next()?) // 7 "a" <= start second cached cycle
       actual.push(cycle.next()?) // 8 "b"
       actual.push(cycle.next()?) // 9 "c"
@@ -208,6 +212,30 @@ class \nodoc\ iso _TestIterCycle is UnitTest
     end
 
     h.assert_array_eq[String](expected, actual)
+
+    // single-element source
+    h.assert_array_eq[U64](
+      [as U64: 1; 1; 1],
+      Iter[U64]([as U64: 1].values()).cycle().take(3).collect(Array[U64]))
+
+class \nodoc\ iso _TestIterCycleEmpty is UnitTest
+  fun name(): String => "itertools/Iter.cycle empty"
+
+  fun apply(h: TestHelper) =>
+    let cy = Iter[U64](Array[U64].values()).cycle()
+    h.assert_false(cy.has_next())
+    h.assert_false(cy.has_next())
+    h.assert_error({()? => Iter[U64](Array[U64].values()).cycle().next()? })
+    h.assert_eq[USize](
+      0,
+      Iter[U64](Array[U64].values()).cycle().take(3).count())
+    // chain advances past the empty cycle to the next iterator
+    let empty_cycle = Iter[U64](Array[U64].values()).cycle()
+    let after = [as U64: 7; 8].values()
+    let chained =
+      Iter[U64].chain(
+        [as Iterator[U64]: empty_cycle; after].values())
+    h.assert_eq[USize](2, chained.count())
 
 class \nodoc\ iso _TestIterDedup is UnitTest
   fun name(): String => "itertools/Iter.dedup"
