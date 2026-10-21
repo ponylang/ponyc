@@ -28,6 +28,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Iter.take_while() returning rejected elements after has_next() returns false ([PR #6338](https://github.com/ponylang/ponyc/pull/6338))
 - Fix Format.float ignoring align and fill parameters ([PR #6341](https://github.com/ponylang/ponyc/pull/6341))
 - Fix float-to-integer saturation at the representability boundary ([PR #6332](https://github.com/ponylang/ponyc/pull/6332))
+- Fix JSONPathParser rejecting whitespace between segments ([PR #6344](https://github.com/ponylang/ponyc/pull/6344))
 
 ### Added
 
