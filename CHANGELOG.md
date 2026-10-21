@@ -30,6 +30,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix float-to-integer saturation at the representability boundary ([PR #6332](https://github.com/ponylang/ponyc/pull/6332))
 - Fix JSONPathParser rejecting whitespace between segments ([PR #6344](https://github.com/ponylang/ponyc/pull/6344))
 - Fix GreatestCommonDivisor returning negative values for signed inputs ([PR #6345](https://github.com/ponylang/ponyc/pull/6345))
+- Fix JSONPathParser accepting integers RFC 9535 does not allow ([PR #6347](https://github.com/ponylang/ponyc/pull/6347))
 
 ### Added
 
