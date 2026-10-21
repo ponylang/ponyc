@@ -8,6 +8,7 @@ actor \nodoc\ Main is TestList
     // Tests below function across all systems and are listed alphabetically
     test(_TestNanos)
     test(_TestPosixDate)
+    test(_TestPosixDateFormatLength)
 
 class \nodoc\ iso _TestNanos is UnitTest
   fun name(): String => "time/Nanos"
@@ -47,3 +48,18 @@ class \nodoc\ iso _TestPosixDate is UnitTest
         d.format("%Y-%m-%d %H:%M:%S.%L")?
       })
     end
+
+class \nodoc\ iso _TestPosixDateFormatLength is UnitTest
+  fun name(): String => "time/PosixDate.format/long-output"
+
+  fun apply(h: TestHelper) ? =>
+    let date = PosixDate(0)
+
+    let literal: String val = "a" * 10000
+    let result = date.format(literal)?
+    h.assert_eq[USize](10000, result.size())
+    h.assert_eq[String](literal, result)
+
+    let expanded = date.format(recover val "%Y" * 2048 end)?
+    h.assert_eq[USize](8192, expanded.size())
+    h.assert_eq[String](recover val "1970" * 2048 end, expanded)

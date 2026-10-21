@@ -135,19 +135,20 @@ PONY_API char* ponyint_formattime(date_t* date, const char* fmt)
       return buffer;
   }
 
-  // Our real logic here
   struct tm tm;
   date_to_tm(date, &tm);
+
+  size_t fmt_len = strlen(fmt);
+  size_t limit = fmt_len * 256;
+  if(limit < 8192)
+    limit = 8192;
 
   size_t len = 64;
   size_t r = 0;
 
   while(r == 0)
   {
-    // If the buffer has grown past 8192 bytes and strftime still returns 0,
-    // the format string is invalid rather than the buffer being too small.
-    // Return NULL to signal an error to the Pony caller.
-    if(len > 8192)
+    if(len > limit)
       return NULL;
 
     buffer = (char*)pony_alloc(ctx, len);
