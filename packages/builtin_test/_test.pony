@@ -1186,6 +1186,26 @@ class \nodoc\ iso _TestStringUTF32 is UnitTest
     h.assert_eq[U8](0x8E, s(3)?)
     h.assert_eq[U32](0x2070E, s.utf32(0)?._1)
 
+    // ED 9F BF = U+D7FF (last codepoint before surrogates, valid)
+    let s_d7ff = String.from_array([0xED; 0x9F; 0xBF])
+    h.assert_eq[U32](0xD7FF, s_d7ff.utf32(0)?._1)
+    h.assert_eq[U8](3, s_d7ff.utf32(0)?._2)
+
+    // ED A0 80 = U+D800 (first surrogate, invalid per RFC 3629)
+    let s_d800 = String.from_array([0xED; 0xA0; 0x80])
+    h.assert_eq[U32](0xFFFD, s_d800.utf32(0)?._1)
+    h.assert_eq[U8](1, s_d800.utf32(0)?._2)
+
+    // ED BF BF = U+DFFF (last surrogate, invalid per RFC 3629)
+    let s_dfff = String.from_array([0xED; 0xBF; 0xBF])
+    h.assert_eq[U32](0xFFFD, s_dfff.utf32(0)?._1)
+    h.assert_eq[U8](1, s_dfff.utf32(0)?._2)
+
+    // EE 80 80 = U+E000 (first codepoint after surrogates, valid)
+    let s_e000 = String.from_array([0xEE; 0x80; 0x80])
+    h.assert_eq[U32](0xE000, s_e000.utf32(0)?._1)
+    h.assert_eq[U8](3, s_e000.utf32(0)?._2)
+
 class \nodoc\ iso _TestStringFind is UnitTest
   fun name(): String => "builtin/String.find"
 
