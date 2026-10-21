@@ -8,15 +8,19 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Property tests
+    test.property(_IRegexpDeepNestingMatchSafetyProperty)
     test.property(_IRegexpIsMatchImpliesSearchProperty)
     test.property(_IRegexpLiteralRoundtripProperty)
     test.property(_IRegexpMatchSafetyProperty)
+    test.property(_IRegexpNestingTransparencyProperty)
     test.property(_IRegexpParserSafetyProperty)
     test.property(_IRegexpSearchSubstringProperty)
     // Example tests
     test(_TestIRegexpEdgeCases)
     test(_TestIRegexpEscapes)
     test(_TestIRegexpIsMatch)
+    test(_TestIRegexpNestedErrors)
+    test(_TestIRegexpNestedGroups)
     test(_TestIRegexpParse)
     test(_TestIRegexpSearch)
     test(_TestIRegexpUnicode)
@@ -576,4 +580,309 @@ class \nodoc\ iso _TestIRegexpEdgeCases is UnitTest
         "Pattern '" + pattern + "' vs '" + input + "'")
     | let e: IRegexpParseError =>
       h.fail("Failed to compile '" + pattern + "': " + e.string())
+    end
+
+// ===================================================================
+// Property Tests — Nesting
+// ===================================================================
+class \nodoc\ iso _IRegexpNestingTransparencyProperty
+  is Property[(String, String)]
+  """
+  Wrapping a valid pattern in group parentheses must not change its matching
+  behavior — groups are purely structural in I-Regexp.
+  """
+  fun name(): String => "iregex/nesting-transparency"
+
+  fun gen(): Generator[(String, String)] =>
+    Generators.zip2[String, String](
+      _IRegexpGen(5),
+      Generators.ascii(0, 30))
+
+  fun ref property(sample: (String, String), ph: PropertyHelper) =>
+    (let pattern, let input) = sample
+    match \exhaustive\ IRegexpCompiler.parse(pattern)
+    | let re: IRegexp =>
+      let orig_match = re.is_match(input)
+      let orig_search = re.search(input)
+      var depth: USize = 1
+      while depth <= 3 do
+        let wrapped = _wrap(pattern, depth)
+        match \exhaustive\ IRegexpCompiler.parse(wrapped)
+        | let re2: IRegexp =>
+          ph.assert_eq[Bool](
+            orig_match,
+            re2.is_match(input),
+            "is_match differs at depth " + depth.string() +
+              " for '" + pattern + "'")
+          ph.assert_eq[Bool](
+            orig_search,
+            re2.search(input),
+            "search differs at depth " + depth.string() +
+              " for '" + pattern + "'")
+        | let e: IRegexpParseError =>
+          ph.fail("Wrapped pattern should be valid at depth " +
+            depth.string() + ": " + e.string())
+        end
+        depth = depth + 1
+      end
+    | let _: IRegexpParseError => None
+    end
+
+  fun _wrap(pattern: String, depth: USize): String val =>
+    let buf = String(pattern.size() + (depth * 2))
+    var i: USize = 0
+    while i < depth do buf.push('('); i = i + 1 end
+    buf.append(pattern)
+    i = 0
+    while i < depth do buf.push(')'); i = i + 1 end
+    buf.clone()
+
+class \nodoc\ iso _IRegexpDeepNestingMatchSafetyProperty
+  is Property[(String, String)]
+  """
+  Valid depth-5 patterns must parse and match or search without crashing.
+  """
+  fun name(): String => "iregex/deep-nesting-match-safety"
+
+  fun gen(): Generator[(String, String)] =>
+    Generators.zip2[String, String](
+      _IRegexpGen(5),
+      Generators.ascii(0, 30))
+
+  fun ref property(sample: (String, String), ph: PropertyHelper) =>
+    (let pattern, let input) = sample
+    match \exhaustive\ IRegexpCompiler.parse(pattern)
+    | let re: IRegexp =>
+      re.is_match(input)
+      re.search(input)
+    | let e: IRegexpParseError =>
+      ph.fail("Generated pattern should be valid: " + pattern +
+        " — " + e.string())
+    end
+
+// ===================================================================
+// Example Tests — Nested Groups
+// ===================================================================
+class \nodoc\ iso _TestIRegexpNestedGroups is UnitTest
+  """
+  Group nesting at various depths and with various inner contents, verifying
+  correct matching behavior through the parser's recursive descent.
+  """
+  fun name(): String => "iregex/nested-groups"
+
+  fun apply(h: TestHelper) =>
+    // Nesting depth
+    _assert_match(h, "(((a)))", "a", true)
+    _assert_match(h, "(((a)))", "b", false)
+    _assert_match(h, "(((a)))", "", false)
+    _assert_match(h, "((((a))))", "a", true)
+    _assert_match(h, "(((((a)))))", "a", true)
+
+    // Programmatic depth-50 nesting
+    let depth: USize = 50
+    let pat =
+      recover val
+        let s = String((depth * 2) + 1)
+        var i: USize = 0
+        while i < depth do s.push('('); i = i + 1 end
+        s.push('a')
+        i = 0
+        while i < depth do s.push(')'); i = i + 1 end
+        s
+      end
+    match \exhaustive\ IRegexpCompiler.parse(pat)
+    | let re: IRegexp =>
+      h.assert_true(
+        re.is_match("a"),
+        "depth-50 nested 'a' should match 'a'")
+      h.assert_false(
+        re.is_match("b"),
+        "depth-50 nested 'a' should not match 'b'")
+      h.assert_false(
+        re.is_match(""),
+        "depth-50 nested 'a' should not match empty")
+    | let e: IRegexpParseError =>
+      h.fail("depth-50 pattern should compile: " + e.string())
+    end
+
+    // Nested alternation
+    _assert_match(h, "(a|(b|c))", "a", true)
+    _assert_match(h, "(a|(b|c))", "b", true)
+    _assert_match(h, "(a|(b|c))", "c", true)
+    _assert_match(h, "(a|(b|c))", "d", false)
+
+    _assert_match(h, "((a|b)|(c|d))", "a", true)
+    _assert_match(h, "((a|b)|(c|d))", "d", true)
+    _assert_match(h, "((a|b)|(c|d))", "e", false)
+
+    _assert_match(h, "(a|(b|(c|d)))", "c", true)
+    _assert_match(h, "(a|(b|(c|d)))", "d", true)
+    _assert_match(h, "(a|(b|(c|d)))", "e", false)
+
+    // Quantifiers on nested groups
+    _assert_match(h, "((a)+)", "aaa", true)
+    _assert_match(h, "((a)+)", "", false)
+    _assert_match(h, "((a)*)", "", true)
+    _assert_match(h, "((a)*)", "aa", true)
+    _assert_match(h, "((a)?)", "", true)
+    _assert_match(h, "((a)?)", "a", true)
+    _assert_match(h, "((a)?)", "aa", false)
+
+    _assert_match(h, "((a){2,3})", "aa", true)
+    _assert_match(h, "((a){2,3})", "aaa", true)
+    _assert_match(h, "((a){2,3})", "a", false)
+    _assert_match(h, "((a){2,3})", "aaaa", false)
+
+    // Quantifiers on the outer group itself
+    _assert_match(h, "((a)){3}", "aaa", true)
+    _assert_match(h, "((a)){3}", "aa", false)
+    _assert_match(h, "((a)){2,}", "aa", true)
+    _assert_match(h, "((a)){2,}", "aaaaa", true)
+    _assert_match(h, "((a)){2,}", "a", false)
+    _assert_match(h, "((a|b)){2,3}", "ab", true)
+    _assert_match(h, "((a|b)){2,3}", "bba", true)
+    _assert_match(h, "((a|b)){2,3}", "a", false)
+    _assert_match(h, "((a|b)){2,3}", "abab", false)
+
+    // Quantified group containing quantified content
+    _assert_match(h, "((a+)b)+", "ab", true)
+    _assert_match(h, "((a+)b)+", "aabaaab", true)
+    _assert_match(h, "((a+)b)+", "b", false)
+
+    // Alternation + nesting + quantifier interaction
+    _assert_match(h, "((a)|b)+", "aab", true)
+    _assert_match(h, "((a)|b)+", "ba", true)
+    _assert_match(h, "((a)|b)+", "c", false)
+    _assert_match(h, "((a)|b)+", "", false)
+
+    // Sequential nested groups
+    _assert_match(h, "((a)(b))", "ab", true)
+    _assert_match(h, "((a)(b))", "ba", false)
+    _assert_match(h, "(a)(b)(c)", "abc", true)
+    _assert_match(h, "(a)(b)(c)", "ab", false)
+    _assert_match(h, "(((a)(b))(c))", "abc", true)
+    _assert_match(h, "(((a)(b))(c))", "bac", false)
+
+    // Content between and after nested groups
+    _assert_match(h, "((a)x(b))", "axb", true)
+    _assert_match(h, "((a)x(b))", "ab", false)
+    _assert_match(h, "((a))b", "ab", true)
+    _assert_match(h, "((a))b", "a", false)
+    _assert_match(h, "((a)(b))c", "abc", true)
+
+    // Alternation scoping across nesting
+    _assert_match(h, "((a|b)c)", "ac", true)
+    _assert_match(h, "((a|b)c)", "bc", true)
+    _assert_match(h, "((a|b)c)", "c", false)
+    _assert_match(h, "((a|b)c)", "abc", false)
+
+    // Character classes in nested groups
+    _assert_match(h, "(([a-z])+)", "abc", true)
+    _assert_match(h, "(([a-z])+)", "ABC", false)
+    _assert_match(h, "(([a-z])+)", "", false)
+    _assert_match(h, "(([^a-z])+)", "123", true)
+    _assert_match(h, "(([^a-z])+)", "abc", false)
+
+    // Unicode properties in nested groups
+    _assert_match(h, "((\\p{L})+)", "abc", true)
+    _assert_match(h, "((\\p{L})+)", "123", false)
+    _assert_match(h, "((\\P{L})+)", "123", true)
+    _assert_match(h, "((\\P{L})+)", "abc", false)
+
+    // Dot in nested groups
+    _assert_match(h, "((.))", "x", true)
+    _assert_match(h, "((.))", "\n", false)
+
+    // Escapes in nested groups
+    _assert_match(h, "((\\.))", ".", true)
+    _assert_match(h, "((\\.))", "a", false)
+    _assert_match(h, "((\\n))", "\n", true)
+    _assert_match(h, "((\\r))", "\r", true)
+    _assert_match(h, "((\\t))", "\t", true)
+
+    // Empty nested groups
+    _assert_match(h, "(())", "", true)
+    _assert_match(h, "(())", "a", false)
+    _assert_match(h, "((()))", "", true)
+
+    // Empty alternation in nested groups
+    _assert_match(h, "(()|a)", "", true)
+    _assert_match(h, "(()|a)", "a", true)
+    _assert_match(h, "(()|a)", "b", false)
+    _assert_match(h, "((|a))", "", true)
+    _assert_match(h, "((|a))", "a", true)
+    _assert_match(h, "((|a))", "b", false)
+
+    // Quantifiers on nested empty groups
+    _assert_match(h, "(())*", "", true)
+    _assert_match(h, "(())+", "", true)
+
+    // Nested groups in search mode
+    _assert_search(h, "((a+))", "xxxaaaxxx", true)
+    _assert_search(h, "(((ab)))", "xxxabxxx", true)
+    _assert_search(h, "(((ab)))", "xxxbaxxx", false)
+    _assert_search(h, "((a|b))", "xaxbx", true)
+    _assert_search(h, "((a|b))", "xyz", false)
+
+  fun _assert_match(
+    h: TestHelper,
+    pattern: String,
+    input: String,
+    expected: Bool)
+  =>
+    match \exhaustive\ IRegexpCompiler.parse(pattern)
+    | let re: IRegexp =>
+      h.assert_eq[Bool](
+        expected,
+        re.is_match(input),
+        "Pattern '" + pattern + "' vs '" + input + "'")
+    | let e: IRegexpParseError =>
+      h.fail("Failed to compile '" + pattern + "': " + e.string())
+    end
+
+  fun _assert_search(
+    h: TestHelper,
+    pattern: String,
+    input: String,
+    expected: Bool)
+  =>
+    match \exhaustive\ IRegexpCompiler.parse(pattern)
+    | let re: IRegexp =>
+      h.assert_eq[Bool](
+        expected,
+        re.search(input),
+        "Search '" + pattern + "' in '" + input + "'")
+    | let e: IRegexpParseError =>
+      h.fail("Failed to compile '" + pattern + "': " + e.string())
+    end
+
+// ===================================================================
+// Example Tests — Nested Group Errors
+// ===================================================================
+class \nodoc\ iso _TestIRegexpNestedErrors is UnitTest
+  """
+  Error cases specific to group nesting — unclosed groups at various depths,
+  extra close parens, and invalid content inside nested groups.
+  """
+  fun name(): String => "iregex/nested-errors"
+
+  fun apply(h: TestHelper) =>
+    _assert_error(h, "((")
+    _assert_error(h, "(((")
+    _assert_error(h, "((a)")
+    _assert_error(h, "(((a))")
+    _assert_error(h, "((((a)))")
+    _assert_error(h, "())")
+    _assert_error(h, ")")
+    _assert_error(h, "a)")
+    _assert_error(h, "((\\d))")
+    _assert_error(h, "([)")
+    _assert_error(h, "((\\d")
+    _assert_error(h, "((a)(\\d))")
+
+  fun _assert_error(h: TestHelper, pattern: String) =>
+    match \exhaustive\ IRegexpCompiler.parse(pattern)
+    | let _: IRegexpParseError => None
+    | let _: IRegexp =>
+      h.fail("Expected error for '" + pattern + "'")
     end
