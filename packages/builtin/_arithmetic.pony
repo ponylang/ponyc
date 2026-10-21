@@ -12,6 +12,9 @@ primitive _SignedArithmetic
     // stupid special case for division edge cases
     if (y == T.from[U8](0)) or ((x == T.min_value()) and (y == T.from[I8](-1))) then
       T.from[U8](0)
+    elseif (y == T.min_value()) and (x > T.from[U8](0)) then
+      // mod_unsafe overflows: fld(x, MIN) is -1 for positive x, and -1 *~ MIN is UB.
+      x + y
     else
       _SignedUnsafeArithmetic.mod_unsafe[T, U](x, y)
     end

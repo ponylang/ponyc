@@ -2629,6 +2629,34 @@ class \nodoc\ iso _TestMod is UnitTest
     h.assert_eq[T](-3, T(13) %% -8, "[" + type_name + "] 13 %% -8")
     h.assert_eq[T](-5, T(-13) %% -8, "[" + type_name + "] -13 %% -8")
 
+    var one = T(1)
+    var two = T(2)
+    var neg_one = T(-1)
+    var min_val = T.min_value()
+    h.assert_eq[T](T.min_value() + 1, one.mod(min_val),
+      "[" + type_name + "] 1 mod MIN")
+    h.assert_eq[T](T.min_value() + 2, two.mod(min_val),
+      "[" + type_name + "] 2 mod MIN")
+    h.assert_eq[T](0, min_val.mod(min_val),
+      "[" + type_name + "] MIN mod MIN")
+    h.assert_eq[T](neg_one, neg_one.mod(min_val),
+      "[" + type_name + "] -1 mod MIN")
+    h.assert_eq[T](0, T(0).mod(min_val),
+      "[" + type_name + "] 0 mod MIN")
+    h.assert_eq[T](-1, T.max_value().mod(min_val),
+      "[" + type_name + "] MAX mod MIN")
+
+    // modc
+    h.assert_eq[T](T.min_value() + 1, one.modc(min_val)._1,
+      "[" + type_name + "] 1 modc MIN result")
+    h.assert_eq[Bool](false, one.modc(min_val)._2,
+      "[" + type_name + "] 1 modc MIN overflow flag")
+
+    // mod_partial
+    h.assert_eq[T](T.min_value() + 1,
+      try one.mod_partial(min_val)? else T(0) end,
+      "[" + type_name + "] 1 mod_partial MIN")
+
     // mod_unsafe
     h.assert_eq[T](5, T(13) %%~ 8, "[" + type_name + "] 13 %%~ 8")
     h.assert_eq[T](3, T(-13) %%~ 8, "[" + type_name + "] -13 %%~ 8")
