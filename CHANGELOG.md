@@ -32,6 +32,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix GreatestCommonDivisor returning negative values for signed inputs ([PR #6345](https://github.com/ponylang/ponyc/pull/6345))
 - Fix JSONPathParser accepting integers RFC 9535 does not allow ([PR #6347](https://github.com/ponylang/ponyc/pull/6347))
 - Fix URITemplate prefix modifier splitting pct-encoded triplets under reserved expansion ([PR #6346](https://github.com/ponylang/ponyc/pull/6346))
+- Fix Base64.encode_pem and Base64.encode_mime producing trailing empty lines ([PR #6342](https://github.com/ponylang/ponyc/pull/6342))
 
 ### Added
 
