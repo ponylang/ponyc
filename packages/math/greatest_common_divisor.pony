@@ -2,7 +2,8 @@ primitive GreatestCommonDivisor
   """
   Get greatest common divisor of x and y.
 
-  Providing 0 will result in an error.
+  Errors when either argument is zero or when the result cannot be
+  represented (e.g. `gcd(I8.min_value(), I8.min_value())`).
 
   Example usage:
 
@@ -22,7 +23,7 @@ primitive GreatestCommonDivisor
   fun apply[A: Integer[A] val](x: A, y: A): A ? =>
     """
     Returns the greatest common divisor of `x` and `y`. Errors if
-    either is zero.
+    either is zero or if the result cannot be represented in `A`.
     """
     let zero = A.from[U8](0)
     if (x == zero) or (y == zero) then
@@ -38,4 +39,6 @@ primitive GreatestCommonDivisor
       x' = z
     end
 
-    x'
+    let result = if x' < zero then -x' else x' end
+    if result < zero then error end
+    result
