@@ -1516,6 +1516,9 @@ class \nodoc\ iso _TestJSONPathParse is UnitTest
         "$.a ['b']"
         "$ [0]"
         "$.a\t.b"
+        "$['a\\u0001b']" // escaped control char is valid
+        "$['\\'']"       // \' escape in single-quoted string is valid
+        "$[\"\\\"\"]"    // \" escape in double-quoted string is valid
       ]
     for path_str in valid.values() do
       match \exhaustive\ JSONPathParser.parse(path_str)
@@ -1558,6 +1561,12 @@ class \nodoc\ iso _TestJSONPathParseErrors is UnitTest
         "$[0:-:]"  // lone minus in slice end
         "$[0,-0]"  // negative zero in comma-separated selector
         "$[?@.a[-0]>1]" // negative zero in filter singular query
+        "$['a\x00b']"  // raw null byte in single-quoted string
+        "$['a\x01b']"  // raw control char U+0001 in single-quoted string
+        "$[\"\x1fb\"]"  // raw control char U+001F in double-quoted string
+        "$['a\nb']"    // raw newline in single-quoted string
+        "$[\"\\'\"]"   // \' escape in double-quoted string
+        "$['\\\"']"    // \" escape in single-quoted string
       ]
     for path_str in invalid.values() do
       match \exhaustive\ JSONPathParser.parse(path_str)
