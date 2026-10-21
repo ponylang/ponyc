@@ -23,6 +23,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix URITemplate.expand not percent-encoding non-ASCII literal characters ([PR #6330](https://github.com/ponylang/ponyc/pull/6330))
 - Fix HashMap.insert_if_absent returning wrong value when insertion triggers resize ([PR #6329](https://github.com/ponylang/ponyc/pull/6329))
 - Fix _FormatInt allocation hint overflow when prec defaults to -1 ([PR #6331](https://github.com/ponylang/ponyc/pull/6331))
+- Fix Iter.dedup() and Iter.unique() returning has_next() = true when exhausted ([PR #6333](https://github.com/ponylang/ponyc/pull/6333))
 
 ### Added
 
