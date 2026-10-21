@@ -6,8 +6,8 @@ primitive InvalidPort is Stringable
 
 primitive InvalidHost is Stringable
   """
-  Malformed IP-literal (unmatched brackets, illegal characters in IPv6
-  address, or invalid IPvFuture syntax).
+  Malformed host: unmatched brackets, illegal characters in an IPv6
+  address or IPvFuture literal, or a reg-name containing ':'.
   """
   fun string(): String iso^ => "InvalidHost".clone()
 

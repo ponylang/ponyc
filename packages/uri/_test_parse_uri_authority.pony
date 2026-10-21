@@ -51,7 +51,7 @@ class \nodoc\ iso _PropertyInvalidPortRejected is Property[String val]
     end
 
 class \nodoc\ iso _PropertyInvalidHostRejected is Property[String val]
-  """Malformed IPv6 hosts (unmatched brackets) produce InvalidHost."""
+  """Malformed hosts produce InvalidHost."""
   fun name(): String => "uri/parse_uri_authority/invalid_host"
 
   fun gen(): Generator[String val] =>
@@ -65,6 +65,9 @@ class \nodoc\ iso _PropertyInvalidHostRejected is Property[String val]
         "[]"
         // garbage after closing bracket (not a port)
         "[::1]garbage"
+        // reg-name containing ':' (RFC 3986 forbids ':' in reg-name)
+        "a:b:"
+        "a:b:80"
       ])
 
   fun ref property(arg1: String val, ph: PropertyHelper) =>
@@ -181,6 +184,43 @@ class \nodoc\ iso _TestParseURIAuthorityKnownGood is UnitTest
         a.port is None, "empty port should parse as None")
     | let e: URIParseError val =>
       h.fail("parse failed for empty port: " + e.string())
+    end
+
+class \nodoc\ iso _TestParseURIAuthorityColonInHost is UnitTest
+  """Hosts containing ':' are rejected (RFC 3986 reg-name forbids ':')."""
+  fun name(): String => "uri/parse_uri_authority/colon_in_host"
+
+  fun ref apply(h: TestHelper) =>
+    let cases: Array[String val] =
+      ["a:b:"; "a:b:80"; "::"; "user@a:b:80"; "user@a:b:"]
+    for input in cases.values() do
+      match \exhaustive\ ParseURIAuthority(input)
+      | let a: URIAuthority val =>
+        h.fail("expected rejection for: " + input +
+          " but got host: " + a.host)
+      | let e: URIParseError val =>
+        h.assert_true(
+          e is InvalidHost,
+          "expected InvalidHost for: " + input +
+            " but got: " + e.string())
+      end
+    end
+
+    // Through ParseURI
+    let uri_cases: Array[String val] =
+      [ "//a:b:"; "http://a:b:/"; "http://a:b:80/"; "//::"
+        "http://user@a:b:80/"]
+    for input in uri_cases.values() do
+      match \exhaustive\ ParseURI(input)
+      | let u: URI val =>
+        h.fail("expected rejection for: " + input +
+          " but got: " + u.string())
+      | let e: URIParseError val =>
+        h.assert_true(
+          e is InvalidHost,
+          "expected InvalidHost for: " + input +
+            " but got: " + e.string())
+      end
     end
 
 // -- Generators --
