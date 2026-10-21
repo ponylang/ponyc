@@ -101,6 +101,65 @@ class \nodoc\ iso _TestFloat is UnitTest
       "1e+300",
       Format.float[F64](1e300 where fmt = FormatGeneral))
 
+    // align and fill
+    h.assert_eq[String](
+      "1.50    ",
+      Format.float[F64](1.5 where width = 8, align = AlignLeft, prec = 2,
+        fmt = FormatFix))
+    h.assert_eq[String](
+      "    1.50",
+      Format.float[F64](1.5 where width = 8, align = AlignRight, prec = 2,
+        fmt = FormatFix))
+    h.assert_eq[String](
+      "  1.50  ",
+      Format.float[F64](1.5 where width = 8, align = AlignCenter, prec = 2,
+        fmt = FormatFix))
+    h.assert_eq[String](
+      "****1.50",
+      Format.float[F64](1.5 where width = 8, fill = '*', prec = 2,
+        fmt = FormatFix))
+    h.assert_eq[String](
+      "1.50****",
+      Format.float[F64](1.5 where width = 8, align = AlignLeft, fill = '*',
+        prec = 2, fmt = FormatFix))
+    h.assert_eq[String](
+      "**1.50**",
+      Format.float[F64](1.5 where width = 8, align = AlignCenter, fill = '*',
+        prec = 2, fmt = FormatFix))
+    h.assert_eq[String](
+      "**1.50***",
+      Format.float[F64](1.5 where width = 9, align = AlignCenter, fill = '*',
+        prec = 2, fmt = FormatFix))
+
+    // width narrower than content produces no padding
+    h.assert_eq[String](
+      "1.50",
+      Format.float[F64](1.5 where width = 2, prec = 2, fmt = FormatFix))
+
+    // negative value with fill
+    h.assert_eq[String](
+      "**-1.50",
+      Format.float[F64](-1.5 where width = 7, fill = '*', prec = 2,
+        fmt = FormatFix))
+    h.assert_eq[String](
+      "-1.50**",
+      Format.float[F64](-1.5 where width = 7, align = AlignLeft, fill = '*',
+        prec = 2, fmt = FormatFix))
+
+    // multi-byte UTF-8 fill (U+00E9 'é')
+    h.assert_eq[String](
+      "éé1.50",
+      Format.float[F64](1.5 where width = 6, fill = 0xE9, prec = 2,
+        fmt = FormatFix))
+    h.assert_eq[String](
+      "1.50éé",
+      Format.float[F64](1.5 where width = 6, align = AlignLeft, fill = 0xE9,
+        prec = 2, fmt = FormatFix))
+    h.assert_eq[String](
+      "é1.50é",
+      Format.float[F64](1.5 where width = 6, align = AlignCenter, fill = 0xE9,
+        prec = 2, fmt = FormatFix))
+
 class \nodoc\ iso _TestInt is UnitTest
   fun name(): String => "format/int"
 
