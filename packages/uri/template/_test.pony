@@ -51,6 +51,7 @@ actor \nodoc\ Main is TestList
     test(_TestExplodePairsQuery)
     test(_TestExplodeListSemicolon)
     test(_TestPrefixUnicode)
+    test(_TestPrefixPctTriplet)
 
     // Property-based tests
     test.property(_TestPropertyNoBracesInExpansion)
