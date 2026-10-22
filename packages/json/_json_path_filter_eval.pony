@@ -16,12 +16,9 @@ primitive _FilterEval
     : Bool
   =>
     match \exhaustive\ expr
-    | let e: _OrExpr =>
-      apply(e.left, current, root) or apply(e.right, current, root)
-    | let e: _AndExpr =>
-      apply(e.left, current, root) and apply(e.right, current, root)
-    | let e: _NotExpr =>
-      not apply(e.expr, current, root)
+    | let e: _OrExpr => _eval_or(e, current, root)
+    | let e: _AndExpr => _eval_and(e, current, root)
+    | let e: _NotExpr => _eval_not(e, current, root)
     | let e: _ComparisonExpr =>
       _FilterCompare(e.left, e.op, e.right, current, root)
     | let e: _ExistenceExpr =>
@@ -32,6 +29,76 @@ primitive _FilterEval
       _eval_search(e, current, root)
     end
 
+  fun _eval_or(
+    start: _OrExpr,
+    current: JSONValue,
+    root: JSONValue)
+    : Bool
+  =>
+    """
+    Iterate the left spine of a left-nested `_OrExpr` tree instead of
+    recursing. The parser builds `||` chains as left-nested trees, so the
+    right child at each level is a leaf and the left child carries the
+    rest of the chain.
+    """
+    var node: _LogicalExpr = start
+    while true do
+      match node
+      | let e: _OrExpr =>
+        if apply(e.right, current, root) then return true end
+        node = e.left
+      else
+        return apply(node, current, root)
+      end
+    end
+    false // unreachable
+
+  fun _eval_and(
+    start: _AndExpr,
+    current: JSONValue,
+    root: JSONValue)
+    : Bool
+  =>
+    """
+    Iterate the left spine of a left-nested `_AndExpr` tree instead of
+    recursing.
+    """
+    var node: _LogicalExpr = start
+    while true do
+      match node
+      | let e: _AndExpr =>
+        if not apply(e.right, current, root) then return false end
+        node = e.left
+      else
+        return apply(node, current, root)
+      end
+    end
+    true // unreachable
+
+  fun _eval_not(
+    start: _NotExpr,
+    current: JSONValue,
+    root: JSONValue)
+    : Bool
+  =>
+    """
+    Iterate a chain of `_NotExpr` nodes, counting the parity, instead
+    of recursing once per level.
+    """
+    var negate = true
+    var inner: _LogicalExpr = start.expr
+    while true do
+      match inner
+      | let n: _NotExpr =>
+        negate = not negate
+        inner = n.expr
+      else
+        let result = apply(inner, current, root)
+        return if negate then not result else result end
+      end
+    end
+    false // unreachable
+
   fun _eval_existence(
     query: _FilterQuery,
     current: JSONValue,
@@ -40,13 +107,47 @@ primitive _FilterEval
   =>
     """
     True if the query selects at least one node.
+
+    For chains of `ExistenceExpr(AbsFilterQuery([ChildSeg([FilterSel(...)])]))`,
+    unwrap iteratively to the innermost query and evaluate it once. Each
+    intermediate level evaluates against root (ignoring the current node),
+    so the result is invariant across levels: if the innermost query selects
+    any nodes, every outer level is true (given non-empty root); if it
+    selects none, every outer level is false.
     """
+    var q: _FilterQuery = query
+    while true do
+      match q
+      | let aq: _AbsFilterQuery =>
+        if aq.segments.size() == 1 then
+          try
+            match aq.segments(0)?
+            | let cs: _ChildSegment =>
+              if cs.selectors().size() == 1 then
+                match cs.selectors()(0)?
+                | let fs: _FilterSelector =>
+                  match fs.expr()
+                  | let ex: _ExistenceExpr =>
+                    match ex.query
+                    | let inner_abs: _AbsFilterQuery =>
+                      q = inner_abs
+                      continue
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+      break
+    end
     let results =
-      match \exhaustive\ query
-      | let q: _RelFilterQuery =>
-        _JSONPathEval(current, root, q.segments)
-      | let q: _AbsFilterQuery =>
-        _JSONPathEval(root, root, q.segments)
+      match \exhaustive\ q
+      | let rq: _RelFilterQuery =>
+        _JSONPathEval(current, root, rq.segments)
+      | let aq: _AbsFilterQuery =>
+        _JSONPathEval(root, root, aq.segments)
       end
     results.size() > 0
 
@@ -200,22 +301,41 @@ primitive _FilterCompare
       _FilterEval._eval_singular(q, current, root)
     | let q: _AbsSingularQuery =>
       _FilterEval._eval_singular(q, current, root)
-    | let e: _LengthExpr => _eval_length(e.arg, current, root)
+    | let e: _LengthExpr => _eval_length(e, current, root)
     | let e: _CountExpr => _eval_count(e.query, current, root)
     | let e: _ValueExpr => _eval_value(e.query, current, root)
     end
 
   fun _eval_length(
-    arg: _Comparable,
+    start: _LengthExpr,
     current: JSONValue,
     root: JSONValue)
     : _QueryResult
   =>
     """
-    Evaluate length(): Unicode scalar value count for strings,
-    element count for arrays, member count for objects, Nothing otherwise.
+    Evaluate length(), iterating through nested `length(length(...))` chains
+    to avoid native-stack overflow on deeply nested input.
     """
-    let val' = _resolve(arg, current, root)
+    var depth: USize = 1
+    var inner: _Comparable = start.arg
+    while true do
+      match inner
+      | let e: _LengthExpr =>
+        depth = depth + 1
+        inner = e.arg
+      else
+        break
+      end
+    end
+    var val': _QueryResult = _resolve(inner, current, root)
+    var i: USize = 0
+    while i < depth do
+      val' = _length_of(val')
+      i = i + 1
+    end
+    val'
+
+  fun _length_of(val': _QueryResult): _QueryResult =>
     match val'
     | let s: String =>
       // Count Unicode scalar values (codepoints) via UTF-32 iteration
