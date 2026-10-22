@@ -66,6 +66,25 @@ LLVMValueRef LLVMBuildAlignedStore(LLVMBuilderRef b, LLVMValueRef v, LLVMValueRe
 
 #define GEN_NOTNEEDED ((LLVMValueRef)2)
 
+typedef struct mutant_record_t
+{
+  int32_t id;
+  const char* file;
+  size_t line;
+  size_t column;
+  const char* category;
+  const char* original;
+  const char* replacement;
+} mutant_record_t;
+
+typedef struct mutate_state_t
+{
+  mutant_record_t* mutants;
+  size_t mutant_count;
+  size_t mutant_alloc;
+  int32_t next_id;
+} mutate_state_t;
+
 typedef struct genned_string_t genned_string_t;
 DECLARE_HASHMAP(genned_strings, genned_strings_t, genned_string_t);
 
@@ -104,6 +123,7 @@ typedef struct compile_frame_t
   bool bare_function;
   bool is_partial;
   deferred_reification_t* reify;
+  ast_t* mutate_ast;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
@@ -228,6 +248,10 @@ typedef struct compile_t
   size_t current_module_index;
 
   bool runtime_bitcode_merged;
+
+  mutate_state_t mutate;
+  LLVMValueRef mutant_selector;
+  LLVMValueRef mutate_enabled;
 } compile_t;
 
 bool codegen_merge_runtime_bitcode(compile_t* c);

@@ -99,6 +99,7 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
   *value = NULL;
 
   codegen_debugloc(c, ast);
+  c->frame->mutate_ast = ast;
 
   if(name == c->str_add)
     *value = gen_add(c, left, right, true);
@@ -171,6 +172,7 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
   else
     special_case = false;
 
+  c->frame->mutate_ast = NULL;
   codegen_debugloc(c, NULL);
   return special_case;
 }

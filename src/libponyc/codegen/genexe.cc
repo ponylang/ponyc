@@ -1,4 +1,5 @@
 #include "genexe.h"
+#include "genmutate.h"
 
 #include <lld/Common/Driver.h>
 
@@ -145,6 +146,11 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   args[2] = LLVMGetParam(func, 2);
   LLVMSetValueName(args[2], "envp");
+
+  // Must precede pony_init.
+  if(c->opt->mutate)
+    LLVMBuildStore(c->builder, LLVMConstInt(c->i32, 1, false),
+      c->mutate_enabled);
 
   // Initialise the pony runtime with argc and argv, getting a new argc.
   args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
@@ -3052,6 +3058,13 @@ bool genexe(compile_t* c, ast_t* program)
     return false;
   }
 
+  if(c->opt->mutate)
+  {
+    mutate_init(&c->mutate);
+    c->mutant_selector = mutate_declare_selector(c);
+    c->mutate_enabled = mutate_declare_enabled(c);
+  }
+
   if(!gentypes(c))
   {
     ast_free(main_ast);
@@ -3109,6 +3122,15 @@ bool genexe(compile_t* c, ast_t* program)
   {
     cleanup_bc_files(bc_files, bc_count);
     return false;
+  }
+
+  if(c->opt->mutate)
+  {
+    if(!mutate_write_info(&c->mutate, c->opt->output, c->filename))
+    {
+      errorf(errors, NULL, "couldn't write mutation info file");
+      return false;
+    }
   }
 
   // Shim objects are removed only here, after a successful PASS_ALL link.

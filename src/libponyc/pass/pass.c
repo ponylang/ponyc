@@ -109,6 +109,7 @@ void pass_opt_init(pass_opt_t* options)
   options->check.errors = errors_alloc();
   options->ast_print_width = 80;
   options->fat_lto = true;
+  options->mutate_operators = MUTATE_OP_ALL;
   options->user_flags = userflags_create(options->strtab);
   frame_push(&options->check, NULL);
 }
@@ -150,6 +151,19 @@ void pass_opt_done(pass_opt_t* options)
   {
     pass_timers_free(options->timers);
     options->timers = NULL;
+  }
+
+  if(options->mutate_scopes != NULL)
+  {
+    for(size_t i = 0; i < options->mutate_scope_count; i++)
+      ponyint_pool_free_size(
+        strlen(options->mutate_scopes[i].file) + 1,
+        (void*)options->mutate_scopes[i].file);
+    ponyint_pool_free_size(
+      options->mutate_scope_count * sizeof(mutate_scope_t),
+      options->mutate_scopes);
+    options->mutate_scopes = NULL;
+    options->mutate_scope_count = 0;
   }
 
   // Free the interned-string table last: every interned pointer handed out

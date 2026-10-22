@@ -238,5 +238,9 @@ struct _PassOpt
   var timers: Pointer[_PassTimers] ref = timers.create()
   var lib_search_paths: Pointer[_StrList] = lib_search_paths.create()
   var fat_lto: Bool = true
+  var mutate: Bool = false
+  var mutate_operators: U8 = 0x1F
+  var mutate_scope_count: USize = 0
+  var mutate_scopes: Pointer[None] ref = mutate_scopes.create()
 
   new ref create() => None

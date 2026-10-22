@@ -64,6 +64,10 @@ enum
   OPT_FAT_LTO,
   OPT_THIN_LTO,
 
+  OPT_MUTATE,
+  OPT_MUTATE_OPERATORS,
+  OPT_MUTATE_SCOPE,
+
   OPT_BNF,
   OPT_ANTLR,
   OPT_ANTLRRAW
@@ -111,6 +115,9 @@ static opt_arg_t std_args[] =
   {"llvm-args", '\0', OPT_ARG_REQUIRED, OPT_LLVM_ARGS},
 #endif
 
+  {"mutate", '\0', OPT_ARG_NONE, OPT_MUTATE},
+  {"mutate-operators", '\0', OPT_ARG_REQUIRED, OPT_MUTATE_OPERATORS},
+  {"mutate-scope", '\0', OPT_ARG_REQUIRED, OPT_MUTATE_SCOPE},
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
   {"antlrraw", '\0', OPT_ARG_NONE, OPT_ANTLRRAW},
@@ -119,6 +126,112 @@ static opt_arg_t std_args[] =
 
 opt_arg_t* ponyc_opt_std_args(void) {
   return std_args;
+}
+
+static uint8_t parse_mutate_operators(const char* val)
+{
+  if(*val == '\0')
+  {
+    fprintf(stderr,
+      "Error: --mutate-operators requires at least one category."
+      " Valid: aor, bor, ror, sor, uoi\n");
+    return 0;
+  }
+
+  uint8_t mask = 0;
+  const char* p = val;
+
+  while(*p != '\0')
+  {
+    const char* start = p;
+    while(*p != ',' && *p != '\0')
+      p++;
+    size_t len = (size_t)(p - start);
+
+    if((len == 3) && (strncmp(start, "aor", 3) == 0))
+      mask |= MUTATE_OP_AOR;
+    else if((len == 3) && (strncmp(start, "bor", 3) == 0))
+      mask |= MUTATE_OP_BOR;
+    else if((len == 3) && (strncmp(start, "ror", 3) == 0))
+      mask |= MUTATE_OP_ROR;
+    else if((len == 3) && (strncmp(start, "sor", 3) == 0))
+      mask |= MUTATE_OP_SOR;
+    else if((len == 3) && (strncmp(start, "uoi", 3) == 0))
+      mask |= MUTATE_OP_UOI;
+    else
+    {
+      fprintf(stderr, "Error: unknown mutation category '");
+      fwrite(start, 1, len, stderr);
+      fprintf(stderr, "'. Valid: aor, bor, ror, sor, uoi\n");
+      return 0;
+    }
+
+    if(*p == ',')
+      p++;
+  }
+
+  return mask;
+}
+
+static bool parse_mutate_scope(pass_opt_t* opt, const char* val)
+{
+  const char* colon = strrchr(val, ':');
+  size_t start_line = 0;
+  size_t end_line = 0;
+  size_t file_len;
+
+  if(colon != NULL)
+  {
+    size_t s, e;
+    if(sscanf(colon + 1, "%zu-%zu", &s, &e) == 2)
+    {
+      start_line = s;
+      end_line = e;
+      file_len = (size_t)(colon - val);
+    }
+    else if(sscanf(colon + 1, "%zu", &s) == 1)
+    {
+      start_line = s;
+      end_line = s;
+      file_len = (size_t)(colon - val);
+    }
+    else
+    {
+      file_len = strlen(val);
+    }
+  }
+  else
+  {
+    file_len = strlen(val);
+  }
+
+  char* file = (char*)ponyint_pool_alloc_size(file_len + 1);
+  memcpy(file, val, file_len);
+  file[file_len] = '\0';
+
+  size_t idx = opt->mutate_scope_count;
+  opt->mutate_scope_count++;
+  size_t new_size = opt->mutate_scope_count * sizeof(mutate_scope_t);
+
+  if(idx == 0)
+  {
+    opt->mutate_scopes =
+      (mutate_scope_t*)ponyint_pool_alloc_size(new_size);
+  }
+  else
+  {
+    size_t old_size = idx * sizeof(mutate_scope_t);
+    mutate_scope_t* new_buf =
+      (mutate_scope_t*)ponyint_pool_alloc_size(new_size);
+    memcpy(new_buf, opt->mutate_scopes, old_size);
+    ponyint_pool_free_size(old_size, opt->mutate_scopes);
+    opt->mutate_scopes = new_buf;
+  }
+
+  opt->mutate_scopes[idx].file = file;
+  opt->mutate_scopes[idx].start_line = start_line;
+  opt->mutate_scopes[idx].end_line = end_line;
+  return true;
 }
 
 static void usage(void)
@@ -179,6 +292,12 @@ static void usage(void)
     "  --fat-lto        Use full LTO (default; best optimisation, slower compile).\n"
     "  --thin-lto       Use ThinLTO (faster compile, slightly less\n"
     "                   optimisation).\n"
+    "  --mutate         Enable mutation testing instrumentation.\n"
+    "  --mutate-operators Comma-separated list of mutation categories to\n"
+    "    =aor,ror,...   instrument (aor, bor, ror, sor, uoi). Default: all.\n"
+    "  --mutate-scope   Restrict mutation to a source file, optionally with\n"
+    "    =file[:s[-e]]  a line range (e.g. src/foo.pony:30-80 or :42).\n"
+    "                   Repeatable.\n"
     "  --define, -D     Set a compile time definition.\n"
 #ifndef NDEBUG
     "  --llvm-args      Pass LLVM-specific arguments.\n"
@@ -349,6 +468,19 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         break;
       case OPT_FAT_LTO: opt->fat_lto = true; break;
       case OPT_THIN_LTO: opt->fat_lto = false; break;
+      case OPT_MUTATE: opt->mutate = true; break;
+      case OPT_MUTATE_OPERATORS:
+      {
+        uint8_t mask = parse_mutate_operators(s->arg_val);
+        if(mask == 0)
+          exit_code = EXIT_255;
+        else
+          opt->mutate_operators = mask;
+        break;
+      }
+      case OPT_MUTATE_SCOPE:
+        parse_mutate_scope(opt, s->arg_val);
+        break;
       case OPT_AST: *print_program_ast = true; break;
       case OPT_ASTMODULE: *print_module_ast = true; break;
       case OPT_TRACE: opt->parse_trace = true; break;
