@@ -181,6 +181,12 @@ static bool parse_mutate_scope(pass_opt_t* opt, const char* val)
       end_line = e;
       file_len = (size_t)(colon - val);
     }
+    else if(sscanf(colon + 1, "%zu", &s) == 1)
+    {
+      start_line = s;
+      end_line = s;
+      file_len = (size_t)(colon - val);
+    }
     else
     {
       file_len = strlen(val);
@@ -282,7 +288,8 @@ static void usage(void)
     "  --mutate-operators Comma-separated list of mutation categories to\n"
     "    =aor,ror,...   instrument (aor, bor, ror, sor, uoi). Default: all.\n"
     "  --mutate-scope   Restrict mutation to a source file, optionally with\n"
-    "    =file[:s-e]    a line range (e.g. src/foo.pony:30-80). Repeatable.\n"
+    "    =file[:s[-e]]  a line range (e.g. src/foo.pony:30-80 or :42).\n"
+    "                   Repeatable.\n"
     "  --define, -D     Set a compile time definition.\n"
 #ifndef NDEBUG
     "  --llvm-args      Pass LLVM-specific arguments.\n"
