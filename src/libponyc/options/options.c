@@ -130,6 +130,14 @@ opt_arg_t* ponyc_opt_std_args(void) {
 
 static uint8_t parse_mutate_operators(const char* val)
 {
+  if(*val == '\0')
+  {
+    fprintf(stderr,
+      "Error: --mutate-operators requires at least one category."
+      " Valid: aor, bor, ror, sor, uoi\n");
+    return 0;
+  }
+
   uint8_t mask = 0;
   const char* p = val;
 
