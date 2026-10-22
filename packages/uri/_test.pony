@@ -22,6 +22,8 @@ actor \nodoc\ Main is TestList
     test.property(_PropertyURIRoundtrip)
     test.property(_PropertyInvalidSchemeRejected)
     test(_TestParseURIKnownGood)
+    test(_TestURIStringDoubleSlashPath)
+    test(_TestURIStringColonInFirstSegment)
 
     // Authority parsing tests
     test.property(_PropertyAuthorityRoundtrip)

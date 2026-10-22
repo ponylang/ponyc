@@ -484,6 +484,14 @@ class \nodoc\ iso _TestNormalizeURIKnownGood is UnitTest
     _assert_normalize(
       h, "http://host%2Aname.example/", "http://host%2Aname.example/")
 
+    // -- §3.3: path starting "//" without authority --
+    _assert_normalize(
+      h, "http:/.//evil.com/p", "http:/.//evil.com/p")
+
+    // -- §3.3: colon in first segment of relative-path reference --
+    _assert_normalize(
+      h, "./foo:bar", "./foo:bar")
+
     // -- Combined 6.2.2 + 6.2.3 --
     _assert_normalize(
       h,
@@ -742,6 +750,7 @@ primitive \nodoc\ _NormalizableURIInputGenerator
         ""
         "/"
         "/a/b/c"
+        "//evil.com"
       ])
 
   fun _query_or_frag_gen(): Generator[(String val | None)] =>

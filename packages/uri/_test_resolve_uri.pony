@@ -300,6 +300,13 @@ class \nodoc\ iso _TestResolveURIEdgeCases is UnitTest
       "../c",
       "http://user@example.com:8080/c")
 
+    // Relative reference producing path starting "//" without authority
+    _AssertResolve(
+      h,
+      "http:/x",
+      ".//evil.com/p",
+      "http:/.//evil.com/p")
+
     // Non-absolute base rejected
     match \exhaustive\ ParseURI("/relative/path")
     | let base: URI val =>

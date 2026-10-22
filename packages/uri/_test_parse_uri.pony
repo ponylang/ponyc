@@ -328,6 +328,92 @@ class \nodoc\ iso _TestParseURIKnownGood is UnitTest
       h.fail("parse failed for " + input + ": " + err.string())
     end
 
+class \nodoc\ iso _TestURIStringDoubleSlashPath is UnitTest
+  """
+  URI.string() prefixes "/." when authority is absent and path starts "//",
+  per RFC 3986 section 3.3.
+  """
+  fun name(): String => "uri/uri/string_double_slash_path"
+
+  fun ref apply(h: TestHelper) =>
+    // Scheme present, no authority, path starts "//"
+    h.assert_eq[String val](
+      "http:/.//evil.com/p",
+      URI("http", None, "//evil.com/p", None, None).string())
+
+    // No scheme, no authority, path starts "//"
+    h.assert_eq[String val](
+      "/.//foo",
+      URI(None, None, "//foo", None, None).string())
+
+    // With authority — no prefix needed
+    h.assert_eq[String val](
+      "http://host//path",
+      URI(
+        "http",
+        URIAuthority(None, "host", None),
+        "//path",
+        None,
+        None).string())
+
+    // Path starts "/" but not "//" — no prefix
+    h.assert_eq[String val](
+      "http:/path",
+      URI("http", None, "/path", None, None).string())
+
+    // Empty path — no prefix
+    h.assert_eq[String val](
+      "http:",
+      URI("http", None, "", None, None).string())
+
+    // Minimal triggering path — exactly "//"
+    h.assert_eq[String val](
+      "http:/.//",
+      URI("http", None, "//", None, None).string())
+
+    // With query and fragment
+    h.assert_eq[String val](
+      "http:/.//x?q=1#frag",
+      URI("http", None, "//x", "q=1", "frag").string())
+
+class \nodoc\ iso _TestURIStringColonInFirstSegment is UnitTest
+  """
+  URI.string() prefixes "./" when scheme and authority are absent and the
+  first path segment contains ":", per RFC 3986 section 3.3.
+  """
+  fun name(): String => "uri/uri/string_colon_in_first_segment"
+
+  fun ref apply(h: TestHelper) =>
+    // No scheme, no authority, first segment contains ":"
+    h.assert_eq[String val](
+      "./foo:bar",
+      URI(None, None, "foo:bar", None, None).string())
+
+    // With scheme — no prefix needed
+    h.assert_eq[String val](
+      "http:foo:bar",
+      URI("http", None, "foo:bar", None, None).string())
+
+    // Colon in second segment — no prefix needed
+    h.assert_eq[String val](
+      "foo/bar:baz",
+      URI(None, None, "foo/bar:baz", None, None).string())
+
+    // Absolute path with colon — no prefix needed
+    h.assert_eq[String val](
+      "/foo:bar",
+      URI(None, None, "/foo:bar", None, None).string())
+
+    // With query and fragment
+    h.assert_eq[String val](
+      "./foo:bar?q#f",
+      URI(None, None, "foo:bar", "q", "f").string())
+
+    // Empty path — no prefix
+    h.assert_eq[String val](
+      "",
+      URI(None, None, "", None, None).string())
+
 // -- Generators --
 class \nodoc\ val _ValidURIInput
   let scheme: (String | None)
