@@ -170,7 +170,17 @@ actor Runner
     _reporter.report(results', _env)
     match _json_file
     | let path: String val =>
-      StrykerReporter.write_file(results', path, _env)
+      if not StrykerReporter.write_file(results', path, _env) then
+        _env.exitcode(1)
+        return
+      end
+    end
+
+    for o in results'.values() do
+      if o.result is MutantSurvived then
+        _env.exitcode(1)
+        return
+      end
     end
 
   fun _strip_mutant_id(vars: Array[String] val): Array[String] val =>

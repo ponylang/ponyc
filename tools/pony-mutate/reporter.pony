@@ -16,7 +16,7 @@ primitive TerminalReporter is Reporter
 
   fun report(outcomes: Array[MutantOutcome] val, env: Env) =>
     """
-    Print the terminal report and set exit code 1 if mutants survived.
+    Print the terminal report.
     """
     var killed: USize = 0
     var survived: USize = 0
@@ -74,10 +74,6 @@ primitive TerminalReporter is Reporter
             "  " + o.mutant.original +
             " -> " + o.mutant.replacement)
       end
-    end
-
-    if survived > 0 then
-      env.exitcode(1)
     end
 
   fun _pct(n: USize, total: USize): String val =>

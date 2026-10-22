@@ -11,25 +11,21 @@ primitive StrykerReporter is Reporter
     Print the Stryker JSON report to stdout.
     """
     env.out.print(_build(outcomes))
-    for o in outcomes.values() do
-      if o.result is MutantSurvived then
-        env.exitcode(1)
-        return
-      end
-    end
 
   fun write_file(
     outcomes: Array[MutantOutcome] val,
     path: String val,
     env: Env)
+    : Bool
   =>
     let fp = FilePath(FileAuth(env.root), path)
     match CreateFile(fp)
     | let file: File =>
       file.print(_build(outcomes))
+      true
     else
       env.err.print("error: cannot write " + path)
-      env.exitcode(1)
+      false
     end
 
   fun _build(outcomes: Array[MutantOutcome] val): String iso^ =>
