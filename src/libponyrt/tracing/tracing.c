@@ -58,6 +58,7 @@ typedef enum
   TRACING_CATEGORY_ACTOR_STATE_CHANGE = 1 << 5,
   TRACING_CATEGORY_SYSTEMATIC_TESTING = 1 << 6,
   TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS = 1 << 7,
+  TRACING_CATEGORY_RUNTIME = 1 << 8,
 } tracing_category_t;
 
 typedef enum
@@ -104,6 +105,9 @@ typedef enum
   TRACING_MSG_SYSTEMATIC_TESTING_WAITING_TO_START_END,
   TRACING_MSG_SYSTEMATIC_TESTING_TIMESLICE_BEGIN,
   TRACING_MSG_SYSTEMATIC_TESTING_TIMESLICE_END,
+  TRACING_MSG_RUNTIME_INIT,
+  TRACING_MSG_RUNTIME_START,
+  TRACING_MSG_RUNTIME_SHUTDOWN,
   TRACING_MSG_FLIGHT_RECORDER_DUMP,
 } tracing_msg_type_t;
 
@@ -576,6 +580,27 @@ typedef struct tracing_systematic_testing_timeslice_end_t
   uint64_t thread_id;
   uint64_t ts;
 } tracing_systematic_testing_timeslice_end_t;
+
+typedef struct tracing_runtime_init_t
+{
+  pony_msg_t msg;
+  uint64_t ts;
+  uint32_t scheduler_count;
+  uint32_t min_scheduler_count;
+} tracing_runtime_init_t;
+
+typedef struct tracing_runtime_start_t
+{
+  pony_msg_t msg;
+  uint64_t ts;
+} tracing_runtime_start_t;
+
+typedef struct tracing_runtime_shutdown_t
+{
+  pony_msg_t msg;
+  uint64_t ts;
+  int exit_code;
+} tracing_runtime_shutdown_t;
 
 typedef struct tracing_flight_recorder_dump_t
 {
@@ -1109,6 +1134,8 @@ static char* get_tracing_category_string(tracing_category_t category)
       return "systematic_testing";
     case TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS:
       return "systematic_testing_details";
+    case TRACING_CATEGORY_RUNTIME:
+      return "runtime";
     default:
       pony_assert(0);
       return NULL;
@@ -2241,12 +2268,54 @@ void ponyint_tracing_systematic_testing_timeslice_end()
   send_trace_message((pony_msg_t*)m);
 }
 
+void ponyint_tracing_runtime_init(uint32_t scheduler_count,
+  uint32_t min_scheduler_count)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_RUNTIME))
+    return;
 
+  tracing_runtime_init_t* m = (tracing_runtime_init_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_runtime_init_t)), TRACING_MSG_RUNTIME_INIT);
+
+  m->ts = get_time_nanos();
+  m->scheduler_count = scheduler_count;
+  m->min_scheduler_count = min_scheduler_count;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
+void ponyint_tracing_runtime_start()
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_RUNTIME))
+    return;
+
+  tracing_runtime_start_t* m = (tracing_runtime_start_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_runtime_start_t)), TRACING_MSG_RUNTIME_START);
+
+  m->ts = get_time_nanos();
+
+  send_trace_message((pony_msg_t*)m);
+}
+
+void ponyint_tracing_runtime_shutdown(int exit_code)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_RUNTIME))
+    return;
+
+  tracing_runtime_shutdown_t* m = (tracing_runtime_shutdown_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_runtime_shutdown_t)),
+    TRACING_MSG_RUNTIME_SHUTDOWN);
+
+  m->ts = get_time_nanos();
+  m->exit_code = exit_code;
+
+  send_trace_message((pony_msg_t*)m);
+}
 
 static void print_header(uint64_t thread_id)
 {
   fprintf(log_file, "[\n");
-  fprintf(log_file, "{\"name\":\"%s\",\"ts\":%" PRIu64 ",\"cat\":\"tracing\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{ \"categories_enabled\":[\"tracing\"%s%s%s%s%s%s%s%s]}}",
+  fprintf(log_file, "{\"name\":\"%s\",\"ts\":%" PRIu64 ",\"cat\":\"tracing\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{ \"categories_enabled\":[\"tracing\"%s%s%s%s%s%s%s%s%s]}}",
     "start_trace", convert_time_nanos_to_micros(get_time_nanos()), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, thread_id,
     get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_PROCESS),
     (tracing_category_enabled(TRACING_CATEGORY_ACTOR) ? ",\"actor\"" : ""),
@@ -2256,7 +2325,8 @@ static void print_header(uint64_t thread_id)
     (tracing_category_enabled(TRACING_CATEGORY_SCHEDULER) ? ",\"scheduler\"" : ""),
     (tracing_category_enabled(TRACING_CATEGORY_SCHEDULER_MESSAGING) ? ",\"scheduler_messaging\"" : ""),
     (tracing_category_enabled(TRACING_CATEGORY_SYSTEMATIC_TESTING) ? ",\"systematic_testing\"" : ""),
-    (tracing_category_enabled(TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS) ? ",\"systematic_testing_details\"" : ""));
+    (tracing_category_enabled(TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS) ? ",\"systematic_testing_details\"" : ""),
+    (tracing_category_enabled(TRACING_CATEGORY_RUNTIME) ? ",\"runtime\"" : ""));
 }
 
 static void print_footer(uint64_t thread_id)
@@ -2916,6 +2986,55 @@ static void handle_message(pony_msg_t* msg)
       fprintf(log_file, ",\n{\"name\":\"systematic_testing_timeslice\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 "}", convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS), get_tracing_event_string(TRACING_EVENT_END), pid, m->thread_id);
       break;
     }
+    case TRACING_MSG_RUNTIME_INIT:
+    {
+      tracing_runtime_init_t* m = (tracing_runtime_init_t*)msg;
+      fprintf(log_file,
+        ",\n{\"name\":\"runtime_init\",\"ts\":%" PRIu64
+        ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":0"
+        ",\"s\":\"%s\",\"args\":{\"scheduler_count\":%u"
+        ",\"min_scheduler_count\":%u}}",
+        convert_time_nanos_to_micros(m->ts),
+        get_tracing_category_string(TRACING_CATEGORY_RUNTIME),
+        get_tracing_event_string(TRACING_EVENT_INSTANT),
+        pid,
+        get_tracing_event_instant_scope_string(
+          TRACING_EVENT_INSTANT_SCOPE_GLOBAL),
+        m->scheduler_count,
+        m->min_scheduler_count);
+      break;
+    }
+    case TRACING_MSG_RUNTIME_START:
+    {
+      tracing_runtime_start_t* m = (tracing_runtime_start_t*)msg;
+      fprintf(log_file,
+        ",\n{\"name\":\"runtime_start\",\"ts\":%" PRIu64
+        ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":0"
+        ",\"s\":\"%s\"}",
+        convert_time_nanos_to_micros(m->ts),
+        get_tracing_category_string(TRACING_CATEGORY_RUNTIME),
+        get_tracing_event_string(TRACING_EVENT_INSTANT),
+        pid,
+        get_tracing_event_instant_scope_string(
+          TRACING_EVENT_INSTANT_SCOPE_GLOBAL));
+      break;
+    }
+    case TRACING_MSG_RUNTIME_SHUTDOWN:
+    {
+      tracing_runtime_shutdown_t* m = (tracing_runtime_shutdown_t*)msg;
+      fprintf(log_file,
+        ",\n{\"name\":\"runtime_shutdown\",\"ts\":%" PRIu64
+        ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":0"
+        ",\"s\":\"%s\",\"args\":{\"exit_code\":%d}}",
+        convert_time_nanos_to_micros(m->ts),
+        get_tracing_category_string(TRACING_CATEGORY_RUNTIME),
+        get_tracing_event_string(TRACING_EVENT_INSTANT),
+        pid,
+        get_tracing_event_instant_scope_string(
+          TRACING_EVENT_INSTANT_SCOPE_GLOBAL),
+        m->exit_code);
+      break;
+    }
     case TRACING_MSG_FLIGHT_RECORDER_DUMP:
     {
       if(strcmp(output_file, "-") == 0)
@@ -3220,6 +3339,9 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
 
       if(tracing_category_matches(token, "systematic_testing_details"))
         enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS;
+
+      if(tracing_category_matches(token, "runtime"))
+        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_RUNTIME;
 
       token = strtok(NULL, ",");
     }
