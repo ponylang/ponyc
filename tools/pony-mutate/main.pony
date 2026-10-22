@@ -24,7 +24,7 @@ actor Main
               "Skip the baseline run"
               where default' = false)
             OptionSpec.string(
-              "output",
+              "format",
               "Report format: terminal or json"
               where default' = "terminal")
             OptionSpec.string(
@@ -118,7 +118,7 @@ actor Main
       let timeout_mult = cmd.option("timeout").u64()
       let do_baseline = not cmd.option("no-baseline").bool()
 
-      let output_format = cmd.option("output").string()
+      let output_format = cmd.option("format").string()
       let json_file = cmd.option("json-file").string()
 
       let reporter: Reporter val =
