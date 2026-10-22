@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add runtime lifecycle tracing events ([PR #6368](https://github.com/ponylang/ponyc/pull/6368))
 
 ### Changed
 
