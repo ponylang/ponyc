@@ -43,7 +43,7 @@ primitive \nodoc\ _IRegexpGen
     if depth == 0 then
       return _gen_atom(rnd)
     end
-    match rnd.usize(0, 6)
+    match rnd.usize(0, 7)
     | 0 => _gen_atom(rnd)
     | 1 => _gen(rnd, depth - 1) + "|" + _gen(rnd, depth - 1)
     | 2 => _gen_atom(rnd) + _gen_atom(rnd)
@@ -51,6 +51,7 @@ primitive \nodoc\ _IRegexpGen
     | 4 => _gen_atom(rnd) + _gen_quant_nonempty(rnd)
     | 5 => _gen(rnd, depth - 1) + _gen_atom(rnd)
     | 6 => _gen_atom(rnd) + _gen(rnd, depth - 1)
+    | 7 => _gen(rnd, depth - 1) + _gen(rnd, depth - 1)
     else _gen_atom(rnd)
     end
 
