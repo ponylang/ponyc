@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.77.1] - 2026-10-22
 
 ### Fixed
 
@@ -49,9 +49,6 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add GNU Info backend to pony-doc ([PR #6310](https://github.com/ponylang/ponyc/pull/6310))
-
-### Changed
-
 
 ## [0.77.0] - 2026-10-17
 
