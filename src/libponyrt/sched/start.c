@@ -397,6 +397,8 @@ PONY_API int pony_init(int argc, char** argv)
 
   ponyint_cycle_create(ctx, opt.cd_detect_interval, TRACING_FORCE_CYCLE_DETECTOR_TRACING);
 
+  TRACING_RUNTIME_INIT(opt.threads, opt.min_threads);
+
   return argc;
 }
 
@@ -438,6 +440,8 @@ PONY_API bool pony_start(int* exit_code,
   if(!TRACING_START())
     return false;
 
+  TRACING_RUNTIME_START();
+
   if(!ponyint_sched_start())
     return false;
 
@@ -445,6 +449,8 @@ PONY_API bool pony_start(int* exit_code,
     ponyint_os_sockets_final();
 
   int ec = pony_get_exitcode();
+
+  TRACING_RUNTIME_SHUTDOWN(ec);
 
   if(exit_code != NULL)
     *exit_code = ec;
