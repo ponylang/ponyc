@@ -162,6 +162,8 @@ class val _FilterSelector
   new val create(expr': _LogicalExpr) =>
     _expr = expr'
 
+  fun expr(): _LogicalExpr => _expr
+
   fun select(node: JSONValue, root: JSONValue, out: Array[JSONValue] ref) =>
     match node
     | let arr: JSONArray =>

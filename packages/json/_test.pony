@@ -84,14 +84,17 @@ actor \nodoc\ Main is TestList
     test(_TestJSONPathDeepOrLastTrue)
     test(_TestJSONPathEvalNestedFilterQuery)
     test(_TestJSONPathParseErrorAtDepth)
-    // Registered by the fix for #5606 (need iterative parse/eval to pass):
-    // test(_TestJSONPathEvalDeeplyNestedAnd)
-    // test(_TestJSONPathEvalDeeplyNestedMixedLogical)
-    // test(_TestJSONPathEvalDeeplyNestedNot)
-    // test(_TestJSONPathEvalDeeplyNestedOr)
-    // test(_TestJSONPathParseDeeplyNestedFilters)
-    // test(_TestJSONPathParseDeeplyNestedFunctions)
-    // test(_TestJSONPathParseDeeplyNestedParens)
+    test(_TestJSONPathEvalDeeplyNestedAnd)
+    test(_TestJSONPathEvalDeeplyNestedMixedLogical)
+    test(_TestJSONPathEvalDeeplyNestedNot)
+    test(_TestJSONPathEvalDeeplyNestedOr)
+    test(_TestJSONPathParseDeeplyNestedAbsFilters)
+    test(_TestJSONPathParseDeeplyNestedFilters)
+    test(_TestJSONPathParseDeeplyNestedFunctions)
+    test(_TestJSONPathParseDeeplyNestedMemberFilters)
+    test(_TestJSONPathParseDeeplyNestedParens)
+    test(_TestJSONPathParseDepthLimit)
+    test(_TestJSONPathDeepOrFirstTrue)
     test(_TestTokenParserPositions)
     test(_TestTokenParserEndPosition)
     test(_TestTokenParserStringPosition)
@@ -2984,11 +2987,10 @@ class \nodoc\ iso _TestJSONPathFilterDeeplyNested is UnitTest
 class \nodoc\ iso _TestJSONPathParseDeeplyNestedParens is UnitTest
   """
   Parse-time stack safety for nested parenthesized filter expressions.
-  Exercises the `_parse_paren_expr` → `_parse_logical_or_expr` →
-  `_parse_logical_and_expr` → `_parse_basic_expr` → `_parse_paren_expr`
-  recursion cycle at a depth that overflows native recursion. Parentheses
-  produce no extra AST nodes (each level just wraps and unwraps), so the
-  query step is a correctness check, not eval stack safety.
+  `_parse_basic_expr` consumes consecutive open-parens iteratively; at
+  this depth, native recursion through the expression parser would
+  overflow. Parentheses produce no extra AST nodes, so the query step
+  is a correctness check, not eval stack safety.
   """
   fun name(): String => "json/jsonpath/parse/deeply-nested-parens"
 
@@ -3042,6 +3044,67 @@ class \nodoc\ iso _TestJSONPathParseDeeplyNestedFilters is UnitTest
       h.fail("parse failed: " + e.string())
     end
 
+class \nodoc\ iso _TestJSONPathParseDeeplyNestedAbsFilters is UnitTest
+  """
+  Parse-time and eval-time stack safety for `$[?$[?...$[?@.a]...]]` chains.
+  All but the innermost level wrap `ExistenceExpr(AbsFilterQuery(...))`, which
+  always evaluates against the document root regardless of document depth.
+  Both parsing and evaluation handle these chains iteratively.
+  """
+  fun name(): String => "json/jsonpath/parse/deeply-nested-abs-filters"
+
+  fun apply(h: TestHelper) =>
+    let depth = _DeepNestingDepth()
+    // $[?$[?$[?...$[?@.a]...]]] — N-1 absolute levels, innermost relative
+    var s = recover iso String(1 + (depth * 3) + 2 + depth) end
+    s.push('$')
+    var i: USize = 0
+    while i < (depth - 1) do s.append("[?$"); i = i + 1 end
+    s.append("[?@.a")
+    i = 0
+    while i < depth do s.push(']'); i = i + 1 end
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      // The innermost @.a tests each root element for field "a". The
+      // absolute-query chain makes the result invariant across all outer
+      // levels, so if root has any matching element, every level is true.
+      let doc = JSONArray.push(JSONObject.update("a", I64(1)))
+      let r = p.query(doc)
+      h.assert_eq[USize](1, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathParseDeeplyNestedMemberFilters is UnitTest
+  """
+  Parse-time stack safety for `@.x[?@.x[?...@.x.a...]]` chains with
+  intervening member-access segments. The iterative parser detects leading
+  segments between `@`/`$` and `[?` and includes them in the AST.
+  """
+  fun name(): String => "json/jsonpath/parse/deeply-nested-member-filters"
+
+  fun apply(h: TestHelper) =>
+    let depth = _DeepNestingDepth()
+    var s = recover iso String(1 + (depth * 5) + 4 + depth) end
+    s.push('$')
+    var i: USize = 0
+    while i < depth do s.append("[?@.x"); i = i + 1 end
+    s.append(".a")
+    i = 0
+    while i < depth do s.push(']'); i = i + 1 end
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      // Eval on a flat document — the `.x` chain bottoms out immediately,
+      // so the result is empty regardless of query depth.
+      let doc = JSONArray.push(JSONObject.update("a", I64(1)))
+      let r = p.query(doc)
+      h.assert_eq[USize](0, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
 class \nodoc\ iso _TestJSONPathParseDeeplyNestedFunctions is UnitTest
   """
   Parse-time and eval-time stack safety for nested `length()` function calls.
@@ -3074,9 +3137,8 @@ class \nodoc\ iso _TestJSONPathParseDeeplyNestedFunctions is UnitTest
 class \nodoc\ iso _TestJSONPathEvalDeeplyNestedOr is UnitTest
   """
   Eval-time stack safety for a deeply nested left-leaning `_OrExpr` tree.
-  The parser builds `||` chains with a loop, so parsing succeeds; the
-  evaluator recurses on `.left`/`.right`, overflowing on native recursion.
-  The last-disjunct assertion forces full tree traversal (no short-circuit).
+  The parser builds `||` chains with a loop, so parsing is not the concern.
+  `_eval_or` iterates the left spine; without that, the evaluator overflows.
   """
   fun name(): String => "json/jsonpath/eval/deeply-nested-or"
 
@@ -3095,7 +3157,7 @@ class \nodoc\ iso _TestJSONPathEvalDeeplyNestedOr is UnitTest
     let query_str: String val = consume s
     match \exhaustive\ JSONPathParser.parse(query_str)
     | let p: JSONPath =>
-      // Last disjunct matches — forces full tree traversal.
+      // Last source disjunct matches.
       let last_doc = JSONArray
         .push(JSONObject.update("a", I64.from[USize](depth)))
       let r = p.query(last_doc)
@@ -3107,7 +3169,8 @@ class \nodoc\ iso _TestJSONPathEvalDeeplyNestedOr is UnitTest
 class \nodoc\ iso _TestJSONPathEvalDeeplyNestedAnd is UnitTest
   """
   Eval-time stack safety for a deeply nested left-leaning `_AndExpr` tree.
-  All conjuncts are `@.a >= 0`; the all-true case forces full traversal.
+  All conjuncts are `@.a >= 0` (all true), forcing full left-spine traversal
+  with no short-circuit.
   """
   fun name(): String => "json/jsonpath/eval/deeply-nested-and"
 
@@ -3136,9 +3199,10 @@ class \nodoc\ iso _TestJSONPathEvalDeeplyNestedAnd is UnitTest
 class \nodoc\ iso _TestJSONPathEvalDeeplyNestedNot is UnitTest
   """
   Parse-time and eval-time stack safety for deeply nested `_NotExpr` chains.
-  Each `!(` adds a `_NotExpr` wrapper and re-enters through `_parse_paren_expr`.
-  At eval time, `_FilterEval.apply` recurses on each `_NotExpr.expr`.
-  An even nesting depth preserves the inner existence result; odd inverts it.
+  Each `!(` adds a `_NotExpr` wrapper; `_parse_basic_expr` consumes these
+  iteratively. `_eval_not` iterates the chain and counts parity rather than
+  recursing. An even nesting depth preserves the inner existence result;
+  odd inverts it.
   """
   fun name(): String => "json/jsonpath/eval/deeply-nested-not"
 
@@ -3244,10 +3308,10 @@ class \nodoc\ iso _TestJSONPathEvalNestedFilterQuery is UnitTest
 
 class \nodoc\ iso _TestJSONPathDeepAndLastFalse is UnitTest
   """
-  A false value deep in a 1000-term `&&` chain must propagate correctly in
-  the iterative evaluator. All terms are `@.a >= 0` (true) except the last
-  which is `@.missing` (false), so the result is 0. A truncating evaluator
-  that ignores deep terms would return 1 instead.
+  A 1000-term `&&` chain where only the last source term (`@.missing`) is
+  false. The iterative evaluator walks right children outermost-first, so
+  `@.missing` (the outermost right child) is evaluated first. Verifies
+  that a false result propagates correctly through `_eval_and`.
   """
   fun name(): String => "json/jsonpath/eval/deep-and-last-false"
 
@@ -3274,9 +3338,10 @@ class \nodoc\ iso _TestJSONPathDeepAndLastFalse is UnitTest
 
 class \nodoc\ iso _TestJSONPathDeepOrLastTrue is UnitTest
   """
-  A true value deep in a 1000-term `||` chain must propagate correctly in the
-  iterative evaluator. All terms are `@.missing` (false) except the last
-  which is `@.a` (true), so the result is 1. A truncating evaluator returns 0.
+  A 1000-term `||` chain where only the last source term (`@.a`) is true.
+  The iterative evaluator walks right children outermost-first, so `@.a`
+  (the outermost right child) is evaluated first. Verifies that a true
+  result propagates correctly through `_eval_or`.
   """
   fun name(): String => "json/jsonpath/eval/deep-or-last-true"
 
@@ -3391,6 +3456,78 @@ class \nodoc\ iso _TestJSONPathParseErrorAtDepth is UnitTest
     match \exhaustive\ JSONPathParser.parse(consume s3)
     | let _: JSONPathParseError => None
     | let _: JSONPath => h.fail("accepted invalid filter at depth")
+    end
+
+class \nodoc\ iso _TestJSONPathParseDepthLimit is UnitTest
+  """
+  The parser rejects queries that exceed 1024 levels of expression nesting
+  via recursion paths that the iterative rewrites do not cover. Right-nested
+  parens with content (`(@.a==1||(@.a==1||...)`) still recurse through
+  `_parse_logical_or_expr` and hit the depth counter.
+  """
+  fun name(): String => "json/jsonpath/parse/depth-limit"
+
+  fun apply(h: TestHelper) =>
+    let depth: USize = 1500
+
+    // Right-nested parens with content: (@.a==1||(@.a==1||...(@.a==1)...))
+    var s = recover iso String(3 + (depth * 10) + 6 + depth + 1) end
+    s.append("$[?")
+    var i: USize = 0
+    while i < depth do s.append("(@.a==1||"); i = i + 1 end
+    s.append("@.a==1")
+    i = 0
+    while i < depth do s.push(')'); i = i + 1 end
+    s.push(']')
+    match \exhaustive\ JSONPathParser.parse(consume s)
+    | let _: JSONPathParseError => None
+    | let _: JSONPath =>
+      h.fail("accepted right-nested parens past depth limit")
+    end
+
+    // Verify that queries at the limit still parse. The enclosing filter
+    // selector uses one depth level, so 1023 paren levels reach exactly 1024.
+    var s2 = recover iso String(3 + (1023 * 10) + 6 + 1023 + 1) end
+    s2.append("$[?")
+    i = 0
+    while i < 1023 do s2.append("(@.a==1||"); i = i + 1 end
+    s2.append("@.a==1")
+    i = 0
+    while i < 1023 do s2.push(')'); i = i + 1 end
+    s2.push(']')
+    match \exhaustive\ JSONPathParser.parse(consume s2)
+    | let p: JSONPath => None
+    | let e: JSONPathParseError =>
+      h.fail("rejected query at depth 1024: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathDeepOrFirstTrue is UnitTest
+  """
+  A 1000-term `||` chain where only the first source term (`@.a`) is true.
+  The parser places it at the leftmost leaf of the `_OrExpr` tree, so
+  `_eval_or` must walk the entire left spine (evaluating every right child
+  as false) before reaching it. Verifies full traversal with no truncation.
+  """
+  fun name(): String => "json/jsonpath/eval/deep-or-first-true"
+
+  fun apply(h: TestHelper) =>
+    let depth: USize = 1000
+    var s = recover iso String(3 + (depth * 16) + 1) end
+    s.append("$[?@.a")
+    var i: USize = 1
+    while i < depth do
+      s.append(" || @.missing")
+      i = i + 1
+    end
+    s.push(']')
+    let query_str: String val = consume s
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
+      let doc = JSONArray.push(JSONObject.update("a", I64(1)))
+      let r = p.query(doc)
+      h.assert_eq[USize](1, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
     end
 
 class \nodoc\ iso _TestTokenParserPositions is UnitTest

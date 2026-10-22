@@ -1,6 +1,11 @@
 class ref _JSONPathParser
   """
-  Internal recursive descent parser for JSONPath expressions.
+  Internal parser for JSONPath expressions.
+
+  Parses iteratively where possible (boolean chains, consecutive
+  parentheses, `!(` chains, `@[?`/`$[?`/`@.x[?` filter chains,
+  nested `length()` calls) and uses a recursion depth limit for
+  remaining paths.
 
   Raises on invalid input. The public JSONPathParser.parse() wraps
   this and catches errors, consistent with how JSONParser wraps
@@ -9,6 +14,7 @@ class ref _JSONPathParser
   let _source: String
   var _offset: USize = 0
   var _error_message: String = ""
+  var _expr_depth: USize = 0
 
   new ref create(source': String) =>
     _source = source'
@@ -347,16 +353,114 @@ class ref _JSONPathParser
   fun ref _parse_filter_selector(): _FilterSelector ? =>
     """
     Parse a filter selector: '?' logical-expr.
+
+    Detects chains of filter-existence tests (`@[?`, `$[?`, `@.x[?`,
+    `$.x[?`, and variants with bracket segments) and parses them
+    iteratively, building the AST bottom-up. Without this, each nesting
+    level recurses through the full expression→segment→selector call
+    chain, overflowing the native stack on deeply nested input.
     """
     _advance(1) // consume '?'
     _skip_whitespace()
-    let expr = _parse_logical_or_expr()?
+
+    // Detect nested filter-existence chains iteratively. Each level is
+    // `@` or `$`, followed by zero or more non-filter segments, then
+    // `[?`. We record per-level data (is_rel, leading segments) and
+    // wrap the AST bottom-up after parsing the innermost expression.
+    var nest_is_rel = Array[Bool]
+    var nest_leading = Array[Array[_Segment] val]
+
+    while _looking_at('@') or _looking_at('$') do
+      let save = _offset
+      let is_rel = _looking_at('@')
+      _advance(1) // consume @ or $
+      _skip_whitespace()
+
+      var leading = recover iso Array[_Segment] end
+      var found_filter = false
+
+      try
+        while true do
+          _skip_whitespace()
+          if _offset >= _source.size() then break end
+          if _looking_at('[') then
+            // Peek past '[' and whitespace to check for '?'.
+            let bsave = _offset
+            _advance(1)
+            _skip_whitespace()
+            if _looking_at('?') then
+              _advance(1) // consume '?'
+              _skip_whitespace()
+              found_filter = true
+              break
+            else
+              // Non-filter bracket segment — restore and parse normally.
+              _offset = bsave
+              leading.push(_parse_segment()?)
+            end
+          elseif _looking_at('.') then
+            leading.push(_parse_segment()?)
+          else
+            break
+          end
+        end
+      end
+
+      if found_filter then
+        nest_is_rel.push(is_rel)
+        let val_leading: Array[_Segment] val = consume leading
+        nest_leading.push(val_leading)
+      else
+        _offset = save
+        break
+      end
+    end
+
+    // Parse the innermost filter expression normally.
+    let inner_expr = _parse_logical_or_expr()?
+
+    // Wrap bottom-up: each nesting level closes `]` and wraps the
+    // expression in FilterSelector → ChildSegment → query → ExistenceExpr,
+    // prepending any leading segments parsed at that level.
+    var expr: _LogicalExpr = inner_expr
+    var i = nest_is_rel.size()
+    while i > 0 do
+      i = i - 1
+      let is_rel = try nest_is_rel(i)? else true end
+      let leading =
+        try nest_leading(i)?
+        else recover val Array[_Segment] end
+        end
+      _skip_whitespace()
+      _eat(']')?
+      let sel: _FilterSelector = _FilterSelector(expr)
+      let filter_selectors = recover val [as _Selector: sel] end
+      let filter_segment: _Segment = _ChildSegment(filter_selectors)
+      let all_segments =
+        recover val
+          let arr = Array[_Segment](leading.size() + 1)
+          for s in leading.values() do arr.push(s) end
+          arr.push(filter_segment)
+          arr
+        end
+      let query: _FilterQuery =
+        if is_rel then _RelFilterQuery(all_segments)
+        else _AbsFilterQuery(all_segments)
+        end
+      expr = _ExistenceExpr(query)
+    end
+
     _FilterSelector(expr)
 
   fun ref _parse_logical_or_expr(): _LogicalExpr ? =>
     """
     Parse logical-or: logical-and *('||' logical-and).
     """
+    _expr_depth = _expr_depth + 1
+    if _expr_depth > 1024 then
+      _fail("Expression nesting depth exceeds limit")
+      error
+    end
     var left = _parse_logical_and_expr()?
     while true do
       _skip_whitespace()
@@ -369,6 +473,7 @@ class ref _JSONPathParser
         break
       end
     end
+    _expr_depth = _expr_depth - 1
     left
 
   fun ref _parse_logical_and_expr(): _LogicalExpr ? =>
@@ -393,95 +498,138 @@ class ref _JSONPathParser
     """
     Parse a basic expression: negation, parenthesized, function call,
     query-based (test or comparison), or literal-first comparison.
+
+    Chains of `!(` and consecutive open-parens are consumed iteratively
+    to avoid native-stack overflow on deeply nested query strings.
     """
     _skip_whitespace()
-    if _looking_at('!') then
+
+    // Count and consume `!(` prefix chain iteratively.
+    var not_depth: USize = 0
+    while _looking_at('!') do
+      let save = _offset
       _advance(1)
       _skip_whitespace()
       if _looking_at('(') then
-        // Negated parenthesized expression
-        _NotExpr(_parse_paren_expr()?)
-      elseif _looking_at('@') or _looking_at('$') then
-        // Negated existence test
-        let is_rel = _looking_at('@')
         _advance(1)
-        let segments = _parse_filter_segments()?
-        let query: _FilterQuery =
-          if is_rel then
-            _RelFilterQuery(segments)
-          else
-            _AbsFilterQuery(segments)
-          end
-        _NotExpr(_ExistenceExpr(query))
-      elseif _looking_at_function_name() or _looking_at_general_function() then
-        // Negated function call — only LogicalType functions allowed
-        let func = _parse_function_call()?
-        match func
-        | let m: _MatchExpr => _NotExpr(m)
-        | let s: _SearchExpr => _NotExpr(s)
-        else
-          _fail(
-            "Cannot negate value-returning function" +
-            " — only match() and search() can be negated")
-          error
-        end
+        _skip_whitespace()
+        not_depth = not_depth + 1
       else
-        _fail("Expected '(', '@', '$', or function name after '!'")
-        error
+        _offset = save
+        break
       end
-    elseif _looking_at('(') then
-      _parse_paren_expr()?
-    elseif _looking_at('@') or _looking_at('$') then
-      _parse_test_or_comparison()?
-    elseif _looking_at_function_name() or _looking_at_general_function() then
-      // Function call — LogicalType as test-expr, ValueType as comparison LHS
-      let func = _parse_function_call()?
-      match func
-      | let m: _MatchExpr => m
-      | let s: _SearchExpr => s
-      else
-        // ValueType function — must be left side of a comparison
-        let left: _Comparable =
+    end
+
+    // A bare `!` (not followed by `(`) at the outer level.
+    if (not_depth == 0) and _looking_at('!') then
+      _advance(1)
+      _skip_whitespace()
+      let inner =
+        if _looking_at('@') or _looking_at('$') then
+          let is_rel = _looking_at('@')
+          _advance(1)
+          let segments = _parse_filter_segments()?
+          let query: _FilterQuery =
+            if is_rel then
+              _RelFilterQuery(segments)
+            else
+              _AbsFilterQuery(segments)
+            end
+          _ExistenceExpr(query)
+        elseif
+          _looking_at_function_name() or _looking_at_general_function()
+        then
+          let func = _parse_function_call()?
           match func
-          | let l: _LengthExpr => l
-          | let c: _CountExpr => c
-          | let v: _ValueExpr => v
+          | let m: _MatchExpr => m
+          | let s: _SearchExpr => s
           else
-            _Unreachable(__loc)
+            _fail(
+              "Cannot negate value-returning function" +
+              " — only match() and search() can be negated")
             error
           end
-        _skip_whitespace()
-        if not _looking_at_comparison_op() then
-          _fail(
-            "Value-returning function requires a comparison operator" +
-            " (e.g., length(@.a) > 3)")
+        else
+          _fail("Expected '(', '@', '$', or function name after '!'")
           error
         end
+      return _NotExpr(inner)
+    end
+
+    // Consume consecutive open parens iteratively.
+    var paren_depth: USize = 0
+    while _looking_at('(') do
+      _advance(1)
+      _skip_whitespace()
+      paren_depth = paren_depth + 1
+    end
+
+    // Parse the core expression.
+    // When parens were consumed above, the content is a full logical
+    // expression (may contain || and &&), so delegate to the or-level
+    // parser. Otherwise parse a single basic expression.
+    let core: _LogicalExpr =
+      if (paren_depth > 0) or (not_depth > 0) then
+        _parse_logical_or_expr()?
+      elseif _looking_at('@') or _looking_at('$') then
+        _parse_test_or_comparison()?
+      elseif
+        _looking_at_function_name() or _looking_at_general_function()
+      then
+        let func = _parse_function_call()?
+        match func
+        | let m: _MatchExpr => m
+        | let s: _SearchExpr => s
+        else
+          let left: _Comparable =
+            match func
+            | let l: _LengthExpr => l
+            | let c: _CountExpr => c
+            | let v: _ValueExpr => v
+            else
+              _Unreachable(__loc)
+              error
+            end
+          _skip_whitespace()
+          if not _looking_at_comparison_op() then
+            _fail(
+              "Value-returning function requires a comparison operator" +
+              " (e.g., length(@.a) > 3)")
+            error
+          end
+          let op = _parse_comparison_op()?
+          _skip_whitespace()
+          let right = _parse_comparable()?
+          _ComparisonExpr(left, op, right)
+        end
+      else
+        let left: _Comparable = _parse_literal()?
+        _skip_whitespace()
         let op = _parse_comparison_op()?
         _skip_whitespace()
         let right = _parse_comparable()?
         _ComparisonExpr(left, op, right)
       end
-    else
-      // Must be a literal-first comparison: literal op comparable
-      let left: _Comparable = _parse_literal()?
+
+    // Close the paren levels consumed above.
+    var i: USize = 0
+    while i < paren_depth do
       _skip_whitespace()
-      let op = _parse_comparison_op()?
-      _skip_whitespace()
-      let right = _parse_comparable()?
-      _ComparisonExpr(left, op, right)
+      _eat(')')?
+      i = i + 1
     end
 
-  fun ref _parse_paren_expr(): _LogicalExpr ? =>
-    """
-    Parse '(' logical-expr ')'.
-    """
-    _eat('(')?
-    _skip_whitespace()
-    let expr = _parse_logical_or_expr()?
-    _skip_whitespace()
-    _eat(')')?
-    expr
+    // Wrap in _NotExpr for each `!(` level consumed above.
+    var result: _LogicalExpr = core
+    i = 0
+    while i < not_depth do
+      _skip_whitespace()
+      _eat(')')?
+      result = _NotExpr(result)
+      i = i + 1
+    end
+
+    result
 
   fun ref _parse_test_or_comparison(): _LogicalExpr ? =>
     """
@@ -774,7 +922,8 @@ class ref _JSONPathParser
     Parse a function call: name '(' args ')'.
 
     Dispatches by function name to parse the correct argument types
-    per RFC 9535 Section 2.4.
+    per RFC 9535 Section 2.4. Nested `length(length(...))` chains are
+    consumed iteratively to avoid native-stack overflow.
     """
     let name = _parse_function_name()?
     _eat('(')?
@@ -782,7 +931,23 @@ class ref _JSONPathParser
     let result =
       match \exhaustive\ name
       | "length" =>
-        let arg = _parse_comparable()?
+        // Consume nested length( prefixes iteratively.
+        var length_depth: USize = 1
+        while _looking_at_str("length(") do
+          _advance(7)
+          _skip_whitespace()
+          length_depth = length_depth + 1
+        end
+        let innermost_arg = _parse_comparable()?
+        // Close the inner length() calls and wrap bottom-up.
+        var arg: _Comparable = innermost_arg
+        var li: USize = 1
+        while li < length_depth do
+          _skip_whitespace()
+          _eat(')')?
+          arg = _LengthExpr(arg)
+          li = li + 1
+        end
         let r: (_MatchExpr | _SearchExpr | _LengthExpr
           | _CountExpr | _ValueExpr) = _LengthExpr(arg)
         r
