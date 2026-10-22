@@ -44,6 +44,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix URITemplateParse accepting prefix lengths with leading zeros ([PR #6357](https://github.com/ponylang/ponyc/pull/6357))
 - Fix ParseURI accepting malformed IPv6 literals ([PR #6358](https://github.com/ponylang/ponyc/pull/6358))
 - Fix IRegexpCompiler.parse crashing on deeply nested group patterns ([PR #6363](https://github.com/ponylang/ponyc/pull/6363))
+- Fix JSONPath stack overflow on deeply nested queries ([PR #6365](https://github.com/ponylang/ponyc/pull/6365))
 
 ### Added
 
