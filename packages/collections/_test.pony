@@ -24,6 +24,7 @@ actor \nodoc\ Main is TestList
     test(_TestListsMap)
     test(_TestListsPartition)
     test(_TestListsReverse)
+    test(_TestListsLargeList)
     test(_TestListsRnodes)
     test(_TestListsRvalues)
     test(_TestListsTake)
@@ -564,6 +565,37 @@ class \nodoc\ iso _TestListsReverse is UnitTest
     h.assert_eq[U32](b(0)?, 2)
     h.assert_eq[U32](b(1)?, 1)
     h.assert_eq[U32](b(2)?, 0)
+
+class \nodoc\ iso _TestListsLargeList is UnitTest
+  """
+  Exercises map, flat_map, filter, fold, every, exists, reverse, and contains
+  on a 100k-element list. These methods were once recursive; without iterative
+  implementations a debug build overflows the stack at this size.
+  """
+  fun name(): String => "collections/Lists/large_list"
+
+  fun apply(h: TestHelper) =>
+    let n: USize = 100_000
+    let a = List[USize]
+    var i: USize = 0
+    while i < n do
+      a.push(i)
+      i = i + 1
+    end
+
+    h.assert_eq[USize](a.map[USize]({(x: USize): USize => x }).size(), n)
+    h.assert_eq[USize](
+      a.flat_map[USize]({(x: USize): List[USize] =>
+        List[USize] .> push(x)
+      }).size(), n)
+    h.assert_eq[USize](
+      a.filter({(x: USize): Bool => (x % 2) == 0 }).size(), n / 2)
+    h.assert_eq[USize](
+      a.fold[USize]({(acc: USize, x: USize): USize => acc + 1 }, 0), n)
+    h.assert_eq[Bool](a.every({(x: USize): Bool => x < n }), true)
+    h.assert_eq[Bool](a.exists({(x: USize): Bool => x == (n - 1) }), true)
+    h.assert_eq[USize](a.reverse().size(), n)
+    h.assert_eq[Bool](a.contains[USize](n - 1), true)
 
 class \nodoc\ iso _TestListsRnodes is UnitTest
   fun name(): String => "collections/Lists/rnodes()"
