@@ -60,6 +60,14 @@ PONY_API int64_t ponyint_timegm(date_t* date)
 #endif
 }
 
+// Upper bound for time values passed to gmtime_r/gmtime_s.
+// Windows _gmtime64_s supports only through year 3000.
+#ifdef PLATFORM_IS_WINDOWS
+#define PONYINT_GMTIME_MAX_SEC INT64_C(32535215999)
+#else
+#define PONYINT_GMTIME_MAX_SEC INT64_C(67767976233532799)
+#endif
+
 PONY_API void ponyint_gmtime(date_t* date, int64_t sec, int64_t nsec)
 {
   time_t overflow_sec = (time_t)(nsec / 1000000000);
@@ -71,14 +79,39 @@ PONY_API void ponyint_gmtime(date_t* date, int64_t sec, int64_t nsec)
     overflow_sec--;
   }
 
-  time_t t = (time_t)sec + overflow_sec;
+  // Clamp to avoid signed overflow in the addition and to stay within the
+  // range where gmtime_r succeeds and tm_year + 1900 fits in int.
+  time_t t;
+
+  if((overflow_sec > 0) && (sec > PONYINT_GMTIME_MAX_SEC - overflow_sec))
+    t = (time_t)PONYINT_GMTIME_MAX_SEC;
+  else if((overflow_sec < 0) && (sec < -overflow_sec))
+    t = 0;
+  else
+    t = (time_t)sec + overflow_sec;
+
+  if(t > (time_t)PONYINT_GMTIME_MAX_SEC)
+    t = (time_t)PONYINT_GMTIME_MAX_SEC;
 
   struct tm tm;
 
 #ifdef PLATFORM_IS_WINDOWS
-  gmtime_s(&tm, &t);
+  errno_t err = gmtime_s(&tm, &t);
+  if(err != 0)
+  {
+    memset(&tm, 0, sizeof(struct tm));
+    tm.tm_mday = 1;
+    tm.tm_year = 70;
+    tm.tm_wday = 4;
+  }
 #else
-  gmtime_r(&t, &tm);
+  if(gmtime_r(&t, &tm) == NULL)
+  {
+    memset(&tm, 0, sizeof(struct tm));
+    tm.tm_mday = 1;
+    tm.tm_year = 70;
+    tm.tm_wday = 4;
+  }
 #endif
 
   tm_to_date(&tm, (int)nsec, date);
