@@ -287,9 +287,9 @@ class \nodoc\ iso _I64RoundtripProperty is Property[I64]
   fun name(): String => "json/roundtrip/i64"
 
   fun gen(): Generator[I64] =>
-    // Restrict to 18-digit range: values with 19+ digits are promoted to F64
-    // by the parser to avoid silent I64 overflow
-    Generators.i64(-999_999_999_999_999_999, 999_999_999_999_999_999)
+    // Full I64 range: the parser uses overflow detection, so values that fit
+    // I64 stay integer regardless of digit count.
+    Generators.i64(I64.min_value() + 1, I64.max_value())
 
   fun ref property(sample: I64, ph: PropertyHelper) =>
     let s: String val = sample.string()
@@ -613,16 +613,60 @@ class \nodoc\ iso _TestParseNumbers is UnitTest
     else h.fail("large integer failed")
     end
 
-    // The I64/F64 promotion boundary: 18 digits stays an integer, 19 becomes a
-    // float even though it would still fit I64.
+    // 19-digit integers that fit I64 stay integer; those that overflow become
+    // F64.
     match JSONParser.parse("999999999999999999") // 18 nines
     | let j: JSONValue => h.assert_eq[I64](999999999999999999, j as I64)
     else h.fail("18-digit integer failed")
     end
 
-    match JSONParser.parse("1000000000000000000") // 19 digits
-    | let j: JSONValue => h.assert_true((j as F64).finite())
+    match JSONParser.parse("1000000000000000000") // 19 digits, fits I64
+    | let j: JSONValue =>
+      h.assert_eq[I64](1000000000000000000, j as I64)
     else h.fail("19-digit integer failed")
+    end
+
+    match JSONParser.parse("9223372036854775807") // I64.max_value()
+    | let j: JSONValue =>
+      h.assert_eq[I64](I64.max_value(), j as I64)
+    else h.fail("I64.max_value() failed")
+    end
+
+    match JSONParser.parse("9223372036854775808") // I64.max_value() + 1
+    | let j: JSONValue =>
+      let f = j as F64
+      h.assert_true(f.finite())
+      h.assert_true(f > 9.22e18)
+    else h.fail("I64.max_value()+1 failed")
+    end
+
+    match JSONParser.parse("-9223372036854775807") // -(I64.max_value())
+    | let j: JSONValue =>
+      h.assert_eq[I64](-9223372036854775807, j as I64)
+    else h.fail("negative 19-digit integer failed")
+    end
+
+    // I64.min_value() has magnitude I64.max_value() + 1, which overflows the
+    // positive accumulator and becomes F64. The F64 is exact (it's -2^63).
+    match JSONParser.parse("-9223372036854775808")
+    | let j: JSONValue =>
+      let f = j as F64
+      h.assert_true(f.finite())
+      h.assert_true(f < -9.22e18)
+    else h.fail("I64.min_value() failed")
+    end
+
+    match JSONParser.parse("9999999999999999999") // 19 nines, overflows I64
+    | let j: JSONValue => h.assert_true((j as F64).finite())
+    else h.fail("19 nines failed")
+    end
+
+    // Round-trip: print then parse preserves I64 value.
+    let rt_val = I64(1000000000000000001)
+    let rt_printed: String val = JSONPrinter.print(rt_val)
+    match JSONParser.parse(rt_printed)
+    | let j: JSONValue => h.assert_eq[I64](rt_val, j as I64)
+    else h.fail("round-trip 1000000000000000001 failed")
     end
 
     // Zero alone is valid

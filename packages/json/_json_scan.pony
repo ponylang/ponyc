@@ -130,7 +130,7 @@ primitive _NumberOutOfRange
 primitive _NumberParse
   """
   Parse a number from its complete text, applying RFC 8259 rules: leading-zero
-  rejection, >18 integer digits force F64, and fraction/exponent handling.
+  rejection, integer-overflow detection, and fraction/exponent handling.
   """
   fun apply(
     s: String box)
@@ -146,15 +146,25 @@ primitive _NumberParse
       i = 1
     end
 
-    // integer part
+    // integer part — values that fit I64 stay integer; overflow forces F64.
     let int_start = i
     var integer: I64 = 0
     var int_digits: USize = 0
+    var int_overflow = false
     try
       while i < n do
         let c = s(i)?
         if (c >= '0') and (c <= '9') then
-          integer = (integer * 10) + (c - '0').i64()
+          if int_overflow then
+            None
+          else
+            try
+              integer =
+                integer.mul_partial(10)?.add_partial((c - '0').i64())?
+            else
+              int_overflow = true
+            end
+          end
           i = i + 1
           int_digits = int_digits + 1
         else
@@ -166,7 +176,7 @@ primitive _NumberParse
     if (int_digits > 1) and (try s(int_start)? == '0' else false end) then
       return _NumberMalformed // leading zero
     end
-    let force_float = int_digits > 18
+    let force_float = int_overflow
 
     // fractional part
     var has_dot = false
