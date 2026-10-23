@@ -552,28 +552,11 @@ class List[A] is ResizableSeq[A]
         {(s: String): String => "m: " + s })
     ```
     """
-    try
-      _map[B](head()?, f, List[B])
-    else
-      List[B]
+    let acc = List[B]
+    for item in values() do
+      acc.push(f(item))
     end
-
-  fun _map[B](
-    ln: this->ListNode[A],
-    f: {(this->A!): B^} box,
-    acc: List[B])
-    : List[B]^
-  =>
-    """
-    Private helper for `map`, recursively working with `ListNode`s.
-    """
-    try acc.push(f(ln()?)) end
-
-    try
-      _map[B](ln.next() as this->ListNode[A], f, acc)
-    else
-      acc
-    end
+    acc
 
   fun flat_map[B](f: {(this->A!): List[B]} box): List[B]^ =>
     """
@@ -591,27 +574,11 @@ class List[A] is ResizableSeq[A]
         })
     ```
     """
-    try
-      _flat_map[B](head()?, f, List[B])
-    else
-      List[B]
+    let acc = List[B]
+    for item in values() do
+      acc.append_list(f(item))
     end
-
-  fun _flat_map[B](
-    ln: this->ListNode[A],
-    f: {(this->A!): List[B]} box,
-    acc: List[B]): List[B]^
-  =>
-    """
-    Private helper for `flat_map`, recursively working with `ListNode`s.
-    """
-    try acc.append_list(f(ln()?)) end
-
-    try
-      _flat_map[B](ln.next() as this->ListNode[A], f, acc)
-    else
-      acc
-    end
+    acc
 
   fun filter(f: {(this->A!): Bool} box): List[this->A!]^ =>
     """
@@ -625,30 +592,11 @@ class List[A] is ResizableSeq[A]
         {(s: String): Bool => s == "b" })
     ```
     """
-    try
-      _filter(head()?, f, List[this->A!])
-    else
-      List[this->A!]
+    let acc = List[this->A!]
+    for item in values() do
+      if f(item) then acc.push(item) end
     end
-
-  fun _filter(
-    ln: this->ListNode[A],
-    f: {(this->A!): Bool} box,
-    acc: List[this->A!]): List[this->A!]
-  =>
-    """
-    Private helper for `filter`, recursively working with `ListNode`s.
-    """
-    try
-      let cur = ln()?
-      if f(cur) then acc.push(cur) end
-    end
-
-    try
-      _filter(ln.next() as this->ListNode[A], f, acc)
-    else
-      acc
-    end
+    acc
 
   fun fold[B](f: {(B!, this->A!): B^} box, acc: B): B =>
     """
@@ -668,33 +616,11 @@ class List[A] is ResizableSeq[A]
         }, "z")
     ```
     """
-    let h =
-      try
-        head()?
-      else
-        return acc
-      end
-
-    _fold[B](h, f, consume acc)
-
-  fun _fold[B](
-    ln: this->ListNode[A],
-    f: {(B!, this->A!): B^} box,
-    acc: B)
-    : B
-  =>
-    """
-    Private helper for `fold`, recursively working with `ListNode`s.
-    """
-    let next_acc: B = try f(acc, ln()?) else consume acc end
-    let h =
-      try
-        ln.next() as this->ListNode[A]
-      else
-        return next_acc
-      end
-
-    _fold[B](h, f, consume next_acc)
+    var cur_acc: B = consume acc
+    for item in values() do
+      cur_acc = f(cur_acc, item)
+    end
+    consume cur_acc
 
   fun every(f: {(this->A!): Bool} box): Bool =>
     """
@@ -706,25 +632,10 @@ class List[A] is ResizableSeq[A]
     let all_z = my_list.every( {(s: String): Bool => s == "z"} ) // false
     ```
     """
-    try
-      _every(head()?, f)
-    else
-      true
+    for item in values() do
+      if not f(item) then return false end
     end
-
-  fun _every(ln: this->ListNode[A], f: {(this->A!): Bool} box): Bool =>
-    """
-    Private helper for `every`, recursively working with `ListNode`s.
-    """
-    try
-      if not f(ln()?) then
-        false
-      else
-        _every(ln.next() as this->ListNode[A], f)
-      end
-    else
-      true
-    end
+    true
 
   fun exists(f: {(this->A!): Bool} box): Bool =>
     """
@@ -736,25 +647,10 @@ class List[A] is ResizableSeq[A]
     let b_exists = my_list.exists( {(s: String): Bool => s == "b"} ) // true
     ```
     """
-    try
-      _exists(head()?, f)
-    else
-      false
+    for item in values() do
+      if f(item) then return true end
     end
-
-  fun _exists(ln: this->ListNode[A], f: {(this->A!): Bool} box): Bool =>
-    """
-    Private helper for `exists`, recursively working with `ListNode`s.
-    """
-    try
-      if f(ln()?) then
-        true
-      else
-        _exists(ln.next() as this->ListNode[A], f)
-      end
-    else
-      false
-    end
+    false
 
   fun partition(
     f: {(this->A!): Bool} box)
@@ -863,23 +759,11 @@ class List[A] is ResizableSeq[A]
     let other_list = my_list.reverse() // ["c"; "b"; "a"]
     ```
     """
-    try
-      _reverse(head()?, List[this->A!])
-    else
-      List[this->A!]
+    let acc = List[this->A!]
+    for item in values() do
+      acc.unshift(item)
     end
-
-  fun _reverse(ln: this->ListNode[A], acc: List[this->A!]): List[this->A!]^ =>
-    """
-    Private helper for `reverse`, recursively working with `ListNode`s.
-    """
-    try acc.unshift(ln()?) end
-
-    try
-      _reverse(ln.next() as this->ListNode[A], acc)
-    else
-      acc
-    end
+    acc
 
   fun contains[B: (A & HasEq[A!] #read) = A](a: box->B): Bool =>
     """
@@ -891,29 +775,10 @@ class List[A] is ResizableSeq[A]
     let contains_b = my_list.contains[String]("b") // true
     ```
     """
-    try
-      _contains[B](head()?, a)
-    else
-      false
+    for item in values() do
+      if a == item then return true end
     end
-
-  fun _contains[B: (A & HasEq[A!] #read) = A](
-    ln: this->ListNode[A],
-    a: box->B)
-    : Bool
-  =>
-    """
-    Private helper for `contains`, recursively working with `ListNode`s.
-    """
-    try
-      if a == ln()? then
-        true
-      else
-        _contains[B](ln.next() as this->ListNode[A], a)
-      end
-    else
-      false
-    end
+    false
 
   fun nodes(): ListNodes[A, this->ListNode[A]]^ =>
     """
