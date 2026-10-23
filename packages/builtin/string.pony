@@ -1608,9 +1608,12 @@ actor Main
     to a 32-bit floating point number ([F32](builtin-F32.md)).
 
     This method errors if this string cannot be parsed to a float,
-    if the result would over- or underflow,
+    if the result would overflow,
     the offset exceeds the size of this string or
     there are leftover characters in the string after conversion.
+
+    Values too small for normal representation are returned as the closest
+    representable value, which may be a subnormal or zero.
 
     Examples:
 
@@ -1627,7 +1630,7 @@ actor Main
       @pony_os_clear_errno()
       let res = @strtof(ptr.offset(index), addressof endp)
       let errno: I32 = @pony_os_errno()
-      if (errno != 0) or (endp != ptr.offset(_size)) then
+      if (endp != ptr.offset(_size)) or ((errno != 0) and res.infinite()) then
         error
       else
         res
@@ -1642,9 +1645,12 @@ actor Main
     to a 64-bit floating point number ([F64](builtin-F64.md)).
 
     This method errors if this string cannot be parsed to a float,
-    if the result would over- or underflow,
+    if the result would overflow,
     the offset exceeds the size of this string or
     there are leftover characters in the string after conversion.
+
+    Values too small for normal representation are returned as the closest
+    representable value, which may be a subnormal or zero.
 
     Examples:
 
@@ -1661,7 +1667,7 @@ actor Main
       @pony_os_clear_errno()
       let res = @strtod(ptr.offset(index), addressof endp)
       let errno: I32 = @pony_os_errno()
-      if (errno != 0) or (endp != ptr.offset(_size)) then
+      if (endp != ptr.offset(_size)) or ((errno != 0) and res.infinite()) then
         error
       else
         res

@@ -100,6 +100,8 @@ actor \nodoc\ Main is TestList
     test(_TestStringSubstring)
     test(_TestStringToBool)
     test(_TestStringToFloat)
+    test.property(_SubnormalF64RoundtripProperty)
+    test.property(_SubnormalF32RoundtripProperty)
     test(_TestStringToI8)
     test(_TestStringToIntLarge)
     test(_TestStringToU8)
@@ -319,6 +321,21 @@ class \nodoc\ iso _TestStringToFloat is UnitTest
       h.assert_true("+INFINITY".f64()?.infinite())
     }, "+INFINITY")
 
+    // subnormal f64 values
+    h.assert_eq[F64](5e-324, "5e-324".f64()?)
+    h.assert_eq[F64](1e-310, "1e-310".f64()?)
+    h.assert_eq[F64](-5e-324, "-5e-324".f64()?)
+    h.assert_eq[F64](F64.from_bits(1), F64.from_bits(1).string().f64()?)
+
+    // subnormal f32 values
+    h.assert_eq[F32](1e-45, "1e-45".f32()?)
+    h.assert_eq[F32](-1e-45, "-1e-45".f32()?)
+    h.assert_eq[F32](F32.from_bits(1), F32.from_bits(1).string().f32()?)
+
+    // complete underflow parses to zero
+    h.assert_eq[F64](0, "1.18973e-4932".f64()?)
+    h.assert_eq[F32](0, "1.18973e-4932".f32()?)
+
     // Test that non-null terminated strings are well behaved
     //
     // We craft a string that contains 1.1\0, then build a new
@@ -326,14 +343,14 @@ class \nodoc\ iso _TestStringToFloat is UnitTest
     // contains the first character.
     //
     // The implementation of f32 / f64 errors if:
-    // 1. strof/strod fail by setting errno, or
-    // 2. strof/strod don't consume the entire string
+    // 1. strtof/strtod set errno and the result is infinite (overflow), or
+    // 2. strtof/strtod don't consume the entire string
     //
     // (2) is supposed to cover things like "1.23abc",
-    // but it also covers the situations where strod/strof
+    // but it also covers the situations where strtod/strtof
     // walk past the end of our memory allocation.
     //
-    // In our example, a buggy version that calls strof/strod
+    // In our example, a buggy version that calls strtof/strtod
     // without checking for a null terminator will raise an error due to (2),
     // since C will happily walk the entire buffer until it reaches
     // \0 at the end of the old allocation for the original string.
@@ -348,7 +365,6 @@ class \nodoc\ iso _TestStringToFloat is UnitTest
       "a.1"
       "~!@#$%^&*()"
       "1.18973e+4932" // overflow
-      "1.18973e-4932" // underflow
       "1.12232e+4ABC" // trailing characters
       "0x"
       "Infinityi"
@@ -3501,3 +3517,57 @@ class \nodoc\ iso _TestLambdaCapture is UnitTest
     let x = "hi"
     let f = {(y: String): String => x + y}
     h.assert_eq[String]("hi there", f(" there"))
+
+class \nodoc\ iso _SubnormalF64RoundtripProperty is Property[U64]
+  """
+  Verifies that f64() accepts the string representation of every subnormal F64.
+  Adjacent subnormals may format to the same string, so the parsed value may
+  differ in its low bits; the property under test is that parsing succeeds.
+  """
+  fun name(): String => "builtin/String.f64/subnormal-roundtrip"
+
+  fun gen(): Generator[U64] =>
+    Generator[U64](
+      object is GenObj[U64]
+        fun generate(rnd: Randomness): U64 =>
+          let sign = rnd.u64(0, 1) << 63
+          let mant = rnd.u64(1, 0x000F_FFFF_FFFF_FFFF)
+          sign or mant
+      end)
+
+  fun ref property(bits: U64, ph: PropertyHelper) =>
+    let value = F64.from_bits(bits)
+    let s: String val = value.string()
+    try
+      s.f64()?
+    else
+      ph.fail("f64() errored on subnormal; bits=" + bits.string() +
+        " string=\"" + s + "\"")
+    end
+
+class \nodoc\ iso _SubnormalF32RoundtripProperty is Property[U32]
+  """
+  Verifies that f32() accepts the string representation of every subnormal F32.
+  Adjacent subnormals may format to the same string, so the parsed value may
+  differ in its low bits; the property under test is that parsing succeeds.
+  """
+  fun name(): String => "builtin/String.f32/subnormal-roundtrip"
+
+  fun gen(): Generator[U32] =>
+    Generator[U32](
+      object is GenObj[U32]
+        fun generate(rnd: Randomness): U32 =>
+          let sign = rnd.u32(0, 1) << 31
+          let mant = rnd.u32(1, 0x007F_FFFF)
+          sign or mant
+      end)
+
+  fun ref property(bits: U32, ph: PropertyHelper) =>
+    let value = F32.from_bits(bits)
+    let s: String val = value.string()
+    try
+      s.f32()?
+    else
+      ph.fail("f32() errored on subnormal; bits=" + bits.string() +
+        " string=\"" + s + "\"")
+    end
