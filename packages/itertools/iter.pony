@@ -871,17 +871,48 @@ class Iter[A] is Iterator[A]
     Iter[A!](
       object is Iterator[A!]
         let _step: USize = if n == 0 then 1 else n end
+        var _next: (A! | _None) = _None
+
+        fun ref _find_next() =>
+          match _next
+          | _None =>
+            try
+              var steps_to_burn: USize = _step - 1
+              while steps_to_burn != 0 do
+                if not _iter.has_next() then return end
+                _iter.next()?
+                steps_to_burn = steps_to_burn - 1
+              end
+              if _iter.has_next() then
+                _next = _iter.next()?
+              end
+            end
+          end
 
         fun ref has_next(): Bool =>
-          _iter.has_next()
+          match _next
+          | _None =>
+            if _iter.has_next() then
+              _find_next()
+              has_next()
+            else
+              false
+            end
+          else
+            true
+          end
 
         fun ref next(): A! ? =>
-          var steps_to_burn: USize = _step - 1
-          while steps_to_burn != 0 do
-            try _iter.next()? end
-            steps_to_burn = steps_to_burn - 1
+          match _next = _None
+          | let a: A! => a
+          else
+            if _iter.has_next() then
+              _find_next()
+              next()?
+            else
+              error
+            end
           end
-          _iter.next()?
       end)
 
   fun ref take(n: USize): Iter[A]^ =>

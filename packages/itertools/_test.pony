@@ -50,6 +50,9 @@ actor \nodoc\ Main is TestList
     test(_TestIterSkip)
     test(_TestIterSkipWhile)
     test(_TestIterStepBy)
+    test.property[_StepByInput](_IterStepByProperty)
+    test(_TestIterStepByEdgeCases)
+    test(_TestIterStepByNoneElement)
     test(_TestIterTake)
     test(_TestIterTakeWhile)
     test(_TestIterTakeWhileNoneElement)
@@ -566,6 +569,147 @@ class \nodoc\ iso _TestIterStepBy is UnitTest
       h.assert_eq[USize](v, expected(i)?)
       i = i + 1
     end
+
+class \nodoc\ val _StepByInput
+  let len: USize
+  let step: USize
+
+  new val create(len': USize, step': USize) =>
+    len = len'
+    step = step'
+
+  fun string(): String iso^ =>
+    let s = recover iso String end
+    s.append("StepByInput(len=")
+    s.append(len.string())
+    s.append(", step=")
+    s.append(step.string())
+    s.append(")")
+    consume s
+
+class \nodoc\ iso _IterStepByProperty is Property[_StepByInput]
+  fun name(): String => "itertools/Iter.step_by (property)"
+
+  fun gen(): Generator[_StepByInput] =>
+    Generators.map2[USize, USize, _StepByInput](
+      Generators.usize(0, 20),
+      Generators.usize(1, 5),
+      {(len, step) => _StepByInput(len, step) })
+
+  fun ref property(input: _StepByInput, h: PropertyHelper) =>
+    let expected = Array[USize]
+    var pos: USize = 0
+    while pos < input.len do
+      if ((pos + 1) % input.step) == 0 then
+        expected.push(pos)
+      end
+      pos = pos + 1
+    end
+    let actual =
+      Iter[USize](Range(0, input.len)).step_by(input.step)
+        .collect(Array[USize])
+    h.assert_array_eq[USize](expected, actual)
+
+    // has_next() true must mean next() succeeds
+    let iter = Iter[USize](Range(0, input.len)).step_by(input.step)
+    while iter.has_next() do
+      try
+        iter.next()?
+      else
+        h.fail("next() errored when has_next() was true" +
+          " (len=" + input.len.string() +
+          ", step=" + input.step.string() + ")")
+        return
+      end
+    end
+    h.assert_false(
+      iter.has_next(),
+      "has_next() true after exhausting step_by iterator")
+
+class \nodoc\ iso _TestIterStepByEdgeCases is UnitTest
+  fun name(): String => "itertools/Iter.step_by (edge cases)"
+
+  fun apply(h: TestHelper) ? =>
+    // empty source
+    var result = Iter[USize](Array[USize].create().values())
+      .step_by(2).collect(Array[USize])
+    h.assert_eq[USize](0, result.size())
+
+    // single element, step > source length
+    result = Iter[USize]([as USize: 42].values())
+      .step_by(2).collect(Array[USize])
+    h.assert_eq[USize](0, result.size())
+
+    // single element, step == 1
+    result = Iter[USize]([as USize: 42].values())
+      .step_by(1).collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 42], result)
+
+    // step_by(0) treated as step_by(1)
+    result = Iter[USize]([as USize: 10; 20; 30].values())
+      .step_by(0).collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 10; 20; 30], result)
+
+    // exact multiple: 4 elements, step 2
+    result = Iter[USize]([as USize: 0; 1; 2; 3].values())
+      .step_by(2).collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1; 3], result)
+
+    // short remainder: 3 elements, step 2
+    result = Iter[USize]([as USize: 0; 1; 2].values())
+      .step_by(2).collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1], result)
+
+    // last() on short remainder
+    h.assert_eq[USize](
+      1, Iter[USize]([as USize: 0; 1; 2].values()).step_by(2).last()?)
+
+    // has_next() false when fewer than step elements remain
+    let it = Iter[USize]([as USize: 0; 1; 2].values()).step_by(2)
+    h.assert_true(it.has_next())
+    h.assert_eq[USize](1, it.next()?)
+    h.assert_false(it.has_next())
+
+    // has_next() is idempotent
+    let it2 = Iter[USize]([as USize: 0; 1; 2; 3].values()).step_by(2)
+    h.assert_true(it2.has_next())
+    h.assert_true(it2.has_next())
+    h.assert_eq[USize](1, it2.next()?)
+    h.assert_true(it2.has_next())
+    h.assert_true(it2.has_next())
+    h.assert_eq[USize](3, it2.next()?)
+    h.assert_false(it2.has_next())
+
+    // empty iterator
+    let e = Iter[USize](Array[USize].create().values()).step_by(3)
+    h.assert_false(e.has_next())
+
+class \nodoc\ iso _TestIterStepByNoneElement is UnitTest
+  fun name(): String => "itertools/Iter.step_by (None element)"
+
+  fun apply(h: TestHelper) ? =>
+    let input = [as (USize | None): USize(0); None; USize(2); None; USize(4)]
+    let iter = Iter[(USize | None)](input.values()).step_by(2)
+
+    h.assert_true(iter.has_next())
+    match iter.next()?
+    | None => None
+    else h.fail("expected None as first element")
+    end
+
+    h.assert_true(iter.has_next())
+    match iter.next()?
+    | None => None
+    else h.fail("expected None as second element")
+    end
+
+    h.assert_false(iter.has_next())
+
+    // None-only source with short remainder
+    let iter2 = Iter[None]([as None: None; None; None].values()).step_by(2)
+    h.assert_true(iter2.has_next())
+    iter2.next()?
+    h.assert_false(iter2.has_next())
 
 class \nodoc\ iso _TestIterTake is UnitTest
   fun name(): String => "itertools/Iter.take"
