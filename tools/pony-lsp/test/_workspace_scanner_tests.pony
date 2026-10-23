@@ -4,7 +4,7 @@ use "itertools"
 use "pony_test"
 use "../workspace"
 
-primitive _WorkspaceScannerTests is TestList
+primitive \nodoc\ _WorkspaceScannerTests is TestList
   new make() =>
     None
 
@@ -12,6 +12,10 @@ primitive _WorkspaceScannerTests is TestList
     test(WsTest(_WorkspaceWithCorralJsonTest))
     test(WsTest(_WorkspaceWithCorralAndTransitiveDeps))
     test(WsTest(_WorkspaceWithCorralAndCyclicDependencies))
+    test(WsTest(_WorkspaceWithEscapingCorralPackagePaths))
+    test(WsTest(_WorkspaceWithBrokenCorral))
+    test(WsTest(_WorkspaceWithoutCorral))
+    test(WsTest(_WorkspaceWithoutCorralDir))
 
 class \nodoc\ iso _WorkspaceWithCorralJsonTest is WsUnitTest
   fun name(): String => "workspace/scanner/corral/single"
@@ -70,13 +74,19 @@ class \nodoc\ iso _WorkspaceWithCorralJsonTest is WsUnitTest
           workspace.join("foo")?.path
         )
         AssertDependenciesEq(h, [p1_locator_path], package.dependencies)
+      elseif package.name == "foo/test" then
+        h.assert_eq[String](
+          package.folder.path,
+          workspace.join("foo/test")?.path
+        )
+        AssertDependenciesEq(h, [p1_locator_path], package.dependencies)
       elseif package.name == "package1" then
         h.assert_eq[String](package.folder.path, p1_path)
         AssertDependenciesEq(h, [], package.dependencies)
       end
     end
 
-primitive AssertDependenciesEq
+primitive \nodoc\ AssertDependenciesEq
   fun apply(h: TestHelper, expected: Array[FilePath] box, actual: Array[FilePath] box, loc: SourceLoc = __loc) =>
     h.assert_eq[USize](
       expected.size(),
@@ -158,25 +168,40 @@ class \nodoc\ iso _WorkspaceWithCorralAndTransitiveDeps is WsUnitTest
     // assert we found 4 modules
     h.assert_eq[USize](4, modules.size())
 
-    // - foo  - with correct dependencies (p1, p2, p3)
-    let p0 = modules(0)?
-    h.assert_eq[String]("foo", p0.name)
-    AssertDependenciesEq(h, [p1_path; p2_path; p3_path], p0.dependencies)
-
     // p1 with no dependencies
-    let p1 = modules(1)?
+    let p1 = modules.shift()?
     h.assert_eq[String]("p1", p1.name)
+    h.assert_eq[String](
+      p1_path.join("p1")?.path,
+      p1.folder.path
+    )
     AssertDependenciesEq(h, [], p1.dependencies)
 
     // p2 with p3 as dependency
-    let p2 = modules(2)?
+    let p2 = modules.shift()?
     h.assert_eq[String]("p2", p2.name)
+    h.assert_eq[String](
+      p2_path.join("p2")?.path,
+      p2.folder.path
+    )
     AssertDependenciesEq(h, [p3_path], p2.dependencies)
 
     // p3 without dependencies
-    let p3 = modules(3)?
+    let p3 = modules.shift()?
     h.assert_eq[String]("p3", p3.name)
+    h.assert_eq[String](
+      p3_path.join("p3")?.path,
+      p3.folder.path
+    )
     AssertDependenciesEq(h, [], p3.dependencies)
+
+    // - foo  - with correct dependencies (p1, p2, p3)
+    let p0 = modules.shift()?
+    h.assert_eq[String]("foo", p0.name)
+    h.assert_eq[String](workspace.join("foo")?.path, p0.folder.path)
+    AssertDependenciesEq(h, [p1_path; p2_path; p3_path], p0.dependencies)
+
+
 
 
 class \nodoc\ iso _WorkspaceWithCorralAndCyclicDependencies is WsUnitTest
@@ -263,23 +288,219 @@ class \nodoc\ iso _WorkspaceWithCorralAndCyclicDependencies is WsUnitTest
     let p2_path = workspace
       .join("_corral/github_com_ponylang_package2")?
 
-    // assert we found 4 modules
+    // assert we found 3 modules
     h.assert_eq[USize](3, modules.size())
 
-    // - foo  - with correct dependencies (p1, p2, p3)
-    let p0 = modules(0)?
-    h.assert_eq[String]("cyclic", p0.name)
-    AssertDependenciesEq(h, [p1_path; p2_path], p0.dependencies)
-
-    // p1 depending on p2
-    let p1 = modules(1)?
+        // p1 depending on p2
+    let p1 = modules.shift()?
     h.assert_eq[String]("p1", p1.name)
+    h.assert_eq[String](
+      p1_path.join("p1")?.path,
+      p1.folder.path
+    )
     AssertDependenciesEq(h, [p2_path], p1.dependencies)
 
     // p2 depending on p1
-    let p2 = modules(2)?
+    let p2 = modules.shift()?
     h.assert_eq[String]("p2", p2.name)
+    h.assert_eq[String](
+      p2_path.join("p2")?.path,
+      p2.folder.path
+    )
     AssertDependenciesEq(h, [p1_path], p2.dependencies)
 
+    // - cyclic  - with correct dependencies (p1, p2)
+    let p0 = modules.shift()?
+    h.assert_eq[String]("cyclic", p0.name)
+    h.assert_eq[String](
+      workspace.join("cyclic")?.path,
+      p0.folder.path
+    )
+    AssertDependenciesEq(h, [p1_path; p2_path], p0.dependencies)
 
 
+class \nodoc\ iso _WorkspaceWithBrokenCorral is WsUnitTest
+  fun name(): String => "workspace/scanner/invalid_json"
+
+  fun setup_workspace(ws: WorkspaceBuilder) =>
+    ws.file("corral.json", """
+      {
+        "packages": ["broken"],
+        "deps": [
+          {
+            "locator": "github.com/ponylang/package2.git",
+            "version": "1.2.3"
+          }
+        ],
+        "info": {
+          "description": "ws-test-broken",
+          "homepage": "",
+          "license": "",
+          "documentation_url": "",
+          "version": "0.2.0",
+          "name": "ws-test-broken"
+        }
+    """)
+    ws.dir("broken").file("main.pony", PonyMainSrc())
+    ws.dir("_corral").file("main.pony", PonyMainSrc()) // should be ignored
+
+  fun apply(workspace: FilePath, h: TestHelper)? =>
+    let scanner =
+      WorkspaceScanner.create(FakeChannel.with_stdout(h.env.out))
+    let modules = recover ref scanner.scan(workspace).clone() end
+    Sort[Array[ModuleData val], ModuleData val](modules)
+    // debugging
+    for module in modules.values() do
+      h.log(module.string())
+    end
+
+
+    // assert we found 1 module
+    h.assert_eq[USize](1, modules.size())
+    let p0 = modules(0)?
+    h.assert_eq[String]("broken", p0.name)
+    h.assert_eq[String](
+      workspace.join("broken")?.path,
+      p0.folder.path
+    )
+    AssertDependenciesEq(h, [], p0.dependencies)
+
+class \nodoc\ iso _WorkspaceWithEscapingCorralPackagePaths is WsUnitTest
+  fun name(): String => "workspace/scanner/escaping_packages"
+
+  fun setup_workspace(ws: WorkspaceBuilder) =>
+    ws.file("corral.json", """
+      {
+        "packages": ["../../evil/escape"],
+        "deps": [
+          {
+            "locator": "github.com/ponylang/package2.git",
+            "version": "1.2.3"
+          }
+        ],
+        "info": {
+          "description": "ws-test-broken",
+          "homepage": "",
+          "license": "",
+          "documentation_url": "",
+          "version": "0.2.0",
+          "name": "ws-test-broken"
+        }
+      }
+    """)
+    ws.dir("_corral").dir("github_com_ponylang_package2").file("main.pony", PonyMainSrc()) // should be ignored
+
+  fun apply(workspace: FilePath, h: TestHelper) =>
+    let scanner =
+      WorkspaceScanner.create(FakeChannel.with_stdout(h.env.out))
+    let modules = recover ref scanner.scan(workspace).clone() end
+    Sort[Array[ModuleData val], ModuleData val](modules)
+    // debugging
+    for module in modules.values() do
+      h.log(module.string())
+    end
+
+    // assert we found no module
+    h.assert_eq[USize](0, modules.size())
+
+
+class \nodoc\ iso _WorkspaceWithoutCorral is WsUnitTest
+  fun name(): String => "workspace/scanner/no_corral"
+  fun setup_workspace(ws: WorkspaceBuilder) =>
+    let d = ws.dir("scratch")
+    d.file("main.pony", PonyMainSrc())
+    d.dir("test").file("main.pony", PonyMainSrc())
+    ws.dir("lib").file("foo.pony", "primitive _Foo")
+    ws.dir("examples").dir("example_01").file("main.pony", PonyMainSrc())
+
+
+  fun apply(workspace: FilePath, h: TestHelper) ? =>
+    let scanner =
+      WorkspaceScanner.create(FakeChannel.with_stdout(h.env.out))
+    let modules = recover ref scanner.scan(workspace).clone() end
+    Sort[Array[ModuleData val], ModuleData val](modules)
+    // debugging
+    for module in modules.values() do
+      h.log(module.string())
+    end
+
+    // assert we found 4 modules
+    h.assert_eq[USize](4, modules.size())
+
+    let p0 = modules(0)?
+    h.assert_eq[String]("examples/example_01", p0.name)
+    h.assert_eq[String](
+      workspace.join("examples/example_01")?.path,
+      p0.folder.path
+    )
+    AssertDependenciesEq(h, [], p0.dependencies)
+
+    let p1 = modules(1)?
+    h.assert_eq[String]("lib", p1.name)
+    h.assert_eq[String](
+      workspace.join("lib")?.path,
+      p1.folder.path
+    )
+    AssertDependenciesEq(h, [], p1.dependencies)
+
+    let p2 = modules(2)?
+    h.assert_eq[String]("scratch", p2.name)
+    h.assert_eq[String](
+      workspace.join("scratch")?.path,
+      p2.folder.path
+    )
+    AssertDependenciesEq(h, [], p2.dependencies)
+
+    let p3 = modules(3)?
+    h.assert_eq[String]("scratch/test", p3.name)
+    h.assert_eq[String](
+      workspace.join("scratch/test")?.path,
+      p3.folder.path
+    )
+    AssertDependenciesEq(h, [], p3.dependencies)
+
+class \nodoc\ iso _WorkspaceWithoutCorralDir is WsUnitTest
+  fun name(): String => "workspace/scanner/missing_corral_dir"
+
+  fun setup_workspace(ws: WorkspaceBuilder) =>
+    ws.file("corral.json", """
+      {
+        "packages": ["no_dir"],
+        "deps": [
+          {
+            "locator": "github.com/ponylang/package1.git",
+            "version": "0.6.2"
+          }
+        ],
+        "info": {
+          "description": "ws-test-no-dir",
+          "homepage": "",
+          "license": "",
+          "documentation_url": "",
+          "version": "0.2.0",
+          "name": "ws-test"
+        }
+      }
+    """)
+    ws.dir("no_dir").file("main.pony", PonyMainSrc())
+
+  fun apply(workspace: FilePath, h: TestHelper) ? =>
+    let scanner =
+      WorkspaceScanner.create(FakeChannel.with_stdout(h.env.out))
+    let modules = recover ref scanner.scan(workspace).clone() end
+    Sort[Array[ModuleData val], ModuleData val](modules)
+    // debugging
+    for module in modules.values() do
+      h.log(module.string())
+    end
+
+    h.assert_eq[USize](1, modules.size())
+
+    let p0 = modules.shift()?
+    h.assert_eq[String]("no_dir", p0.name)
+    h.assert_eq[String](
+      workspace.join("no_dir")?.path,
+      p0.folder.path
+    )
+    AssertDependenciesEq(h,
+  [workspace.join("_corral/github_com_ponylang_package1")?], p0.dependencies)

@@ -75,10 +75,12 @@ actor WorkspaceManager
   be add_modules(mods: Array[ModuleData val] val) =>
     // lets not overwrite here
     for data in mods.values() do
-      this._modules.insert_if_absent(
-        data.folder.path,
-        ModuleState.create(data, this._channel)
-      )
+      if not this._modules.contains(data.folder.path) then
+        this._modules.insert(
+          data.folder.path,
+          ModuleState.create(data, this._channel)
+        )
+      end
     end
 
   fun box _find_workspace_module(document_path: String): this->ModuleState ? =>
@@ -176,7 +178,7 @@ actor WorkspaceManager
           for (await_comp_file, await_comp_hash) in
             this._awaiting_compilation_for.pairs()
           do
-            let await_mod_path = Path.base(await_comp_file)
+            let await_mod_path = Path.dir(await_comp_file)
             if module_state.data.folder.path == await_mod_path then
               try
                 // get the hash of the module file
@@ -224,8 +226,7 @@ actor WorkspaceManager
 
           | let err_file_uri: String val =>
             let err_file = Uris.to_path(err_file_uri)
-            // TODO: check path
-            let err_module_path = FilePath(this._file_auth, Path.base(err_file))
+            let err_module_path = FilePath(this._file_auth, Path.dir(err_file))
             // store the error in the document-state
             let module_state = this._ensure_module(err_module_path)
             let document_state = module_state.ensure_document(err_file)

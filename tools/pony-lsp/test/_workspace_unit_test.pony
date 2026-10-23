@@ -2,7 +2,7 @@ use "pony_test"
 use "files"
 use "collections"
 
-trait WsUnitTest
+trait \nodoc\ WsUnitTest
   """
   Workspace Unit Test.
 
@@ -25,7 +25,7 @@ trait WsUnitTest
   fun ref tear_down(h: TestHelper val) => None
 
 
-class WsTest is UnitTest
+class \nodoc\ WsTest is UnitTest
   """
   Workspace Test harness, running a [WsUnitTest](pony-lsp-WsUnitTest.md).
 
@@ -61,7 +61,7 @@ class WsTest is UnitTest
     this._test.tear_down(h)
     _ws.dispose() // remove temporary directory
 
-class ref WorkspaceBuilder
+class \nodoc\ ref WorkspaceBuilder
   """
   Used to build workspace directory definitions, including directories, files
   and their contents.
@@ -124,7 +124,7 @@ class ref WorkspaceBuilder
     end
 
 
-class ref WorkspaceDirBuilder
+class \nodoc\ ref WorkspaceDirBuilder
   let _path: String
   let _dir_builders: Array[WorkspaceDirBuilder] = _dir_builders.create()
   let _files: Map[String, ByteSeq] = _files.create(2)
@@ -159,6 +159,6 @@ class ref WorkspaceDirBuilder
       dir_builder.build(this_dir)?
     end
 
-primitive PonyMainSrc
+primitive \nodoc\ PonyMainSrc
   fun apply(): String =>
     """actor Main new create(env: Env) => None"""

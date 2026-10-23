@@ -83,7 +83,7 @@ class \nodoc\ iso _ModuleStateDocumentStatesTest is UnitTest
       ["/fake/path/a.pony"; "/fake/path/b.pony"],
       state_paths)
 
-class tag FakeRequestSender is RequestSender
+class \nodoc\ tag FakeRequestSender is RequestSender
   """
   Fake request sender for testing.
   """
@@ -96,7 +96,7 @@ class tag FakeRequestSender is RequestSender
   =>
     None
 
-actor FakeChannel is Channel
+actor \nodoc\ FakeChannel is Channel
   """
   Fake communication channel for testing.
   """

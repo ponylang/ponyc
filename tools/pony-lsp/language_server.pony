@@ -263,6 +263,19 @@ actor LanguageServer is (Notifier & RequestSender)
           end
         try
           (this._mgr as WorkspaceManager).workspace_symbol(query, r)
+        else
+          // this is actually guarded against by checking for state being
+          // initialized
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.request_failed(),
+                "Workspace not initialized yet"
+              )
+            )
+          )
         end
       | Methods.shutdown() =>
         this._state = _ShuttingDown
@@ -430,10 +443,26 @@ actor LanguageServer is (Notifier & RequestSender)
         end
       end
       let workspace_folders =
-        WorkspaceFolders.create(
-          this._file_auth,
-          consume workspace_folders_builder
-        )
+        try
+          WorkspaceFolders.create(
+            this._file_auth,
+            consume workspace_folders_builder
+          )?
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              msg.id,
+              None,
+              ResponseError(
+                ErrorCodes.request_failed(),
+                "Invalid or non-existent workspaceFolders, rootUri or rootPath"
+          )))
+          // cleanup
+          this._client = None
+          this._mgr = None
+          this._state = _Uninitialized
+          return
+        end
       this._mgr =
         WorkspaceManager.create(
           workspace_folders,

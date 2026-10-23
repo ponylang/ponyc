@@ -3,7 +3,7 @@ use "files"
 use "itertools"
 use "json"
 
-class val ModuleData is Comparable[ModuleData]
+class val ModuleData is Comparable[ModuleData val]
   """
   Data obtained for a module during workspace scanning or ad-hoc when
   discovering new modules.
@@ -47,18 +47,38 @@ class val ModuleData is Comparable[ModuleData]
     debug().clone()
 
   fun eq(that: ModuleData val): Bool =>
-    this.name.eq(that.name) and this.folder.path.eq(that.folder.path)
+    """
+    Only compare folder, ignore name as it is derived from folder, also ignore dependencies.
+
+    This is only for deterministic output in testing.
+    """
+    this.folder.path.eq(that.folder.path)
+
   fun lt(that: ModuleData val): Bool =>
-    this.name.lt(that.name)
+    """
+    Only compare folder, ignore name as it is derived from folder, also ignore dependencies.
+
+    This is only for deterministic output in testing.
+    """
+    this.folder.path.lt(that.folder.path)
+
+  fun gt(that: ModuleData val): Bool =>
+    """
+    Only compare folder, ignore name as it is derived from folder, also ignore dependencies.
+
+    This is only for deterministic output in testing.
+    """
+    this.folder.path.gt(that.folder.path)
+
 
 
 primitive ModuleDataBuilder
   """
-  Build `PackageData` from folder path.
+  Build `ModuleData` from folder path.
 
   This exists because we cannot call other constructors from a constructor.
   """
-  fun tag from_path(folder: FilePath): ModuleData =>
+  fun from_path(folder: FilePath): ModuleData =>
     let name = Path.base(folder.path)
     ModuleData.create(name, folder)
 

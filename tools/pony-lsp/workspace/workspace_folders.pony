@@ -1,4 +1,5 @@
 use "files"
+use "assert"
 
 class val WorkspaceFolders
   """
@@ -8,15 +9,20 @@ class val WorkspaceFolders
   """
   let folders: Array[FilePath] val
 
-  new val create(file_auth: FileAuth, workspace_folders: Array[String] val) =>
+  new val create(file_auth: FileAuth, workspace_folders: Array[String] val) ? =>
+    """
+    Construct a `WorkspaceFolders` instance from the provided `workspace_folders`.
+
+    Errors if any folder in `workspace_folders` does not exist.
+    """
     this.folders =
       recover
         let arr = Array[FilePath].create(workspace_folders.size())
         for s in workspace_folders.values() do
-          try
-            let folder = FilePath(file_auth, s).canonical()?
-            arr.push(folder)
-          end
+          // ensure the path exists
+          let folder = FilePath(file_auth, s)
+          Fact(folder.exists(), folder.path + "does not exist")?
+          arr.push(folder)
         end
         arr
       end

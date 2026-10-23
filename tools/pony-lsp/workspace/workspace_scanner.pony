@@ -8,7 +8,7 @@ use "json"
 
 class WorkspaceScanner
   """
-  Scans directories to find Pony workspaces.
+  Scans directories to find Pony modules in a given workspace folder.
   """
   let _channel: Channel
 
@@ -21,14 +21,14 @@ class WorkspaceScanner
     top_level_corral_dir: (FilePath | None) = None
   ): Array[ModuleData] val ? =>
     """
-    Scan directory `dir`, that contains a `corral.json` file.
+    Scan directory `corral_dir`, that contains a `corral.json` file.
     Extract dependencies listed in `deps` in `corral.json`
     and their transitive dependencies.
 
-    Return all found packages either listed in `corral.json` under `packages` or
+    Return all found modules either listed in `corral.json` under `packages` or
     simply found because they are in this directory and contain pony files.
 
-    Those packages all get the extracted dependencies applied.
+    Those modules all get the extracted dependencies applied.
     """
     let result = recover trn Array[ModuleData].create(2) end
     visited.set(corral_dir.path)
@@ -44,6 +44,7 @@ class WorkspaceScanner
         | let obj: JSONObject => obj
         else
           _channel.log("Invalid JSON @ " + corral_json_path.path)
+          // TODO: maybe send publishDiagnostics notification for corral.json
           error
         end
       else
@@ -59,7 +60,14 @@ class WorkspaceScanner
 
       let package = json_package as String
       // packages are always relative to the corral.json location
-      let pp = corral_dir.join(package)?
+      let pp =
+        try
+          corral_dir.join(package)?
+        else
+          _channel.log("Corral package pointing outside the corral dir: " + package)
+          error
+        end
+
       Fact(pp.exists(), "Package path " + pp.path + " does not exist")?
       if not module_paths.contains(pp.path) then
         module_paths.set(pp.path)
@@ -78,7 +86,7 @@ class WorkspaceScanner
         =>
           // do not descend into _corral dir
           if Path.base(dir_path.path) == "_corral" then
-            _channel.log("Ignoring " + dir_path.path)
+            _channel.log("_scan_corral Ignoring " + dir_path.path)
             dir_entries.clear()
             return
           else
@@ -126,8 +134,6 @@ class WorkspaceScanner
             // as this is where corral is putting all aggregated top-level dependencies
             top_level_dir.join("_corral")?.join(locator_flat_name)?
           end
-        _channel.log("Locator: " + locator_dir.path)
-        _channel.log("Visited: " + ", ".join(visited.values()))
 
         // get modules and dependencies from dependency
         dependencies.insert_if_absent(locator_dir.path, locator_dir)
@@ -140,7 +146,6 @@ class WorkspaceScanner
                 top_level_dir
             )?
 
-          _channel.log("Locator Packages: " + ",".join(corral_dependency_packages.values()))
           for sub_package in corral_dependency_packages.values() do
             // register transitive dependencies as ours
             for sub_dependency in sub_package.dependencies.values() do
@@ -153,14 +158,13 @@ class WorkspaceScanner
       end
     end
     let num_deps = dependencies.size()
-    // stupid hack removing possible self-dependencies through cyclic dependencies
+    // remove possible self-dependencies through cyclic dependencies
     try dependencies.remove(corral_dir.path)? end
+
     let dependencies_val: Array[FilePath] val =
       recover val
         Iter[FilePath]((consume dependencies).values()).collect(Array[FilePath].create(num_deps))
       end
-    // _channel.log("DEPENDENCIES: " + ", ".join(dependencies_val.values()))
-    _channel.log("ALL MODULES: " + ", ".join(all_modules.values()))
     for module in all_modules.values() do
       try
         let mdir = corral_dir.join(module)?
@@ -192,18 +196,13 @@ class WorkspaceScanner
     workspace_name: (String | None) = None
   ): Array[ModuleData] val =>
     """
-    Scan a folder for Pony packages.
+    Scan a folder for Pony modules.
 
-    A package is a directory with .pony files in it.
+    A module is a directory with .pony files in it.
 
-    A corral.json helps discover packages and configure their dependencies for
+    A corral.json helps discover modules and configure their dependencies for
     successful compilation.
     """
-    let name =
-      match \exhaustive\ workspace_name
-      | let n: String => n
-      | None => Path.base(folder.path)
-      end
     let that: WorkspaceScanner box = this
     let handler =
       object is WalkHandler
@@ -215,38 +214,42 @@ class WorkspaceScanner
           dir_path: FilePath val,
           dir_entries: Array[String val] ref)
         =>
-          let is_corral = {(a: String val): Bool => a == "corral.json" }
-          let has_pony_ext = {(a: String val): Bool => Path.ext(a) == "pony" }
-          // first look for a `corral.json` file
-          if not visited.contains(dir_path.path) then
-            if Iter[String val](dir_entries.values()).any(is_corral) then
-              try
-                let corral_packages = that._scan_corral_dir(
-                  dir_path
-                  where
-                  visited = visited
-                )?
-                _channel.log("Corral Packages: " + ", ".join(corral_packages.values()))
-                for module in corral_packages.values() do
-                  // let corral data overwrite other stuff
-                  modules.insert(module.folder.path, module)
-                end
-              end
-              // if no `corral.json` could be found, search for `.pony` files
-            elseif Iter[String val](dir_entries.values()).any(has_pony_ext) then
-              try
-                // not inside a known workspace
-                let main_workspace_name: String =
-                  if dir_path.path == folder.path then
-                    Path.base(dir_path.path)
-                  else
-                    Path.rel(folder.path, dir_path.path)?
+          if Path.base(dir_path.path) == "_corral" then
+            dir_entries.clear()
+            return
+          else
+            let is_corral = {(a: String val): Bool => a == "corral.json" }
+            let has_pony_ext = {(a: String val): Bool => Path.ext(a) == "pony" }
+            // first look for a `corral.json` file
+            if not visited.contains(dir_path.path) then
+              if Iter[String val](dir_entries.values()).any(is_corral) then
+                try
+                  let corral_modules = that._scan_corral_dir(
+                    dir_path
+                    where
+                    visited = visited
+                  )?
+                  for module in corral_modules.values() do
+                    // let corral data overwrite other stuff
+                    modules.insert(module.folder.path, module)
                   end
-                let module = ModuleData(main_workspace_name, dir_path)
-                modules.insert_if_absent(
-                  dir_path.path,
-                  module
-                )
+                end
+                // if no `corral.json` could be found, search for `.pony` files
+              elseif Iter[String val](dir_entries.values()).any(has_pony_ext) then
+                try
+                  // not inside a known workspace
+                  let main_workspace_name: String =
+                    if dir_path.path == folder.path then
+                      Path.base(dir_path.path)
+                    else
+                      Path.rel(folder.path, dir_path.path)?
+                    end
+                  let module = ModuleData(main_workspace_name, dir_path)
+                  modules.insert_if_absent(
+                    dir_path.path,
+                    module
+                  )
+                end
               end
             end
           end
@@ -262,6 +265,6 @@ class WorkspaceScanner
           .collect(Array[ModuleData].create(num_modules))
       end
     for p in result.values() do
-      _channel.log("Found package: " + p.debug())
+      _channel.log("Found module: " + p.debug())
     end
     result
