@@ -705,7 +705,7 @@ class List[A] is ResizableSeq[A]
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
-    let other_list = my_list.drop(1)  // ["a"]
+    let other_list = my_list.take(1)  // ["a"]
     ```
     """
     let l = List[this->A!]

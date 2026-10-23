@@ -317,6 +317,9 @@ class \nodoc\ iso _TestListsMap is UnitTest
     h.assert_eq[U32](c(1)?, 2)
     h.assert_eq[U32](c(2)?, 4)
 
+    let empty = List[U32]
+    h.assert_eq[USize](empty.map[U32](f).size(), 0)
+
 class \nodoc\ iso _TestListsFlatMap is UnitTest
   fun name(): String => "collections/Lists/flat_map()"
 
@@ -335,6 +338,9 @@ class \nodoc\ iso _TestListsFlatMap is UnitTest
     h.assert_eq[U32](c(4)?, 2)
     h.assert_eq[U32](c(5)?, 4)
 
+    let empty = List[U32]
+    h.assert_eq[USize](empty.flat_map[U32](f).size(), 0)
+
 class \nodoc\ iso _TestListsFilter is UnitTest
   fun name(): String => "collections/Lists/filter()"
 
@@ -348,6 +354,9 @@ class \nodoc\ iso _TestListsFilter is UnitTest
     h.assert_eq[USize](b.size(), 2)
     h.assert_eq[U32](b(0)?, 2)
     h.assert_eq[U32](b(1)?, 3)
+
+    let empty = List[U32]
+    h.assert_eq[USize](empty.filter(f).size(), 0)
 
 class \nodoc\ iso _TestListsFold is UnitTest
   fun name(): String => "collections/Lists/fold()"
@@ -369,6 +378,9 @@ class \nodoc\ iso _TestListsFold is UnitTest
     h.assert_eq[U32](res_list(1)?, 2)
     h.assert_eq[U32](res_list(2)?, 4)
     h.assert_eq[U32](res_list(3)?, 6)
+
+    let empty = List[U32]
+    h.assert_eq[U32](empty.fold[U32](f, 42), 42)
 
 class \nodoc\ iso _TestListsEvery is UnitTest
   fun name(): String => "collections/Lists/every()"
@@ -547,6 +559,9 @@ class \nodoc\ iso _TestListsContains is UnitTest
     h.assert_eq[Bool](a.contains(2), true)
     h.assert_eq[Bool](a.contains(3), false)
 
+    let empty = List[U32]
+    h.assert_eq[Bool](empty.contains(0), false)
+
 class \nodoc\ iso _TestListsReverse is UnitTest
   fun name(): String => "collections/Lists/reverse()"
 
@@ -565,6 +580,9 @@ class \nodoc\ iso _TestListsReverse is UnitTest
     h.assert_eq[U32](b(0)?, 2)
     h.assert_eq[U32](b(1)?, 1)
     h.assert_eq[U32](b(2)?, 0)
+
+    let empty = List[U32]
+    h.assert_eq[USize](empty.reverse().size(), 0)
 
 class \nodoc\ iso _TestListsLargeList is UnitTest
   """
