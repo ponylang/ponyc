@@ -84,14 +84,23 @@ PONY_API void ponyint_gmtime(date_t* date, int64_t sec, int64_t nsec)
   time_t t;
 
   if((overflow_sec > 0) && (sec > PONYINT_GMTIME_MAX_SEC - overflow_sec))
+  {
     t = (time_t)PONYINT_GMTIME_MAX_SEC;
+    nsec = 0;
+  }
   else if((overflow_sec < 0) && (sec < -overflow_sec))
+  {
     t = 0;
+    nsec = 0;
+  }
   else
     t = (time_t)sec + overflow_sec;
 
   if(t > (time_t)PONYINT_GMTIME_MAX_SEC)
+  {
     t = (time_t)PONYINT_GMTIME_MAX_SEC;
+    nsec = 0;
+  }
 
   struct tm tm;
 

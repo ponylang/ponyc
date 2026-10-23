@@ -70,11 +70,13 @@ class \nodoc\ iso _TestPosixDateClamping is UnitTest
       h.assert_eq[I32](3000, clamped.year)
       h.assert_eq[I32](12, clamped.month)
       h.assert_eq[I32](31, clamped.day_of_month)
+      h.assert_eq[I32](0, clamped.nsec)
       h.assert_eq[I64](32535215999, clamped.time())
 
       // Nanoseconds pushing past the boundary
       let nsec_over = PosixDate(32535215999, 1_000_000_000)
       h.assert_eq[I32](3000, nsec_over.year)
+      h.assert_eq[I32](0, nsec_over.nsec)
       h.assert_eq[I64](32535215999, nsec_over.time())
     else
       let max_date = PosixDate(67767976233532799)
@@ -89,21 +91,25 @@ class \nodoc\ iso _TestPosixDateClamping is UnitTest
       h.assert_eq[I32](2147483647, clamped.year)
       h.assert_eq[I32](12, clamped.month)
       h.assert_eq[I32](31, clamped.day_of_month)
+      h.assert_eq[I32](0, clamped.nsec)
       h.assert_eq[I64](67767976233532799, clamped.time())
 
       // Nanoseconds pushing past the boundary
       let nsec_over = PosixDate(67767976233532799, 1_000_000_000)
       h.assert_eq[I32](2147483647, nsec_over.year)
+      h.assert_eq[I32](0, nsec_over.nsec)
       h.assert_eq[I64](67767976233532799, nsec_over.time())
     end
 
     // I64.max_value() seconds: clamped on all platforms
     let huge = PosixDate(I64.max_value())
     h.assert_true(huge.year >= 1970)
+    h.assert_eq[I32](0, huge.nsec)
 
     // I64.max seconds + I64.max nanoseconds: clamped, no signed overflow
     let both_max = PosixDate(I64.max_value(), I64.max_value())
     h.assert_true(both_max.year >= 1970)
+    h.assert_eq[I32](0, both_max.nsec)
 
 class \nodoc\ iso _TestPosixDateFieldsInRange is Property2[I64, I64]
   """
