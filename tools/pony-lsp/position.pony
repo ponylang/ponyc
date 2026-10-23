@@ -42,8 +42,8 @@ class val LspPosition
     _character = character'
 
   new val from_ast_pos(position: Position) =>
-    _line = (position.line() - 1).max(0)
-    _character = (position.column() - 1).max(0)
+    _line = try (position.line() -? 1) else 0 end
+    _character = try (position.column() -? 1) else 0 end
 
   new val from_ast_pos_end(position: Position) =>
     """
@@ -52,9 +52,9 @@ class val LspPosition
     (point to the last character), but LSP range ends
     are exclusive (point one past the last character).
     """
-    _line = (position.line() - 1).max(0)
+    _line = try (position.line() -? 1) else 0 end
     // Don't subtract 1 for end position
-    _character = position.column().max(0)
+    _character = position.column()
 
   fun to_json(): JSONValue =>
     JSONObject
