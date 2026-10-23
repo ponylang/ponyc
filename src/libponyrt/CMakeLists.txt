@@ -140,7 +140,7 @@ if(PONY_RUNTIME_BITCODE)
         OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "ARM64")
         list(FILTER _c_flags EXCLUDE REGEX "^-march=")
         list(FILTER _c_flags EXCLUDE REGEX "^-mtune=")
-        list(APPEND _c_flags -march=armv8.9-a+crypto+sha3+sm4+dotprod+fp16fml+bf16+i8mm+lse+lse128+rcpc3+pauth+memtag+rng+flagm+predres+ssbs+sb+bti+dit+ls64+hbc+mops+cssc+the+gcs+ite)
+        list(APPEND _c_flags -march=armv8.9-a+crypto+sha3+sm4+dotprod+fp16fml+bf16+i8mm+lse+lse128+rcpc3+pauth+memtag+rng+flagm+predres+ssbs+sb+ls64+hbc+mops+cssc+the+gcs+ite)
     endif()
 
     if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
