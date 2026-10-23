@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix runtime bitcode not benefiting from target-specific optimisations ([PR #6362](https://github.com/ponylang/ponyc/pull/6362))
 - Fix URI.string() producing ambiguous serializations ([PR #6369](https://github.com/ponylang/ponyc/pull/6369))
 - Fix compiler crash on unterminated escape sequence at end of file ([PR #6370](https://github.com/ponylang/ponyc/pull/6370))
+- Fix F64.f32() and U128.f32() returning inf for values that round to F32.max_value() ([PR #6374](https://github.com/ponylang/ponyc/pull/6374))
 
 ### Added
 
