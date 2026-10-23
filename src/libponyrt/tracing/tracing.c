@@ -98,6 +98,8 @@ typedef enum
   TRACING_MSG_ACTOR_UNBLOCKED,
   TRACING_MSG_ACTOR_TRACING_ENABLED,
   TRACING_MSG_ACTOR_TRACING_DISABLED,
+  TRACING_MSG_ACTOR_SCHEDULED,
+  TRACING_MSG_ACTOR_SCHEDULED_INJECT,
   TRACING_MSG_SYSTEMATIC_TESTING_CONFIG,
   TRACING_MSG_SYSTEMATIC_TESTING_STARTED,
   TRACING_MSG_SYSTEMATIC_TESTING_FINISHED,
@@ -530,6 +532,29 @@ typedef struct tracing_actor_tracing_disabled_t
   actorstats_t actorstats;
 #endif
 } tracing_actor_tracing_disabled_t;
+
+typedef struct tracing_actor_scheduled_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  void* actor;
+  pony_type_t* type;
+  int32_t scheduler_index;
+  uint8_t internal_flags;
+  uint8_t sync_flags;
+} tracing_actor_scheduled_t;
+
+typedef struct tracing_actor_scheduled_inject_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  void* actor;
+  pony_type_t* type;
+  uint8_t internal_flags;
+  uint8_t sync_flags;
+} tracing_actor_scheduled_inject_t;
 
 typedef struct tracing_systematic_testing_config_t
 {
@@ -2169,6 +2194,52 @@ void ponyint_tracing_actor_tracing_disabled(pony_actor_t* actor)
   send_trace_message((pony_msg_t*)m);
 }
 
+void ponyint_tracing_actor_scheduled(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_scheduled_t* m = (tracing_actor_scheduled_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_scheduled_t)),
+    TRACING_MSG_ACTOR_SCHEDULED);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+  m->scheduler_index = ctx->scheduler->index;
+  m->internal_flags = actor->internal_flags;
+  m->sync_flags = atomic_load_explicit(&actor->sync_flags, memory_order_relaxed);
+
+  send_trace_message((pony_msg_t*)m);
+}
+
+void ponyint_tracing_actor_scheduled_inject(pony_actor_t* actor)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_scheduled_inject_t* m =
+    (tracing_actor_scheduled_inject_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_scheduled_inject_t)),
+    TRACING_MSG_ACTOR_SCHEDULED_INJECT);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+  m->internal_flags = actor->internal_flags;
+  m->sync_flags = atomic_load_explicit(&actor->sync_flags, memory_order_relaxed);
+
+  send_trace_message((pony_msg_t*)m);
+}
+
 void ponyint_tracing_systematic_testing_config(uint64_t random_seed)
 {
   if(!tracing_category_enabled(TRACING_CATEGORY_SYSTEMATIC_TESTING))
@@ -2941,6 +3012,44 @@ static void handle_message(pony_msg_t* msg)
         m->heap_used,
         m->gc_rc);
 #endif
+
+      break;
+    }
+    case TRACING_MSG_ACTOR_SCHEDULED:
+    {
+      tracing_actor_scheduled_t* m = (tracing_actor_scheduled_t*)msg;
+      fprintf(log_file, ",\n{\"name\":\"actor_scheduled\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"scheduler_index\":%d,\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+        m->scheduler_index,
+        m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
+        m->sync_flags & ACTOR_SYNC_FLAG_PENDINGDESTROY ? "true" : "false",
+        m->sync_flags & ACTOR_SYNC_FLAG_OVERLOADED ? "true" : "false",
+        m->sync_flags & ACTOR_SYNC_FLAG_UNDER_PRESSURE ? "true" : "false",
+        m->sync_flags & ACTOR_SYNC_FLAG_MUTED ? "true" : "false");
+
+      break;
+    }
+    case TRACING_MSG_ACTOR_SCHEDULED_INJECT:
+    {
+      tracing_actor_scheduled_inject_t* m =
+        (tracing_actor_scheduled_inject_t*)msg;
+      fprintf(log_file, ",\n{\"name\":\"actor_scheduled_inject\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+        m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
+        m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
+        m->sync_flags & ACTOR_SYNC_FLAG_PENDINGDESTROY ? "true" : "false",
+        m->sync_flags & ACTOR_SYNC_FLAG_OVERLOADED ? "true" : "false",
+        m->sync_flags & ACTOR_SYNC_FLAG_UNDER_PRESSURE ? "true" : "false",
+        m->sync_flags & ACTOR_SYNC_FLAG_MUTED ? "true" : "false");
 
       break;
     }

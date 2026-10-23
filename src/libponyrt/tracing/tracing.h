@@ -48,6 +48,8 @@ void ponyint_tracing_actor_blocked(pony_actor_t* actor);
 void ponyint_tracing_actor_unblocked(pony_actor_t* actor);
 void ponyint_tracing_actor_tracing_enabled(pony_actor_t* actor);
 void ponyint_tracing_actor_tracing_disabled(pony_actor_t* actor);
+void ponyint_tracing_actor_scheduled(pony_ctx_t* ctx, pony_actor_t* actor);
+void ponyint_tracing_actor_scheduled_inject(pony_actor_t* actor);
 void ponyint_tracing_systematic_testing_config(uint64_t random_seed);
 void ponyint_tracing_systematic_testing_started();
 void ponyint_tracing_systematic_testing_finished();
@@ -99,6 +101,8 @@ void ponyint_tracing_runtime_shutdown(int exit_code);
 #define TRACING_ACTOR_UNBLOCKED(ACTOR) do { if (ponyint_tracing_enabled) ponyint_tracing_actor_unblocked(ACTOR); } while(0)
 #define TRACING_ACTOR_TRACING_ENABLED(ACTOR) do { if (ponyint_tracing_enabled) ponyint_tracing_actor_tracing_enabled(ACTOR); } while(0)
 #define TRACING_ACTOR_TRACING_DISABLED(ACTOR) do { if (ponyint_tracing_enabled) ponyint_tracing_actor_tracing_disabled(ACTOR); } while(0)
+#define TRACING_ACTOR_SCHEDULED(CTX, ACTOR) do { if (ponyint_tracing_enabled) ponyint_tracing_actor_scheduled(CTX, ACTOR); } while(0)
+#define TRACING_ACTOR_SCHEDULED_INJECT(ACTOR) do { if (ponyint_tracing_enabled) ponyint_tracing_actor_scheduled_inject(ACTOR); } while(0)
 #define TRACING_SYSTEMATIC_TESTING_CONFIG(RANDOM_SEED) do { if (ponyint_tracing_enabled) ponyint_tracing_systematic_testing_config(RANDOM_SEED); } while(0)
 #define TRACING_SYSTEMATIC_TESTING_STARTED() do { if (ponyint_tracing_enabled) ponyint_tracing_systematic_testing_started(); } while(0)
 #define TRACING_SYSTEMATIC_TESTING_FINISHED() do { if (ponyint_tracing_enabled) ponyint_tracing_systematic_testing_finished(); } while(0)
