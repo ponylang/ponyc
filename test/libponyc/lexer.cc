@@ -409,6 +409,16 @@ TEST_F(LexerTest, StringUnicode6Escape)
 }
 
 
+TEST_F(LexerTest, StringLiteralBackslashAtEof)
+{
+  const char* src = "\"\\";
+
+  expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
+  expect(1, 3, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
 TEST_F(LexerTest, TripleString)
 {
   const char* src = "\"\"\"\nFoo\"\"\"";
@@ -751,6 +761,15 @@ TEST_F(LexerTest, InvalidEscapeCharacterLiteral)
 TEST_F(LexerTest, EmptyCharacterLiteral)
 {
   const char* src = "''";
+
+  expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
+  expect(1, 3, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+TEST_F(LexerTest, CharLiteralBackslashAtEof)
+{
+  const char* src = "'\\";
 
   expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
   expect(1, 3, TK_EOF, "EOF");

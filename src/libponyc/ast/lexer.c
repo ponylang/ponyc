@@ -744,6 +744,13 @@ static int escape(lexer_t* lexer, bool unicode_allowed, bool is_string)
   size_t line = lexer->line;
   size_t pos = lexer->pos;
 
+  if(lexer->len < 2)
+  {
+    consume_chars(lexer, lexer->len);
+    lex_error_at(lexer, line, pos, "Escape sequence is incomplete");
+    return -1;
+  }
+
   char c = lookn(lexer, 2);
   consume_chars(lexer, 2);
   int value = -2; // Default is 2 bad characters, \ and whatever follows it
