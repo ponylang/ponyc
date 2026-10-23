@@ -799,12 +799,7 @@ primitive U128 is UnsignedInteger[U128]
     end
 
   fun f32(): F32 =>
-    let v = f64()
-    if v > F32.max_value().f64() then
-      F32._inf(false)
-    else
-      v.f32()
-    end
+    f64().f32()
 
   fun f64(): F64 =>
     if this == 0 then
