@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix F64.f32() and U128.f32() returning inf for values that round to F32.max_value() ([PR #6374](https://github.com/ponylang/ponyc/pull/6374))
 - Fix U128 to F32 conversion returning infinity for values near F32.max_value() ([PR #6377](https://github.com/ponylang/ponyc/pull/6377))
 - Fix collections.List stack overflow on large lists in debug builds ([PR #6380](https://github.com/ponylang/ponyc/pull/6380))
+- Fix Iter.step_by producing errors on short remainders ([PR #6378](https://github.com/ponylang/ponyc/pull/6378))
 
 ### Added
 
