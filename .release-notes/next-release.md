@@ -84,3 +84,7 @@ Two new tracing events fire when an actor is placed onto a scheduler's run queue
 
 On platforms where the compiler uses the Pony source implementation for 128-bit conversions (Windows MSVC), converting a U128 value slightly above `F32.max_value().u128()` to F32 incorrectly returned infinity instead of `F32.max_value()`. The intermediate F64 representation could be one ULP above `F32.max_value().f64()`, which tripped an overly strict overflow check. The F64-to-F32 conversion already handles rounding correctly on its own.
 
+## Fix collections.List stack overflow on large lists in debug builds
+
+List's `map`, `flat_map`, `filter`, `fold`, `every`, `exists`, `reverse`, and `contains` methods used recursive helpers that overflowed the stack in debug builds at around 100,000 elements. Release builds were unaffected because LLVM optimized the tail calls into loops. These methods now use iterative loops unconditionally.
+
