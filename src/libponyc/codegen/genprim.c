@@ -1117,54 +1117,19 @@ static LLVMValueRef f64_to_ui_saturation(compile_t* c, LLVMValueRef arg,
     false);
 }
 
-static LLVMValueRef f64_to_f32_saturation(compile_t* c, LLVMValueRef arg)
+static LLVMValueRef f64_to_f32(compile_t* c, LLVMValueRef arg)
 {
-  LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i64,
+  LLVMBasicBlockRef non_nan = handle_nan(c, arg, c->i64,
     0x7FF0000000000000, 0x000FFFFFFFFFFFFF);
   genfun_build_ret(c, LLVMConstNaN(c->f32));
 
-  LLVMBasicBlockRef overflow = codegen_block(c, "");
-  LLVMBasicBlockRef test_underflow = codegen_block(c, "");
-  LLVMBasicBlockRef underflow = codegen_block(c, "");
-  LLVMBasicBlockRef normal = codegen_block(c, "");
-
-  LLVMPositionBuilderAtEnd(c->builder, test_overflow);
-  LLVMValueRef f32_max = LLVMConstInt(c->i32, 0x7F7FFFFF, false);
-  f32_max = LLVMBuildBitCast(c->builder, f32_max, c->f32, "");
-  f32_max = LLVMBuildFPExt(c->builder, f32_max, c->f64, "");
-  LLVMValueRef is_overflow = LLVMBuildFCmp(c->builder, LLVMRealOGT, arg,
-    f32_max, "");
-  LLVMBuildCondBr(c->builder, is_overflow, overflow, test_underflow);
-
-  LLVMPositionBuilderAtEnd(c->builder, overflow);
-  genfun_build_ret(c, LLVMConstInf(c->f32, false));
-
-  LLVMPositionBuilderAtEnd(c->builder, test_underflow);
-  LLVMValueRef f32_min = LLVMConstInt(c->i32, 0xFF7FFFFF, false);
-  f32_min = LLVMBuildBitCast(c->builder, f32_min, c->f32, "");
-  f32_min = LLVMBuildFPExt(c->builder, f32_min, c->f64, "");
-  LLVMValueRef is_underflow = LLVMBuildFCmp(c->builder, LLVMRealOLT, arg,
-    f32_min, "");
-  LLVMBuildCondBr(c->builder, is_underflow, underflow, normal);
-
-  LLVMPositionBuilderAtEnd(c->builder, underflow);
-  genfun_build_ret(c, LLVMConstInf(c->f32, true));
-
-  LLVMPositionBuilderAtEnd(c->builder, normal);
+  LLVMPositionBuilderAtEnd(c->builder, non_nan);
   return LLVMBuildFPTrunc(c->builder, arg, c->f32, "");
 }
 
-static LLVMValueRef u128_to_f32_saturation(compile_t* c, LLVMValueRef arg)
+static LLVMValueRef u128_to_f32(compile_t* c, LLVMValueRef arg)
 {
-  LLVMValueRef val_f64 = LLVMBuildUIToFP(c->builder, arg, c->f64, "");
-  LLVMValueRef f32_max = LLVMConstInt(c->i32, 0x7F7FFFFF, false);
-  f32_max = LLVMBuildBitCast(c->builder, f32_max, c->f32, "");
-  f32_max = LLVMBuildFPExt(c->builder, f32_max, c->f64, "");
-  LLVMValueRef is_overflow = LLVMBuildFCmp(c->builder, LLVMRealOGT, val_f64,
-    f32_max, "");
-  LLVMValueRef result = LLVMBuildUIToFP(c->builder, arg, c->f32, "");
-  return LLVMBuildSelect(c->builder, is_overflow, LLVMConstInf(c->f32, false),
-    result, "");
+  return LLVMBuildUIToFP(c->builder, arg, c->f32, "");
 }
 
 static void number_conversion(compile_t* c, void** data, token_id cap)
@@ -1199,7 +1164,7 @@ static void number_conversion(compile_t* c, void** data, token_id cap)
       if(from->size < to->size)
         result = LLVMBuildFPExt(c->builder, arg, to->type, "");
       else if(from->size > to->size)
-        result = f64_to_f32_saturation(c, arg);
+        result = f64_to_f32(c, arg);
       else
         result = arg;
     } else if(to->is_signed) {
@@ -1221,7 +1186,7 @@ static void number_conversion(compile_t* c, void** data, token_id cap)
     if(from->is_signed)
       result = LLVMBuildSIToFP(c->builder, arg, to->type, "");
     else if((from->size > 64) && (to->size < 64))
-      result = u128_to_f32_saturation(c, arg);
+      result = u128_to_f32(c, arg);
     else
       result = LLVMBuildUIToFP(c->builder, arg, to->type, "");
   } else if(from->size > to->size) {

@@ -3420,6 +3420,26 @@ class \nodoc\ iso _TestNumberConversionSaturation is UnitTest
     h.assert_eq[F32](F32(1) / 0, (F64(1) / 0).f32())
     h.assert_eq[F32](-F32(1) / 0, (-F64(1) / 0).f32())
 
+    // F64 values between F32.max and the IEEE rounding boundary
+    // (F32.max + 2^103) round to F32.max, not inf.
+    let f32_max = F32.max_value()
+    let above = F64.from_bits(f32_max.f64().bits() + 1)
+    h.assert_eq[F32](f32_max, above.f32())
+    h.assert_eq[F32](-f32_max, (-above).f32())
+
+    // The rounding boundary itself (0x47EFFFFFF0000000) rounds to inf
+    // (ties go to even, and F32.max has an odd mantissa).
+    h.assert_eq[F32](F32(1) / 0, F64.from_bits(0x47EFFFFFF0000000).f32())
+    h.assert_eq[F32](-F32(1) / 0, (-F64.from_bits(0x47EFFFFFF0000000)).f32())
+
+    // The F64 just below the boundary rounds to F32.max.
+    h.assert_eq[F32](f32_max, F64.from_bits(0x47EFFFFFEFFFFFFF).f32())
+    h.assert_eq[F32](-f32_max, (-F64.from_bits(0x47EFFFFFEFFFFFFF)).f32())
+
+    // U128 value between F32.max and the rounding boundary rounds to F32.max.
+    h.assert_eq[F32](f32_max,
+      (f32_max.u128() + (U128(1) << 75)).f32())
+
   fun float_to_ints[A: (Float & Real[A])](h: TestHelper) =>
     float_to_int[A, I8](h)
     float_to_int[A, I16](h)
