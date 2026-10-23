@@ -113,3 +113,7 @@ class CrossFileRefs
     let a: Announcer = Announcer.create(env.out)
     a.announce(msg)
     let gr: String = g.greeting
+
+primitive CrossFileChain
+  fun apply() =>
+    Greeter.create("test").greet("world")
