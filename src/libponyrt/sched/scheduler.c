@@ -1536,12 +1536,16 @@ void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   pony_assert(NULL != ctx->scheduler);
 
+  TRACING_ACTOR_SCHEDULED(ctx, actor);
+
   // Add to the current scheduler thread.
   push(ctx->scheduler, actor);
 }
 
 void ponyint_sched_add_inject(pony_actor_t* actor)
 {
+  TRACING_ACTOR_SCHEDULED_INJECT(actor);
+
   // Put on the shared mpmcq.
   ponyint_mpmcq_push(&inject, actor);
 }
