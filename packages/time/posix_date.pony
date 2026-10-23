@@ -8,6 +8,12 @@ class PosixDate
   time zone. The day of month and month are indexed from 1 (January is 1).
   day_of_week follows C's tm_wday convention (0=Sunday through 6=Saturday).
   day_of_year follows C's tm_yday convention (0-based, January 1 is 0).
+
+  The representable range starts at 1970-01-01 00:00:00. The upper bound
+  depends on the platform's `gmtime` implementation: year 3000 on Windows,
+  year 2147483647 elsewhere. Arguments that fall outside this range are
+  clamped: negative values are treated as zero, and values beyond the
+  maximum representable date are treated as the maximum.
   """
   var nsec: I32 = 0
   var sec: I32 = 0
@@ -21,7 +27,9 @@ class PosixDate
 
   new create(seconds: I64 = 0, nanoseconds: I64 = 0) =>
     """
-    Create a date from a POSIX time. Negative arguments will be changed to zero.
+    Create a date from a POSIX time. Negative arguments are clamped to zero.
+    Combined values beyond year 2147483647 are clamped to the maximum
+    representable date.
     """
     @ponyint_gmtime(
       this,
