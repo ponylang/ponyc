@@ -32,6 +32,8 @@ else()
         target_link_libraries(ponylink PRIVATE execinfo)
     elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
         target_link_libraries(ponylink PRIVATE execinfo atomic)
+    elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Haiku")
+        target_link_libraries(ponylink PRIVATE execinfo atomic)
     else()
         target_link_libraries(ponylink PRIVATE atomic dl)
 

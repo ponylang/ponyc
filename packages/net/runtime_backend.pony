@@ -145,7 +145,12 @@ class RuntimeBackend is TCPBackend
     (result, count)
 
   fun shutdown(fd: U32) =>
-    @pony_os_socket_shutdown(fd)
+    // There's some bug in shutdown on Haiku, which never closes socket (it stays in timed wait forever).
+    // So just force hard_close there.
+    // TODO: remove it once Haiku OS bug is fixed.
+    ifdef haiku then close(fd)
+    else @pony_os_socket_shutdown(fd)
+    end
 
   fun sockname(fd: U32, ip: NetAddress tag): Bool =>
     @pony_os_sockname(fd, ip)

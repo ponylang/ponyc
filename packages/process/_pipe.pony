@@ -21,16 +21,24 @@ use @WriteFile[Bool](handle: Pointer[None], buffer: Pointer[None],
 use @GetLastError[I32]() if not posix
 
 primitive _FSETFL
-  fun apply(): I32 => 4
+  fun apply(): I32 =>
+    ifdef haiku then 16
+    else 4 end
 
 primitive _FGETFL
-  fun apply(): I32 => 3
+  fun apply(): I32 =>
+    ifdef haiku then 8
+    else 3 end
 
 primitive _FSETFD
-  fun apply(): I32 => 2
+  fun apply(): I32 =>
+    ifdef haiku then 4
+    else 2 end
 
 primitive _FGETFD
-  fun apply(): I32 => 1
+  fun apply(): I32 =>
+    ifdef haiku then 2
+    else 1 end
 
 primitive _FDCLOEXEC
   fun apply(): I32 => 1
@@ -40,6 +48,7 @@ primitive _ONONBLOCK
   fun apply(): I32 =>
     ifdef bsd or osx then 4
     elseif linux then 2048
+    elseif haiku then 128
     else compile_error "no O_NONBLOCK" end
 
 // The pipe has been ended.

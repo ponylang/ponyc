@@ -12,9 +12,9 @@ use @"llvm.x86.rdtsc"[U64]()
 use @"llvm.readcyclecounter"[U64]()
 use @time[I64](tloc: Pointer[None])
 use @clock_gettime[I32](clock: U32, ts: Pointer[(I64, I64)])
-  if lp64 and (linux or bsd)
+  if lp64 and (linux or bsd or haiku)
 use @clock_gettime[I32](clock: U32, ts: Pointer[(I32, I32)])
-  if ilp32 and (linux or bsd)
+  if ilp32 and (linux or bsd or haiku)
 use @clock_gettime_nsec_np[U64](clock: U32) if osx
 use @gettimeofday[I32](tp: Pointer[(I64, I64)], tzp: Pointer[None])
   if osx
@@ -29,6 +29,8 @@ primitive _ClockRealtime
   fun apply(): U32 =>
     ifdef linux or bsd then
       0
+    elseif haiku then
+      -1
     else
       compile_error "no clock_gettime realtime clock"
     end
@@ -41,6 +43,8 @@ primitive _ClockMonotonic
       3
     elseif bsd then
       4
+    elseif haiku then
+       0
     else
       compile_error "no clock_gettime monotonic clock"
     end
@@ -66,7 +70,7 @@ primitive Time
       var ts: (I64, I64) = (0, 0)
       @gettimeofday(addressof ts, USize(0))
       (ts._1, ts._2 * 1000)
-    elseif linux or bsd then
+    elseif linux or bsd or haiku then
       _clock_gettime(_ClockRealtime)
     elseif windows then
       var ft: (U32, U32) = (0, 0)
@@ -92,7 +96,7 @@ primitive Time
     """
     ifdef osx then
       @clock_gettime_nsec_np(_ClockUptimeRaw()) / 1000000
-    elseif linux or bsd then
+    elseif linux or bsd or haiku then
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000) + (ts._2 / 1000000)).u64()
     elseif windows then
@@ -107,7 +111,7 @@ primitive Time
     """
     ifdef osx then
       @clock_gettime_nsec_np(_ClockUptimeRaw()) / 1000
-    elseif linux or bsd then
+    elseif linux or bsd or haiku then
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000000) + (ts._2 / 1000)).u64()
     elseif windows then
@@ -122,7 +126,7 @@ primitive Time
     """
     ifdef osx then
       @clock_gettime_nsec_np(_ClockUptimeRaw())
-    elseif linux or bsd then
+    elseif linux or bsd or haiku then
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000000000) + ts._2).u64()
     elseif windows then
@@ -168,13 +172,13 @@ primitive Time
 
   fun _clock_gettime(clock: _Clock): (I64, I64) =>
     """
-    Return a clock time on linux and bsd.
+    Return a clock time on linux, bsd and haiku.
     """
-    ifdef lp64 and (linux or bsd) then
+    ifdef lp64 and (linux or bsd or haiku) then
       var ts: (I64, I64) = (0, 0)
       @clock_gettime(clock(), addressof ts)
       ts
-    elseif ilp32 and (linux or bsd) then
+    elseif ilp32 and (linux or bsd or haiku) then
       var ts: (I32, I32) = (0, 0)
       @clock_gettime(clock(), addressof ts)
       (ts._1.i64(), ts._2.i64())
