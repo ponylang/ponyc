@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix collections.List stack overflow on large lists in debug builds ([PR #6380](https://github.com/ponylang/ponyc/pull/6380))
 - Fix Iter.step_by producing errors on short remainders ([PR #6378](https://github.com/ponylang/ponyc/pull/6378))
 - Fix String.f64 and String.f32 rejecting subnormal numbers ([PR #6381](https://github.com/ponylang/ponyc/pull/6381))
+- Fix JSONParser reading 19-digit integers as F64 ([PR #6383](https://github.com/ponylang/ponyc/pull/6383))
 
 ### Added
 
