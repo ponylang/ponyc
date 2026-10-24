@@ -999,6 +999,20 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
     if(!lexint_accum(out_value, digit, base))
     {
       lex_error(lexer, "overflow in numeric literal");
+
+      // Consume remaining digits and underscores so the caller doesn't
+      // re-lex the tail of this literal as a new number.
+      consume_chars(lexer, 1);
+      while(!is_eof(lexer))
+      {
+        c = look(lexer);
+        if((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') ||
+           (c >= 'A' && c <= 'Z') || c == '_')
+          consume_chars(lexer, 1);
+        else
+          break;
+      }
+
       return false;
     }
 
