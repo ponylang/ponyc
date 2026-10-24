@@ -9,6 +9,7 @@ actor \nodoc\ Main is TestList
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
     test(_TestFlags)
+    test(_TestFlagsMultiBit)
     test(_TestHashSetContains)
     test(_TestHashSetIntersect)
     test(_TestHeap)
@@ -1252,3 +1253,44 @@ primitive \nodoc\ _TestFlagA fun value(): U8 => 1
 primitive \nodoc\ _TestFlagB fun value(): U8 => 2
 primitive \nodoc\ _TestFlagC fun value(): U8 => 4
 primitive \nodoc\ _TestFlagD fun value(): U8 => 8
+
+type _TestMultiBitFlags is Flags[
+  (_TestFlagX | _TestFlagY | _TestFlagXY | _TestFlagZ), U8]
+
+primitive \nodoc\ _TestFlagX fun value(): U8 => 0b01
+primitive \nodoc\ _TestFlagY fun value(): U8 => 0b10
+primitive \nodoc\ _TestFlagXY fun value(): U8 => 0b11
+primitive \nodoc\ _TestFlagZ fun value(): U8 => 0
+
+class \nodoc\ iso _TestFlagsMultiBit is UnitTest
+  """
+  Flags.apply must check that all of a flag's bits are set, not just any of
+  them. A multi-bit flag whose value spans several bits is only "set" when
+  every one of those bits is present.
+  """
+  fun name(): String => "collections/Flags.apply_multibit"
+
+  fun apply(h: TestHelper) =>
+    // With only X set, apply(XY) must be false — only one of XY's two bits
+    // is present.
+    var f = _TestMultiBitFlags
+    f.set(_TestFlagX)
+    h.assert_true(f(_TestFlagX))
+    h.assert_false(f(_TestFlagY))
+    h.assert_false(f(_TestFlagXY))
+
+    // With both X and Y set, apply(XY) must be true.
+    f.set(_TestFlagY)
+    h.assert_true(f(_TestFlagX))
+    h.assert_true(f(_TestFlagY))
+    h.assert_true(f(_TestFlagXY))
+
+    // Unsetting one constituent makes the multi-bit flag false again.
+    f.unset(_TestFlagX)
+    h.assert_false(f(_TestFlagX))
+    h.assert_true(f(_TestFlagY))
+    h.assert_false(f(_TestFlagXY))
+
+    // A zero-valued flag is vacuously set.
+    let g = _TestMultiBitFlags
+    h.assert_true(g(_TestFlagZ))

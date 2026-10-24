@@ -333,6 +333,7 @@ actor \nodoc\ Main is TestList
     test(_TestBlankLinesNestedBlockCommentClean)
     test(_TestBlankLinesLineCommentWithBlockDelimiterClean)
     test(_TestBlankLinesBlockCommentBetweenMethodsClean)
+    test(_TestBlankLinesOneLinerAfterMultiLineClean)
 
     // IndentationSize tests
     test(_TestIndentationSizeClean)

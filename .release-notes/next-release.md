@@ -193,3 +193,35 @@ let s = """
 
 A numeric literal that exceeded the maximum integer size produced many duplicate "overflow in numeric literal" errors instead of one. A 2,000-digit literal gave 52 errors and 108 KB of stderr output; now it gives one.
 
+## Fix Flags.apply returning true for a multi-bit flag when only some of its bits are set
+
+`Flags.apply` checked whether *any* of a flag's bits were present rather than whether *all* of them were. A flag whose value spans multiple bits — such as a combined permission or a compound feature flag — was reported as set when only one of its constituent bits was on.
+
+```pony
+primitive A fun value(): U8 => 0b01
+primitive B fun value(): U8 => 0b10
+primitive AB fun value(): U8 => 0b11
+
+let f = Flags[(A | B | AB), U8]
+f.set(A)
+f(AB) // was: true — only one of AB's two bits is present
+      // now: false
+f.set(B)
+f(AB) // true — both bits are present
+```
+
+Single-bit flags, the common case, are unaffected. A zero-valued flag (one whose `value()` returns 0) now returns true from `apply` — vacuously, since all zero of its bits are present. Previously it always returned false.
+
+## Fix pony-lint blank-lines rule false positive on one-liner entities after multi-line entities
+
+The `style/blank-lines` rule's within-entity check ("no blank line before first body content") fired on the required blank line *between* entities when the second entity was a one-liner (declaration and body on the same line). This produced contradictory errors: the between-entity check required a blank line, and the within-entity check rejected it.
+
+```pony
+type Combo is
+  (Foo | Bar)
+              // ← between-entity check requires this blank line
+primitive Baz fun value(): U8 => 1
+              // ↑ within-entity check rejected it as
+              //   "no blank line before first body content"
+```
+

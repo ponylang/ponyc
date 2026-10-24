@@ -20,6 +20,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix triple-quoted string dropping whitespace-only lines shorter than the indentation ([PR #6386](https://github.com/ponylang/ponyc/pull/6386))
 - Fix Format.float ignoring PrefixSign and PrefixSpace ([PR #6387](https://github.com/ponylang/ponyc/pull/6387))
 - Fix Base64.decode accepting arbitrary bytes after padding ([PR #6388](https://github.com/ponylang/ponyc/pull/6388))
+- Fix Flags.apply returning true for a multi-bit flag when only some of its bits are set ([PR #6389](https://github.com/ponylang/ponyc/pull/6389))
+- Fix pony-lint blank-lines rule false positive on one-liner entities after multi-line entities ([PR #6389](https://github.com/ponylang/ponyc/pull/6389))
 - Fix triple-quoted string preserving \r from CRLF line endings ([PR #6391](https://github.com/ponylang/ponyc/pull/6391))
 
 ### Added

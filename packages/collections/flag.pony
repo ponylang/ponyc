@@ -47,7 +47,7 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] val) = U64] is
     """
     Returns true if the flag is set.
     """
-    (_value and flag.value()) > 0
+    (_value and flag.value()) == flag.value()
 
   fun ref all() =>
     """

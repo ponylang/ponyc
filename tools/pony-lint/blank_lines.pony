@@ -68,8 +68,11 @@ primitive BlankLines is ASTRule
         end
       end
 
-    // Check no blank line before first body content
-    if first_content_line > 1 then
+    // Check no blank line before first body content.
+    // Skip one-liners whose content is on the declaration line — the
+    // line above is between-entity space, not within-entity space.
+    let entity_line = node.line()
+    if (first_content_line > 1) and (first_content_line != entity_line) then
       try
         let prev_line = source.lines(first_content_line - 2)?
         if _is_blank(prev_line) then
