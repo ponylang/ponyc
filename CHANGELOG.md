@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix error message for out-of-range unicode escape printing rest of source file ([PR #6385](https://github.com/ponylang/ponyc/pull/6385))
 - Fix triple-quoted string dropping whitespace-only lines shorter than the indentation ([PR #6386](https://github.com/ponylang/ponyc/pull/6386))
 - Fix Format.float ignoring PrefixSign and PrefixSpace ([PR #6387](https://github.com/ponylang/ponyc/pull/6387))
+- Fix Base64.decode accepting arbitrary bytes after padding ([PR #6388](https://github.com/ponylang/ponyc/pull/6388))
 
 ### Added
 
