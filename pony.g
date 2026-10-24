@@ -239,7 +239,7 @@ dot
   ;
 
 nextatom
-  : ID
+  : ID (':' type)?
   | 'this'
   | literal
   | LPAREN_NEW rawseq tuple? ')'
@@ -255,7 +255,7 @@ nextatom
   ;
 
 caseatom
-  : ID
+  : ID (':' type)?
   | 'this'
   | literal
   | ('(' | LPAREN_NEW) rawseq tuple? ')'
@@ -270,7 +270,7 @@ caseatom
   ;
 
 atom
-  : ID
+  : ID (':' type)?
   | 'this'
   | literal
   | ('(' | LPAREN_NEW) rawseq tuple? ')'
