@@ -196,16 +196,21 @@ static void maybe_mark_should_mute(pony_ctx_t* ctx, pony_actor_t* to)
         ACTOR_SYNC_FLAG_UNDER_PRESSURE))
       {
         if(ctx->current->batch_size > PONY_SCHED_BATCH_STEP)
+        {
           ctx->current->batch_size -= PONY_SCHED_BATCH_STEP;
+          TRACING_ACTOR_BATCH_SIZE_CHANGED(ctx->current);
+        }
       }
       else if(ctx->current->batch_size <= PONY_SCHED_BATCH_STEP)
       {
         ctx->current->batch_size = 0;
+        TRACING_ACTOR_BATCH_SIZE_CHANGED(ctx->current);
         ponyint_sched_mute(ctx, ctx->current, to);
       }
       else
       {
         ctx->current->batch_size -= PONY_SCHED_BATCH_STEP;
+        TRACING_ACTOR_BATCH_SIZE_CHANGED(ctx->current);
       }
     }
   }
@@ -532,6 +537,7 @@ static bool batch_limit_reached(pony_actor_t* actor)
   }
 
   actor->batch_size += PONY_SCHED_BATCH_STEP;
+  TRACING_ACTOR_BATCH_SIZE_CHANGED(actor);
 
   return true;
 }
@@ -644,6 +650,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
     actor->batch_size += PONY_SCHED_BATCH_STEP;
     if(actor->batch_size > PONY_SCHED_BATCH)
       actor->batch_size = PONY_SCHED_BATCH;
+    TRACING_ACTOR_BATCH_SIZE_CHANGED(actor);
   }
 
   try_gc(ctx, actor);
