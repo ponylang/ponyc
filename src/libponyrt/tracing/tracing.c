@@ -59,6 +59,7 @@ typedef enum
   TRACING_CATEGORY_SYSTEMATIC_TESTING = 1 << 6,
   TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS = 1 << 7,
   TRACING_CATEGORY_RUNTIME = 1 << 8,
+  TRACING_CATEGORY_SCHEDULER_STEALING = 1 << 9,
 } tracing_category_t;
 
 typedef enum
@@ -110,6 +111,8 @@ typedef enum
   TRACING_MSG_RUNTIME_INIT,
   TRACING_MSG_RUNTIME_START,
   TRACING_MSG_RUNTIME_SHUTDOWN,
+  TRACING_MSG_STEAL_SUCCESSFUL,
+  TRACING_MSG_STEAL_FAILURE_ROUND,
   TRACING_MSG_FLIGHT_RECORDER_DUMP,
 } tracing_msg_type_t;
 
@@ -626,6 +629,25 @@ typedef struct tracing_runtime_shutdown_t
   uint64_t ts;
   int exit_code;
 } tracing_runtime_shutdown_t;
+
+typedef struct tracing_steal_successful_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  void* actor;
+  pony_type_t* type;
+  int32_t thief_index;
+  int32_t victim_index;
+} tracing_steal_successful_t;
+
+typedef struct tracing_steal_failure_round_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  int32_t thief_index;
+} tracing_steal_failure_round_t;
 
 typedef struct tracing_flight_recorder_dump_t
 {
@@ -1161,6 +1183,8 @@ static char* get_tracing_category_string(tracing_category_t category)
       return "systematic_testing_details";
     case TRACING_CATEGORY_RUNTIME:
       return "runtime";
+    case TRACING_CATEGORY_SCHEDULER_STEALING:
+      return "scheduler_stealing";
     default:
       pony_assert(0);
       return NULL;
@@ -2383,10 +2407,43 @@ void ponyint_tracing_runtime_shutdown(int exit_code)
   send_trace_message((pony_msg_t*)m);
 }
 
+void ponyint_tracing_steal_successful(int32_t victim_index, pony_actor_t* actor)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_SCHEDULER_STEALING))
+    return;
+
+  tracing_steal_successful_t* m = (tracing_steal_successful_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_steal_successful_t)), TRACING_MSG_STEAL_SUCCESSFUL);
+
+  m->thief_index = this_tracing_scheduler->sched->index;
+  m->victim_index = victim_index;
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
+void ponyint_tracing_steal_failure_round()
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_SCHEDULER_STEALING))
+    return;
+
+  tracing_steal_failure_round_t* m = (tracing_steal_failure_round_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_steal_failure_round_t)), TRACING_MSG_STEAL_FAILURE_ROUND);
+
+  m->thief_index = this_tracing_scheduler->sched->index;
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+
+  send_trace_message((pony_msg_t*)m);
+}
+
 static void print_header(uint64_t thread_id)
 {
   fprintf(log_file, "[\n");
-  fprintf(log_file, "{\"name\":\"%s\",\"ts\":%" PRIu64 ",\"cat\":\"tracing\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{ \"categories_enabled\":[\"tracing\"%s%s%s%s%s%s%s%s%s]}}",
+  fprintf(log_file, "{\"name\":\"%s\",\"ts\":%" PRIu64 ",\"cat\":\"tracing\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{ \"categories_enabled\":[\"tracing\"%s%s%s%s%s%s%s%s%s%s]}}",
     "start_trace", convert_time_nanos_to_micros(get_time_nanos()), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, thread_id,
     get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_PROCESS),
     (tracing_category_enabled(TRACING_CATEGORY_ACTOR) ? ",\"actor\"" : ""),
@@ -2395,6 +2452,7 @@ static void print_header(uint64_t thread_id)
     (tracing_category_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE) ? ",\"actor_state_change\"" : ""),
     (tracing_category_enabled(TRACING_CATEGORY_SCHEDULER) ? ",\"scheduler\"" : ""),
     (tracing_category_enabled(TRACING_CATEGORY_SCHEDULER_MESSAGING) ? ",\"scheduler_messaging\"" : ""),
+    (tracing_category_enabled(TRACING_CATEGORY_SCHEDULER_STEALING) ? ",\"scheduler_stealing\"" : ""),
     (tracing_category_enabled(TRACING_CATEGORY_SYSTEMATIC_TESTING) ? ",\"systematic_testing\"" : ""),
     (tracing_category_enabled(TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS) ? ",\"systematic_testing_details\"" : ""),
     (tracing_category_enabled(TRACING_CATEGORY_RUNTIME) ? ",\"runtime\"" : ""));
@@ -3144,6 +3202,40 @@ static void handle_message(pony_msg_t* msg)
         m->exit_code);
       break;
     }
+    case TRACING_MSG_STEAL_SUCCESSFUL:
+    {
+      tracing_steal_successful_t* m = (tracing_steal_successful_t*)msg;
+      fprintf(log_file,
+        ",\n{\"name\":\"steal_successful\",\"ts\":%" PRIu64
+        ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64
+        ",\"s\":\"%s\",\"args\":{\"thief_index\":%d,\"victim_index\":%d"
+        ",\"actor\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\"}}",
+        convert_time_nanos_to_micros(m->ts),
+        get_tracing_category_string(TRACING_CATEGORY_SCHEDULER_STEALING),
+        get_tracing_event_string(TRACING_EVENT_INSTANT),
+        pid, m->thread_id,
+        get_tracing_event_instant_scope_string(
+          TRACING_EVENT_INSTANT_SCOPE_THREAD),
+        m->thief_index, m->victim_index,
+        m->actor, m->type->id, m->type->name);
+      break;
+    }
+    case TRACING_MSG_STEAL_FAILURE_ROUND:
+    {
+      tracing_steal_failure_round_t* m = (tracing_steal_failure_round_t*)msg;
+      fprintf(log_file,
+        ",\n{\"name\":\"steal_failure_round\",\"ts\":%" PRIu64
+        ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64
+        ",\"s\":\"%s\",\"args\":{\"thief_index\":%d}}",
+        convert_time_nanos_to_micros(m->ts),
+        get_tracing_category_string(TRACING_CATEGORY_SCHEDULER_STEALING),
+        get_tracing_event_string(TRACING_EVENT_INSTANT),
+        pid, m->thread_id,
+        get_tracing_event_instant_scope_string(
+          TRACING_EVENT_INSTANT_SCOPE_THREAD),
+        m->thief_index);
+      break;
+    }
     case TRACING_MSG_FLIGHT_RECORDER_DUMP:
     {
       if(strcmp(output_file, "-") == 0)
@@ -3451,6 +3543,9 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
 
       if(tracing_category_matches(token, "runtime"))
         enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_RUNTIME;
+
+      if(tracing_category_matches(token, "scheduler_stealing"))
+        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_SCHEDULER_STEALING;
 
       token = strtok(NULL, ",");
     }
