@@ -19,7 +19,6 @@ primitive _FormatFloat
     fill: U32 = ' ')
     : String iso^
   =>
-    // TODO: prefix
     var prec' = if prec == -1 then 6 else prec end
 
     recover
@@ -56,6 +55,15 @@ primitive _FormatFloat
       end
 
       s.recalc()
+
+      try
+        if s(0)? != '-' then
+          match prefix
+          | PrefixSign => s.insert_in_place(0, "+")
+          | PrefixSpace => s.insert_in_place(0, " ")
+          end
+        end
+      end
 
       if s.size() < width then
         let rem = width - s.size()
