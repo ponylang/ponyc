@@ -20,6 +20,7 @@ actor \nodoc\ Main is TestList
     test(_TestBase64URLRoundtrip)
     test(_TestBase64URLRoundtripProperty)
     test(_TestBase64URLUnpaddedProperty)
+    test(_TestBase64DecodeRejectsGarbageAfterPadding)
     test(_TestBase64DecodeSizeProperty)
     test(_TestBase64EncodePemLines)
     test(_TestBase64EncodeMIMELines)
@@ -332,6 +333,36 @@ class \nodoc\ iso _TestBase64URLAlphabetOracleProperty is UnitTest
           end
         ph.assert_eq[String](translated, url)
       })?
+
+class \nodoc\ iso _TestBase64DecodeRejectsGarbageAfterPadding is UnitTest
+  """
+  Non-base64 bytes after padding must make decode error.
+  """
+  fun name(): String => "encode/Base64.decode_rejects_garbage_after_padding"
+
+  fun apply(h: TestHelper) =>
+    // Valid padded inputs still decode
+    h.assert_no_error({()? => Base64.decode[String iso]("QQ==")? })
+    h.assert_no_error({()? => Base64.decode[String iso]("QkM=")? })
+
+    // Whitespace after padding is allowed
+    h.assert_no_error({()? => Base64.decode[String iso]("QQ== ")? })
+    h.assert_no_error({()? => Base64.decode[String iso]("QQ==\n")? })
+    h.assert_no_error({()? => Base64.decode[String iso]("QkM= \t\r\n")? })
+    h.assert_no_error({()? => Base64.decode[String iso]("QQ= =")? })
+
+    // Garbage after padding is rejected
+    h.assert_error({()? => Base64.decode[String iso]("QQ==garbage!!")? })
+    h.assert_error({()? => Base64.decode[String iso]("QQ==!")? })
+    h.assert_error({()? => Base64.decode[String iso]("QQ==QkM=")? })
+    h.assert_error({()? => Base64.decode[String iso]("QkM=x")? })
+    h.assert_error({()? => Base64.decode[String iso]("QkM= x")? })
+
+    // Also through decode_url
+    h.assert_no_error({()? => Base64.decode_url[String iso]("QQ==")? })
+    h.assert_no_error({()? => Base64.decode_url[String iso]("QQ== ")? })
+    h.assert_error({()? => Base64.decode_url[String iso]("QQ==garbage")? })
+    h.assert_error({()? => Base64.decode_url[String iso]("QQ==!")? })
 
 class \nodoc\ iso _TestBase64DecodeSizeProperty is UnitTest
   """

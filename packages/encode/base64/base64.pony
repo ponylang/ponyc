@@ -158,13 +158,17 @@ primitive Base64
     var input = U8(0)
     var output = U8(0)
 
+    var pad_start = USize(-1)
+
     for i in Range(0, data.size()) do
       input = data(i)?
 
       let value =
         match \exhaustive\ input
         | ' ' | '\t' | '\r' | '\n' => continue
-        | pad => break
+        | pad =>
+          pad_start = i
+          break
         | at62 => 62
         | at63 => 63
         | if (input >= 'A') and (input <= 'Z') =>
@@ -194,6 +198,17 @@ primitive Base64
         state = 0
       else
         error
+      end
+    end
+
+    if pad_start != USize(-1) then
+      for j in Range(pad_start + 1, data.size()) do
+        match data(j)?
+        | ' ' | '\t' | '\r' | '\n' => None
+        | pad => None
+        else
+          error
+        end
       end
     end
 
