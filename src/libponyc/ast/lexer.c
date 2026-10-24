@@ -612,7 +612,8 @@ static void normalise_string(lexer_t* lexer)
 
       if(line_start != line_end)
       {
-        size_t trim = (line_len < ws) ? line_len : ws;
+        size_t max_trim = (line_end != NULL) ? line_len - 1 : line_len;
+        size_t trim = (max_trim < ws) ? max_trim : ws;
         memmove(compacted, line_start + trim, line_len - trim);
         compacted += line_len - trim;
       }

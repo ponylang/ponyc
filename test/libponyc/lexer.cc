@@ -616,6 +616,26 @@ TEST_F(LexerTest, TripleStringStripsVariableLeadingWhitespaceWithBlankLines)
 }
 
 
+TEST_F(LexerTest, TripleStringWhitespaceOnlyLineShorterThanIndent)
+{
+  // Indentation is 3; middle line has 1 space + newline.
+  const char* src = "\"\"\"\n   Foo\n \n   bar\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\n\nbar");
+  expect(4, 10, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+TEST_F(LexerTest, TripleStringWhitespaceOnlyLineOneShortOfIndent)
+{
+  // Indentation is 3; middle line has 2 spaces + newline.
+  const char* src = "\"\"\"\n   Foo\n  \n   bar\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\n\nbar");
+  expect(4, 10, TK_EOF, "EOF");
+  DO(test(src));
+}
+
 TEST_F(LexerTest, TripleStringWithLeadingEmptyLine)
 {
   const char* src = "\"\"\"\nFoo\nbar\"\"\"";
