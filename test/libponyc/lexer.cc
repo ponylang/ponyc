@@ -712,6 +712,76 @@ TEST_F(LexerTest, TripleStringUnterminatedEndWith2DoubleQuotes)
 }
 
 
+TEST_F(LexerTest, TripleStringCRLF)
+{
+  const char* src = "\"\"\"\r\nFoo\r\nbar\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\nbar");
+  expect(3, 7, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, TripleStringCRLFWithIndent)
+{
+  const char* src = "\"\"\"\r\n   Foo\r\n   bar\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\nbar");
+  expect(3, 10, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, TripleStringCRLFMixedLineEndings)
+{
+  const char* src = "\"\"\"\n   Foo\r\n   bar\n   baz\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\nbar\nbaz");
+  expect(4, 10, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, TripleStringCRLFBlankLinePreservation)
+{
+  const char* src = "\"\"\"\r\n   Foo\r\n\r\n   bar\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\n\nbar");
+  expect(4, 10, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, TripleStringCRLFTrailingWhitespaceLine)
+{
+  const char* src = "\"\"\"\r\nFoo\r\nbar\r\n  \t\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\nbar\n");
+  expect(4, 7, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, TripleStringLoneCRPreserved)
+{
+  const char* src = "\"\"\"\nFoo\rbar\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\rbar");
+  expect(2, 11, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, TripleStringTerminalCRPreserved)
+{
+  const char* src = "\"\"\"\nFoo\r\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\r");
+  expect(2, 8, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
 TEST_F(LexerTest, EmptyStringAtEndOfSource)
 {
   const char* src = "\"\"";
