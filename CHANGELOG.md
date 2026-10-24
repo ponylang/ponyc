@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Format.float ignoring PrefixSign and PrefixSpace ([PR #6387](https://github.com/ponylang/ponyc/pull/6387))
 - Fix Base64.decode accepting arbitrary bytes after padding ([PR #6388](https://github.com/ponylang/ponyc/pull/6388))
 - Fix triple-quoted string preserving \r from CRLF line endings ([PR #6391](https://github.com/ponylang/ponyc/pull/6391))
+- Fix repeated overflow errors for long numeric literals ([PR #6392](https://github.com/ponylang/ponyc/pull/6392))
 
 ### Added
 
