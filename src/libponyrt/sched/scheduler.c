@@ -746,7 +746,13 @@ static pony_actor_t* steal(scheduler_t* sched)
 
     actor = pop_global(victim);
     if(actor != NULL)
+    {
+      if(victim != NULL)
+        TRACING_STEAL_SUCCESSFUL(victim->index, actor);
       break;
+    }
+    if(victim == NULL)
+      TRACING_STEAL_FAILURE_ROUND();
 
     uint64_t tsc2 = sched_clock();
 

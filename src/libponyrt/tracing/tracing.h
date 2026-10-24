@@ -57,6 +57,8 @@ void ponyint_tracing_systematic_testing_waiting_to_start_begin();
 void ponyint_tracing_systematic_testing_waiting_to_start_end();
 void ponyint_tracing_systematic_testing_timeslice_begin();
 void ponyint_tracing_systematic_testing_timeslice_end();
+void ponyint_tracing_steal_successful(int32_t victim_index, pony_actor_t* actor);
+void ponyint_tracing_steal_failure_round();
 void ponyint_tracing_runtime_init(uint32_t scheduler_count,
   uint32_t min_scheduler_count);
 void ponyint_tracing_runtime_start();
@@ -110,6 +112,8 @@ void ponyint_tracing_runtime_shutdown(int exit_code);
 #define TRACING_SYSTEMATIC_TESTING_WAITING_TO_START_END() do { if (ponyint_tracing_enabled) ponyint_tracing_systematic_testing_waiting_to_start_end(); } while(0)
 #define TRACING_SYSTEMATIC_TESTING_TIMESLICE_BEGIN() do { if (ponyint_tracing_enabled) ponyint_tracing_systematic_testing_timeslice_begin(); } while(0)
 #define TRACING_SYSTEMATIC_TESTING_TIMESLICE_END() do { if (ponyint_tracing_enabled) ponyint_tracing_systematic_testing_timeslice_end(); } while(0)
+#define TRACING_STEAL_SUCCESSFUL(VICTIM_INDEX, ACTOR) do { if (ponyint_tracing_enabled) ponyint_tracing_steal_successful(VICTIM_INDEX, ACTOR); } while(0)
+#define TRACING_STEAL_FAILURE_ROUND() do { if (ponyint_tracing_enabled) ponyint_tracing_steal_failure_round(); } while(0)
 #define TRACING_RUNTIME_INIT(SCHED_COUNT, MIN_SCHED_COUNT) do { if (ponyint_tracing_enabled) ponyint_tracing_runtime_init(SCHED_COUNT, MIN_SCHED_COUNT); } while(0)
 #define TRACING_RUNTIME_START() do { if (ponyint_tracing_enabled) ponyint_tracing_runtime_start(); } while(0)
 #define TRACING_RUNTIME_SHUTDOWN(EXIT_CODE) do { if (ponyint_tracing_enabled) ponyint_tracing_runtime_shutdown(EXIT_CODE); } while(0)
