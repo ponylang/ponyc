@@ -1099,7 +1099,6 @@ TEST_F(LexerTest, IntHexOverflow)
   const char* src = "0x1_0000_0000_0000_0000_0000_0000_0000_0000";
 
   expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
-  expect(1, 43, TK_INT, "0");
   expect(1, 44, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -1110,8 +1109,37 @@ TEST_F(LexerTest, IntHexDigitOverflow)
   const char* src = "0x1_1111_1111_1111_1111_1111_1111_1111_1112";
 
   expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
-  expect(1, 43, TK_INT, "2");
   expect(1, 44, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, IntDecimalOverflowLong)
+{
+  // A 100-digit decimal literal should produce exactly one overflow error,
+  // not one per ~38 digits.
+  const char* src =
+    "9999999999999999999999999999999999999999"
+    "999999999999999999999999999999999999999999999999999999999999";
+
+  expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
+  expect(1, 101, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, IntBinaryOverflow)
+{
+  // 129 binary digits: 0b1 followed by 128 zeros (2^128, one past U128 max).
+  const char* src =
+    "0b1"
+    "00000000000000000000000000000000"
+    "00000000000000000000000000000000"
+    "00000000000000000000000000000000"
+    "00000000000000000000000000000000";
+
+  expect(1, 1, TK_LEX_ERROR, "LEX_ERROR");
+  expect(1, 132, TK_EOF, "EOF");
   DO(test(src));
 }
 
