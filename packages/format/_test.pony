@@ -160,6 +160,81 @@ class \nodoc\ iso _TestFloat is UnitTest
       Format.float[F64](1.5 where width = 6, align = AlignCenter, fill = 0xE9,
         prec = 2, fmt = FormatFix))
 
+    // PrefixSign prepends '+' for non-negative floats
+    h.assert_eq[String](
+      "+1.000000",
+      Format.float[F64](1.0 where prefix = PrefixSign, fmt = FormatFix))
+    h.assert_eq[String](
+      "+0.000000",
+      Format.float[F64](0.0 where prefix = PrefixSign, fmt = FormatFix))
+
+    // PrefixSpace prepends ' ' for non-negative floats
+    h.assert_eq[String](
+      " 1.000000",
+      Format.float[F64](1.0 where prefix = PrefixSpace, fmt = FormatFix))
+    h.assert_eq[String](
+      " 0.000000",
+      Format.float[F64](0.0 where prefix = PrefixSpace, fmt = FormatFix))
+
+    // Negative floats keep '-' regardless of prefix
+    h.assert_eq[String](
+      "-1.000000",
+      Format.float[F64](-1.0 where prefix = PrefixSign, fmt = FormatFix))
+    h.assert_eq[String](
+      "-1.000000",
+      Format.float[F64](-1.0 where prefix = PrefixSpace, fmt = FormatFix))
+
+    // Negative zero keeps '-' regardless of prefix
+    h.assert_eq[String](
+      "-0.000000",
+      Format.float[F64](-0.0 where prefix = PrefixSign, fmt = FormatFix))
+    h.assert_eq[String](
+      "-0.000000",
+      Format.float[F64](-0.0 where prefix = PrefixSpace, fmt = FormatFix))
+
+    // Positive infinity gets the prefix
+    h.assert_eq[String](
+      "+inf",
+      Format.float[F64](F64.max_value() * 2 where prefix = PrefixSign,
+        fmt = FormatFix, prec = 0))
+    h.assert_eq[String](
+      " inf",
+      Format.float[F64](F64.max_value() * 2 where prefix = PrefixSpace,
+        fmt = FormatFix, prec = 0))
+
+    // PrefixDefault leaves positive floats unsigned
+    h.assert_eq[String](
+      "1.000000",
+      Format.float[F64](1.0 where prefix = PrefixDefault, fmt = FormatFix))
+
+    // Prefix interacts correctly with width and alignment
+    h.assert_eq[String](
+      "***+1.50",
+      Format.float[F64](1.5 where prefix = PrefixSign, width = 8, fill = '*',
+        prec = 2, fmt = FormatFix))
+    h.assert_eq[String](
+      "+1.50***",
+      Format.float[F64](1.5 where prefix = PrefixSign, width = 8,
+        align = AlignLeft, fill = '*', prec = 2, fmt = FormatFix))
+    h.assert_eq[String](
+      "*+1.50**",
+      Format.float[F64](1.5 where prefix = PrefixSign, width = 8,
+        align = AlignCenter, fill = '*', prec = 2, fmt = FormatFix))
+
+    // PrefixSpace with width and fill
+    h.assert_eq[String](
+      "*** 1.50",
+      Format.float[F64](1.5 where prefix = PrefixSpace, width = 8, fill = '*',
+        prec = 2, fmt = FormatFix))
+
+    // Prefix works with FormatExp and FormatGeneral
+    h.assert_eq[String](
+      "+1.000000e+00",
+      Format.float[F64](1.0 where prefix = PrefixSign, fmt = FormatExp))
+    h.assert_eq[String](
+      "+1",
+      Format.float[F64](1.0 where prefix = PrefixSign, fmt = FormatGeneral))
+
 class \nodoc\ iso _TestInt is UnitTest
   fun name(): String => "format/int"
 
