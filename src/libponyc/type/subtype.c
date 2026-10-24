@@ -366,6 +366,19 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
     return false;
   }
 
+  // Covariant noalloc.
+  if(ast_has_annotation(super, "noalloc", opt->strtab) &&
+    !ast_has_annotation(sub, "noalloc", opt->strtab))
+  {
+    if(errorf != NULL)
+    {
+      ast_error_frame(errorf, sub,
+        "a method that implements a 'noalloc' method must also be 'noalloc'");
+    }
+
+    return false;
+  }
+
   return true;
 }
 
