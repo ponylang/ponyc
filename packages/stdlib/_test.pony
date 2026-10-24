@@ -7,6 +7,7 @@ use actor_pinning = "actor_pinning"
 use backpressure= "backpressure"
 use base64 = "encode/base64"
 use buffered = "buffered"
+use byte_order = "byte_order"
 use builtin_test = "builtin_test"
 use bureaucracy = "bureaucracy"
 use capsicum = "capsicum"
@@ -47,6 +48,7 @@ actor \nodoc\ Main is TestList
     actor_pinning.Main.make().tests(test)
     base64.Main.make().tests(test)
     buffered.Main.make().tests(test)
+    byte_order.Main.make().tests(test)
     builtin_test.Main.make().tests(test)
     bureaucracy.Main.make().tests(test)
     cli.Main.make().tests(test)
