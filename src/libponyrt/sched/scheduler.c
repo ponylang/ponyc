@@ -172,12 +172,18 @@ static pony_actor_t* pop_global(scheduler_t* sched)
   pony_actor_t* actor = (pony_actor_t*)ponyint_mpmcq_pop(&inject);
 
   if(actor != NULL)
+  {
+    TRACING_ACTOR_DEQUEUED(actor, true);
     return actor;
+  }
 
-  if (sched == NULL)
+  if(sched == NULL)
     return NULL;
-  else
-    return pop(sched);
+
+  actor = pop(sched);
+  if(actor != NULL)
+    TRACING_ACTOR_DEQUEUED(actor, false);
+  return actor;
 }
 
 /**
