@@ -806,7 +806,7 @@ static int escape(lexer_t* lexer, bool unicode_allowed, bool is_string)
     if(value > 0x10FFFF)
     {
       lex_error_at(lexer, line, pos,
-        "Escape sequence \"%8s\" exceeds unicode range (0x10FFFF)", start);
+        "Escape sequence \"%.8s\" exceeds unicode range (0x10FFFF)", start);
       return -1;
     }
   }
