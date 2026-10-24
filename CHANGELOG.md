@@ -29,6 +29,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add runtime lifecycle tracing events ([PR #6368](https://github.com/ponylang/ponyc/pull/6368))
 - Add actor scheduling tracing events ([PR #6376](https://github.com/ponylang/ponyc/pull/6376))
+- Add scheduler work-stealing tracing events ([PR #6393](https://github.com/ponylang/ponyc/pull/6393))
 
 ### Changed
 
