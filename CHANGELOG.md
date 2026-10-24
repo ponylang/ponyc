@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix String.f64 and String.f32 rejecting subnormal numbers ([PR #6381](https://github.com/ponylang/ponyc/pull/6381))
 - Fix JSONParser reading 19-digit integers as F64 ([PR #6383](https://github.com/ponylang/ponyc/pull/6383))
 - Fix PosixDate returning wrong fields for very large seconds values ([PR #6384](https://github.com/ponylang/ponyc/pull/6384))
+- Fix error message for out-of-range unicode escape printing rest of source file ([PR #6385](https://github.com/ponylang/ponyc/pull/6385))
 
 ### Added
 
