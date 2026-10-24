@@ -1757,6 +1757,7 @@ static void sched_reschedule_unmuted(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   ponyint_unmute_actor(actor);
   actor->batch_size = PONY_SCHED_BATCH_STEP;
+  TRACING_ACTOR_BATCH_SIZE_CHANGED(actor);
   ponyint_sched_add(ctx, actor);
   ponyint_sched_start_global_unmute(ctx->scheduler->index, actor);
 }
