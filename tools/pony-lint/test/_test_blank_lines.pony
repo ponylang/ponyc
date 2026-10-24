@@ -1065,3 +1065,47 @@ class \nodoc\ _TestBlankLinesLeadingBlankDocMethodNoBlank is UnitTest
     else
       h.fail("compilation failed")
     end
+
+class \nodoc\ _TestBlankLinesOneLinerAfterMultiLineClean is UnitTest
+  """
+  One-liner primitive after a multi-line type alias with 1 blank
+  line between them. The within-entity check must not flag the
+  blank line as "before first body content" — it is between-entity
+  space, not within-entity space. Regression test for #6389.
+  """
+  fun name(): String =>
+    "BlankLines: one-liner after multi-line entity 1 blank is clean"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "type Combo is\n" +
+      "  (U8 | U16)\n" +
+      "\n" +
+      "primitive Foo fun value(): U8 => 1\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.module()
+      | let pkg: ast.Module val =>
+        match pkg.file()
+        | let mod: ast.SourceFile val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
+          let collector = _TestEntityCollector
+          mod.ast.visit(collector)
+          let entities = collector.entities()
+          let file_diags =
+            lint.BlankLines.check_file(entities, sf)
+          let all_diags = Array[lint.Diagnostic val]
+          for d in diags.values() do all_diags.push(d) end
+          for d in file_diags.values() do all_diags.push(d) end
+          h.assert_eq[USize](0, all_diags.size())
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no module")
+      end
+    else
+      h.fail("compilation failed")
+    end
