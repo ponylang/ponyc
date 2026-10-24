@@ -533,10 +533,9 @@ static token_t* slash(lexer_t* lexer)
 
 
 /**
-* Removes longest common prefix indentation from every line in a triple
-* quoted string. If the string begins with an empty line, that line is removed
-* entirely.
-* If the last line only consists of whitespace those will also be removed.
+* Normalises a triple quoted string. Converts CRLF line endings to LF, removes
+* longest common prefix indentation from every line, strips a leading empty
+* line, and strips trailing whitespace from a whitespace-only final line.
 */
 static void normalise_string(lexer_t* lexer)
 {
@@ -547,15 +546,26 @@ static void normalise_string(lexer_t* lexer)
   if(memchr(lexer->buffer, '\n', lexer->buflen) == NULL)
     return;
 
+  // Strip \r that immediately precedes \n (CRLF -> LF).
+  size_t out = 0;
+
+  for(size_t i = 0; i < lexer->buflen; i++)
+  {
+    if((lexer->buffer[i] == '\r') && ((i + 1) < lexer->buflen) &&
+      (lexer->buffer[i + 1] == '\n'))
+    {
+      continue;
+    }
+
+    lexer->buffer[out++] = lexer->buffer[i];
+  }
+
+  lexer->buflen = out;
+
   // Trim a leading newline if there is one.
   char* buf = lexer->buffer;
 
-  if((buf[0] == '\r') && (buf[1] == '\n'))
-  {
-    lexer->buflen -= 2;
-    memmove(&buf[0], &buf[2], lexer->buflen);
-  }
-  else if(buf[0] == '\n')
+  if(buf[0] == '\n')
   {
     lexer->buflen--;
     memmove(&buf[0], &buf[1], lexer->buflen);
