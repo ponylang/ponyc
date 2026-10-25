@@ -529,15 +529,15 @@ jobs:
           PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /build/static-smoke /build/static-smoke
           file /build/static-smoke/static-smoke | grep -q 'statically linked'
           /build/static-smoke/static-smoke
-          PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
-          ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
+          PONY_DEBUG=1 PONY_STDLIB_TEST_EXCLUDES=--sequential ctest --preset x86-64-debug -L ci-core
+          PONY_STDLIB_TEST_EXCLUDES=--sequential ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
           ctest --preset x86-64-debug -R pony-doc-tests
           ctest --preset x86-64-debug -R pony-lint-tests
           ctest --preset x86-64-debug -R pony-lsp-tests
           cmake --preset x86-64-release -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"
           cmake --build --preset x86-64-release
-          PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
-          ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+          PONY_DEBUG=1 PONY_STDLIB_TEST_EXCLUDES=--sequential ctest --preset x86-64-release -L ci-core
+          PONY_STDLIB_TEST_EXCLUDES=--sequential ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
           # gcc use=coverage smoke test — see the script for details. It does a
           # clean + reconfigure of the debug build with use=coverage, so it runs
           # last, after the release tests that depend on the prior builds.
