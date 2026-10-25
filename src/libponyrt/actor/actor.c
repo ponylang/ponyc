@@ -286,12 +286,15 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 
   uint64_t num_actor_references_deleted = num_actor_references - ponyint_actormap_size(&actor->gc.foreign);
 
-  ponyint_heap_endgc(&actor->heap, num_actor_references_deleted
+  bool gc_threshold_held = ponyint_heap_endgc(&actor->heap,
+    num_actor_references_deleted
 #ifdef USE_RUNTIMESTATS
   , actor);
 #else
   );
 #endif
+
+  TRACING_ACTOR_GC_THRESHOLD_CHANGED(actor, gc_threshold_held);
 
 #ifdef USE_RUNTIMESTATS
     used_cpu = ponyint_sched_cpu_used(ctx);
