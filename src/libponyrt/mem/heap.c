@@ -1036,7 +1036,7 @@ void ponyint_heap_free(chunk_t* chunk, void* p)
   }
 }
 
-void ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
+bool ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
 #ifdef USE_RUNTIMESTATS
   , pony_actor_t* actor)
 #else
@@ -1230,11 +1230,18 @@ void ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
   // this effectively causes GC to run more frequently for this actor if
   // it tends to have a lot of references to other actors that are
   // frequently created and destroyed
+  bool held = false;
+
   if((num_actor_references_deleted > ACTOR_REFERENCES_DELETED_THRESHOLD)
     && (next_gc > heap->next_gc))
+  {
     next_gc = heap->next_gc;
+    held = true;
+  }
 
   heap->next_gc = next_gc;
+
+  return held;
 }
 
 size_t ponyint_heap_size(chunk_t* chunk)

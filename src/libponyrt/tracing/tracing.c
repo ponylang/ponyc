@@ -114,6 +114,7 @@ typedef enum
   TRACING_MSG_STEAL_SUCCESSFUL,
   TRACING_MSG_STEAL_FAILURE_ROUND,
   TRACING_MSG_ACTOR_BATCH_SIZE_CHANGED,
+  TRACING_MSG_ACTOR_GC_THRESHOLD_CHANGED,
   TRACING_MSG_FLIGHT_RECORDER_DUMP,
 } tracing_msg_type_t;
 
@@ -659,6 +660,18 @@ typedef struct tracing_actor_batch_size_changed_t
   pony_type_t* type;
   uint16_t batch_size;
 } tracing_actor_batch_size_changed_t;
+
+typedef struct tracing_actor_gc_threshold_changed_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  void* actor;
+  pony_type_t* type;
+  size_t next_gc;
+  size_t used;
+  bool held;
+} tracing_actor_gc_threshold_changed_t;
 
 typedef struct tracing_flight_recorder_dump_t
 {
@@ -2471,6 +2484,28 @@ void ponyint_tracing_actor_batch_size_changed(pony_actor_t* actor)
   send_trace_message((pony_msg_t*)m);
 }
 
+void ponyint_tracing_actor_gc_threshold_changed(pony_actor_t* actor, bool held)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_gc_threshold_changed_t* m = (tracing_actor_gc_threshold_changed_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_gc_threshold_changed_t)), TRACING_MSG_ACTOR_GC_THRESHOLD_CHANGED);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+  m->next_gc = actor->heap.next_gc;
+  m->used = actor->heap.used;
+  m->held = held;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
 static void print_header(uint64_t thread_id)
 {
   fprintf(log_file, "[\n");
@@ -3279,6 +3314,22 @@ static void handle_message(pony_msg_t* msg)
         get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT),
         pid, m->thread_id, m->actor, m->actor,
         m->type->id, m->type->name, m->batch_size);
+      break;
+    }
+    case TRACING_MSG_ACTOR_GC_THRESHOLD_CHANGED:
+    {
+      tracing_actor_gc_threshold_changed_t* m = (tracing_actor_gc_threshold_changed_t*)msg;
+      fprintf(log_file,
+        ",\n{\"name\":\"actor_gc_threshold_changed\",\"ts\":%" PRIu64
+        ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64
+        ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u"
+        ",\"type_name\":\"%s\",\"next_gc\":%zu,\"used\":%zu"
+        ",\"held\":%s}}",
+        convert_time_nanos_to_micros(m->ts), m->type->name,
+        get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT),
+        pid, m->thread_id, m->actor, m->actor,
+        m->type->id, m->type->name, m->next_gc, m->used,
+        m->held ? "true" : "false");
       break;
     }
     case TRACING_MSG_FLIGHT_RECORDER_DUMP:
