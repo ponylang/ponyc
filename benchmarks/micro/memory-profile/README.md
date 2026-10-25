@@ -3,7 +3,7 @@
 Standalone Pony programs that exercise the arena allocator so its
 `--ponymemoryprofile` dial (1 = smallest footprint, 10 = most throughput) can be
 measured, and so its per-rung values can be re-derived later. Unlike the C++
-Google Benchmark suites under `benchmark/libponyrt/`, these are ordinary Pony
+Google Benchmark suites under `benchmarks/micro/libponyrt/`, these are ordinary Pony
 programs: build them with the compiler you are testing and run them directly.
 
 The dial only moves a program that frees memory and reuses it after a gap. A
@@ -38,7 +38,7 @@ the other workers' cycles.
 Build with the ponyc you are testing, e.g.:
 
 ```
-./build/release/ponyc benchmark/memory-profile/churn -o /tmp/bin -b churn
+./build/release/ponyc benchmarks/micro/memory-profile/churn -o /tmp/bin -b churn
 ```
 
 Throughput is the program's own timer: `churn` and `actor-churn` print it as

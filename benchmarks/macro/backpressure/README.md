@@ -13,8 +13,8 @@ From the build directory:
 
 ```bash
 cd build/release
-./ponyc -b overload ../../benchmarks/backpressure/overload
-./ponyc -b fan-in ../../benchmarks/backpressure/fan-in
+./ponyc -b overload ../../benchmarks/macro/backpressure/overload
+./ponyc -b fan-in ../../benchmarks/macro/backpressure/fan-in
 ```
 
 ## Running

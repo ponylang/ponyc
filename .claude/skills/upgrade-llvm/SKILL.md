@@ -315,7 +315,7 @@ is removed. Re-check this table against the new headers as part of the upgrade.
 - `src/libponyc/codegen/genexe.cc` — embedded LLD
 - `src/libponyc/codegen/gencshim.cc` — embedded clang frontend
 - `src/libponyc/platform/vcvars.c`, `src/ponyc/CMakeLists.txt`,
-  `test/libponyc/CMakeLists.txt`, `benchmark/libponyc/CMakeLists.txt` — link
+  `test/libponyc/CMakeLists.txt`, `benchmarks/micro/libponyc/CMakeLists.txt` — link
   dependencies
 - `test/libponyc/codegen.cc` — codegen assertions
 
