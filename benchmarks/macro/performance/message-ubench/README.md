@@ -10,7 +10,7 @@ The number of in-flight messages is bounded by `initial-pings × pingers`, keepi
 
 ```bash
 cd build/release
-./ponyc -b message-ubench ../../benchmarks/performance/message-ubench
+./ponyc -b message-ubench ../../benchmarks/macro/performance/message-ubench
 ```
 
 ## Running

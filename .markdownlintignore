@@ -1,4 +1,4 @@
-benchmark/**
+benchmarks/micro/**
 CHANGELOG.md
 CODE_OF_CONDUCT.md
 .release-notes/**

@@ -5,6 +5,6 @@ Measures the performance of tagged-pointer encoding for small machine words (Boo
 Built on the `pony_bench` library. Build with the compiler under test and run directly:
 
 ```
-./build/release/ponyc benchmark/tagged-ptr -o /tmp/bin -b tagged-ptr
+./build/release/ponyc benchmarks/micro/tagged-ptr -o /tmp/bin -b tagged-ptr
 /tmp/bin/tagged-ptr
 ```

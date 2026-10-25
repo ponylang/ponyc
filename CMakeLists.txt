@@ -821,8 +821,8 @@ else()
     add_subdirectory(test/full-program-runner)
     add_subdirectory(test/full-program-tests)
 
-    add_subdirectory(benchmark/libponyc)
-    add_subdirectory(benchmark/libponyrt)
+    add_subdirectory(benchmarks/micro/libponyc)
+    add_subdirectory(benchmarks/micro/libponyrt)
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_subdirectory(src/crt)

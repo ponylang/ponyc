@@ -6,7 +6,7 @@ Build and run a benchmark:
 
 ```
 cd build/debug
-./ponyc ../../benchmark/optimization/<name>
+./ponyc ../../benchmarks/micro/optimization/<name>
 ./<name>
 ```
 
