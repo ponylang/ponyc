@@ -121,18 +121,8 @@ foreach(_use IN LISTS _pony_uses)
         _pony_set_use(RUNTIMESTATS_MESSAGES ON)
     elseif(_use STREQUAL "pool_memalign")
         _pony_set_use(POOL_MEMALIGN ON)
-    elseif(_use STREQUAL "runtime_tracing")
-        message(FATAL_ERROR
-            "runtime_tracing was removed: tracing is now always compiled in "
-            "and configured at startup via --ponytracingmode and related "
-            "flags. Drop it from PONY_USES.")
     elseif(_use STREQUAL "reach_instrument")
         _pony_set_use(REACH_INSTRUMENT ON)
-    elseif(_use STREQUAL "scheduler_scaling_pthreads")
-        message(FATAL_ERROR
-            "scheduler_scaling_pthreads was removed: the scheduler no longer "
-            "pauses idle threads with a signal or a condition variable, so the "
-            "option no longer selects anything. Drop it from PONY_USES.")
     else()
         message(FATAL_ERROR "Unknown use option specified: ${_use}")
     endif()
