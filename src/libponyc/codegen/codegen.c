@@ -909,8 +909,11 @@ bool codegen_pass_init(pass_opt_t* opt)
     opt->features = LLVMCreateMessage(opt->features);
   } else {
     if((opt->cpu == NULL) && (opt->triple == NULL))
-      opt->features = LLVMGetHostCPUFeatures();
-    else
+    {
+      char* host_features = LLVMGetHostCPUFeatures();
+      opt->features = codegen_filter_host_features(triple, host_features);
+      LLVMDisposeMessage(host_features);
+    } else
       opt->features = LLVMCreateMessage("");
   }
 
