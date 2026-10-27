@@ -256,3 +256,7 @@ A new `actor_gc_threshold_changed` tracing event under the `actor_gc` category f
 
 The threshold is normally `used * 2.0`, clamped to a minimum of 16384 bytes. When an actor deletes more than 100 actor references in a single GC cycle, the threshold is held at its current value instead of growing — the `held` field is `true` in that case. This makes GC pacing visible: whether an actor's threshold is growing with its heap, staying flat because of frequent actor reference deletion, or resetting to the minimum after a large sweep.
 
+## Fix warnings about unrecognized CPU features on native builds
+
+Building ponyc natively on machines whose CPUs advertise deprecated extensions (such as Intel Xeon Phi's `avx512pf` and `prefetchwt1`) produced warnings like `'-avx512pf' is not a recognized feature for this target (ignoring feature)`. The auto-detected host features are now filtered to those the compiler's LLVM backend recognizes before they reach code generation.
+
