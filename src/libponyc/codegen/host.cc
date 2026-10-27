@@ -70,6 +70,51 @@ bool codegen_host_cpu_is_valid(const char* triple_str, const char* cpu)
   return sti->isCPUStringValid(cpu);
 }
 
+char* codegen_filter_host_features(const char* triple_str,
+  const char* features)
+{
+  if(features == nullptr || features[0] == '\0')
+    return LLVMCreateMessage("");
+
+  Triple triple(triple_str);
+  std::string error;
+  const Target* t = TargetRegistry::lookupTarget(triple, error);
+  if(t == nullptr)
+    return LLVMCreateMessage(features);
+
+  std::unique_ptr<MCSubtargetInfo> sti(
+    t->createMCSubtargetInfo(triple, "", ""));
+  if(sti == nullptr)
+    return LLVMCreateMessage(features);
+
+  ArrayRef<SubtargetFeatureKV> table = sti->getAllProcessorFeatures();
+
+  std::string result;
+  StringRef remaining(features);
+
+  while(!remaining.empty())
+  {
+    auto [token, rest] = remaining.split(',');
+    remaining = rest;
+
+    if(token.empty())
+      continue;
+
+    StringRef name = token.drop_front(
+      (token[0] == '+' || token[0] == '-') ? 1 : 0);
+
+    auto it = std::lower_bound(table.begin(), table.end(), name);
+    if(it != table.end() && StringRef(it->key()) == name)
+    {
+      if(!result.empty())
+        result += ',';
+      result += token;
+    }
+  }
+
+  return LLVMCreateMessage(result.c_str());
+}
+
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst)
 {
   unwrap<Instruction>(inst)->setHasAllowReassoc(true);
