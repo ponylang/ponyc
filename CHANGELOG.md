@@ -24,6 +24,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix pony-lint blank-lines rule false positive on one-liner entities after multi-line entities ([PR #6389](https://github.com/ponylang/ponyc/pull/6389))
 - Fix triple-quoted string preserving \r from CRLF line endings ([PR #6391](https://github.com/ponylang/ponyc/pull/6391))
 - Fix repeated overflow errors for long numeric literals ([PR #6392](https://github.com/ponylang/ponyc/pull/6392))
+- Fix warnings about unrecognized CPU features on native builds ([PR #6404](https://github.com/ponylang/ponyc/pull/6404))
 
 ### Added
 
