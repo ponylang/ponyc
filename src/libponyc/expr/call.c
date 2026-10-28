@@ -846,6 +846,37 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   return true;
 }
 
+static bool check_noalloc_bare_call(pass_opt_t* opt, ast_t* ast,
+  ast_t* type)
+{
+  AST_GET_CHILDREN(type, cap, typeparams, params, result);
+
+  if(ast_id(cap) != TK_AT)
+    return true;
+
+  ast_t* enclosing = ast;
+
+  while(enclosing != NULL)
+  {
+    token_id id = ast_id(enclosing);
+
+    if((id == TK_FUN) || (id == TK_BE) || (id == TK_NEW))
+      break;
+
+    enclosing = ast_parent(enclosing);
+  }
+
+  if((enclosing != NULL) &&
+    ast_has_annotation(enclosing, "noalloc", opt->strtab))
+  {
+    ast_error(opt->check.errors, ast,
+      "a 'noalloc' method cannot call a bare lambda");
+    return false;
+  }
+
+  return true;
+}
+
 static bool check_noalloc_virtual_call(pass_opt_t* opt, ast_t* ast,
   ast_t* lhs, ast_t* r_type)
 {
@@ -919,6 +950,9 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
   ast_t* type = ast_type(lhs);
 
   if(is_typecheck_error(type))
+    return false;
+
+  if(!check_noalloc_bare_call(opt, ast, type))
     return false;
 
   // Only check fun and be calls — constructors on interfaces/traits are

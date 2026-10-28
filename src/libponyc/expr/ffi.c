@@ -157,10 +157,38 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
   return true;
 }
 
+static bool check_noalloc_ffi(pass_opt_t* opt, ast_t* ast)
+{
+  ast_t* enclosing = ast;
+
+  while(enclosing != NULL)
+  {
+    token_id id = ast_id(enclosing);
+
+    if((id == TK_FUN) || (id == TK_BE) || (id == TK_NEW))
+      break;
+
+    enclosing = ast_parent(enclosing);
+  }
+
+  if((enclosing != NULL) &&
+    ast_has_annotation(enclosing, "noalloc", opt->strtab))
+  {
+    ast_error(opt->check.errors, ast,
+      "a 'noalloc' method cannot contain an FFI call");
+    return false;
+  }
+
+  return true;
+}
+
 bool expr_ffi(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
   pony_assert(name != NULL);
+
+  if(!check_noalloc_ffi(opt, ast))
+    return false;
 
   ast_t* decl;
   if(!ffi_get_decl(&opt->check, ast, &decl, opt))

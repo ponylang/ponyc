@@ -79,6 +79,69 @@ TEST_F(NoAllocSyntaxTest, NoAllocOnClassError)
   DO(test_expected_errors(src, "syntax", errs));
 }
 
+// --- FFI and bare lambda restriction tests ---
+
+class NoAllocOpaqueCallTest : public PassTest
+{};
+
+TEST_F(NoAllocOpaqueCallTest, NoAllocWithFFICallError)
+{
+  const char* src =
+    "use @pony_os_errno[I32]()\n"
+    "\n"
+    "class C\n"
+    "  fun \\noalloc\\ check(): I32 =>\n"
+    "    @pony_os_errno()\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src,
+    "a 'noalloc' method cannot contain an FFI call");
+}
+
+TEST_F(NoAllocOpaqueCallTest, NonNoAllocWithFFICall)
+{
+  const char* src =
+    "use @pony_os_errno[I32]()\n"
+    "\n"
+    "class C\n"
+    "  fun check(): I32 =>\n"
+    "    @pony_os_errno()\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(NoAllocOpaqueCallTest, NoAllocWithBareLambdaCallError)
+{
+  const char* src =
+    "class C\n"
+    "  fun \\noalloc\\ go(f: @{(U32): U32}): U32 =>\n"
+    "    f(42)\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src,
+    "a 'noalloc' method cannot call a bare lambda");
+}
+
+TEST_F(NoAllocOpaqueCallTest, NonNoAllocWithBareLambdaCall)
+{
+  const char* src =
+    "class C\n"
+    "  fun go(f: @{(U32): U32}): U32 =>\n"
+    "    f(42)\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  DO(test_compile(src, "expr"));
+}
+
 // --- Conformance tests ---
 
 class NoAllocConformanceTest : public PassTest
@@ -390,4 +453,46 @@ TEST_F(NoAllocLTOTest, NoAllocBePureBodyPasses)
   opt.release = true;
   TEST_COMPILE(src);
   ASSERT_FALSE(run_noalloc_check());
+}
+
+TEST_F(NoAllocLTOTest, NoAllocTransitiveFFICallFails)
+{
+  const char* src =
+    "use @pony_os_errno[I32]()\n"
+    "\n"
+    "class Helper\n"
+    "  fun get_errno(): I32 =>\n"
+    "    @pony_os_errno()\n"
+    "\n"
+    "class C\n"
+    "  fun \\noalloc\\ go(h: Helper): I32 =>\n"
+    "    h.get_errno()\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    C.go(Helper)";
+
+  opt.release = true;
+  TEST_COMPILE(src);
+  ASSERT_TRUE(run_noalloc_check());
+}
+
+TEST_F(NoAllocLTOTest, NoAllocTransitiveBareLambdaCallFails)
+{
+  const char* src =
+    "class Helper\n"
+    "  fun call_bare(f: @{(U32): U32}): U32 =>\n"
+    "    f(42)\n"
+    "\n"
+    "class C\n"
+    "  fun \\noalloc\\ go(h: Helper, f: @{(U32): U32}): U32 =>\n"
+    "    h.call_bare(f)\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    C.go(Helper, @{(x: U32): U32 => x})";
+
+  opt.release = true;
+  TEST_COMPILE(src);
+  ASSERT_TRUE(run_noalloc_check());
 }

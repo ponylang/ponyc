@@ -95,7 +95,12 @@ static bool check_function(Function &F,
       Function *callee = CB->getCalledFunction();
 
       if(callee == nullptr)
-        continue;
+      {
+        found.call = CB;
+        found.description = "an indirect call (bare lambda)";
+        cache[&F] = {CacheEntry::Allocates, CB, found.description};
+        return true;
+      }
 
       if(is_alloc_function(callee->getName()))
       {
@@ -106,7 +111,15 @@ static bool check_function(Function &F,
       }
 
       if(callee->isDeclaration())
-        continue;
+      {
+        if(callee->isIntrinsic())
+          continue;
+
+        found.call = CB;
+        found.description = "an FFI call";
+        cache[&F] = {CacheEntry::Allocates, CB, found.description};
+        return true;
+      }
 
       if(callee->getMetadata("pony.noalloc") != nullptr)
         continue;
