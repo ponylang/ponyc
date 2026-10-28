@@ -2,19 +2,19 @@ primitive SpanShuffle
   """
   Shuffle operations.
   """
-  fun string(): String iso^ => "shuffle".clone()
+  fun string(): String => "shuffle"
 
 primitive SpanFilter
   """
   Filter rejection spans.
   """
-  fun string(): String iso^ => "filter".clone()
+  fun string(): String => "filter"
 
 primitive SpanElement
   """
   Collection element spans.
   """
-  fun string(): String iso^ => "element".clone()
+  fun string(): String => "element"
 
 type SpanLabel is (SpanShuffle | SpanFilter | SpanElement)
   """
@@ -45,8 +45,8 @@ class val _Span is (Equatable[_Span] & Stringable)
       (label is other.label) and
       (discarded == other.discarded)
 
-  fun string(): String iso^ =>
-    recover
+  fun string(): String =>
+    recover val
       String()
         .> append("Span(")
         .> append(start_index.string())

@@ -420,12 +420,12 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       " @ " + line().string() +
       ":" + pos().string() + source_file'
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     """
     Just a quick string method, actually using [debug](#debug), to make AST
     Stringable.
     """
-    debug().clone()
+    debug()
 
   fun visit(visitor: ASTVisitor ref): VisitResult =>
     """

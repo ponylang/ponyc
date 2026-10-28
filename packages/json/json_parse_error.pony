@@ -12,12 +12,13 @@ class val JSONParseError is Stringable
     offset = offset'
     line = line'
 
-  fun string(): String iso^ =>
-    let s = recover iso String(64) end
-    s.append("JSON parse error at line ")
-    s.append(line.string())
-    s.append(", byte ")
-    s.append(offset.string())
-    s.append(": ")
-    s.append(message)
-    consume s
+  fun string(): String =>
+    recover val
+      String(64)
+        .> append("JSON parse error at line ")
+        .> append(line.string())
+        .> append(", byte ")
+        .> append(offset.string())
+        .> append(": ")
+        .> append(message)
+    end

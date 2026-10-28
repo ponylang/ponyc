@@ -15,17 +15,15 @@ class val URITemplateParseError
     message = message'
     offset = offset'
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     """
     Format as "offset N: message".
     """
-    let num: String val = offset.string()
-    let out =
-      recover iso
-        String(7 + num.size() + 2 + message.size())
-      end
-    out .> append("offset ")
-      .> append(num)
-      .> append(": ")
-      .> append(message)
-    consume out
+    recover val
+      let num = offset.string()
+      String(7 + num.size() + 2 + message.size())
+        .> append("offset ")
+        .> append(num)
+        .> append(": ")
+        .> append(message)
+    end

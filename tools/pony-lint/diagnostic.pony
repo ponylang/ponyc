@@ -60,11 +60,11 @@ class val Diagnostic is (Comparable[Diagnostic] & Stringable)
     line = line'
     column = column'
 
-  fun string(): String iso^ =>
+  fun string(): String =>
     """
     Format as `<file>:<line>:<column>: error[<rule-id>]: <message>`.
     """
-    recover iso
+    recover val
       String .> append(file)
         .> push(':')
         .> append(line.string())

@@ -7,63 +7,63 @@ primitive GET is Method
   """
   HTTP GET method.
   """
-  fun string(): String iso^ => "GET".clone()
+  fun string(): String => "GET"
   fun eq(that: Method): Bool => that is this
 
 primitive HEAD is Method
   """
   HTTP HEAD method.
   """
-  fun string(): String iso^ => "HEAD".clone()
+  fun string(): String => "HEAD"
   fun eq(that: Method): Bool => that is this
 
 primitive POST is Method
   """
   HTTP POST method.
   """
-  fun string(): String iso^ => "POST".clone()
+  fun string(): String => "POST"
   fun eq(that: Method): Bool => that is this
 
 primitive PUT is Method
   """
   HTTP PUT method.
   """
-  fun string(): String iso^ => "PUT".clone()
+  fun string(): String => "PUT"
   fun eq(that: Method): Bool => that is this
 
 primitive DELETE is Method
   """
   HTTP DELETE method.
   """
-  fun string(): String iso^ => "DELETE".clone()
+  fun string(): String => "DELETE"
   fun eq(that: Method): Bool => that is this
 
 primitive CONNECT is Method
   """
   HTTP CONNECT method.
   """
-  fun string(): String iso^ => "CONNECT".clone()
+  fun string(): String => "CONNECT"
   fun eq(that: Method): Bool => that is this
 
 primitive OPTIONS is Method
   """
   HTTP OPTIONS method.
   """
-  fun string(): String iso^ => "OPTIONS".clone()
+  fun string(): String => "OPTIONS"
   fun eq(that: Method): Bool => that is this
 
 primitive TRACE is Method
   """
   HTTP TRACE method.
   """
-  fun string(): String iso^ => "TRACE".clone()
+  fun string(): String => "TRACE"
   fun eq(that: Method): Bool => that is this
 
 primitive PATCH is Method
   """
   HTTP PATCH method.
   """
-  fun string(): String iso^ => "PATCH".clone()
+  fun string(): String => "PATCH"
   fun eq(that: Method): Bool => that is this
 
 primitive Methods
