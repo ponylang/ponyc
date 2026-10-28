@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Change Stringable.string() to return String val instead of String iso^ ([PR #6308](https://github.com/ponylang/ponyc/pull/6308))
 
 ## [0.77.2] - 2026-10-28
 
