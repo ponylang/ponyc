@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add byte_order standard library package ([PR #6290](https://github.com/ponylang/ponyc/pull/6290))
 
 ### Changed
 
