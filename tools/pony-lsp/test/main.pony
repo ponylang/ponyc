@@ -22,6 +22,7 @@ actor \nodoc\ Main is TestList
     test(_DidChangeConfigurationNullTest)
     test(_PrepareMissingURITest)
     _WorkspaceTests.make().tests(test)
+    _WorkspaceScannerTests.make().tests(test)
     _InlayHintSourceTests.make().tests(test)
     _URITests.make().tests(test)
     _PercentEncodingTests.make().tests(test)
