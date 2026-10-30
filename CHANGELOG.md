@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Improve missing declarations in match captures error ([PR #6169](https://github.com/ponylang/ponyc/pull/6169))
 
 ### Added
 
