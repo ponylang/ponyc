@@ -62,3 +62,17 @@ Callers of `string()` require no changes — `String val` satisfies every contex
 
 The one case that needs attention: code that consumed the `string()` result as `iso` for in-place mutation. Add `.clone()` at the call site to get a mutable copy. This pattern did not occur in the standard library.
 
+## Improve diagnostic for a match capture missing `let` or `var`
+
+A match arm written as `| count: U64 => ...` without `let` or `var` used to be reported as an unterminated match. The compiler now points at the identifier and reports that a variable declaration requires `let` or `var`.
+
+The form is still invalid. A capture is a variable declaration, so `let` or `var` is required:
+
+```pony
+match value
+| let count: U64 => count.string()
+else
+  "other"
+end
+```
+
