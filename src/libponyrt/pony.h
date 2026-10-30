@@ -353,6 +353,42 @@ PONY_API void pony_exitcode(int code);
  */
 PONY_API int pony_get_exitcode();
 
+/** Enable additional tracing categories at runtime.
+ *
+ * Must be called from a scheduler thread (i.e. from within a running actor).
+ * ORs the given category bitmask into the active set. Opens the trace output
+ * file on the first call that enables any category. Returns false if the
+ * output file cannot be opened or if called outside a scheduler thread.
+ */
+PONY_API bool pony_tracing_enable_categories(uint64_t categories);
+
+/** Disable tracing categories at runtime.
+ *
+ * Must be called from a scheduler thread (i.e. from within a running actor).
+ * Clears the given category bits from the active set.
+ */
+PONY_API void pony_tracing_disable_categories(uint64_t categories);
+
+/** Replace the active tracing categories at runtime.
+ *
+ * Must be called from a scheduler thread (i.e. from within a running actor).
+ * Sets the active category set to exactly the given bitmask. Pass 0 to
+ * disable all categories. Opens the trace output file on the first call that
+ * enables any category. Returns false if the output file cannot be opened or
+ * if called outside a scheduler thread.
+ */
+PONY_API bool pony_tracing_set_categories(uint64_t categories);
+
+/** Set the actor tracing mode.
+ *
+ * Controls which actors emit actor-level trace events (creation, destruction,
+ * behavior runs, GC phases, state changes). Modes: 0 = none, 1 = all actors,
+ * 2 = cycle detector only. The mode can be changed at any time. This is
+ * independent of the global category bitmask — both must be active for an
+ * event to be emitted.
+ */
+PONY_API void pony_set_actor_tracing_mode(uint8_t mode);
+
 #if defined(__cplusplus)
 }
 #endif

@@ -62,3 +62,32 @@ Callers of `string()` require no changes — `String val` satisfies every contex
 
 The one case that needs attention: code that consumed the `string()` result as `iso` for in-place mutation. Add `.clone()` at the call site to get a mutable copy. This pattern did not occur in the standard library.
 
+## Add runtime tracing toggle API
+
+Tracing categories and the actor tracing mode can now be changed while a program is running. The new `runtime_tracing` package provides three category operations — enable (add to active set), disable (remove from active set), and set (replace active set) — and a mode selector for actor tracing.
+
+```pony
+use "runtime_tracing"
+
+actor Main
+  new create(env: Env) =>
+    let auth = RuntimeTracingAuth(env.root)
+    RuntimeTracing.enable_categories(
+      auth, [SchedulerTracing; ActorBehaviorTracing])
+    RuntimeTracing.set_actor_tracing(auth, ActorTracingAll)
+```
+
+Each category is a typed primitive passed in an array. The actor tracing mode is one of `ActorTracingNone` (default), `ActorTracingAll`, or `ActorTracingCycleDetectorOnly`, matching the `--ponytracingactors` CLI flag. No trace file is created until the first call that enables a category.
+
+`RuntimeOptions` now includes all tracing configuration fields, so `@runtime_override_defaults` can set initial tracing configuration from code.
+
+## Rename `--ponytracingforceactortracing` to `--ponytracingactors`
+
+The `--ponytracingforceactortracing` CLI flag is renamed to `--ponytracingactors`. The accepted values are unchanged: `all`, `cd_only`, `none`.
+
+Scripts and launch configurations that pass `--ponytracingforceactortracing` need to use `--ponytracingactors` instead.
+
+## Remove ASIO thread tracing
+
+The ASIO event loop had a thread-stop tracing call with no corresponding thread-start. The incomplete instrumentation is removed.
+

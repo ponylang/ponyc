@@ -40,7 +40,8 @@ typedef enum
   SCHED_UNMUTE_ACTOR = 50,
   SCHED_NOISY_ASIO = 51,
   SCHED_UNNOISY_ASIO = 52,
-  SCHED_ACTIVATE = 53
+  SCHED_ACTIVATE = 53,
+  SCHED_TRACING_UPDATE = 54
 } sched_msg_t;
 
 typedef struct schedulerstats_t
@@ -164,6 +165,14 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
 void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor);
 
 bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor);
+
+typedef struct pony_msg_u64_t
+{
+  pony_msg_t msg;
+  uint64_t value;
+} pony_msg_u64_t;
+
+void ponyint_sched_broadcast_tracing_update(uint64_t bitmask);
 
 PONY_API uint32_t pony_active_schedulers();
 
