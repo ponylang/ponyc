@@ -142,3 +142,44 @@ struct RuntimeOptions
 
     Only the arena allocator acts on it; the memalign backend ignores it.
     """
+
+  var ponytracingformat: Pointer[U8] = Pointer[U8]
+    """
+    Output format for trace events. Defaults to "json" (Chrome Trace Event).
+    """
+
+  var ponytracingoutput: Pointer[U8] = Pointer[U8]
+    """
+    Output file path for trace events. Defaults to "ponytrace.json".
+    """
+
+  var ponytracingcategories: Pointer[U8] = Pointer[U8]
+    """
+    Comma-separated list of category glob patterns to enable at startup.
+    Defaults to "" (no categories enabled). Categories can also be toggled at
+    runtime via the runtime_tracing package.
+    """
+
+  var ponytracingmode: Pointer[U8] = Pointer[U8]
+    """
+    Tracing mode: "file" writes events to a file, "flight_recorder" keeps
+    events in per-thread ring buffers that dump on crash. Defaults to "file".
+    """
+
+  var ponytracingflightrecorderbuffer: USize = 0
+    """
+    Number of events per thread in the flight recorder ring buffer. Rounded up
+    to the next power of two. Defaults to 16384.
+    """
+
+  var ponytracingflightrecorderhandletermint: Bool = false
+    """
+    Install signal handlers that dump the flight recorder on SIGTERM/SIGINT.
+    Defaults to false.
+    """
+
+  var ponypintracingthread: Bool = false
+    """
+    Pin the tracing thread to a CPU the way scheduler threads are pinned.
+    Requires --ponypin to be set to have any effect.
+    """

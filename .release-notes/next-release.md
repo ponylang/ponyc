@@ -256,3 +256,31 @@ A new `actor_gc_threshold_changed` tracing event under the `actor_gc` category f
 
 The threshold is normally `used * 2.0`, clamped to a minimum of 16384 bytes. When an actor deletes more than 100 actor references in a single GC cycle, the threshold is held at its current value instead of growing — the `held` field is `true` in that case. This makes GC pacing visible: whether an actor's threshold is growing with its heap, staying flat because of frequent actor reference deletion, or resetting to the minimum after a large sweep.
 
+## Add runtime tracing toggle API
+
+Tracing categories can now be changed while a program is running. The new `runtime_tracing` package provides three category operations — enable (add to active set), disable (remove from active set), and set (replace active set).
+
+```pony
+use "runtime_tracing"
+
+actor Main
+  new create(env: Env) =>
+    let auth = RuntimeTracingAuth(env.root)
+    RuntimeTracing.enable_categories(
+      auth, [SchedulerTracing; ActorBehaviorTracing])
+```
+
+Each category is a typed primitive passed in an array. Actor event categories (`ActorTracing`, `ActorBehaviorTracing`, etc.) trace all actors when enabled. `CycleDetectorTracing` enables actor events for the cycle detector only. No trace file is created until the first call that enables a category.
+
+`RuntimeOptions` now includes all tracing configuration fields, so `@runtime_override_defaults` can set initial tracing configuration from code.
+
+## Remove `--ponytracingforceactortracing` / `--ponytracingactors`
+
+The `--ponytracingforceactortracing` CLI flag (renamed to `--ponytracingactors` earlier in this release cycle) is removed. Actor tracing is now controlled through categories: enable `ActorTracing`, `ActorBehaviorTracing`, or other actor event categories to trace all actors, or enable `CycleDetectorTracing` to trace the cycle detector only.
+
+Scripts and launch configurations that pass `--ponytracingforceactortracing` or `--ponytracingactors` need to use `--ponytracingcategories` with the appropriate actor categories instead.
+
+## Remove ASIO thread tracing
+
+The ASIO event loop had a thread-stop tracing call with no corresponding thread-start. The incomplete instrumentation is removed.
+

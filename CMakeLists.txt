@@ -1037,10 +1037,20 @@ else()
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/CheckGrammar.cmake)
 
+    add_test(NAME tracing-tests
+        COMMAND ${CMAKE_COMMAND}
+            -DPONYC=$<TARGET_FILE:ponyc>
+            -DTESTS=${CMAKE_SOURCE_DIR}/test/tracing-tests
+            -DWORKDIR=${PONY_OUTPUT_DIR}/tracing-tests
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunTracingTests.cmake)
+
     set_tests_properties(full-programs
         full-program-runner-rejects-broken-config
         stdlib validate-grammar
         PROPERTIES LABELS ci-core)
+    set_tests_properties(tracing-tests
+        PROPERTIES LABELS tracing)
     set_tests_properties(stdlib
         PROPERTIES TIMEOUT 1800)
 

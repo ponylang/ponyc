@@ -32,10 +32,13 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add scheduler work-stealing tracing events ([PR #6393](https://github.com/ponylang/ponyc/pull/6393))
 - Add per-actor batch size change tracing event ([PR #6395](https://github.com/ponylang/ponyc/pull/6395))
 - Add per-actor GC threshold change tracing event ([PR #6396](https://github.com/ponylang/ponyc/pull/6396))
+- Add runtime tracing toggle API ([PR #6403](https://github.com/ponylang/ponyc/pull/6403))
 
 ### Changed
 
 - Compile runtime bitcode with widest CPU features ([PR #6362](https://github.com/ponylang/ponyc/pull/6362))
+- Remove `--ponytracingforceactortracing` / `--ponytracingactors` ([PR #6403](https://github.com/ponylang/ponyc/pull/6403))
+- Remove ASIO thread tracing ([PR #6403](https://github.com/ponylang/ponyc/pull/6403))
 
 ## [0.77.1] - 2026-10-22
 

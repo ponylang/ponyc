@@ -36,17 +36,16 @@ typedef struct options_t
   bool version;
   bool ponyhelp;
   uint32_t memory_profile;
-#if defined(USE_SYSTEMATIC_TESTING)
-  uint64_t systematic_testing_seed;
-#endif
   char* tracing_format;
   char* tracing_output;
   char* tracing_enabled_categories_patterns;
   char* tracing_mode;
-  char* tracing_force_actor_tracing;
   size_t tracing_flight_recorder_events_size;
   bool tracing_flight_recorder_handle_term_int;
   bool pintracing;
+#if defined(USE_SYSTEMATIC_TESTING)
+  uint64_t systematic_testing_seed;
+#endif
 } options_t;
 
 typedef enum running_kind_t
@@ -86,7 +85,6 @@ enum
   OPT_TRACING_OUTPUT,
   OPT_TRACING_ENABLED_CATEGORIES_PATTERNS,
   OPT_TRACING_MODE,
-  OPT_TRACING_FORCE_ACTOR_TRACING,
   OPT_TRACING_FLIGHT_RECORDER_EVENTS_SIZE,
   OPT_TRACING_FLIGHT_RECORDER_HANDLE_TERM_INT,
   OPT_PINTRACING,
@@ -118,7 +116,6 @@ static opt_arg_t args[] =
   {"ponytracingoutput", 0, OPT_ARG_REQUIRED, OPT_TRACING_OUTPUT},
   {"ponytracingcategories", 0, OPT_ARG_REQUIRED, OPT_TRACING_ENABLED_CATEGORIES_PATTERNS},
   {"ponytracingmode", 0, OPT_ARG_REQUIRED, OPT_TRACING_MODE},
-  {"ponytracingforceactortracing", 0, OPT_ARG_REQUIRED, OPT_TRACING_FORCE_ACTOR_TRACING},
   {"ponytracingflightrecorderbuffer", 0, OPT_ARG_REQUIRED, OPT_TRACING_FLIGHT_RECORDER_EVENTS_SIZE},
   {"ponytracingflightrecorderhandletermint", 0, OPT_ARG_NONE, OPT_TRACING_FLIGHT_RECORDER_HANDLE_TERM_INT},
   {"ponypintracingthread", 0, OPT_ARG_NONE, OPT_PINTRACING},
@@ -257,7 +254,6 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_TRACING_OUTPUT: opt->tracing_output = s.arg_val; break;
       case OPT_TRACING_ENABLED_CATEGORIES_PATTERNS: opt->tracing_enabled_categories_patterns = s.arg_val; break;
       case OPT_TRACING_MODE: opt->tracing_mode = s.arg_val; break;
-      case OPT_TRACING_FORCE_ACTOR_TRACING: opt->tracing_force_actor_tracing = s.arg_val; break;
       case OPT_TRACING_FLIGHT_RECORDER_EVENTS_SIZE: if(parse_size(&opt->tracing_flight_recorder_events_size, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
       case OPT_TRACING_FLIGHT_RECORDER_HANDLE_TERM_INT: opt->tracing_flight_recorder_handle_term_int = true; break;
       case OPT_PINTRACING: opt->pintracing = true; break;
@@ -313,7 +309,6 @@ PONY_API int pony_init(int argc, char** argv)
   opt.tracing_output = "ponytrace.json";
   opt.tracing_enabled_categories_patterns = "";
   opt.tracing_mode = "file";
-  opt.tracing_force_actor_tracing = "none";
   opt.tracing_flight_recorder_events_size = 16384;
   opt.tracing_flight_recorder_handle_term_int = false;
   opt.pintracing = false;
@@ -382,9 +377,8 @@ PONY_API int pony_init(int argc, char** argv)
 
   pony_exitcode(0);
 
-  TRACING_INIT(opt.tracing_format, opt.tracing_output, opt.tracing_enabled_categories_patterns, opt.tracing_mode, opt.tracing_flight_recorder_events_size, opt.tracing_flight_recorder_handle_term_int, opt.tracing_force_actor_tracing);
+  TRACING_INIT(opt.tracing_format, opt.tracing_output, opt.tracing_enabled_categories_patterns, opt.tracing_mode, opt.tracing_flight_recorder_events_size, opt.tracing_flight_recorder_handle_term_int);
 #define PIN_TRACING_CPU opt.pintracing
-#define TRACING_FORCE_CYCLE_DETECTOR_TRACING (strcmp(opt.tracing_force_actor_tracing, "cd_only") == 0)
 
   pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.pin,
     opt.pinasio, opt.pinpat, opt.min_threads, opt.thread_suspend_threshold,
@@ -395,7 +389,7 @@ PONY_API int pony_init(int argc, char** argv)
     );
 #endif
 
-  ponyint_cycle_create(ctx, opt.cd_detect_interval, TRACING_FORCE_CYCLE_DETECTOR_TRACING);
+  ponyint_cycle_create(ctx, opt.cd_detect_interval);
 
   TRACING_RUNTIME_INIT(opt.threads, opt.min_threads);
 

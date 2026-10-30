@@ -1,0 +1,37 @@
+use "runtime_tracing"
+
+actor Worker
+  """
+  A worker that runs a behavior while tracing is active.
+  """
+  let _env: Env
+
+  new create(env: Env) =>
+    _env = env
+    do_work()
+
+  be do_work() =>
+    _env.out.print("Worker running")
+
+actor Main
+  new create(env: Env) =>
+    let auth = RuntimeTracingAuth(env.root)
+
+    // Enable scheduler and actor behavior tracing.
+    RuntimeTracing.enable_categories(
+      auth, [SchedulerTracing; ActorBehaviorTracing])
+
+    // Spawn a worker.
+    Worker(env)
+
+    // Narrow the active set to just actor categories.
+    RuntimeTracing.set_categories(
+      auth,
+      [ ActorTracing; ActorBehaviorTracing
+        ActorGCTracing; ActorStateChangeTracing ])
+
+    // Switch to cycle detector tracing only.
+    RuntimeTracing.set_categories(auth, [CycleDetectorTracing])
+
+    // Turn off all tracing.
+    RuntimeTracing.set_categories(auth, [])
