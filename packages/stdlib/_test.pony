@@ -6,6 +6,7 @@ use assert = "assert"
 use actor_pinning = "actor_pinning"
 use backpressure= "backpressure"
 use base64 = "encode/base64"
+use binary_codec = "binary_codec"
 use buffered = "buffered"
 use byte_order = "byte_order"
 use builtin_test = "builtin_test"
@@ -47,6 +48,7 @@ actor \nodoc\ Main is TestList
     // Tests below function across all systems and are listed alphabetically
     actor_pinning.Main.make().tests(test)
     base64.Main.make().tests(test)
+    binary_codec.Main.make().tests(test)
     buffered.Main.make().tests(test)
     byte_order.Main.make().tests(test)
     builtin_test.Main.make().tests(test)
