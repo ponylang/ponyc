@@ -846,6 +846,101 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   return true;
 }
 
+static bool check_noalloc_bare_call(pass_opt_t* opt, ast_t* ast,
+  ast_t* type)
+{
+  AST_GET_CHILDREN(type, cap, typeparams, params, result);
+
+  if(ast_id(cap) != TK_AT)
+    return true;
+
+  ast_t* enclosing = ast;
+
+  while(enclosing != NULL)
+  {
+    token_id id = ast_id(enclosing);
+
+    if((id == TK_FUN) || (id == TK_BE) || (id == TK_NEW))
+      break;
+
+    enclosing = ast_parent(enclosing);
+  }
+
+  if((enclosing != NULL) &&
+    ast_has_annotation(enclosing, "noalloc", opt->strtab))
+  {
+    ast_error(opt->check.errors, ast,
+      "a 'noalloc' method cannot call a bare lambda");
+    return false;
+  }
+
+  return true;
+}
+
+static bool check_noalloc_virtual_call(pass_opt_t* opt, ast_t* ast,
+  ast_t* lhs, ast_t* r_type)
+{
+  if((r_type == NULL) || is_typecheck_error(r_type))
+    return true;
+
+  switch(ast_id(r_type))
+  {
+    case TK_UNIONTYPE:
+    case TK_TUPLETYPE:
+    case TK_ISECTTYPE:
+    case TK_NOMINAL:
+    case TK_ARROW:
+    case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
+      break;
+
+    default:
+      return true;
+  }
+
+  if(is_known(r_type))
+    return true;
+
+  ast_t* enclosing = ast;
+
+  while(enclosing != NULL)
+  {
+    token_id id = ast_id(enclosing);
+
+    if((id == TK_FUN) || (id == TK_BE) || (id == TK_NEW))
+      break;
+
+    enclosing = ast_parent(enclosing);
+  }
+
+  if((enclosing != NULL) &&
+    ast_has_annotation(enclosing, "noalloc", opt->strtab))
+  {
+    ast_t* method_name = ast_childidx(lhs, 1);
+    const char* name = ast_name(method_name);
+    deferred_reification_t* callee =
+      lookup_try(opt, lhs, r_type, name, true);
+
+    if(callee != NULL)
+    {
+      if(!ast_has_annotation(callee->ast, "noalloc", opt->strtab))
+      {
+        ast_error(opt->check.errors, ast,
+          "a 'noalloc' method cannot make a virtual call to a non-'noalloc' "
+          "method");
+        ast_error_continue(opt->check.errors, callee->ast,
+          "this method is not marked 'noalloc'");
+        deferred_reify_free(callee);
+        return false;
+      }
+
+      deferred_reify_free(callee);
+    }
+  }
+
+  return true;
+}
+
 static bool method_call(pass_opt_t* opt, ast_t* ast)
 {
   if(!method_application(opt, ast, false))
@@ -855,6 +950,19 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
   ast_t* type = ast_type(lhs);
 
   if(is_typecheck_error(type))
+    return false;
+
+  if(!check_noalloc_bare_call(opt, ast, type))
+    return false;
+
+  // Only check fun and be calls — constructors on interfaces/traits are
+  // already prohibited by the language.
+  ast_t* r_type = NULL;
+
+  if((ast_id(lhs) == TK_FUNREF) || (ast_id(lhs) == TK_BEREF))
+    r_type = method_receiver_type(lhs);
+
+  if(!check_noalloc_virtual_call(opt, ast, lhs, r_type))
     return false;
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
@@ -1326,6 +1434,14 @@ static bool method_chain(pass_opt_t* opt, ast_t* ast)
   // We check the receiver cap now instead of in method_application because
   // we need to know whether the receiver was recovered.
   ast_t* r_type = method_receiver_type(lhs);
+
+  ast_t* noalloc_r_type = NULL;
+  if((ast_id(lhs) == TK_FUNCHAIN) || (ast_id(lhs) == TK_BECHAIN))
+    noalloc_r_type = r_type;
+
+  if(!check_noalloc_virtual_call(opt, ast, lhs, noalloc_r_type))
+    return false;
+
   if(ast_id(lhs) == TK_FUNCHAIN)
   {
     bool recovered;
