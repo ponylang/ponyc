@@ -977,7 +977,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   // The function takes a prebuilt chain instead of varargs because the latter
   // is expensive and very hard to optimise.
 
-  if(ponyint_tracing_enabled)
+  if(PONYINT_TRACING_ENABLED)
   {
     pony_msg_t* m = first;
 
@@ -1014,7 +1014,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   // The function takes a prebuilt chain instead of varargs because the latter
   // is expensive and very hard to optimise.
 
-  if(ponyint_tracing_enabled)
+  if(PONYINT_TRACING_ENABLED)
   {
     pony_msg_t* m = first;
 
@@ -1227,32 +1227,6 @@ PONY_API void pony_actor_unset_pinned()
 void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   ctx->current = actor;
-}
-
-void ponyint_cycle_detector_enable_tracing(pony_actor_t* actor)
-{
-  pony_assert(ponyint_is_cycle(actor));
-  set_internal_flag(actor, ACTOR_FLAG_TRACE);
-  TRACING_ACTOR_TRACING_ENABLED(actor);
-}
-
-bool ponyint_actor_tracing_enabled(pony_actor_t* actor)
-{
-  return has_internal_flag(actor, ACTOR_FLAG_TRACE);
-}
-
-void ponyint_actor_enable_tracing()
-{
-  pony_actor_t* actor = pony_ctx()->current;
-  set_internal_flag(actor, ACTOR_FLAG_TRACE);
-  TRACING_ACTOR_TRACING_ENABLED(actor);
-}
-
-void ponyint_actor_disable_tracing()
-{
-  pony_actor_t* actor = pony_ctx()->current;
-  unset_internal_flag(actor, ACTOR_FLAG_TRACE);
-  TRACING_ACTOR_TRACING_DISABLED(actor);
 }
 
 PONY_API void pony_apply_backpressure()

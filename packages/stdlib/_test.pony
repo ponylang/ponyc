@@ -31,6 +31,7 @@ use process = "process"
 use promises = "promises"
 use random = "random"
 use runtime_info = "runtime_info"
+use runtime_tracing = "runtime_tracing"
 use signals = "signals"
 use strings = "strings"
 use term = "term"
@@ -68,6 +69,7 @@ actor \nodoc\ Main is TestList
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
     runtime_info.Main.make().tests(test)
+    runtime_tracing.Main.make().tests(test)
     signals.Main.make().tests(test)
     strings.Main.make().tests(test)
     term.Main.make().tests(test)

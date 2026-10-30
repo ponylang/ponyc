@@ -8,7 +8,6 @@
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
-#include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
@@ -534,8 +533,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   close(b->wakeup);
   ponyint_messageq_destroy(&b->q, true);
   POOL_FREE(asio_backend_t, b);
-
-  TRACING_THREAD_STOP();
 
   ponyint_unregister_thread();
   return NULL;

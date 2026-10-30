@@ -444,6 +444,19 @@ static bool read_msg(scheduler_t* sched, pony_actor_t* actor,
         break;
       }
 
+      case SCHED_TRACING_UPDATE:
+      {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+        sched->ctx.schedulerstats.mem_used_inflight_messages -=
+          (sizeof(pony_msg_u64_t) - sizeof(pony_msgi_t));
+        sched->ctx.schedulerstats.mem_allocated_inflight_messages -=
+          (POOL_ALLOC_SIZE(pony_msg_u64_t) - POOL_ALLOC_SIZE(pony_msgi_t));
+#endif
+        pony_msg_u64_t* mu = (pony_msg_u64_t*)m;
+        ponyint_tracing_apply_update(mu->value);
+        break;
+      }
+
       default: {}
     }
   }
@@ -1731,6 +1744,55 @@ void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor)
   // for them, read at their next visit.
   send_msg_all(from, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
   send_msg_pinned_actor_thread(from, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
+}
+
+static void send_msg_u64(uint32_t from, uint32_t to, sched_msg_t msg,
+  uint64_t value)
+{
+  pony_msg_u64_t* m = (pony_msg_u64_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(pony_msg_u64_t)), msg);
+
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  this_scheduler->ctx.schedulerstats.num_inflight_messages--;
+  this_scheduler->ctx.schedulerstats.mem_used_inflight_messages += sizeof(pony_msg_u64_t);
+  this_scheduler->ctx.schedulerstats.mem_used_inflight_messages -= POOL_ALLOC_SIZE(pony_msg_u64_t);
+#endif
+
+  m->value = value;
+  ponyint_thread_messageq_push(&scheduler[to].mq, &m->msg, &m->msg);
+  (void)from;
+}
+
+static void send_msg_u64_all(uint32_t from, sched_msg_t msg, uint64_t value)
+{
+  for(uint32_t i = 0; i < scheduler_count; i++)
+    send_msg_u64(from, i, msg, value);
+}
+
+static void send_msg_u64_pinned_actor_thread(uint32_t from, sched_msg_t msg,
+  uint64_t value)
+{
+  pony_msg_u64_t* m = (pony_msg_u64_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(pony_msg_u64_t)), msg);
+
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  this_scheduler->ctx.schedulerstats.num_inflight_messages--;
+  this_scheduler->ctx.schedulerstats.mem_used_inflight_messages += sizeof(pony_msg_u64_t);
+  this_scheduler->ctx.schedulerstats.mem_used_inflight_messages -= POOL_ALLOC_SIZE(pony_msg_u64_t);
+#endif
+
+  m->value = value;
+  ponyint_thread_messageq_push(
+    &pinned_actor_scheduler->mq, &m->msg, &m->msg);
+  (void)from;
+}
+
+__attribute__((cold))
+void ponyint_sched_broadcast_tracing_update(uint64_t bitmask)
+{
+  send_msg_u64_all(this_scheduler->index, SCHED_TRACING_UPDATE, bitmask);
+  send_msg_u64_pinned_actor_thread(this_scheduler->index,
+    SCHED_TRACING_UPDATE, bitmask);
 }
 
 DECLARE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);

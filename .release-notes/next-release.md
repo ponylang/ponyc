@@ -256,3 +256,32 @@ A new `actor_gc_threshold_changed` tracing event under the `actor_gc` category f
 
 The threshold is normally `used * 2.0`, clamped to a minimum of 16384 bytes. When an actor deletes more than 100 actor references in a single GC cycle, the threshold is held at its current value instead of growing — the `held` field is `true` in that case. This makes GC pacing visible: whether an actor's threshold is growing with its heap, staying flat because of frequent actor reference deletion, or resetting to the minimum after a large sweep.
 
+## Add runtime tracing toggle API
+
+Tracing categories and the actor tracing mode can now be changed while a program is running. The new `runtime_tracing` package provides three category operations — enable (add to active set), disable (remove from active set), and set (replace active set) — and a mode selector for actor tracing.
+
+```pony
+use "runtime_tracing"
+
+actor Main
+  new create(env: Env) =>
+    let auth = RuntimeTracingAuth(env.root)
+    RuntimeTracing.enable_categories(
+      auth, [SchedulerTracing; ActorBehaviorTracing])
+    RuntimeTracing.set_actor_tracing(auth, ActorTracingAll)
+```
+
+Each category is a typed primitive passed in an array. The actor tracing mode is one of `ActorTracingNone` (default), `ActorTracingAll`, or `ActorTracingCycleDetectorOnly`, matching the `--ponytracingactors` CLI flag. No trace file is created until the first call that enables a category.
+
+`RuntimeOptions` now includes all tracing configuration fields, so `@runtime_override_defaults` can set initial tracing configuration from code.
+
+## Rename `--ponytracingforceactortracing` to `--ponytracingactors`
+
+The `--ponytracingforceactortracing` CLI flag is renamed to `--ponytracingactors`. The accepted values are unchanged: `all`, `cd_only`, `none`.
+
+Scripts and launch configurations that pass `--ponytracingforceactortracing` need to use `--ponytracingactors` instead.
+
+## Remove ASIO thread tracing
+
+The ASIO event loop had a thread-stop tracing call with no corresponding thread-start. The incomplete instrumentation is removed.
+

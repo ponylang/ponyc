@@ -39,11 +39,11 @@
   "                       systematic_testing_details - detailed systematic testing events\n" \
   "                   categories can be enabled by comma separated glob patterns\n" \
   "                   defaults to all categories disabled\n" \
-  "  --ponytracingforceactortracing\n" \
-  "                   Force tracing for actors. Valid options are:\n" \
-  "                       all - force tracing for all actors\n" \
-  "                       cd_only - only force tracing for the cycle detector\n" \
-  "                       none - do not force tracing for any actors\n" \
+  "  --ponytracingactors\n" \
+  "                   Actor tracing mode. Valid options are:\n" \
+  "                       all - trace all actors\n" \
+  "                       cd_only - trace only the cycle detector\n" \
+  "                       none - do not trace actors\n" \
   "                   defaults to: none\n" \
   "  --ponytracingflightrecorderbuffer\n" \
   "                   Number of events to buffer per-thread in flight recorder mode\n" \
