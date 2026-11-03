@@ -39,7 +39,7 @@ actor TestCompiler is LspCompiler
 
   be compile(
     module: FilePath,
-    paths: Array[String val] val,
+    paths: Array[FilePath val] val,
     notify: CompilerNotify tag)
   =>
     """

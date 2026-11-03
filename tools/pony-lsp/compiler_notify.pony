@@ -24,7 +24,7 @@ actor PonyCompiler is LspCompiler
   let _pony_path: Array[String val] val
   let _installation_paths: Array[String val] val
   let _compilation_queue:
-    Array[(FilePath, Array[String val] val, CompilerNotify tag)]
+    Array[(FilePath, Array[FilePath] val, CompilerNotify tag)]
   var _defines: Array[String val] val
   var _pony_path_from_settings: Array[String val] val
   var _got_settings: Bool
@@ -112,7 +112,7 @@ actor PonyCompiler is LspCompiler
 
   be compile(
     module: FilePath,
-    paths: Array[String val] val,
+    paths: Array[FilePath] val,
     notify: CompilerNotify tag)
   =>
     """
@@ -133,7 +133,9 @@ actor PonyCompiler is LspCompiler
           tmp.push(p)
         end
         tmp.append(_pony_path_from_settings)
-        tmp.append(paths)
+        for path in paths.values() do
+          tmp.push(path.path)
+        end
         consume tmp
       end
     let result =
@@ -162,8 +164,8 @@ trait tag LspCompiler
     """
 
   be compile(
-    module: FilePath,
-    paths: Array[String val] val,
+    package: FilePath,
+    paths: Array[FilePath] val,
     notify: CompilerNotify tag)
     """
     Compile the given module.

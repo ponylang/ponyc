@@ -1,0 +1,51 @@
+use "files"
+use "assert"
+
+class val WorkspaceFolders
+  """
+  Collection of folders of a workspace.
+
+  Bundled here for easy querying if a given document is in any of those folders.
+  """
+  let folders: Array[FilePath] val
+
+  new val create(file_auth: FileAuth, workspace_folders: Array[String] val) ? =>
+    """
+    Construct a `WorkspaceFolders` instance from the provided `workspace_folders`.
+
+    Errors if any folder in `workspace_folders` does not exist.
+    """
+    this.folders =
+      recover
+        let arr = Array[FilePath].create(workspace_folders.size())
+        for s in workspace_folders.values() do
+          // ensure the path exists
+          let folder = FilePath(file_auth, s)
+          Fact(folder.exists(), folder.path + "does not exist")?
+          arr.push(folder)
+        end
+        arr
+      end
+
+  fun box contains(document_path: String): Bool =>
+    """
+    Returns `true` if `document_path` is in any subdirectory of any of the
+    workspace folders
+    """
+
+    var dir_path = Path.dir(document_path)
+    while (dir_path != ".") do
+      for folder in this.folders.values() do
+        if dir_path == folder.path then
+          return true
+        end
+      end
+      let parent = Path.dir(dir_path)
+      if parent == dir_path then
+        break
+      end
+      dir_path = parent
+    end
+    false
+
+
