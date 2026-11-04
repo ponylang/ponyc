@@ -859,14 +859,15 @@ class Iter[A] is Iterator[A]
   fun ref step_by(n: USize = 1): Iter[A!] =>
     """
     Return an iterator that yields every `n`th element of the
-    original iterator. n == 0 is treated like n == 1 rather than an error.
+    original iterator, starting with the first element.
+    n == 0 is treated like n == 1 rather than an error.
 
     #### Example
     ```pony
     Iter[USize](Range(0, 10))
       .step_by(2)
     ```
-    `1 3 5 7 9`
+    `0 2 4 6 8`
     """
     Iter[A!](
       object is Iterator[A!]
@@ -877,14 +878,14 @@ class Iter[A] is Iterator[A]
           match _next
           | _None =>
             try
+              if _iter.has_next() then
+                _next = _iter.next()?
+              end
               var steps_to_burn: USize = _step - 1
               while steps_to_burn != 0 do
                 if not _iter.has_next() then return end
                 _iter.next()?
                 steps_to_burn = steps_to_burn - 1
-              end
-              if _iter.has_next() then
-                _next = _iter.next()?
               end
             end
           end
