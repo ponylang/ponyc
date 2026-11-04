@@ -2,8 +2,6 @@
 
 #include "tracing.h"
 
-bool ponyint_tracing_enabled = false;
-
 #include <inttypes.h>
 #include <signal.h>
 #include <stdio.h>
@@ -15,6 +13,7 @@ bool ponyint_tracing_enabled = false;
 #include "../sched/scheduler.h"
 #include "../mem/pool.h"
 #include "../actor/actor.h"
+#include "../gc/cycle.h"
 #if defined(PLATFORM_IS_WINDOWS)
 // <Windows.h> is already pulled in by platform.h (with WIN32_LEAN_AND_MEAN, which
 // omits DbgHelp), so DbgHelp must be included explicitly for the stack walk.
@@ -29,6 +28,16 @@ bool ponyint_tracing_enabled = false;
 #  if defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_DRAGONFLY)
 #    include <pthread_np.h>
 #  endif
+#endif
+
+bool ponyint_tracing_enabled = false;
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#define SET_TRACING_ENABLED(val) \
+  (*(volatile bool*)&ponyint_tracing_enabled = (val))
+#else
+#define SET_TRACING_ENABLED(val) \
+  __atomic_store_n(&ponyint_tracing_enabled, (val), __ATOMIC_RELAXED)
 #endif
 
 #define PONY_TRACING_THREAD_INDEX -998
@@ -50,6 +59,8 @@ typedef int stack_depth_t;
 
 typedef enum
 {
+  // Keep in sync with packages/runtime_tracing/tracing_category.pony;
+  // a mismatch silently enables or disables wrong categories.
   TRACING_CATEGORY_SCHEDULER = 1 << 0,
   TRACING_CATEGORY_SCHEDULER_MESSAGING = 1 << 1,
   TRACING_CATEGORY_ACTOR = 1 << 2,
@@ -60,6 +71,7 @@ typedef enum
   TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS = 1 << 7,
   TRACING_CATEGORY_RUNTIME = 1 << 8,
   TRACING_CATEGORY_SCHEDULER_STEALING = 1 << 9,
+  TRACING_CATEGORY_CYCLE_DETECTOR = 1 << 10,
 } tracing_category_t;
 
 typedef enum
@@ -97,8 +109,6 @@ typedef enum
   TRACING_MSG_ACTOR_NOTUNDERPRESSURE,
   TRACING_MSG_ACTOR_BLOCKED,
   TRACING_MSG_ACTOR_UNBLOCKED,
-  TRACING_MSG_ACTOR_TRACING_ENABLED,
-  TRACING_MSG_ACTOR_TRACING_DISABLED,
   TRACING_MSG_ACTOR_SCHEDULED,
   TRACING_MSG_ACTOR_SCHEDULED_INJECT,
   TRACING_MSG_SYSTEMATIC_TESTING_CONFIG,
@@ -115,6 +125,7 @@ typedef enum
   TRACING_MSG_STEAL_FAILURE_ROUND,
   TRACING_MSG_ACTOR_BATCH_SIZE_CHANGED,
   TRACING_MSG_ACTOR_GC_THRESHOLD_CHANGED,
+  TRACING_MSG_CATEGORIES_CHANGED,
   TRACING_MSG_FLIGHT_RECORDER_DUMP,
 } tracing_msg_type_t;
 
@@ -502,42 +513,6 @@ typedef struct tracing_actor_unblocked_t
   uint8_t sync_flags;
 } tracing_actor_unblocked_t;
 
-typedef struct tracing_actor_tracing_enabled_t
-{
-  pony_msg_t msg;
-  uint64_t thread_id;
-  uint64_t ts;
-  void* actor;
-  pony_type_t* type;
-  uint8_t internal_flags;
-  uint8_t sync_flags;
-  size_t heap_next_gc;
-  size_t heap_used;
-  size_t gc_rc;
-  uint32_t live_asio_events;
-#ifdef USE_RUNTIMESTATS
-  actorstats_t actorstats;
-#endif
-} tracing_actor_tracing_enabled_t;
-
-typedef struct tracing_actor_tracing_disabled_t
-{
-  pony_msg_t msg;
-  uint64_t thread_id;
-  uint64_t ts;
-  void* actor;
-  pony_type_t* type;
-  uint8_t internal_flags;
-  uint8_t sync_flags;
-  size_t heap_next_gc;
-  size_t heap_used;
-  size_t gc_rc;
-  uint32_t live_asio_events;
-#ifdef USE_RUNTIMESTATS
-  actorstats_t actorstats;
-#endif
-} tracing_actor_tracing_disabled_t;
-
 typedef struct tracing_actor_scheduled_t
 {
   pony_msg_t msg;
@@ -673,6 +648,14 @@ typedef struct tracing_actor_gc_threshold_changed_t
   bool held;
 } tracing_actor_gc_threshold_changed_t;
 
+typedef struct tracing_categories_changed_t
+{
+  pony_msg_t msg;
+  uint64_t ts;
+  uint64_t old_bitmask;
+  uint64_t new_bitmask;
+} tracing_categories_changed_t;
+
 typedef struct tracing_flight_recorder_dump_t
 {
   pony_msg_t msg;
@@ -701,6 +684,7 @@ typedef struct tracing_scheduler_t
 {
   uint64_t tid;
   scheduler_t* sched;
+  uint64_t categories_bitmask;
   uint64_t flight_recorder_event_idx;
   PONY_ATOMIC(pony_msg_t*)* flight_recorder_events;
 #if defined(PLATFORM_IS_WINDOWS)
@@ -723,15 +707,24 @@ static PVOID fr_veh_handle;
 // `ponyint_tracing_init` (single-threaded) rather than querying it per event.
 static uint64_t qpc_frequency;
 #endif
-static uint64_t enabled_categories_bitmask;
+static uint64_t init_categories_bitmask;
 static char* output_format;
 static char* output_file;
 static char* tracing_mode;
 static FILE *log_file;
+
+// Three-state gate for one-shot log file open. CLOSED → OPENING is the
+// mutual-exclusion gate (CAS); OPENING → OPEN signals completion. A thread
+// that sees OPENING spins until the opener stores OPEN with release, which
+// guarantees the log_file store is visible via acquire on the reader side.
+#define LOG_FILE_CLOSED  0
+#define LOG_FILE_OPENING 1
+#define LOG_FILE_OPEN    2
+static PONY_ATOMIC(int) log_file_state;
+static bool tracing_thread_started;
 static scheduler_t tracing_thread;
 static PONY_ATOMIC(bool) stop_tracing_thread;
 static int pid;
-static bool force_actor_tracing_enabled;
 static bool flight_recorder_enabled;
 static bool flight_recorder_handle_term_int;
 static size_t flight_recorder_max_events;
@@ -1209,6 +1202,8 @@ static char* get_tracing_category_string(tracing_category_t category)
       return "runtime";
     case TRACING_CATEGORY_SCHEDULER_STEALING:
       return "scheduler_stealing";
+    case TRACING_CATEGORY_CYCLE_DETECTOR:
+      return "cycle_detector";
     default:
       pony_assert(0);
       return NULL;
@@ -1302,6 +1297,16 @@ static char* get_scheduler_message_type_string(sched_msg_t msg_type)
       return "NOISY_ASIO";
     case SCHED_UNNOISY_ASIO:
       return "UNNOISY_ASIO";
+    case SCHED_ACTIVATE:
+      return "ACTIVATE";
+    case SCHED_TRACING_ENABLE:
+      return "TRACING_ENABLE";
+    case SCHED_TRACING_DISABLE:
+      return "TRACING_DISABLE";
+    case SCHED_TRACING_SET:
+      return "TRACING_SET";
+    case SCHED_TRACING_UPDATE:
+      return "TRACING_UPDATE";
     default:
       pony_assert(0);
       return NULL;
@@ -1356,7 +1361,21 @@ static char* get_actor_behavior_string(pony_behavior_name_fn get_behavior_name_f
 
 static bool tracing_category_enabled(tracing_category_t cat)
 {
-  return (enabled_categories_bitmask & (uint64_t)cat) != 0;
+  if(this_tracing_scheduler == NULL)
+    return (init_categories_bitmask & (uint64_t)cat) != 0;
+  return (this_tracing_scheduler->categories_bitmask & (uint64_t)cat) != 0;
+}
+
+static bool actor_event_enabled(tracing_category_t cat, pony_actor_t* actor)
+{
+  if(tracing_category_enabled(cat))
+    return true;
+
+  if(tracing_category_enabled(TRACING_CATEGORY_CYCLE_DETECTOR)
+    && ponyint_is_cycle(actor))
+    return true;
+
+  return false;
 }
 
 static void send_trace_message(pony_msg_t* msg)
@@ -1409,6 +1428,9 @@ void ponyint_tracing_thread_start(scheduler_t* sched)
   this_tracing_scheduler = &tracing_schedulers[tracing_scheduler_offset];
 
   this_tracing_scheduler->sched = sched;
+  this_tracing_scheduler->categories_bitmask = init_categories_bitmask;
+  SET_TRACING_ENABLED(
+    (init_categories_bitmask != 0) || flight_recorder_enabled);
 
 #if defined(PLATFORM_IS_WINDOWS)
   this_tracing_scheduler->tid = (uint64_t)GetCurrentThreadId();
@@ -1610,10 +1632,7 @@ void ponyint_tracing_thread_send_message(pony_msgi_t* msg_id, sched_msg_t msg_ty
 
 void ponyint_tracing_actor_created(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR, actor))
     return;
 
   tracing_actor_created_t* m = (tracing_actor_created_t*)pony_alloc_msg(
@@ -1633,10 +1652,7 @@ void ponyint_tracing_actor_created(pony_actor_t* actor)
 
 void ponyint_tracing_actor_destroyed(pony_actor_t* actor, actor_destroyed_reason_t reason)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR, actor))
     return;
 
   tracing_actor_destroyed_t* m = (tracing_actor_destroyed_t*)pony_alloc_msg(
@@ -1664,10 +1680,7 @@ void ponyint_tracing_thread_actor_run_start(pony_actor_t* actor)
 {
   pony_assert(NULL == this_tracing_scheduler->sched->ctx.current);
 
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR, actor))
     return;
 
   tracing_actor_run_start_t* m = (tracing_actor_run_start_t*)pony_alloc_msg(
@@ -1687,10 +1700,7 @@ void ponyint_tracing_thread_actor_run_stop(pony_actor_t* actor)
 {
   pony_assert(actor == this_tracing_scheduler->sched->ctx.current);
 
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR, actor))
     return;
 
   tracing_actor_run_stop_t* m = (tracing_actor_run_stop_t*)pony_alloc_msg(
@@ -1715,16 +1725,12 @@ void ponyint_tracing_thread_actor_run_stop(pony_actor_t* actor)
 
 void ponyint_tracing_actor_behavior_run_schedule(pony_actor_t* actor, pony_actor_t* to_actor, pony_msg_t* msg_id, uint32_t behavior_id)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR))
-    return;
-
-  // The sending actor is NULL when a schedule originates from a thread that is
-  // not running an actor: the ASIO thread delivering an event, or a message
-  // injected (e.g. a cycle detector check) from a scheduler thread between
-  // actor runs. In that case there is no per-actor trace flag to consult, so
-  // we only emit the trace when tracing is forced on.
-  if(!force_actor_tracing_enabled
-    && ((actor == NULL) || !ponyint_actor_tracing_enabled(actor)))
+  if(actor == NULL)
+  {
+    if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR))
+      return;
+  }
+  else if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR, actor))
     return;
 
   tracing_actor_behavior_run_schedule_t* m = (tracing_actor_behavior_run_schedule_t*)pony_alloc_msg(
@@ -1746,10 +1752,7 @@ void ponyint_tracing_actor_behavior_run_schedule(pony_actor_t* actor, pony_actor
 
 void ponyint_tracing_actor_behavior_run_start(pony_actor_t* actor, pony_msg_t* msg_id, uint32_t behavior_id)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR, actor))
     return;
 
   tracing_actor_behavior_run_start_t* m = (tracing_actor_behavior_run_start_t*)pony_alloc_msg(
@@ -1769,10 +1772,7 @@ void ponyint_tracing_actor_behavior_run_start(pony_actor_t* actor, pony_msg_t* m
 
 void ponyint_tracing_actor_behavior_run_end(pony_actor_t* actor, pony_msg_t* msg_id, uint32_t behavior_id)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR, actor))
     return;
 
   tracing_actor_behavior_run_end_t* m = (tracing_actor_behavior_run_end_t*)pony_alloc_msg(
@@ -1792,10 +1792,7 @@ void ponyint_tracing_actor_behavior_run_end(pony_actor_t* actor, pony_msg_t* msg
 
 void ponyint_tracing_actor_gc_start(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_start_t* m = (tracing_actor_gc_start_t*)pony_alloc_msg(
@@ -1811,10 +1808,7 @@ void ponyint_tracing_actor_gc_start(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_end(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_end_t* m = (tracing_actor_gc_end_t*)pony_alloc_msg(
@@ -1830,10 +1824,7 @@ void ponyint_tracing_actor_gc_end(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_mark_start(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_mark_start_t* m = (tracing_actor_gc_mark_start_t*)pony_alloc_msg(
@@ -1849,10 +1840,7 @@ void ponyint_tracing_actor_gc_mark_start(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_mark_end(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_mark_end_t* m = (tracing_actor_gc_mark_end_t*)pony_alloc_msg(
@@ -1868,10 +1856,7 @@ void ponyint_tracing_actor_gc_mark_end(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_sweep_start(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_sweep_start_t* m = (tracing_actor_gc_sweep_start_t*)pony_alloc_msg(
@@ -1887,10 +1872,7 @@ void ponyint_tracing_actor_gc_sweep_start(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_sweep_end(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_sweep_end_t* m = (tracing_actor_gc_sweep_end_t*)pony_alloc_msg(
@@ -1906,10 +1888,7 @@ void ponyint_tracing_actor_gc_sweep_end(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_objectmap_sweep_start(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_objectmap_sweep_start_t* m = (tracing_actor_gc_objectmap_sweep_start_t*)pony_alloc_msg(
@@ -1925,10 +1904,7 @@ void ponyint_tracing_actor_gc_objectmap_sweep_start(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_objectmap_sweep_end(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_objectmap_sweep_end_t* m = (tracing_actor_gc_objectmap_sweep_end_t*)pony_alloc_msg(
@@ -1944,10 +1920,7 @@ void ponyint_tracing_actor_gc_objectmap_sweep_end(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_actormap_sweep_start(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_actormap_sweep_start_t* m = (tracing_actor_gc_actormap_sweep_start_t*)pony_alloc_msg(
@@ -1963,10 +1936,7 @@ void ponyint_tracing_actor_gc_actormap_sweep_start(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_actormap_sweep_end(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_actormap_sweep_end_t* m = (tracing_actor_gc_actormap_sweep_end_t*)pony_alloc_msg(
@@ -1982,10 +1952,7 @@ void ponyint_tracing_actor_gc_actormap_sweep_end(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_heap_sweep_start(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_heap_sweep_start_t* m = (tracing_actor_gc_heap_sweep_start_t*)pony_alloc_msg(
@@ -2001,10 +1968,7 @@ void ponyint_tracing_actor_gc_heap_sweep_start(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_heap_sweep_end(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_heap_sweep_end_t* m = (tracing_actor_gc_heap_sweep_end_t*)pony_alloc_msg(
@@ -2020,10 +1984,7 @@ void ponyint_tracing_actor_gc_heap_sweep_end(pony_actor_t* actor)
 
 void ponyint_tracing_actor_muted(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE, actor))
     return;
 
   tracing_actor_muted_t* m = (tracing_actor_muted_t*)pony_alloc_msg(
@@ -2041,10 +2002,7 @@ void ponyint_tracing_actor_muted(pony_actor_t* actor)
 
 void ponyint_tracing_actor_unmuted(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE, actor))
     return;
 
   tracing_actor_unmuted_t* m = (tracing_actor_unmuted_t*)pony_alloc_msg(
@@ -2062,10 +2020,7 @@ void ponyint_tracing_actor_unmuted(pony_actor_t* actor)
 
 void ponyint_tracing_actor_overloaded(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE, actor))
     return;
 
   tracing_actor_overloaded_t* m = (tracing_actor_overloaded_t*)pony_alloc_msg(
@@ -2083,10 +2038,7 @@ void ponyint_tracing_actor_overloaded(pony_actor_t* actor)
 
 void ponyint_tracing_actor_notoverloaded(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE, actor))
     return;
 
   tracing_actor_notoverloaded_t* m = (tracing_actor_notoverloaded_t*)pony_alloc_msg(
@@ -2104,10 +2056,7 @@ void ponyint_tracing_actor_notoverloaded(pony_actor_t* actor)
 
 void ponyint_tracing_actor_underpressure(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE, actor))
     return;
 
   tracing_actor_underpressure_t* m = (tracing_actor_underpressure_t*)pony_alloc_msg(
@@ -2125,10 +2074,7 @@ void ponyint_tracing_actor_underpressure(pony_actor_t* actor)
 
 void ponyint_tracing_actor_notunderpressure(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE, actor))
     return;
 
   tracing_actor_notunderpressure_t* m = (tracing_actor_notunderpressure_t*)pony_alloc_msg(
@@ -2146,10 +2092,7 @@ void ponyint_tracing_actor_notunderpressure(pony_actor_t* actor)
 
 void ponyint_tracing_actor_blocked(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE, actor))
     return;
 
   tracing_actor_blocked_t* m = (tracing_actor_blocked_t*)pony_alloc_msg(
@@ -2167,10 +2110,7 @@ void ponyint_tracing_actor_blocked(pony_actor_t* actor)
 
 void ponyint_tracing_actor_unblocked(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE, actor))
     return;
 
   tracing_actor_unblocked_t* m = (tracing_actor_unblocked_t*)pony_alloc_msg(
@@ -2186,68 +2126,9 @@ void ponyint_tracing_actor_unblocked(pony_actor_t* actor)
   send_trace_message((pony_msg_t*)m);
 }
 
-void ponyint_tracing_actor_tracing_enabled(pony_actor_t* actor)
-{
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
-    return;
-
-  tracing_actor_tracing_enabled_t* m = (tracing_actor_tracing_enabled_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(tracing_actor_tracing_enabled_t)), TRACING_MSG_ACTOR_TRACING_ENABLED);
-
-  m->thread_id = this_tracing_scheduler->tid;
-  m->ts = get_time_nanos();
-  m->actor = actor;
-  m->type = actor->type;
-  m->internal_flags = actor->internal_flags;
-  m->sync_flags = atomic_load_explicit(&actor->sync_flags, memory_order_relaxed);
-  m->heap_next_gc = actor->heap.next_gc;
-  m->heap_used = actor->heap.used;
-  m->gc_rc = actor->gc.rc;
-  m->live_asio_events = actor->live_asio_events;
-#ifdef USE_RUNTIMESTATS
-  memcpy(&m->actorstats, &actor->actorstats, sizeof(actorstats_t));
-#endif
-
-  send_trace_message((pony_msg_t*)m);
-}
-
-void ponyint_tracing_actor_tracing_disabled(pony_actor_t* actor)
-{
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
-    return;
-
-  tracing_actor_tracing_disabled_t* m = (tracing_actor_tracing_disabled_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(tracing_actor_tracing_disabled_t)), TRACING_MSG_ACTOR_TRACING_DISABLED);
-
-  m->thread_id = this_tracing_scheduler->tid;
-  m->ts = get_time_nanos();
-  m->actor = actor;
-  m->type = actor->type;
-  m->internal_flags = actor->internal_flags;
-  m->sync_flags = atomic_load_explicit(&actor->sync_flags, memory_order_relaxed);
-  m->heap_next_gc = actor->heap.next_gc;
-  m->heap_used = actor->heap.used;
-  m->gc_rc = actor->gc.rc;
-  m->live_asio_events = actor->live_asio_events;
-#ifdef USE_RUNTIMESTATS
-  memcpy(&m->actorstats, &actor->actorstats, sizeof(actorstats_t));
-#endif
-
-  send_trace_message((pony_msg_t*)m);
-}
-
 void ponyint_tracing_actor_scheduled(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR, actor))
     return;
 
   tracing_actor_scheduled_t* m = (tracing_actor_scheduled_t*)pony_alloc_msg(
@@ -2267,10 +2148,7 @@ void ponyint_tracing_actor_scheduled(pony_ctx_t* ctx, pony_actor_t* actor)
 
 void ponyint_tracing_actor_scheduled_inject(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR, actor))
     return;
 
   tracing_actor_scheduled_inject_t* m =
@@ -2466,10 +2344,7 @@ void ponyint_tracing_steal_failure_round()
 
 void ponyint_tracing_actor_batch_size_changed(pony_actor_t* actor)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_STATE_CHANGE, actor))
     return;
 
   tracing_actor_batch_size_changed_t* m = (tracing_actor_batch_size_changed_t*)pony_alloc_msg(
@@ -2486,10 +2361,7 @@ void ponyint_tracing_actor_batch_size_changed(pony_actor_t* actor)
 
 void ponyint_tracing_actor_gc_threshold_changed(pony_actor_t* actor, bool held)
 {
-  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
-    return;
-
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  if(!actor_event_enabled(TRACING_CATEGORY_ACTOR_GC, actor))
     return;
 
   tracing_actor_gc_threshold_changed_t* m = (tracing_actor_gc_threshold_changed_t*)pony_alloc_msg(
@@ -2509,7 +2381,7 @@ void ponyint_tracing_actor_gc_threshold_changed(pony_actor_t* actor, bool held)
 static void print_header(uint64_t thread_id)
 {
   fprintf(log_file, "[\n");
-  fprintf(log_file, "{\"name\":\"%s\",\"ts\":%" PRIu64 ",\"cat\":\"tracing\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{ \"categories_enabled\":[\"tracing\"%s%s%s%s%s%s%s%s%s%s]}}",
+  fprintf(log_file, "{\"name\":\"%s\",\"ts\":%" PRIu64 ",\"cat\":\"tracing\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{ \"categories_enabled\":[\"tracing\"%s%s%s%s%s%s%s%s%s%s%s]}}",
     "start_trace", convert_time_nanos_to_micros(get_time_nanos()), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, thread_id,
     get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_PROCESS),
     (tracing_category_enabled(TRACING_CATEGORY_ACTOR) ? ",\"actor\"" : ""),
@@ -2521,7 +2393,8 @@ static void print_header(uint64_t thread_id)
     (tracing_category_enabled(TRACING_CATEGORY_SCHEDULER_STEALING) ? ",\"scheduler_stealing\"" : ""),
     (tracing_category_enabled(TRACING_CATEGORY_SYSTEMATIC_TESTING) ? ",\"systematic_testing\"" : ""),
     (tracing_category_enabled(TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS) ? ",\"systematic_testing_details\"" : ""),
-    (tracing_category_enabled(TRACING_CATEGORY_RUNTIME) ? ",\"runtime\"" : ""));
+    (tracing_category_enabled(TRACING_CATEGORY_RUNTIME) ? ",\"runtime\"" : ""),
+    (tracing_category_enabled(TRACING_CATEGORY_CYCLE_DETECTOR) ? ",\"cycle_detector\"" : ""));
 }
 
 static void print_footer(uint64_t thread_id)
@@ -2533,6 +2406,9 @@ static void print_footer(uint64_t thread_id)
 
 static void handle_message(pony_msg_t* msg)
 {
+  if(log_file == NULL && msg->id != TRACING_MSG_FLIGHT_RECORDER_DUMP)
+    return;
+
   // TODO: reduce duplication maybe so the same change doesn't have to be made in a 1000 places
   switch(msg->id)
   {
@@ -3043,102 +2919,6 @@ static void handle_message(pony_msg_t* msg)
 
       break;
     }
-    case TRACING_MSG_ACTOR_TRACING_ENABLED:
-    {
-      tracing_actor_destroyed_t* m = (tracing_actor_destroyed_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"%s tracing enabled\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
-        m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
-        m->sync_flags & ACTOR_SYNC_FLAG_PENDINGDESTROY ? "true" : "false",
-        m->sync_flags & ACTOR_SYNC_FLAG_OVERLOADED ? "true" : "false",
-        m->sync_flags & ACTOR_SYNC_FLAG_UNDER_PRESSURE ? "true" : "false",
-        m->sync_flags & ACTOR_SYNC_FLAG_MUTED ? "true" : "false",
-        m->heap_next_gc,
-        m->heap_used,
-        m->gc_rc,
-        m->live_asio_events);
-
-#if defined(USE_RUNTIMESTATS)
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"heap_memory_allocated\":%zu,\"heap_memory_used\":%zu,\"heap_num_allocated\":%zu,\"heap_realloc_counter\":%zu,\"heap_alloc_counter\":%zu,\"heap_free_counter\":%zu,\"heap_gc_counter\":%zu,\"system_cpu\":%zu,\"app_cpu\":%zu,\"garbage_collection_marking_cpu\":%zu,\"garbage_collection_sweeping_cpu\":%zu,\"messages_sent_counter\":%zu,\"system_messages_processed_counter\":%zu,\"app_messages_processed_counter\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
-        m->heap_next_gc,
-        m->heap_used,
-        m->gc_rc,
-        m->actorstats.heap_mem_allocated,
-        m->actorstats.heap_mem_used,
-        m->actorstats.heap_num_allocated,
-        m->actorstats.heap_realloc_counter,
-        m->actorstats.heap_alloc_counter,
-        m->actorstats.heap_free_counter,
-        m->actorstats.heap_gc_counter,
-        m->actorstats.system_cpu,
-        m->actorstats.app_cpu,
-        m->actorstats.gc_mark_cpu,
-        m->actorstats.gc_sweep_cpu,
-        m->actorstats.messages_sent_counter,
-        m->actorstats.system_messages_processed_counter,
-        m->actorstats.app_messages_processed_counter);
-#else
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
-        m->heap_next_gc,
-        m->heap_used,
-        m->gc_rc);
-#endif
-
-      break;
-    }
-    case TRACING_MSG_ACTOR_TRACING_DISABLED:
-    {
-      tracing_actor_destroyed_t* m = (tracing_actor_destroyed_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"%s tracing disabled\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
-        m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
-        m->sync_flags & ACTOR_SYNC_FLAG_PENDINGDESTROY ? "true" : "false",
-        m->sync_flags & ACTOR_SYNC_FLAG_OVERLOADED ? "true" : "false",
-        m->sync_flags & ACTOR_SYNC_FLAG_UNDER_PRESSURE ? "true" : "false",
-        m->sync_flags & ACTOR_SYNC_FLAG_MUTED ? "true" : "false",
-        m->heap_next_gc,
-        m->heap_used,
-        m->gc_rc,
-        m->live_asio_events);
-
-#if defined(USE_RUNTIMESTATS)
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"heap_memory_allocated\":%zu,\"heap_memory_used\":%zu,\"heap_num_allocated\":%zu,\"heap_realloc_counter\":%zu,\"heap_alloc_counter\":%zu,\"heap_free_counter\":%zu,\"heap_gc_counter\":%zu,\"system_cpu\":%zu,\"app_cpu\":%zu,\"garbage_collection_marking_cpu\":%zu,\"garbage_collection_sweeping_cpu\":%zu,\"messages_sent_counter\":%zu,\"system_messages_processed_counter\":%zu,\"app_messages_processed_counter\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
-        m->heap_next_gc,
-        m->heap_used,
-        m->gc_rc,
-        m->actorstats.heap_mem_allocated,
-        m->actorstats.heap_mem_used,
-        m->actorstats.heap_num_allocated,
-        m->actorstats.heap_realloc_counter,
-        m->actorstats.heap_alloc_counter,
-        m->actorstats.heap_free_counter,
-        m->actorstats.heap_gc_counter,
-        m->actorstats.system_cpu,
-        m->actorstats.app_cpu,
-        m->actorstats.gc_mark_cpu,
-        m->actorstats.gc_sweep_cpu,
-        m->actorstats.messages_sent_counter,
-        m->actorstats.system_messages_processed_counter,
-        m->actorstats.app_messages_processed_counter);
-#else
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
-        m->heap_next_gc,
-        m->heap_used,
-        m->gc_rc);
-#endif
-
-      break;
-    }
     case TRACING_MSG_ACTOR_SCHEDULED:
     {
       tracing_actor_scheduled_t* m = (tracing_actor_scheduled_t*)msg;
@@ -3330,6 +3110,46 @@ static void handle_message(pony_msg_t* msg)
         pid, m->thread_id, m->actor, m->actor,
         m->type->id, m->type->name, m->next_gc, m->used,
         m->held ? "true" : "false");
+      break;
+    }
+    case TRACING_MSG_CATEGORIES_CHANGED:
+    {
+      tracing_categories_changed_t* m = (tracing_categories_changed_t*)msg;
+#define CAT_ENTRY(bitmask, bit, name) \
+  ((bitmask & (uint64_t)(bit)) ? ",\"" name "\"" : "")
+      fprintf(log_file,
+        ",\n{\"name\":\"categories_changed\",\"ts\":%" PRIu64
+        ",\"cat\":\"tracing\",\"ph\":\"%s\",\"pid\":%d,\"tid\":0"
+        ",\"s\":\"%s\",\"args\":{\"old\":[\"tracing\"%s%s%s%s%s%s%s%s%s%s%s]"
+        ",\"new\":[\"tracing\"%s%s%s%s%s%s%s%s%s%s%s]}}",
+        convert_time_nanos_to_micros(m->ts),
+        get_tracing_event_string(TRACING_EVENT_INSTANT),
+        pid,
+        get_tracing_event_instant_scope_string(
+          TRACING_EVENT_INSTANT_SCOPE_GLOBAL),
+        CAT_ENTRY(m->old_bitmask, TRACING_CATEGORY_ACTOR, "actor"),
+        CAT_ENTRY(m->old_bitmask, TRACING_CATEGORY_ACTOR_BEHAVIOR, "actor_behavior"),
+        CAT_ENTRY(m->old_bitmask, TRACING_CATEGORY_ACTOR_GC, "actor_gc"),
+        CAT_ENTRY(m->old_bitmask, TRACING_CATEGORY_ACTOR_STATE_CHANGE, "actor_state_change"),
+        CAT_ENTRY(m->old_bitmask, TRACING_CATEGORY_SCHEDULER, "scheduler"),
+        CAT_ENTRY(m->old_bitmask, TRACING_CATEGORY_SCHEDULER_MESSAGING, "scheduler_messaging"),
+        CAT_ENTRY(m->old_bitmask, TRACING_CATEGORY_SCHEDULER_STEALING, "scheduler_stealing"),
+        CAT_ENTRY(m->old_bitmask, TRACING_CATEGORY_SYSTEMATIC_TESTING, "systematic_testing"),
+        CAT_ENTRY(m->old_bitmask, TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS, "systematic_testing_details"),
+        CAT_ENTRY(m->old_bitmask, TRACING_CATEGORY_RUNTIME, "runtime"),
+        CAT_ENTRY(m->old_bitmask, TRACING_CATEGORY_CYCLE_DETECTOR, "cycle_detector"),
+        CAT_ENTRY(m->new_bitmask, TRACING_CATEGORY_ACTOR, "actor"),
+        CAT_ENTRY(m->new_bitmask, TRACING_CATEGORY_ACTOR_BEHAVIOR, "actor_behavior"),
+        CAT_ENTRY(m->new_bitmask, TRACING_CATEGORY_ACTOR_GC, "actor_gc"),
+        CAT_ENTRY(m->new_bitmask, TRACING_CATEGORY_ACTOR_STATE_CHANGE, "actor_state_change"),
+        CAT_ENTRY(m->new_bitmask, TRACING_CATEGORY_SCHEDULER, "scheduler"),
+        CAT_ENTRY(m->new_bitmask, TRACING_CATEGORY_SCHEDULER_MESSAGING, "scheduler_messaging"),
+        CAT_ENTRY(m->new_bitmask, TRACING_CATEGORY_SCHEDULER_STEALING, "scheduler_stealing"),
+        CAT_ENTRY(m->new_bitmask, TRACING_CATEGORY_SYSTEMATIC_TESTING, "systematic_testing"),
+        CAT_ENTRY(m->new_bitmask, TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS, "systematic_testing_details"),
+        CAT_ENTRY(m->new_bitmask, TRACING_CATEGORY_RUNTIME, "runtime"),
+        CAT_ENTRY(m->new_bitmask, TRACING_CATEGORY_CYCLE_DETECTOR, "cycle_detector"));
+#undef CAT_ENTRY
       break;
     }
     case TRACING_MSG_FLIGHT_RECORDER_DUMP:
@@ -3590,10 +3410,96 @@ static bool tracing_category_matches(const char* pattern, const char* name)
 #endif
 }
 
-// TODO: make it so tracing can be intialized/enabled/disabled at runtime by the user program?
+__attribute__((cold))
+static uint64_t ponyint_tracing_parse_category_pattern(const char* token)
+{
+  uint64_t bits = 0;
+
+  if(tracing_category_matches(token, "actor"))
+    bits |= (uint64_t)TRACING_CATEGORY_ACTOR;
+  if(tracing_category_matches(token, "actor_behavior"))
+    bits |= (uint64_t)TRACING_CATEGORY_ACTOR_BEHAVIOR;
+  if(tracing_category_matches(token, "actor_gc"))
+    bits |= (uint64_t)TRACING_CATEGORY_ACTOR_GC;
+  if(tracing_category_matches(token, "actor_state_change"))
+    bits |= (uint64_t)TRACING_CATEGORY_ACTOR_STATE_CHANGE;
+  if(tracing_category_matches(token, "scheduler"))
+    bits |= (uint64_t)TRACING_CATEGORY_SCHEDULER;
+  if(tracing_category_matches(token, "scheduler_messaging"))
+    bits |= (uint64_t)TRACING_CATEGORY_SCHEDULER_MESSAGING;
+  if(tracing_category_matches(token, "systematic_testing"))
+    bits |= (uint64_t)TRACING_CATEGORY_SYSTEMATIC_TESTING;
+  if(tracing_category_matches(token, "systematic_testing_details"))
+    bits |= (uint64_t)TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS;
+  if(tracing_category_matches(token, "runtime"))
+    bits |= (uint64_t)TRACING_CATEGORY_RUNTIME;
+  if(tracing_category_matches(token, "scheduler_stealing"))
+    bits |= (uint64_t)TRACING_CATEGORY_SCHEDULER_STEALING;
+  if(tracing_category_matches(token, "cycle_detector"))
+    bits |= (uint64_t)TRACING_CATEGORY_CYCLE_DETECTOR;
+
+  return bits;
+}
+
+static void apply_bitmask(uint64_t bitmask)
+{
+  SET_TRACING_ENABLED(
+    (bitmask != 0) || flight_recorder_enabled);
+  this_tracing_scheduler->categories_bitmask = bitmask;
+}
+
+__attribute__((cold))
+void ponyint_tracing_master_apply(sched_msg_t op, uint64_t categories)
+{
+  if(this_tracing_scheduler == NULL)
+    return;
+
+  pony_assert(pony_scheduler_index() == 0);
+
+  uint64_t old_bitmask = this_tracing_scheduler->categories_bitmask;
+
+  switch(op)
+  {
+    case SCHED_TRACING_ENABLE:
+      apply_bitmask(old_bitmask | categories);
+      break;
+    case SCHED_TRACING_DISABLE:
+      apply_bitmask(old_bitmask & ~categories);
+      break;
+    case SCHED_TRACING_SET:
+      apply_bitmask(categories);
+      break;
+    default:
+      return;
+  }
+
+  uint64_t new_bitmask = this_tracing_scheduler->categories_bitmask;
+
+  if(tracing_thread_started && (old_bitmask != new_bitmask))
+  {
+    tracing_categories_changed_t* m =
+      (tracing_categories_changed_t*)pony_alloc_msg(
+        POOL_INDEX(sizeof(tracing_categories_changed_t)),
+        TRACING_MSG_CATEGORIES_CHANGED);
+    m->ts = get_time_nanos();
+    m->old_bitmask = old_bitmask;
+    m->new_bitmask = new_bitmask;
+    send_trace_message((pony_msg_t*)m);
+  }
+
+  ponyint_sched_broadcast_tracing_update(new_bitmask);
+}
+
+__attribute__((cold))
+void ponyint_tracing_apply_update(uint64_t bitmask)
+{
+  if(this_tracing_scheduler != NULL)
+    apply_bitmask(bitmask);
+}
+
 // TODO: make it possible for actors to emit "flow"/"async" tracing events via a "tracing module/api" (have to figure out appropriate memcpy stuff for this due to GC)?
 // TODO: should it be possible to have both the flight recorder and normal tracing enabled at the same time?
-void ponyint_tracing_init(char* format, char* output, char* enabled_categories_patterns, char* mode, size_t flight_recorder_events_size, bool handle_term_int, char* force_actor_tracing)
+void ponyint_tracing_init(char* format, char* output, char* enabled_categories_patterns, char* mode, size_t flight_recorder_events_size, bool handle_term_int)
 {
   output_format = format;
   output_file = output;
@@ -3603,49 +3509,32 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
 #else
   pid = getpid();
 #endif
-  enabled_categories_bitmask = 0;
+  init_categories_bitmask = 0;
   flight_recorder_handle_term_int = handle_term_int;
 
-  force_actor_tracing_enabled = strcmp(force_actor_tracing, "all") == 0;
+  uint64_t bitmask = 0;
 
   if(strcmp(enabled_categories_patterns, "") != 0)
   {
-    char* token = strtok(enabled_categories_patterns, ",");
+    char* saveptr = NULL;
+#if defined(PLATFORM_IS_WINDOWS)
+    char* token = strtok_s(enabled_categories_patterns, ",", &saveptr);
     while(token != NULL)
     {
-      if(tracing_category_matches(token, "actor"))
-        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_ACTOR;
-
-      if(tracing_category_matches(token, "actor_behavior"))
-        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_ACTOR_BEHAVIOR;
-
-      if(tracing_category_matches(token, "actor_gc"))
-        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_ACTOR_GC;
-
-      if(tracing_category_matches(token, "actor_state_change"))
-        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_ACTOR_STATE_CHANGE;
-
-      if(tracing_category_matches(token, "scheduler"))
-        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_SCHEDULER;
-
-      if(tracing_category_matches(token, "scheduler_messaging"))
-        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_SCHEDULER_MESSAGING;
-
-      if(tracing_category_matches(token, "systematic_testing"))
-        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_SYSTEMATIC_TESTING;
-
-      if(tracing_category_matches(token, "systematic_testing_details"))
-        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS;
-
-      if(tracing_category_matches(token, "runtime"))
-        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_RUNTIME;
-
-      if(tracing_category_matches(token, "scheduler_stealing"))
-        enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_SCHEDULER_STEALING;
-
-      token = strtok(NULL, ",");
+      bitmask |= ponyint_tracing_parse_category_pattern(token);
+      token = strtok_s(NULL, ",", &saveptr);
     }
+#else
+    char* token = strtok_r(enabled_categories_patterns, ",", &saveptr);
+    while(token != NULL)
+    {
+      bitmask |= ponyint_tracing_parse_category_pattern(token);
+      token = strtok_r(NULL, ",", &saveptr);
+    }
+#endif
   }
+
+  init_categories_bitmask = bitmask;
 
   flight_recorder_max_events = ponyint_next_pow2(flight_recorder_events_size);
   flight_recorder_enabled = strcmp(tracing_mode, "flight_recorder") == 0;
@@ -3674,8 +3563,6 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
 
   ponyint_messageq_init(&tracing_thread.mq);
 
-  ponyint_tracing_enabled = (enabled_categories_bitmask != 0)
-    || flight_recorder_enabled;
 }
 
 void ponyint_tracing_schedulers_init(uint32_t sched_count, uint32_t tracing_cpu)
@@ -3688,51 +3575,70 @@ void ponyint_tracing_schedulers_init(uint32_t sched_count, uint32_t tracing_cpu)
   memset(tracing_schedulers, 0, sizeof(tracing_scheduler_t) * total_sched_count);
 }
 
-bool ponyint_tracing_start()
+__attribute__((cold))
+static bool ponyint_tracing_open_log_file()
 {
-  // nothing to do if no categories were enabled
-  if(!enabled_categories_bitmask)
-    return true;
+  int expected = LOG_FILE_CLOSED;
+  if(!atomic_compare_exchange_strong_explicit(&log_file_state,
+      &expected, LOG_FILE_OPENING, memory_order_acq_rel, memory_order_acquire))
+  {
+    // Another thread is opening or has opened. Spin until OPEN.
+    while(atomic_load_explicit(&log_file_state, memory_order_acquire)
+        == LOG_FILE_OPENING)
+      ;
+    return log_file != NULL;
+  }
 
   // TODO: other formats beyond JSON (i.e. fuchsia, perfetto, pprof, others?)
   if(strcmp(output_format, "json") != 0)
   {
     printf("ERROR: invalid trace format: %s\n", output_format);
+    atomic_store_explicit(&log_file_state, LOG_FILE_OPEN, memory_order_release);
     return false;
   }
 
-  if(flight_recorder_enabled)
+  if(strcmp(tracing_mode, "file") != 0 && !flight_recorder_enabled)
   {
-    if(!ponyint_thread_create(&tracing_thread.tid, run_thread, tracing_thread.cpu,
-      NULL))
+    printf("ERROR: invalid tracing mode: %s\n", tracing_mode);
+    atomic_store_explicit(&log_file_state, LOG_FILE_OPEN, memory_order_release);
+    return false;
+  }
+
+  if(!flight_recorder_enabled)
+  {
+    if(strcmp(output_file, "-") == 0)
+      log_file = stdout;
+    else if(strcmp(output_file, "~") == 0)
+      log_file = stderr;
+    else
+      log_file = fopen(output_file, "w");
+
+    if(log_file == NULL)
     {
-      printf("ERROR: Unable to create tracing thread for flight recorder\n");
+      printf("ERROR: Unable to open trace file: %s\n", output_file);
+      atomic_store_explicit(&log_file_state, LOG_FILE_OPEN, memory_order_release);
       return false;
     }
 
-    return true;
+    uint64_t tid = (this_tracing_scheduler != NULL)
+      ? this_tracing_scheduler->tid : 0;
+    print_header(tid);
   }
 
-  if(strcmp(tracing_mode, "file") != 0)
+  atomic_store_explicit(&log_file_state, LOG_FILE_OPEN, memory_order_release);
+  return true;
+}
+
+bool ponyint_tracing_start()
+{
+  atomic_store_explicit(&log_file_state, LOG_FILE_CLOSED, memory_order_relaxed);
+  tracing_thread_started = false;
+
+  if(init_categories_bitmask != 0 || flight_recorder_enabled)
   {
-    printf("ERROR: invalid tracing mode: %s\n", tracing_mode);
-    return false;
+    if(!ponyint_tracing_open_log_file())
+      return false;
   }
-
-  if(strcmp(output_file, "-") == 0)
-    log_file = stdout;
-  else if(strcmp(output_file, "~") == 0)
-    log_file = stderr;
-  else
-    log_file = fopen(output_file, "w");
-
-  if(log_file == NULL)
-  {
-    printf("ERROR: Unable to open trace file: %s\n", output_file);
-    return false;
-  }
-
-  print_header(this_tracing_scheduler->tid);
 
   if(!ponyint_thread_create(&tracing_thread.tid, run_thread, tracing_thread.cpu,
     NULL))
@@ -3741,6 +3647,7 @@ bool ponyint_tracing_start()
     return false;
   }
 
+  tracing_thread_started = true;
   return true;
 }
 
@@ -3769,8 +3676,7 @@ void ponyint_tracing_stop()
   }
 #endif
 
-  // nothing to do if no categories were enabled
-  if(!enabled_categories_bitmask)
+  if(!tracing_thread_started)
     return;
 
   // The stop flag is read at the next tick; the join waits at most
@@ -3796,14 +3702,14 @@ void ponyint_tracing_stop()
       for(uint64_t event_idx = 0; event_idx < flight_recorder_max_events; event_idx++)
       {
         pony_msg_t* msg = atomic_load_explicit(&tracing_schedulers[sched_idx].flight_recorder_events[event_idx], memory_order_relaxed);
-  
+
         if(msg != NULL)
         {
           ponyint_pool_free(msg->index, msg);
           atomic_store_explicit(&tracing_schedulers[sched_idx].flight_recorder_events[event_idx], NULL, memory_order_relaxed);
         }
       }
-  
+
       // and the flight recorder buffer
       ponyint_pool_free_size(sizeof(pony_msg_t*) * flight_recorder_max_events, tracing_schedulers[sched_idx].flight_recorder_events);
       tracing_schedulers[sched_idx].flight_recorder_events = NULL;
@@ -3823,11 +3729,78 @@ void ponyint_tracing_stop()
     return;
   }
 
-  print_footer(this_tracing_scheduler->tid);
-
-  fclose(log_file);
-  log_file = NULL;
+  if(atomic_load_explicit(&log_file_state, memory_order_relaxed) == LOG_FILE_OPEN
+    && log_file != NULL)
+  {
+    print_footer(this_tracing_scheduler->tid);
+    fclose(log_file);
+    log_file = NULL;
+  }
 
   ponyint_pool_free_size(sizeof(tracing_scheduler_t) * total_sched_count, tracing_schedulers);
   tracing_schedulers = NULL;
 }
+
+PONY_EXTERN_C_BEGIN
+
+__attribute__((cold))
+PONY_API int32_t pony_tracing_enable_categories(uint64_t categories)
+{
+  if(this_tracing_scheduler == NULL)
+    return PONY_TRACING_NOT_AVAILABLE;
+
+  if(categories == 0)
+    return PONY_TRACING_OK;
+
+  if(!flight_recorder_enabled)
+  {
+    if(!ponyint_tracing_open_log_file())
+      return PONY_TRACING_LOG_FILE_ERROR;
+  }
+
+  if(pony_scheduler_index() == 0)
+    ponyint_tracing_master_apply(SCHED_TRACING_ENABLE, categories);
+  else
+    ponyint_sched_send_tracing_to_master(SCHED_TRACING_ENABLE, categories);
+
+  return PONY_TRACING_OK;
+}
+
+__attribute__((cold))
+PONY_API int32_t pony_tracing_disable_categories(uint64_t categories)
+{
+  if(this_tracing_scheduler == NULL)
+    return PONY_TRACING_NOT_AVAILABLE;
+
+  if(categories == 0)
+    return PONY_TRACING_OK;
+
+  if(pony_scheduler_index() == 0)
+    ponyint_tracing_master_apply(SCHED_TRACING_DISABLE, categories);
+  else
+    ponyint_sched_send_tracing_to_master(SCHED_TRACING_DISABLE, categories);
+
+  return PONY_TRACING_OK;
+}
+
+__attribute__((cold))
+PONY_API int32_t pony_tracing_set_categories(uint64_t categories)
+{
+  if(this_tracing_scheduler == NULL)
+    return PONY_TRACING_NOT_AVAILABLE;
+
+  if(categories != 0 && !flight_recorder_enabled)
+  {
+    if(!ponyint_tracing_open_log_file())
+      return PONY_TRACING_LOG_FILE_ERROR;
+  }
+
+  if(pony_scheduler_index() == 0)
+    ponyint_tracing_master_apply(SCHED_TRACING_SET, categories);
+  else
+    ponyint_sched_send_tracing_to_master(SCHED_TRACING_SET, categories);
+
+  return PONY_TRACING_OK;
+}
+
+PONY_EXTERN_C_END

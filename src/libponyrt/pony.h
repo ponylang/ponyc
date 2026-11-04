@@ -353,6 +353,41 @@ PONY_API void pony_exitcode(int code);
  */
 PONY_API int pony_get_exitcode();
 
+/** Result codes for the tracing category API.
+ *
+ * 0 = success, 1 = not available (not on a scheduler thread),
+ * 2 = log file could not be opened.
+ *
+ * Keep in sync with _result() in packages/runtime_tracing/runtime_tracing.pony.
+ */
+#define PONY_TRACING_OK                0
+#define PONY_TRACING_NOT_AVAILABLE     1
+#define PONY_TRACING_LOG_FILE_ERROR    2
+
+/** Enable additional tracing categories at runtime.
+ *
+ * Must be called from a scheduler thread (i.e. from within a running actor).
+ * ORs the given category bitmask into the active set. Opens the trace output
+ * file on the first call that enables any category.
+ */
+PONY_API int32_t pony_tracing_enable_categories(uint64_t categories);
+
+/** Disable tracing categories at runtime.
+ *
+ * Must be called from a scheduler thread (i.e. from within a running actor).
+ * Clears the given category bits from the active set.
+ */
+PONY_API int32_t pony_tracing_disable_categories(uint64_t categories);
+
+/** Replace the active tracing categories at runtime.
+ *
+ * Must be called from a scheduler thread (i.e. from within a running actor).
+ * Sets the active category set to exactly the given bitmask. Pass 0 to
+ * disable all categories. Opens the trace output file on the first call that
+ * enables any category.
+ */
+PONY_API int32_t pony_tracing_set_categories(uint64_t categories);
+
 #if defined(__cplusplus)
 }
 #endif

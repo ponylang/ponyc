@@ -57,6 +57,7 @@ add_library(libponyrt STATIC
     ${_c_src}
 )
 
+
 if (NOT MSVC)
     if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86-64")
         target_compile_options(libponyrt PUBLIC -mcx16)

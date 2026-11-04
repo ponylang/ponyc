@@ -84,3 +84,48 @@ The new model is the following: An instance of pony-lsp is started with one work
 
 Effectively, with this change, pony-lsp is now correctly resolving transitive dependencies from `corral.json`, pony modules not listed in `corral.json` like test modules or the pony standard library. Dependencies outside the workspace are now correctly resolved as well.
 
+## Add runtime tracing toggle API
+
+Tracing categories can now be changed while a program is running. The new `runtime_tracing` package provides three category operations — enable (add to active set), disable (remove from active set), and set (replace active set).
+
+```pony
+use "runtime_tracing"
+
+actor Main
+  new create(env: Env) =>
+    let auth = RuntimeTracingAuth(env.root)
+
+    match RuntimeTracing.enable_categories(
+      auth, [SchedulerTracing; ActorBehaviorTracing])
+    | TracingOk => env.out.print("tracing enabled")
+    | TracingNotAvailable => env.out.print("not on a scheduler thread")
+    | TracingLogFileError => env.out.print("could not open trace file")
+    end
+```
+
+Each category is a typed primitive passed in an array. Actor event categories (`ActorTracing`, `ActorBehaviorTracing`, etc.) trace all actors when enabled. `CycleDetectorTracing` enables actor events for the cycle detector only. No trace file is created until the first call that enables a category.
+
+`RuntimeOptions` now includes all tracing configuration fields, so `@runtime_override_defaults` can set initial tracing configuration from code.
+
+## Remove `--ponytracingforceactortracing`
+
+The `--ponytracingforceactortracing` CLI flag is removed. Actor tracing is now controlled through categories: enable `ActorTracing`, `ActorBehaviorTracing`, or other actor event categories to trace all actors, or enable `CycleDetectorTracing` to trace the cycle detector only.
+
+Scripts and launch configurations that pass `--ponytracingforceactortracing` need to use `--ponytracingcategories` instead:
+
+```
+# before: trace all actors
+--ponytracingforceactortracing all
+# after:
+--ponytracingcategories "actor,actor_gc,actor_behavior,actor_state_change"
+
+# before: trace only the cycle detector
+--ponytracingforceactortracing cd_only
+# after:
+--ponytracingcategories "cycle_detector"
+```
+
+## Remove orphaned ASIO thread tracing call
+
+The ASIO event loop backends (epoll, kqueue, Windows IOCP) had a `TRACING_THREAD_STOP()` call with no corresponding `TRACING_THREAD_START()`. Since ASIO thread tracing can't be toggled at runtime, the orphaned stop call is removed.
+

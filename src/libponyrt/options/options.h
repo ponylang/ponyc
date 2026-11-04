@@ -37,14 +37,11 @@
   "                       scheduler_messaging - inter-scheduler messaging events\n" \
   "                       systematic_testing - systematic testing events\n" \
   "                       systematic_testing_details - detailed systematic testing events\n" \
+  "                       runtime - runtime init, start, and shutdown events\n" \
+  "                       scheduler_stealing - work-stealing success and failure events\n" \
+  "                       cycle_detector - actor events for the cycle detector only\n" \
   "                   categories can be enabled by comma separated glob patterns\n" \
   "                   defaults to all categories disabled\n" \
-  "  --ponytracingforceactortracing\n" \
-  "                   Force tracing for actors. Valid options are:\n" \
-  "                       all - force tracing for all actors\n" \
-  "                       cd_only - only force tracing for the cycle detector\n" \
-  "                       none - do not force tracing for any actors\n" \
-  "                   defaults to: none\n" \
   "  --ponytracingflightrecorderbuffer\n" \
   "                   Number of events to buffer per-thread in flight recorder mode\n" \
   "                   (will be rounded up to the nearest power of 2; min allowed is 1)\n" \
