@@ -72,7 +72,7 @@ DEFAULT_NORMAL_NO_PROGRESS_SECONDS = 300
 # miss) so a single run can't eat the whole CI job. The magnitude draw (clamp_ttl)
 # targets ~20 min, so this ~100 min leaves wide margin and rarely fires.
 DEFAULT_NORMAL_TIMEOUT_SECONDS = 6000
-DEFAULT_MEM_LIMIT_MB = 4096
+DEFAULT_MEM_LIMIT_MB = 8192
 # How long a timed-out lldb run gets to print the hung engine's backtrace and exit
 # on its own after the timeout hook aborts the inferior (see lldb_timeout_stop),
 # before the whole tree is killed anyway. Symbolizing `bt all` on a debug binary
@@ -262,8 +262,10 @@ WORKLOAD_ISO_P = 0.15   # actorref gets the remaining 1 - the four above
 # group is SUPER-LINEAR (a group of g is g actors each holding a g-element tag
 # array). The worst drawn case -- generations 8000 * group 16 = 128k workers, with
 # the largest cyclic chains/ttl and a fresh 4096-byte string -- measures ~1.2 GB
-# peak RSS and fits under the 4 GB DEFAULT_MEM_LIMIT_MB with ~3x margin, CD on and
-# off. group 32 is deliberately excluded: same worker count costs ~3x the memory.
+# peak RSS. The limit is 8 GB: the pool allocator reserves 256 MB virtual-address
+# regions that persist after their arenas are released, so peak VmSize can reach
+# several times peak RSS on high-churn configs (e.g. large mesh + ponygcinitial 0).
+# group 32 is deliberately excluded: same worker count costs ~3x the memory.
 #
 # Time bound: total messages = generations * chains * (ttl+1), so cyclic chains/ttl
 # are kept SMALL (their own buckets below, NOT the mesh's magnitude buckets, which
