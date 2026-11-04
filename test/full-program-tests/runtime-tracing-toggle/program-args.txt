@@ -1,0 +1,2 @@
+--ponytracingformat=json
+--ponytracingoutput=ponytrace.json

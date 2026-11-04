@@ -309,3 +309,7 @@ Simulates gravitational interaction among five planetary bodies (Sun, Jupiter, S
 ### [runtime_info](tracing/runtime_info/)
 
 Queries and displays runtime statistics including actor heap memory, GC metrics, CPU time, and scheduler state. Demonstrates the `runtime_info` package's `ActorStats` and `SchedulerStats` with auth-gated access via `ActorStatsAuth` and `SchedulerStatsAuth`. Requires the compiler to be built with `use=runtimestats_messages`.
+
+### [runtime_tracing_toggle](tracing/runtime_tracing_toggle/)
+
+Toggles runtime tracing categories at runtime. Demonstrates the `runtime_tracing` package's `RuntimeTracing` primitive: enabling and disabling categories, replacing the active set, and using `CycleDetectorTracing` to trace the cycle detector only. No trace file is created until the first call that enables a category.

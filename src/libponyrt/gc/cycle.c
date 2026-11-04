@@ -1479,7 +1479,7 @@ static pony_type_t cycle_type =
   NULL
 };
 
-void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval, bool force_cycle_detector_tracing)
+void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
 {
   // max is 1 second (1000 ms)
   if(detect_interval > 1000)
@@ -1492,9 +1492,6 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval, bool force_
   cycle_detector = NULL;
   cycle_detector = pony_create(ctx, &cycle_type, false);
   ponyint_actor_setsystem(cycle_detector);
-
-  if(force_cycle_detector_tracing)
-    ponyint_cycle_detector_enable_tracing(cycle_detector);
 
   detector_t* d = (detector_t*)cycle_detector;
 
