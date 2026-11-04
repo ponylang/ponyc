@@ -562,7 +562,7 @@ class \nodoc\ iso _TestIterStepBy is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let iter = Iter[USize](Range(0, 10)).step_by(2)
-    let expected = [as USize: 1; 3; 5; 7; 9]
+    let expected = [as USize: 0; 2; 4; 6; 8]
 
     var i: USize = 0
     for v in iter do
@@ -600,10 +600,8 @@ class \nodoc\ iso _IterStepByProperty is Property[_StepByInput]
     let expected = Array[USize]
     var pos: USize = 0
     while pos < input.len do
-      if ((pos + 1) % input.step) == 0 then
-        expected.push(pos)
-      end
-      pos = pos + 1
+      expected.push(pos)
+      pos = pos + input.step
     end
     let actual =
       Iter[USize](Range(0, input.len)).step_by(input.step)
@@ -638,7 +636,7 @@ class \nodoc\ iso _TestIterStepByEdgeCases is UnitTest
     // single element, step > source length
     result = Iter[USize]([as USize: 42].values())
       .step_by(2).collect(Array[USize])
-    h.assert_eq[USize](0, result.size())
+    h.assert_array_eq[USize]([as USize: 42], result)
 
     // single element, step == 1
     result = Iter[USize]([as USize: 42].values())
@@ -653,31 +651,33 @@ class \nodoc\ iso _TestIterStepByEdgeCases is UnitTest
     // exact multiple: 4 elements, step 2
     result = Iter[USize]([as USize: 0; 1; 2; 3].values())
       .step_by(2).collect(Array[USize])
-    h.assert_array_eq[USize]([as USize: 1; 3], result)
+    h.assert_array_eq[USize]([as USize: 0; 2], result)
 
     // short remainder: 3 elements, step 2
     result = Iter[USize]([as USize: 0; 1; 2].values())
       .step_by(2).collect(Array[USize])
-    h.assert_array_eq[USize]([as USize: 1], result)
+    h.assert_array_eq[USize]([as USize: 0; 2], result)
 
     // last() on short remainder
     h.assert_eq[USize](
-      1, Iter[USize]([as USize: 0; 1; 2].values()).step_by(2).last()?)
+      2, Iter[USize]([as USize: 0; 1; 2].values()).step_by(2).last()?)
 
     // has_next() false when fewer than step elements remain
     let it = Iter[USize]([as USize: 0; 1; 2].values()).step_by(2)
     h.assert_true(it.has_next())
-    h.assert_eq[USize](1, it.next()?)
+    h.assert_eq[USize](0, it.next()?)
+    h.assert_true(it.has_next())
+    h.assert_eq[USize](2, it.next()?)
     h.assert_false(it.has_next())
 
     // has_next() is idempotent
     let it2 = Iter[USize]([as USize: 0; 1; 2; 3].values()).step_by(2)
     h.assert_true(it2.has_next())
     h.assert_true(it2.has_next())
-    h.assert_eq[USize](1, it2.next()?)
+    h.assert_eq[USize](0, it2.next()?)
     h.assert_true(it2.has_next())
     h.assert_true(it2.has_next())
-    h.assert_eq[USize](3, it2.next()?)
+    h.assert_eq[USize](2, it2.next()?)
     h.assert_false(it2.has_next())
 
     // empty iterator
@@ -693,20 +693,28 @@ class \nodoc\ iso _TestIterStepByNoneElement is UnitTest
 
     h.assert_true(iter.has_next())
     match iter.next()?
-    | None => None
-    else h.fail("expected None as first element")
+    | let u: USize => h.assert_eq[USize](0, u)
+    else h.fail("expected USize(0) as first element")
     end
 
     h.assert_true(iter.has_next())
     match iter.next()?
-    | None => None
-    else h.fail("expected None as second element")
+    | let u: USize => h.assert_eq[USize](2, u)
+    else h.fail("expected USize(2) as second element")
+    end
+
+    h.assert_true(iter.has_next())
+    match iter.next()?
+    | let u: USize => h.assert_eq[USize](4, u)
+    else h.fail("expected USize(4) as third element")
     end
 
     h.assert_false(iter.has_next())
 
-    // None-only source with short remainder
+    // None-only source
     let iter2 = Iter[None]([as None: None; None; None].values()).step_by(2)
+    h.assert_true(iter2.has_next())
+    iter2.next()?
     h.assert_true(iter2.has_next())
     iter2.next()?
     h.assert_false(iter2.has_next())
