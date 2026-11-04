@@ -4,6 +4,7 @@ project(libponylto VERSION ${PONYC_PROJECT_VERSION} LANGUAGES CXX)
 
 add_library(libponylto STATIC
     heap_to_stack.cc
+    noalloc_check.cc
     plugin.cc
 )
 

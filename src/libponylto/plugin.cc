@@ -1,4 +1,5 @@
 #include "heap_to_stack.h"
+#include "noalloc_check.h"
 
 #include <llvm/Analysis/CGSCCPassManager.h>
 #include <llvm/IR/Module.h>
@@ -89,7 +90,10 @@ public:
            ThinOrFullLTOPhase)
         {
           if(Level != OptimizationLevel::O0)
+          {
+            PM.addPass(pony::NoAllocCheck());
             PM.addPass(pony::InlineRemainingAllocPass());
+          }
         });
     }
   };

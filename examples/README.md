@@ -34,6 +34,10 @@ Creates and applies lambda functions with the syntax `{(a: U32, b: U32): U32 => 
 
 Multiple definitions of the same method distinguished by `iftype` guards on type parameters. The matching body is selected at reification time with zero runtime cost. Demonstrates a `Container[A]` class where `describe()` returns a generic message by default and calls `.string()` on the value when `A <: Stringable val`.
 
+### [noalloc](language-features/noalloc/)
+
+Uses the `\noalloc\` annotation on methods to guarantee they perform no heap allocation. An interface declares `\noalloc\` on `score()`, and two implementing classes provide `\noalloc\` implementations whose bodies contain no heap allocation.
+
 ### [printargs](language-features/printargs/)
 
 Prints all command-line arguments and environment variables passed to the program. Demonstrates `Env.args` for argument access and `Env.vars` for environment variable iteration.
