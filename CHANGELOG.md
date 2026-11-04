@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add byte_order standard library package ([PR #6290](https://github.com/ponylang/ponyc/pull/6290))
 - Add binary_codec package ([PR #6284](https://github.com/ponylang/ponyc/pull/6284))
+- Add \noalloc\ annotation for methods ([PR #6309](https://github.com/ponylang/ponyc/pull/6309))
 
 ### Changed
 
