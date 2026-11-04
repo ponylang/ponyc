@@ -30,6 +30,7 @@ add_executable(libponyc.tests
     literal_limits.cc
     local_inference.cc
     matchtype.cc
+    noalloc.cc
     object.cc
     option_parser.cc
     paint.cc
