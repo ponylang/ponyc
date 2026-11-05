@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Change Stringable.string() to return String val instead of String iso^ ([PR #6308](https://github.com/ponylang/ponyc/pull/6308))
 - Change Iter.step_by to yield the first element instead of skipping it ([PR #6410](https://github.com/ponylang/ponyc/pull/6410))
+- Improve error message when a variable's capability changes inside a recover block ([PR #6411](https://github.com/ponylang/ponyc/pull/6411))
 
 ## [0.77.2] - 2026-10-28
 
