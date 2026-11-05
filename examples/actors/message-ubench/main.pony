@@ -112,7 +112,7 @@ actor SyncLeader
     """
     let ps: Array[Pinger] iso = recover ps.create() end
 
-    for i in Range[I32](0, num_pingers) do
+    for i in Range[I32].till(0, num_pingers) do
       let p = Pinger(env, i, this)
       ps.push(p)
     end
@@ -205,7 +205,7 @@ actor SyncLeader
     for p in ps.values() do
       p.go()
     end
-    for i in Range[USize](0, initial_pings) do
+    for i in Range[USize].till(0, initial_pings) do
       for p in ps.values() do
         p.ping(42)
       end

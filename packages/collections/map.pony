@@ -270,7 +270,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     Given an index, return the next index that has a populated key and value.
     Raise an error if there is no next populated index.
     """
-    for i in Range(prev + 1, _array.size()) do
+    for i in Range[USize].till(prev + 1, _array.size()) do
       match _array(i)?
       | (_, _) => return i
       end
@@ -338,7 +338,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     var idx = h and mask
 
     try
-      for i in Range(0, _array.size()) do
+      for i in Range[USize].till(0, _array.size()) do
         let entry = _array(idx)?
 
         match \exhaustive\ entry
@@ -375,7 +375,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     _size = 0
 
     try
-      for i in Range(0, old_len) do
+      for i in Range[USize].till(0, old_len) do
         match old(i)? = _MapDeleted
         | (let k: K, let v: V) =>
           this(consume k) = consume v

@@ -160,7 +160,7 @@ primitive Base64
 
     var pad_start = USize(-1)
 
-    for i in Range(0, data.size()) do
+    for i in Range[USize].till(0, data.size()) do
       input = data(i)?
 
       let value =
@@ -202,7 +202,7 @@ primitive Base64
     end
 
     if pad_start != USize(-1) then
-      for j in Range(pad_start + 1, data.size()) do
+      for j in Range[USize].till(pad_start + 1, data.size()) do
         match data(j)?
         | ' ' | '\t' | '\r' | '\n' => None
         | pad => None

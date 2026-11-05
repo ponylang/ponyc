@@ -64,11 +64,11 @@ actor Main
     end
 
   fun setup_ring() =>
-    for j in Range[U32](0, _ring_count) do
+    for j in Range[U32].till(0, _ring_count) do
       let first = Ring(1, _env)
       var next = first
 
-      for k in Range[U32](0, _ring_size - 1) do
+      for k in Range[U32].till(0, _ring_size - 1) do
         let current = Ring(_ring_size - k, _env, next)
         next = current
       end

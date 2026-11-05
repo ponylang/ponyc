@@ -119,7 +119,7 @@ class _OperationOnCollectionProperty
 
     // create and fill the array
     let coll = Array[String].create(len)
-    for i in Range(0, len) do
+    for i in Range[USize].till(0, len) do
       coll.push(i.string())
     end
 
