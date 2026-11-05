@@ -617,8 +617,8 @@ class Iter[A] is Iterator[A]
     #### Example
 
     ```pony
-    Iter[USize](Range(0, 4))
-      .interleave(Range(4, 6))
+    Iter[USize](Range[USize].till(0, 4))
+      .interleave(Range[USize].till(4, 6))
     ```
     `0 4 1 5 2 3`
     """
@@ -660,8 +660,8 @@ class Iter[A] is Iterator[A]
     #### Example
 
     ```pony
-    Iter[USize](Range(0, 4))
-      .interleave_shortest(Range(4, 6))
+    Iter[USize](Range[USize].till(0, 4))
+      .interleave_shortest(Range[USize].till(4, 6))
     ```
     `0 4 1 5 2`
     """
@@ -697,7 +697,7 @@ class Iter[A] is Iterator[A]
 
     #### Example
     ```pony
-    Iter[USize](Range(0, 3))
+    Iter[USize](Range[USize].till(0, 3))
       .intersperse(8)
     ```
     `0 8 1 8 2`
@@ -864,7 +864,7 @@ class Iter[A] is Iterator[A]
 
     #### Example
     ```pony
-    Iter[USize](Range(0, 10))
+    Iter[USize](Range[USize].till(0, 10))
       .step_by(2)
     ```
     `0 2 4 6 8`

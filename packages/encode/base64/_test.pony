@@ -514,9 +514,9 @@ primitive \nodoc\ _B64
     let alphabet: Array[U8] val =
       recover val
         let a = Array[U8](64)
-        for v in Range[U8]('A', '[') do a.push(v) end
-        for v in Range[U8]('a', '{') do a.push(v) end
-        for v in Range[U8]('0', ':') do a.push(v) end
+        for v in Range[U8].till('A', '[') do a.push(v) end
+        for v in Range[U8].till('a', '{') do a.push(v) end
+        for v in Range[U8].till('0', ':') do a.push(v) end
         a.push('+')
         a.push('/')
         a

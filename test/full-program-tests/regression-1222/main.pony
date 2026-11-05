@@ -7,7 +7,7 @@ actor Main
     while list.size() < 2 do
       env.out.print("could be infinite loop if the for loop is optimized out")
 
-      for d in Range[I32](0, 2) do
+      for d in Range[I32].till(0, 2) do
         env.out.print("running for loop...")
         list.push(d)
       end

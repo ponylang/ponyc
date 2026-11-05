@@ -21,7 +21,7 @@ class Circle
 actor Main
   new create(env: Env) =>
 
-    for i in Range[F32](1.0, 101.0) do
+    for i in Range[F32].till(1.0, 101.0) do
       let c = Circle(i)
 
       var str =

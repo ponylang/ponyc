@@ -567,7 +567,7 @@ class \nodoc\ _CompileErrorTest is UnitTest
               .expected_errors.size().string() +
             " Errors, got " +
             e.size().string())
-        for i in Range(0, e.size()) do
+        for i in Range[USize].till(0, e.size()) do
           let err = e(i)?
           (let expected_file,
             let expected_position,
@@ -662,7 +662,7 @@ class \nodoc\ _ParallelCompilerTest is UnitTest
         FileAuth(h.env.root),
         Path.join(
           Path.dir(__loc.file()), "constructs"))
-    for i in Range(0, 2) do
+    for i in Range[USize].till(0, 2) do
       let token: String val = i.string()
       h.expect_action(token)
       ParallelCompiler.create(
