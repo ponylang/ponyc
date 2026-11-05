@@ -8,6 +8,7 @@
 #include "../type/assemble.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
+#include "../type/cap.h"
 #include "../type/lookup.h"
 #include "../type/typealias.h"
 #include "ponyassert.h"
@@ -538,6 +539,28 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         ast_error_frame(&frame, c_type, "element type: %s",
           ast_print_type(c_type, opt->strtab));
         errorframe_append(&frame, &info);
+
+        if(((ast_id(ele) == TK_VARREF) || (ast_id(ele) == TK_LETREF) ||
+          (ast_id(ele) == TK_PARAMREF)) &&
+          (opt->check.frame->recover != NULL))
+        {
+          ast_t* def = (ast_t*)ast_data(ele);
+          ast_t* def_type = ast_type(def);
+
+          if((def_type != NULL) && !is_typecheck_error(def_type) &&
+            (ast_id(def_type) == TK_NOMINAL) &&
+            (ast_id(c_type) == TK_NOMINAL) &&
+            (cap_single(def_type) != cap_single(c_type)))
+          {
+            ast_error_frame(&frame, ele,
+              "%s is %s but is treated as %s because it is used inside a "
+              "recover block",
+              ast_nice_name(ast_child(def)),
+              ast_print_type(def_type, opt->strtab),
+              ast_print_type(c_type, opt->strtab));
+          }
+        }
+
         errorframe_report(&frame, opt->check.errors);
         ast_free_unattached(w_type);
         return false;

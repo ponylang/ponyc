@@ -362,3 +362,31 @@ TEST_F(ArrayTest, LiteralArgumentToUpdateSugarOnCallableField)
 
   TEST_COMPILE(src);
 }
+
+
+TEST_F(ArrayTest, AutoRecoverExplainsLoweredCapability)
+{
+  const char* src =
+    "class C\n"
+
+    "primitive Foo\n"
+    "  fun apply(): Array[C] val =>\n"
+    "    let c: C = C\n"
+    "    [c]";
+
+  const char* errs[] = {
+    "array element not a subtype of specified array type",
+    NULL
+  };
+  const char* frame0[] = {
+    "array type:",
+    "element type:",
+    "is not a subtype of",
+    "is C ref but is treated as C tag because it is used inside a "
+      "recover block",
+    NULL
+  };
+  const char** frames[] = { frame0, NULL };
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}
