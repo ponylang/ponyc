@@ -718,6 +718,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
           return !empty;
         }
       } else {
+        TRACING_THREAD_ACTOR_RUN_STOP(actor);
+
         // Tell cycle detector that this actor is a zombie and will not get
         // any more messages/work and can be reaped.
         // Mark the actor as ACTOR_FLAG_BLOCKED_SENT and send a BLOCKED message
@@ -732,8 +734,6 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
         // send it an application message that results this actor becoming
         // unblocked (which would create a race condition).
         send_block(actor);
-
-        TRACING_THREAD_ACTOR_RUN_STOP(actor);
 
         // We have to ensure that this actor will not be rescheduled if the
         // cycle detector happens to send it a message.
