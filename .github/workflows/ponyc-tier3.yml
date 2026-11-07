@@ -78,7 +78,7 @@ jobs:
         run: |
           cmake --preset x86-64-debug
           cmake --build --preset x86-64-debug
-          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-mutate-tests
       - name: Test with Debug Runtime (debug codegen)
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
@@ -105,6 +105,9 @@ jobs:
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset x86-64-debug -R pony-lsp-tests
+      - name: Test pony-mutate
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: ctest --preset x86-64-debug -R pony-mutate-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -159,7 +162,7 @@ jobs:
         run: |
           cmake --preset x86-64-debug
           cmake --build --preset x86-64-debug
-          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-mutate-tests
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: sh .ci-scripts/cross-libponyrt.sh debug clang clang++ rv64gc "--target=riscv64-linux-gnu --sysroot=/usr/riscv64-linux-gnu --gcc-toolchain=/usr -march=rv64gc -mtune=rocket" riscv64-linux-gnu
@@ -194,6 +197,9 @@ jobs:
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset x86-64-debug -R pony-lsp-tests
+      - name: Test pony-mutate
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: ctest --preset x86-64-debug -R pony-mutate-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -481,7 +487,7 @@ jobs:
           # which clang rejects with -march=native on a 64-bit target.
           cmake --preset x86-64-debug
           cmake --build --preset x86-64-debug
-          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-mutate-tests
           # Smoke-test the --static embedded-LLD link path; the test targets
           # below only exercise dynamic linking. Covers actor init plus
           # exception unwinding through the static recipe.
@@ -495,6 +501,7 @@ jobs:
           ctest --preset x86-64-debug -R pony-doc-tests
           ctest --preset x86-64-debug -R pony-lint-tests
           ctest --preset x86-64-debug -R pony-lsp-tests
+          ctest --preset x86-64-debug -R pony-mutate-tests
           cmake --preset x86-64-release
           cmake --build --preset x86-64-release
           PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
@@ -608,7 +615,7 @@ jobs:
           # which clang rejects with -march=native on a 64-bit target.
           cmake --preset x86-64-debug
           cmake --build --preset x86-64-debug
-          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-mutate-tests
           # Smoke-test the --static embedded-LLD link path; the test
           # targets below only exercise dynamic linking. Covers actor init
           # plus exception unwinding through the static recipe. OpenBSD
@@ -629,6 +636,7 @@ jobs:
           ctest --preset x86-64-debug -R pony-doc-tests
           ctest --preset x86-64-debug -R pony-lint-tests
           ctest --preset x86-64-debug -R pony-lsp-tests
+          ctest --preset x86-64-debug -R pony-mutate-tests
           cmake --preset x86-64-release
           cmake --build --preset x86-64-release
           PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
@@ -727,7 +735,7 @@ jobs:
           # which clang rejects with -march=native on a 64-bit target.
           cmake --preset x86-64-debug -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"
           cmake --build --preset x86-64-debug
-          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-mutate-tests
           # Smoke-test the --static embedded-LLD link path; the test targets
           # below only exercise dynamic linking. Covers actor init plus
           # exception unwinding through DragonFly's static recipe (no
@@ -742,6 +750,7 @@ jobs:
           ctest --preset x86-64-debug -R pony-doc-tests
           ctest --preset x86-64-debug -R pony-lint-tests
           ctest --preset x86-64-debug -R pony-lsp-tests
+          ctest --preset x86-64-debug -R pony-mutate-tests
           cmake --preset x86-64-release -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"
           cmake --build --preset x86-64-release
           PONY_DEBUG=1 PONY_STDLIB_TEST_EXCLUDES=--sequential ctest --preset x86-64-release -L ci-core

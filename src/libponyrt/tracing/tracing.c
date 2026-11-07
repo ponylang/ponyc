@@ -3680,22 +3680,12 @@ void ponyint_tracing_stop()
 #endif
 
   if(!tracing_thread_started)
-  {
-    SET_TRACING_ENABLED(false);
-    this_tracing_scheduler = NULL;
     return;
-  }
 
   // The stop flag is read at the next tick; the join waits at most
   // one backoff-capped pause longer than it used to.
   while(!ponyint_thread_join(tracing_thread.tid))
   { }
-
-  // Gate off all tracing macros before tearing down the state they access.
-  // The inner functions dereference this_tracing_scheduler, which points
-  // into tracing_schedulers — any call after the array is freed would be
-  // a use-after-free.
-  SET_TRACING_ENABLED(false);
 
   ponyint_messageq_destroy(&tracing_thread.mq, false);
 
@@ -3737,7 +3727,6 @@ void ponyint_tracing_stop()
 #endif
     }
 
-    this_tracing_scheduler = NULL;
     ponyint_pool_free_size(sizeof(tracing_scheduler_t) * total_sched_count, tracing_schedulers);
     tracing_schedulers = NULL;
     return;
@@ -3751,7 +3740,6 @@ void ponyint_tracing_stop()
     log_file = NULL;
   }
 
-  this_tracing_scheduler = NULL;
   ponyint_pool_free_size(sizeof(tracing_scheduler_t) * total_sched_count, tracing_schedulers);
   tracing_schedulers = NULL;
 }

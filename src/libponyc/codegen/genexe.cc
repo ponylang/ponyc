@@ -1,4 +1,5 @@
 #include "genexe.h"
+#include "genmutate.h"
 
 #include <lld/Common/Driver.h>
 
@@ -146,6 +147,17 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   args[2] = LLVMGetParam(func, 2);
   LLVMSetValueName(args[2], "envp");
 
+  // Must precede pony_init — the runtime reads pony_mutate_enabled during init.
+  if(c->opt->mutate)
+  {
+    LLVMBuildStore(c->builder, LLVMConstInt(c->i32, 1, false),
+      c->mutate_enabled);
+
+    LLVMValueRef cov_args[1];
+    cov_args[0] = LLVMConstInt(c->i32, c->mutate.next_coverage_id, false);
+    gencall_runtime(c, "pony_coverage_init", cov_args, 1, "");
+  }
+
   // Initialise the pony runtime with argc and argv, getting a new argc.
   args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
 
@@ -259,6 +271,16 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   LLVMValueRef rc = gencall_runtime(c, "pony_get_exitcode", NULL, 0, "");
   LLVMValueRef minus_one = LLVMConstInt(c->i32, (unsigned long long)-1, true);
   rc = LLVMBuildSelect(c->builder, start_success, rc, minus_one, "");
+
+  if(c->opt->mutate)
+  {
+    LLVMValueRef argv_param = LLVMGetParam(func, 1);
+    LLVMValueRef argv0 = LLVMBuildLoad2(c->builder, c->ptr,
+      argv_param, "argv0");
+    LLVMValueRef cov_args[1];
+    cov_args[0] = argv0;
+    gencall_runtime(c, "pony_coverage_write", cov_args, 1, "");
+  }
 
   // Return the runtime exit code.
   genfun_build_ret(c, rc);
@@ -3090,6 +3112,14 @@ bool genexe(compile_t* c, ast_t* program)
     return false;
   }
 
+  if(c->opt->mutate)
+  {
+    mutate_init(&c->mutate);
+    c->mutant_selector = mutate_declare_selector(c);
+    c->mutate_enabled = mutate_declare_enabled(c);
+    c->coverage_counters = mutate_declare_coverage(c);
+  }
+
   if(!gentypes(c))
   {
     ast_free(main_ast);
@@ -3147,6 +3177,15 @@ bool genexe(compile_t* c, ast_t* program)
   {
     cleanup_bc_files(bc_files, bc_count);
     return false;
+  }
+
+  if(c->opt->mutate)
+  {
+    if(!mutate_write_info(&c->mutate, c->opt->output, c->filename))
+    {
+      errorf(errors, NULL, "couldn't write mutation info file");
+      return false;
+    }
   }
 
   // Shim objects are removed only here, after a successful PASS_ALL link.

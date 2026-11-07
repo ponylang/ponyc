@@ -18,12 +18,6 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 
-## [0.78.1] - 2026-11-07
-
-### Fixed
-
-- Fix crash during shutdown with runtime tracing enabled ([PR #6415](https://github.com/ponylang/ponyc/pull/6415))
-
 ## [0.78.0] - 2026-11-06
 
 ### Fixed
