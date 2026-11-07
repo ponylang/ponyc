@@ -1,4 +1,5 @@
 #include "genfun.h"
+#include "genmutate.h"
 #include "genname.h"
 #include "gencall.h"
 #include "gentrace.h"
@@ -588,6 +589,9 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 
         if(ret == NULL)
           return false;
+
+        if(c->opt->mutate)
+          ret = mutate_rvr(c, body, ret);
 
         codegen_scope_lifetime_end(c);
         codegen_debugloc(c, ast_childlast(body));

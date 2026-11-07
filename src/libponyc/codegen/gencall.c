@@ -1,4 +1,5 @@
 #include "gencall.h"
+#include "genmutate.h"
 #include "genoperator.h"
 #include "genreference.h"
 #include "genexpr.h"
@@ -99,6 +100,7 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
   *value = NULL;
 
   codegen_debugloc(c, ast);
+  c->frame->mutate_ast = ast;
 
   if(name == c->str_add)
     *value = gen_add(c, left, right, true);
@@ -171,6 +173,7 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
   else
     special_case = false;
 
+  c->frame->mutate_ast = NULL;
   codegen_debugloc(c, NULL);
   return special_case;
 }
@@ -1115,6 +1118,21 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   bool bare = m->cap == TK_AT;
   LLVMValueRef r = NULL;
 
+  // VCR: skip None-returning calls when the mutant is active.
+  bool is_constructor =
+    (ast_id(postfix) == TK_NEWREF) || (ast_id(postfix) == TK_NEWBEREF);
+  bool is_chain =
+    (ast_id(postfix) == TK_BECHAIN) || (ast_id(postfix) == TK_FUNCHAIN);
+  bool vcr_active = false;
+  LLVMBasicBlockRef vcr_skip = NULL;
+  LLVMBasicBlockRef vcr_merge = NULL;
+
+  if(c->opt->mutate && !is_constructor && !is_chain
+    && is_none(m->result->ast))
+  {
+    vcr_active = mutate_vcr_begin(c, ast, &vcr_skip, &vcr_merge);
+  }
+
   if(is_message)
   {
     // If we're sending a message, trace and send here instead of calling the
@@ -1224,6 +1242,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   // Chained methods forward their receiver.
   if((ast_id(postfix) == TK_BECHAIN) || (ast_id(postfix) == TK_FUNCHAIN))
     r = args[0];
+
+  if(vcr_active && (r != NULL))
+    r = mutate_vcr_end(c, r, vcr_skip, vcr_merge);
 
   ponyint_pool_free_size(buf_size, args);
   return r;

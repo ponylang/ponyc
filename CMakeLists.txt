@@ -856,6 +856,7 @@ else()
     add_subdirectory(tools/pony-doc)
     add_subdirectory(tools/pony-dep)
     add_subdirectory(tools/pony-agent-server)
+    add_subdirectory(tools/pony-mutate)
 
     # Test binaries compiled with the just-built ponyc. Built on demand, NOT under
     # ALL: each runs ponyc to compile builtin and the stdlib packages, so building
@@ -900,12 +901,18 @@ else()
         PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
         WATCH ${CMAKE_SOURCE_DIR}/tools/pony-agent-server)
 
+    add_pony_binary(pony-mutate-tests
+        NAME pony-mutate-tests
+        SOURCE ${CMAKE_SOURCE_DIR}/tools/pony-mutate/test
+        PATHS ${CMAKE_SOURCE_DIR}/tools/pony-mutate
+        WATCH ${CMAKE_SOURCE_DIR}/tools/pony-mutate)
+
     # On-demand aggregate: build every self-hosted tool test in one target. Run
     # `cmake --build <dir> --target tool-tests` before `ctest -L tools`.
     add_custom_target(tool-tests)
     add_dependencies(tool-tests
         pony-compiler-tests pony-doc-tests pony-lint-tests pony-lsp-tests
-        pony-dep-tests pony-agent-server-tests)
+        pony-dep-tests pony-agent-server-tests pony-mutate-tests)
 
     # ctest registration. Every test binary builds under ALL, so ctest only runs
     # them. Labels group the suites: `ci-core` is the core CI suite (the old
@@ -960,6 +967,11 @@ else()
         ENVIRONMENT "PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-lsp-tests")
     set_tests_properties(pony-agent-server-tests PROPERTIES
         ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages;PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-agent-server-tests")
+    add_test(NAME pony-mutate-tests
+        COMMAND ${PONY_OUTPUT_DIR}/pony-mutate-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
+        WORKING_DIRECTORY ${PONY_OUTPUT_DIR})
+    set_tests_properties(pony-mutate-tests PROPERTIES
+        ENVIRONMENT "PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-mutate-tests")
     add_test(NAME pony-compiler-tests
         COMMAND ${PONY_OUTPUT_DIR}/pony-compiler-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
         WORKING_DIRECTORY ${PONY_OUTPUT_DIR})
@@ -975,7 +987,7 @@ else()
             ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler:${CMAKE_SOURCE_DIR}/packages;PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-compiler-tests")
     endif()
     set_tests_properties(pony-doc-tests pony-lsp-tests pony-lint-tests pony-compiler-tests
-        pony-dep-tests pony-agent-server-tests PROPERTIES LABELS tools)
+        pony-dep-tests pony-agent-server-tests pony-mutate-tests PROPERTIES LABELS tools)
 
     # Compile-then-run ci-core tests. Each compiles Pony sources with the freshly
     # built ponyc and then runs (or diffs) the result, so they depend on ponyc
@@ -1045,9 +1057,24 @@ else()
             -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunTracingTests.cmake)
 
+    add_test(NAME mutation-runtime
+        COMMAND ${CMAKE_COMMAND}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DOUTPUT=${PONY_OUTPUT_DIR}/mutation-runtime
+            -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-runtime
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationRuntime.cmake)
+
+    add_test(NAME mutation-runner
+        COMMAND ${CMAKE_COMMAND}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DRUNNER=${PONY_OUTPUT_DIR}/pony-mutate${CMAKE_EXECUTABLE_SUFFIX}
+            -DOUTPUT=${PONY_OUTPUT_DIR}/mutation-runner
+            -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-runtime
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationRunner.cmake)
+
     set_tests_properties(full-programs
         full-program-runner-rejects-broken-config
-        stdlib validate-grammar
+        stdlib validate-grammar mutation-runtime mutation-runner
         PROPERTIES LABELS ci-core)
     set_tests_properties(tracing-tests
         PROPERTIES LABELS "ci-core;tracing")
@@ -1064,6 +1091,7 @@ else()
         ${PONY_OUTPUT_DIR}/pony-doc${CMAKE_EXECUTABLE_SUFFIX}
         ${PONY_OUTPUT_DIR}/pony-dep${CMAKE_EXECUTABLE_SUFFIX}
         ${PONY_OUTPUT_DIR}/pony-agent-server${CMAKE_EXECUTABLE_SUFFIX}
+        ${PONY_OUTPUT_DIR}/pony-mutate${CMAKE_EXECUTABLE_SUFFIX}
         DESTINATION ${PONY_VERSIONED_DIR}/bin)
 
     # Runtime + compiler static libs, into the lib dir ponyc searches at run time
