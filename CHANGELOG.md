@@ -2,17 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.78.1] - 2026-11-07
 
 ### Fixed
 
 - Fix crash during shutdown with runtime tracing enabled ([PR #6415](https://github.com/ponylang/ponyc/pull/6415))
-
-### Added
-
-
-### Changed
-
 
 ## [0.78.0] - 2026-11-06
 
