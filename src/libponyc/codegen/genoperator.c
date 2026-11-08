@@ -392,35 +392,6 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
     return l_value;
   }
 
-  if(c->opt->mutate)
-  {
-    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
-    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
-
-    LLVMValueRef shadow = NULL;
-    if(is_and)
-    {
-      if((l_shadow != NULL) && is_always_false(l_shadow))
-        shadow = l_shadow;
-      else if((r_shadow != NULL) && is_always_false(r_shadow))
-        shadow = r_shadow;
-      else if((l_shadow != NULL) && (r_shadow != NULL))
-        shadow = LLVMBuildAnd(c->builder, l_shadow, r_shadow, "");
-    }
-    else
-    {
-      if((l_shadow != NULL) && is_always_true(l_shadow))
-        shadow = l_shadow;
-      else if((r_shadow != NULL) && is_always_true(r_shadow))
-        shadow = r_shadow;
-      else if((l_shadow != NULL) && (r_shadow != NULL))
-        shadow = LLVMBuildOr(c->builder, l_shadow, r_shadow, "");
-    }
-
-    if((shadow != NULL) && LLVMIsConstant(shadow))
-      mutate_shadow_set(c, phi, shadow);
-  }
-
   return phi;
 }
 
