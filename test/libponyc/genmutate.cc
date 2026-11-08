@@ -1440,8 +1440,8 @@ TEST_F(GenMutateCodegenTest, CrIntegerRecordsMutant)
   DO(test_compile(src, "ir"));
 
   ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("cr", "const", "n->n+1"));
-  ASSERT_TRUE(has_mutant("cr", "const", "n->n-1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n+1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n-1"));
 }
 
 
@@ -1458,7 +1458,7 @@ TEST_F(GenMutateCodegenTest, CrZeroOneSwapRecordsMutant)
   DO(test_compile(src, "ir"));
 
   ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("cr", "const", "1->0"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "1->0"));
 }
 
 
@@ -1531,7 +1531,24 @@ TEST_F(GenMutateCodegenTest, CrFiresAlongsideAor)
   DO(test_compile(src, "ir"));
 
   ASSERT_TRUE(has_mutant("aor", "add", "sub"));
-  ASSERT_TRUE(has_mutant("cr", "const", "n->n+1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n+1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, CrConstantLhs)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 3\n"
+    "    let y = 5 + x\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(compile->mutate.mutant_count, 0u);
+  ASSERT_TRUE(has_mutant("cr", "lhs", "n->n+1"));
 }
 
 
@@ -1811,7 +1828,7 @@ TEST_F(GenMutateCodegenTest, CrFloatRecordsMutant)
   DO(test_compile(src, "ir"));
 
   ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("cr", "const", "x->-x"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "x->-x"));
 }
 
 
@@ -1828,7 +1845,7 @@ TEST_F(GenMutateCodegenTest, CrZeroToOneRecordsMutant)
   DO(test_compile(src, "ir"));
 
   ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("cr", "const", "0->1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "0->1"));
 }
 
 
@@ -1865,8 +1882,8 @@ TEST_F(GenMutateCodegenTest, CrDivRecordsMutant)
   DO(test_compile(src, "ir"));
 
   ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("cr", "const", "n->n+1"));
-  ASSERT_TRUE(has_mutant("cr", "const", "n->n-1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n+1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n-1"));
 }
 
 
@@ -1883,7 +1900,7 @@ TEST_F(GenMutateCodegenTest, CrDivByOneRecordsMutant)
   DO(test_compile(src, "ir"));
 
   ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("cr", "const", "1->0"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "1->0"));
 }
 
 

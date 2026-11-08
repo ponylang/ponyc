@@ -1422,7 +1422,7 @@ LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
   {
     int32_t out_cov;
     ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "const", l_labels[i], cov_id, &out_cov);
+      "cr", "lhs", l_labels[i], cov_id, &out_cov);
     cov_id = out_cov;
   }
 
@@ -1430,7 +1430,7 @@ LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
   {
     int32_t out_cov;
     ids[l_count + i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "const", r_labels[i], cov_id, &out_cov);
+      "cr", "rhs", r_labels[i], cov_id, &out_cov);
     cov_id = out_cov;
   }
 
@@ -1439,6 +1439,30 @@ LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
 
   mutate_emit_coverage_inc(c, cov_id);
 
+  // Filter duplicate IDs: an LLVM switch must not repeat a case value.
+  size_t unique_count = 0;
+  size_t* unique_map =
+    (size_t*)ponyint_pool_alloc_size(total * sizeof(size_t));
+
+  for(size_t i = 0; i < total; i++)
+  {
+    bool dup = false;
+    for(size_t j = 0; j < i; j++)
+    {
+      if(ids[j] == ids[i])
+      {
+        dup = true;
+        break;
+      }
+    }
+
+    if(!dup)
+    {
+      unique_map[unique_count] = i;
+      unique_count++;
+    }
+  }
+
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
   LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
     selector, "mut.sel");
@@ -1446,22 +1470,23 @@ LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
   LLVMBasicBlockRef merge_bb = codegen_block(c, "cr.merge");
 
   LLVMValueRef sw = LLVMBuildSwitch(c->builder, sel, orig_bb,
-    (unsigned)total);
+    (unsigned)unique_count);
 
   LLVMBasicBlockRef* var_bbs =
     (LLVMBasicBlockRef*)ponyint_pool_alloc_size(
-      total * sizeof(LLVMBasicBlockRef));
+      unique_count * sizeof(LLVMBasicBlockRef));
 
-  for(size_t i = 0; i < total; i++)
+  for(size_t i = 0; i < unique_count; i++)
   {
     var_bbs[i] = codegen_block(c, "cr.var");
-    LLVMAddCase(sw, LLVMConstInt(c->i32, ids[i], false), var_bbs[i]);
+    LLVMAddCase(sw, LLVMConstInt(c->i32, ids[unique_map[i]], false),
+      var_bbs[i]);
   }
 
   LLVMPositionBuilderAtEnd(c->builder, orig_bb);
   LLVMBuildBr(c->builder, merge_bb);
 
-  size_t phi_count = total + 1;
+  size_t phi_count = unique_count + 1;
   LLVMValueRef* phi_vals =
     (LLVMValueRef*)ponyint_pool_alloc_size(phi_count * sizeof(LLVMValueRef));
   LLVMBasicBlockRef* phi_bbs =
@@ -1471,26 +1496,22 @@ LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
   phi_vals[0] = original_result;
   phi_bbs[0] = orig_bb;
 
-  for(size_t i = 0; i < l_count; i++)
+  for(size_t ui = 0; ui < unique_count; ui++)
   {
-    LLVMPositionBuilderAtEnd(c->builder, var_bbs[i]);
-    LLVMValueRef var_result = fp
-      ? build_f(c->builder, l_alts[i], r_value, "")
-      : build_i(c->builder, l_alts[i], r_value, "");
+    size_t i = unique_map[ui];
+    LLVMPositionBuilderAtEnd(c->builder, var_bbs[ui]);
+    LLVMValueRef var_result;
+    if(i < l_count)
+      var_result = fp
+        ? build_f(c->builder, l_alts[i], r_value, "")
+        : build_i(c->builder, l_alts[i], r_value, "");
+    else
+      var_result = fp
+        ? build_f(c->builder, l_value, r_alts[i - l_count], "")
+        : build_i(c->builder, l_value, r_alts[i - l_count], "");
     LLVMBuildBr(c->builder, merge_bb);
-    phi_vals[i + 1] = var_result;
-    phi_bbs[i + 1] = var_bbs[i];
-  }
-
-  for(size_t i = 0; i < r_count; i++)
-  {
-    LLVMPositionBuilderAtEnd(c->builder, var_bbs[l_count + i]);
-    LLVMValueRef var_result = fp
-      ? build_f(c->builder, l_value, r_alts[i], "")
-      : build_i(c->builder, l_value, r_alts[i], "");
-    LLVMBuildBr(c->builder, merge_bb);
-    phi_vals[l_count + i + 1] = var_result;
-    phi_bbs[l_count + i + 1] = var_bbs[l_count + i];
+    phi_vals[ui + 1] = var_result;
+    phi_bbs[ui + 1] = var_bbs[ui];
   }
 
   LLVMPositionBuilderAtEnd(c->builder, merge_bb);
@@ -1498,7 +1519,8 @@ LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
   LLVMAddIncoming(phi, phi_vals, phi_bbs, (unsigned)phi_count);
 
   ponyint_pool_free_size(total * sizeof(int32_t), ids);
-  ponyint_pool_free_size(total * sizeof(LLVMBasicBlockRef), var_bbs);
+  ponyint_pool_free_size(total * sizeof(size_t), unique_map);
+  ponyint_pool_free_size(unique_count * sizeof(LLVMBasicBlockRef), var_bbs);
   ponyint_pool_free_size(phi_count * sizeof(LLVMValueRef), phi_vals);
   ponyint_pool_free_size(phi_count * sizeof(LLVMBasicBlockRef), phi_bbs);
 
@@ -1552,7 +1574,7 @@ LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
   {
     int32_t out_cov;
     ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "const", l_labels[i], cov_id, &out_cov);
+      "cr", "lhs", l_labels[i], cov_id, &out_cov);
     cov_id = out_cov;
   }
 
@@ -1560,7 +1582,7 @@ LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
   {
     int32_t out_cov;
     ids[l_count + i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "const", r_labels[i], cov_id, &out_cov);
+      "cr", "rhs", r_labels[i], cov_id, &out_cov);
     cov_id = out_cov;
   }
 
@@ -1569,6 +1591,30 @@ LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
 
   mutate_emit_coverage_inc(c, cov_id);
 
+  // Filter duplicate IDs: an LLVM switch must not repeat a case value.
+  size_t unique_count = 0;
+  size_t* unique_map =
+    (size_t*)ponyint_pool_alloc_size(total * sizeof(size_t));
+
+  for(size_t i = 0; i < total; i++)
+  {
+    bool dup = false;
+    for(size_t j = 0; j < i; j++)
+    {
+      if(ids[j] == ids[i])
+      {
+        dup = true;
+        break;
+      }
+    }
+
+    if(!dup)
+    {
+      unique_map[unique_count] = i;
+      unique_count++;
+    }
+  }
+
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
   LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
     selector, "mut.sel");
@@ -1576,22 +1622,23 @@ LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
   LLVMBasicBlockRef merge_bb = codegen_block(c, "cr.merge");
 
   LLVMValueRef sw = LLVMBuildSwitch(c->builder, sel, orig_bb,
-    (unsigned)total);
+    (unsigned)unique_count);
 
   LLVMBasicBlockRef* var_bbs =
     (LLVMBasicBlockRef*)ponyint_pool_alloc_size(
-      total * sizeof(LLVMBasicBlockRef));
+      unique_count * sizeof(LLVMBasicBlockRef));
 
-  for(size_t i = 0; i < total; i++)
+  for(size_t i = 0; i < unique_count; i++)
   {
     var_bbs[i] = codegen_block(c, "cr.var");
-    LLVMAddCase(sw, LLVMConstInt(c->i32, ids[i], false), var_bbs[i]);
+    LLVMAddCase(sw, LLVMConstInt(c->i32, ids[unique_map[i]], false),
+      var_bbs[i]);
   }
 
   LLVMPositionBuilderAtEnd(c->builder, orig_bb);
   LLVMBuildBr(c->builder, merge_bb);
 
-  size_t phi_count = total + 1;
+  size_t phi_count = unique_count + 1;
   LLVMValueRef* phi_vals =
     (LLVMValueRef*)ponyint_pool_alloc_size(phi_count * sizeof(LLVMValueRef));
   LLVMBasicBlockRef* phi_bbs =
@@ -1601,24 +1648,20 @@ LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
   phi_vals[0] = original_result;
   phi_bbs[0] = orig_bb;
 
-  for(size_t i = 0; i < l_count; i++)
+  for(size_t ui = 0; ui < unique_count; ui++)
   {
-    LLVMPositionBuilderAtEnd(c->builder, var_bbs[i]);
-    LLVMValueRef var_result = make_divrem_inner(c, l_alts[i], r_value, sign,
-      build_f, build_ui, build_si, safe, is_div);
+    size_t i = unique_map[ui];
+    LLVMPositionBuilderAtEnd(c->builder, var_bbs[ui]);
+    LLVMValueRef var_result;
+    if(i < l_count)
+      var_result = make_divrem_inner(c, l_alts[i], r_value, sign,
+        build_f, build_ui, build_si, safe, is_div);
+    else
+      var_result = make_divrem_inner(c, l_value, r_alts[i - l_count], sign,
+        build_f, build_ui, build_si, safe, is_div);
     LLVMBuildBr(c->builder, merge_bb);
-    phi_vals[i + 1] = var_result;
-    phi_bbs[i + 1] = LLVMGetInsertBlock(c->builder);
-  }
-
-  for(size_t i = 0; i < r_count; i++)
-  {
-    LLVMPositionBuilderAtEnd(c->builder, var_bbs[l_count + i]);
-    LLVMValueRef var_result = make_divrem_inner(c, l_value, r_alts[i], sign,
-      build_f, build_ui, build_si, safe, is_div);
-    LLVMBuildBr(c->builder, merge_bb);
-    phi_vals[l_count + i + 1] = var_result;
-    phi_bbs[l_count + i + 1] = LLVMGetInsertBlock(c->builder);
+    phi_vals[ui + 1] = var_result;
+    phi_bbs[ui + 1] = LLVMGetInsertBlock(c->builder);
   }
 
   LLVMPositionBuilderAtEnd(c->builder, merge_bb);
@@ -1626,7 +1669,8 @@ LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
   LLVMAddIncoming(phi, phi_vals, phi_bbs, (unsigned)phi_count);
 
   ponyint_pool_free_size(total * sizeof(int32_t), ids);
-  ponyint_pool_free_size(total * sizeof(LLVMBasicBlockRef), var_bbs);
+  ponyint_pool_free_size(total * sizeof(size_t), unique_map);
+  ponyint_pool_free_size(unique_count * sizeof(LLVMBasicBlockRef), var_bbs);
   ponyint_pool_free_size(phi_count * sizeof(LLVMValueRef), phi_vals);
   ponyint_pool_free_size(phi_count * sizeof(LLVMBasicBlockRef), phi_bbs);
 

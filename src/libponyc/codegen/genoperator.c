@@ -617,7 +617,8 @@ static LLVMValueRef make_unsafe_fadd(LLVMBuilderRef builder, LLVMValueRef left,
   LLVMValueRef right, const char *name)
 {
   LLVMValueRef result = LLVMBuildFAdd(builder, left, right, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
 }
 
@@ -625,7 +626,8 @@ static LLVMValueRef make_unsafe_fsub(LLVMBuilderRef builder, LLVMValueRef left,
   LLVMValueRef right, const char *name)
 {
   LLVMValueRef result = LLVMBuildFSub(builder, left, right, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
 }
 
@@ -633,7 +635,8 @@ static LLVMValueRef make_unsafe_fmul(LLVMBuilderRef builder, LLVMValueRef left,
   LLVMValueRef right, const char *name)
 {
   LLVMValueRef result = LLVMBuildFMul(builder, left, right, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
 }
 
@@ -641,7 +644,8 @@ static LLVMValueRef make_unsafe_fdiv(LLVMBuilderRef builder, LLVMValueRef left,
   LLVMValueRef right, const char *name)
 {
   LLVMValueRef result = LLVMBuildFDiv(builder, left, right, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
 }
 
@@ -649,7 +653,8 @@ static LLVMValueRef make_unsafe_frem(LLVMBuilderRef builder, LLVMValueRef left,
   LLVMValueRef right, const char *name)
 {
   LLVMValueRef result = LLVMBuildFRem(builder, left, right, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
 }
 
@@ -657,7 +662,8 @@ static LLVMValueRef make_unsafe_fneg(LLVMBuilderRef builder, LLVMValueRef op,
   const char *name)
 {
   LLVMValueRef result = LLVMBuildFNeg(builder, op, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
 }
 
@@ -665,7 +671,8 @@ static LLVMValueRef make_nsw_neg(LLVMBuilderRef builder, LLVMValueRef op,
   const char* name)
 {
   LLVMValueRef result = LLVMBuildNeg(builder, op, name);
-  LLVMSetNoSignedWrap(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetNoSignedWrap(result);
   return result;
 }
 
@@ -673,7 +680,8 @@ static LLVMValueRef make_nuw_neg(LLVMBuilderRef builder, LLVMValueRef op,
   const char* name)
 {
   LLVMValueRef result = LLVMBuildNeg(builder, op, name);
-  LLVMSetNoUnsignedWrap(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetNoUnsignedWrap(result);
   return result;
 }
 
