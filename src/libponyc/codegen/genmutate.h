@@ -180,6 +180,31 @@ LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
   LLVMValueRef (*build_si)(LLVMBuilderRef, LLVMValueRef, LLVMValueRef,
     const char*));
 
+// Emit constant-replacement mutations for shift operands. Rebuilds the
+// shift (including clamp for safe shifts) with each replaced literal.
+// Variants that would shift >= width are silently dropped.
+LLVMValueRef mutate_cr_shift(compile_t* c, ast_t* ast,
+  ast_t* left_ast, ast_t* right_ast,
+  LLVMValueRef l_value, LLVMValueRef r_value,
+  LLVMValueRef original_result,
+  bool is_shl, bool sign, bool safe, unsigned width);
+
+// Emit constant-replacement mutations for comparison operands. Rebuilds
+// the comparison with make_cmp_value for each replaced literal.
+LLVMValueRef mutate_cr_cmp(compile_t* c, ast_t* ast,
+  ast_t* left_ast, ast_t* right_ast,
+  LLVMValueRef l_value, LLVMValueRef r_value,
+  LLVMValueRef original_result,
+  bool sign, LLVMRealPredicate cmp_f,
+  LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui, bool safe);
+
+// Emit constant-replacement mutations for a unary operator's operand.
+LLVMValueRef mutate_cr_unary(compile_t* c, ast_t* ast,
+  ast_t* operand_ast, LLVMValueRef operand,
+  LLVMValueRef original_result,
+  LLVMValueRef (*build_f)(LLVMBuilderRef, LLVMValueRef, const char*),
+  LLVMValueRef (*build_i)(LLVMBuilderRef, LLVMValueRef, const char*));
+
 // Check whether an AST node (after unwrapping TK_SEQ) is a numeric literal.
 bool mutate_is_literal(ast_t* ast);
 

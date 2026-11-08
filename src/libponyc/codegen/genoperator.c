@@ -244,6 +244,7 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
   LLVMRealPredicate cmp_f, LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui,
   bool safe)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
@@ -251,7 +252,16 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
-  return make_cmp_value(c, sign, l_value, r_value, cmp_f, cmp_si, cmp_ui, safe);
+  LLVMValueRef result =
+    make_cmp_value(c, sign, l_value, r_value, cmp_f, cmp_si, cmp_ui, safe);
+
+  if((result != NULL) && c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign, cmp_f, cmp_si, cmp_ui, safe);
+  }
+
+  return result;
 }
 
 static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
@@ -1053,22 +1063,24 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
       }
 
       if(count > 0)
-        return mutate_unary(c, mutate_ast, value, neg_result,
+        neg_result = mutate_unary(c, mutate_ast, value, neg_result,
           "neg", "uoi", variants, count);
+
+      neg_result = mutate_cr_unary(c, mutate_ast, ast, value, neg_result,
+        safe ? LLVMBuildFNeg : make_unsafe_fneg,
+        safe ? LLVMBuildNeg : LLVMBuildNeg);
 
       return neg_result;
     }
   }
 
-  if(LLVMIsAConstantFP(value))
-    return LLVMBuildFNeg(c->builder, value, "");
-
-  if(LLVMIsAConstantInt(value))
-    return LLVMConstNeg(value);
-
   LLVMValueRef neg_result;
 
-  if(is_fp(value))
+  if(LLVMIsAConstantFP(value))
+    neg_result = LLVMBuildFNeg(c->builder, value, "");
+  else if(LLVMIsAConstantInt(value))
+    neg_result = LLVMConstNeg(value);
+  else if(is_fp(value))
     neg_result = (safe ? LLVMBuildFNeg : make_unsafe_fneg)(
       c->builder, value, "");
   else if(safe)
@@ -1084,6 +1096,13 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
       LLVMSetNoSignedWrap(neg_result);
     else
       LLVMSetNoUnsignedWrap(neg_result);
+  }
+
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    neg_result = mutate_cr_unary(c, mutate_ast, ast, value, neg_result,
+      safe ? LLVMBuildFNeg : make_unsafe_fneg,
+      safe ? LLVMBuildNeg : LLVMBuildNeg);
   }
 
   return neg_result;
@@ -1121,20 +1140,30 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
     }
   }
 
+  LLVMValueRef result;
+
   if(c->opt->mutate && (mutate_ast != NULL))
   {
     bool do_sor = mutate_site_enabled(c, "sor", mutate_ast);
     bool do_amr = mutate_site_enabled(c, "amr", mutate_ast);
 
     if(do_sor || do_amr)
-      return mutate_shift(c, mutate_ast, l_value, r_value,
+    {
+      result = mutate_shift(c, mutate_ast, l_value, r_value,
         true, sign, safe, width, do_sor, do_amr);
+
+      result = mutate_cr_shift(c, mutate_ast, left, right,
+        l_value, r_value, result, true, sign, safe, width);
+
+      return result;
+    }
   }
 
   if(LLVMIsConstant(r_value) && LLVMIsConstant(l_value))
-    return LLVMBuildShl(c->builder, l_value, r_value, "");
-
-  if(safe)
+  {
+    result = LLVMBuildShl(c->builder, l_value, r_value, "");
+  }
+  else if(safe)
   {
     LLVMTypeRef r_type = LLVMTypeOf(r_value);
     LLVMValueRef clamp = LLVMConstInt(r_type, width - 1, false);
@@ -1142,15 +1171,22 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
       "");
     LLVMValueRef shift_amount =
       LLVMBuildSelect(c->builder, cmp, r_value, clamp, "");
-    return LLVMBuildShl(c->builder, l_value, shift_amount, "");
+    result = LLVMBuildShl(c->builder, l_value, shift_amount, "");
+  }
+  else
+  {
+    result = LLVMBuildShl(c->builder, l_value, r_value, "");
+    if(sign)
+      LLVMSetNoSignedWrap(result);
+    else
+      LLVMSetNoUnsignedWrap(result);
   }
 
-  LLVMValueRef result = LLVMBuildShl(c->builder, l_value, r_value, "");
-
-  if(sign)
-    LLVMSetNoSignedWrap(result);
-  else
-    LLVMSetNoUnsignedWrap(result);
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_shift(c, mutate_ast, left, right,
+      l_value, r_value, result, true, sign, safe, width);
+  }
 
   return result;
 }
@@ -1187,25 +1223,33 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
     }
   }
 
+  LLVMValueRef result;
+
   if(c->opt->mutate && (mutate_ast != NULL))
   {
     bool do_sor = mutate_site_enabled(c, "sor", mutate_ast);
     bool do_amr = mutate_site_enabled(c, "amr", mutate_ast);
 
     if(do_sor || do_amr)
-      return mutate_shift(c, mutate_ast, l_value, r_value,
+    {
+      result = mutate_shift(c, mutate_ast, l_value, r_value,
         false, sign, safe, width, do_sor, do_amr);
+
+      result = mutate_cr_shift(c, mutate_ast, left, right,
+        l_value, r_value, result, false, sign, safe, width);
+
+      return result;
+    }
   }
 
   if(LLVMIsConstant(r_value) && LLVMIsConstant(l_value))
   {
     if(sign)
-      return LLVMBuildAShr(c->builder, l_value, r_value, "");
-
-    return LLVMBuildLShr(c->builder, l_value, r_value, "");
+      result = LLVMBuildAShr(c->builder, l_value, r_value, "");
+    else
+      result = LLVMBuildLShr(c->builder, l_value, r_value, "");
   }
-
-  if(safe)
+  else if(safe)
   {
     LLVMTypeRef r_type = LLVMTypeOf(r_value);
     LLVMValueRef clamp = LLVMConstInt(r_type, width - 1, false);
@@ -1215,20 +1259,25 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
       LLVMBuildSelect(c->builder, cmp, r_value, clamp, "");
 
     if(sign)
-      return LLVMBuildAShr(c->builder, l_value, shift_amount, "");
-
-    return LLVMBuildLShr(c->builder, l_value, shift_amount, "");
+      result = LLVMBuildAShr(c->builder, l_value, shift_amount, "");
+    else
+      result = LLVMBuildLShr(c->builder, l_value, shift_amount, "");
   }
-
-  if(sign)
+  else
   {
-    LLVMValueRef result = LLVMBuildAShr(c->builder, l_value, r_value, "");
+    if(sign)
+      result = LLVMBuildAShr(c->builder, l_value, r_value, "");
+    else
+      result = LLVMBuildLShr(c->builder, l_value, r_value, "");
     LLVMSetIsExact(result);
-    return result;
   }
 
-  LLVMValueRef result = LLVMBuildLShr(c->builder, l_value, r_value, "");
-  LLVMSetIsExact(result);
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_shift(c, mutate_ast, left, right,
+      l_value, r_value, result, false, sign, safe, width);
+  }
+
   return result;
 }
 
@@ -1381,35 +1430,69 @@ LLVMValueRef gen_not(compile_t* c, ast_t* ast)
     mutate_unary_variant_t variants[] = {
       {NULL, NULL, "identity", NULL}
     };
-    return mutate_unary(c, mutate_ast, value, not_result,
+    not_result = mutate_unary(c, mutate_ast, value, not_result,
       "not", "uoi", variants, 1);
+
+    if(!bool_type)
+    {
+      not_result = mutate_cr_unary(c, mutate_ast, ast, value, not_result,
+        NULL, LLVMBuildNot);
+    }
+
+    return not_result;
   }
+
+  LLVMValueRef not_result;
 
   if(bool_type)
   {
     if(LLVMIsAConstantInt(value))
     {
-      if(is_always_true(value))
-        return LLVMConstInt(c->i1, 0, false);
-
-      return LLVMConstInt(c->i1, 1, false);
+      not_result = is_always_true(value)
+        ? LLVMConstInt(c->i1, 0, false)
+        : LLVMConstInt(c->i1, 1, false);
     }
-
-    return LLVMBuildICmp(c->builder, LLVMIntEQ, value,
-      LLVMConstInt(c->i1, 0, false), "");
+    else
+    {
+      not_result = LLVMBuildICmp(c->builder, LLVMIntEQ, value,
+        LLVMConstInt(c->i1, 0, false), "");
+    }
+  }
+  else if(LLVMIsAConstantInt(value))
+  {
+    not_result = LLVMConstNot(value);
+  }
+  else
+  {
+    not_result = LLVMBuildNot(c->builder, value, "");
   }
 
-  if(LLVMIsAConstantInt(value))
-    return LLVMConstNot(value);
+  if(!bool_type && c->opt->mutate && (mutate_ast != NULL))
+  {
+    not_result = mutate_cr_unary(c, mutate_ast, ast, value, not_result,
+      NULL, LLVMBuildNot);
+  }
 
-  return LLVMBuildNot(c->builder, value, "");
+  return not_result;
 }
 
 LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
-      && mutate_site_enabled(c, "ror", c->frame->mutate_ast))
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
   {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
     mutate_cmp_variant_t variants[] = {
       {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"},
       {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
@@ -1417,9 +1500,15 @@ LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right, bool safe)
       {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
       {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"}
     };
-    return mutate_cmp(c, c->frame->mutate_ast, left, right,
-      LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ,
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ,
       "eq", "ror", safe, variants, 5);
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+
+    return result;
   }
 
   return make_cmp(c, left, right, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
@@ -1445,20 +1534,47 @@ LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value,
       {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
       {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"}
     };
-    return mutate_cmp_values(c, mutate_ast, l_value, r_value, sign,
-      LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ,
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ,
       "eq", "ror", safe, variants, 5);
+
+    result = mutate_cr_cmp(c, mutate_ast, left, NULL,
+      l_value, r_value, result, sign,
+      LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+
+    return result;
   }
 
-  return make_cmp_value(c, sign, l_value, r_value, LLVMRealOEQ, LLVMIntEQ,
-    LLVMIntEQ, safe);
+  LLVMValueRef result = make_cmp_value(c, sign, l_value, r_value,
+    LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+
+  if((result != NULL) && c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_cmp(c, mutate_ast, left, NULL,
+      l_value, r_value, result, sign,
+      LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+  }
+
+  return result;
 }
 
 LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
-      && mutate_site_enabled(c, "ror", c->frame->mutate_ast))
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
   {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
     mutate_cmp_variant_t variants[] = {
       {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"},
       {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
@@ -1466,9 +1582,15 @@ LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right, bool safe)
       {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
       {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"}
     };
-    return mutate_cmp(c, c->frame->mutate_ast, left, right,
-      LLVMRealONE, LLVMIntNE, LLVMIntNE,
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealONE, LLVMIntNE, LLVMIntNE,
       "ne", "ror", safe, variants, 5);
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealONE, LLVMIntNE, LLVMIntNE, safe);
+
+    return result;
   }
 
   return make_cmp(c, left, right, LLVMRealONE, LLVMIntNE, LLVMIntNE, safe);
@@ -1476,9 +1598,21 @@ LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_lt(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
-      && mutate_site_enabled(c, "ror", c->frame->mutate_ast))
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
   {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
     mutate_cmp_variant_t variants[] = {
       {LLVMRealOLE, LLVMIntSLE, LLVMIntULE, "le"},
       {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"},
@@ -1486,9 +1620,15 @@ LLVMValueRef gen_lt(compile_t* c, ast_t* left, ast_t* right, bool safe)
       {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"},
       {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
     };
-    return mutate_cmp(c, c->frame->mutate_ast, left, right,
-      LLVMRealOLT, LLVMIntSLT, LLVMIntULT,
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOLT, LLVMIntSLT, LLVMIntULT,
       "lt", "ror", safe, variants, 5);
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealOLT, LLVMIntSLT, LLVMIntULT, safe);
+
+    return result;
   }
 
   return make_cmp(c, left, right, LLVMRealOLT, LLVMIntSLT, LLVMIntULT, safe);
@@ -1496,9 +1636,21 @@ LLVMValueRef gen_lt(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_le(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
-      && mutate_site_enabled(c, "ror", c->frame->mutate_ast))
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
   {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
     mutate_cmp_variant_t variants[] = {
       {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
       {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"},
@@ -1506,9 +1658,15 @@ LLVMValueRef gen_le(compile_t* c, ast_t* left, ast_t* right, bool safe)
       {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"},
       {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
     };
-    return mutate_cmp(c, c->frame->mutate_ast, left, right,
-      LLVMRealOLE, LLVMIntSLE, LLVMIntULE,
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOLE, LLVMIntSLE, LLVMIntULE,
       "le", "ror", safe, variants, 5);
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealOLE, LLVMIntSLE, LLVMIntULE, safe);
+
+    return result;
   }
 
   return make_cmp(c, left, right, LLVMRealOLE, LLVMIntSLE, LLVMIntULE, safe);
@@ -1516,9 +1674,21 @@ LLVMValueRef gen_le(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_ge(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
-      && mutate_site_enabled(c, "ror", c->frame->mutate_ast))
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
   {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
     mutate_cmp_variant_t variants[] = {
       {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"},
       {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
@@ -1526,9 +1696,15 @@ LLVMValueRef gen_ge(compile_t* c, ast_t* left, ast_t* right, bool safe)
       {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"},
       {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
     };
-    return mutate_cmp(c, c->frame->mutate_ast, left, right,
-      LLVMRealOGE, LLVMIntSGE, LLVMIntUGE,
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOGE, LLVMIntSGE, LLVMIntUGE,
       "ge", "ror", safe, variants, 5);
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, safe);
+
+    return result;
   }
 
   return make_cmp(c, left, right, LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, safe);
@@ -1536,9 +1712,21 @@ LLVMValueRef gen_ge(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_gt(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
-      && mutate_site_enabled(c, "ror", c->frame->mutate_ast))
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
   {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
     mutate_cmp_variant_t variants[] = {
       {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
       {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
@@ -1546,9 +1734,15 @@ LLVMValueRef gen_gt(compile_t* c, ast_t* left, ast_t* right, bool safe)
       {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"},
       {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
     };
-    return mutate_cmp(c, c->frame->mutate_ast, left, right,
-      LLVMRealOGT, LLVMIntSGT, LLVMIntUGT,
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOGT, LLVMIntSGT, LLVMIntUGT,
       "gt", "ror", safe, variants, 5);
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, safe);
+
+    return result;
   }
 
   return make_cmp(c, left, right, LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, safe);
