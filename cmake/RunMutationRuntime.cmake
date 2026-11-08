@@ -351,3 +351,269 @@ if(NOT _rc EQUAL 1)
 endif()
 
 message(STATUS "PASS: ROR mutant ${_ror_id} exits 1")
+
+# --- CR arithmetic: find a cr mutant for "a + 10" ---
+execute_process(
+    COMMAND grep -n "let cr_arith" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _cr_arith_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_arith_src)
+    message(FATAL_ERROR "could not find 'let cr_arith' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _cr_arith_lineno "${_cr_arith_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_cr_arith_lineno}.*cr.*n->n.1" "${_json}"
+    OUTPUT_VARIABLE _cr_arith_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_arith_line)
+    message(FATAL_ERROR
+        "could not find cr mutant on line ${_cr_arith_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _cr_arith_id "${_cr_arith_line}")
+
+set(ENV{PONY_MUTANT_ID} "${_cr_arith_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "CR arithmetic mutated run exited ${_rc}, expected 1")
+endif()
+
+message(STATUS "PASS: CR arithmetic mutant ${_cr_arith_id} exits 1")
+
+# --- CR divrem: find a cr mutant for "a % 2" ---
+execute_process(
+    COMMAND grep -n "let cr_rem" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _cr_div_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_div_src)
+    message(FATAL_ERROR "could not find 'let cr_rem' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _cr_div_lineno "${_cr_div_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_cr_div_lineno}.*cr.*n->n.1" "${_json}"
+    OUTPUT_VARIABLE _cr_div_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_div_line)
+    message(FATAL_ERROR
+        "could not find cr mutant on line ${_cr_div_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _cr_div_id "${_cr_div_line}")
+
+set(ENV{PONY_MUTANT_ID} "${_cr_div_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "CR divrem mutated run exited ${_rc}, expected 1")
+endif()
+
+message(STATUS "PASS: CR divrem mutant ${_cr_div_id} exits 1")
+
+# --- CR shift: find a cr mutant for "a << 3" ---
+execute_process(
+    COMMAND grep -n "let cr_shift" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _cr_shift_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_shift_src)
+    message(FATAL_ERROR "could not find 'let cr_shift' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _cr_shift_lineno "${_cr_shift_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_cr_shift_lineno}.*cr.*n->n.1" "${_json}"
+    OUTPUT_VARIABLE _cr_shift_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_shift_line)
+    message(FATAL_ERROR
+        "could not find cr mutant on line ${_cr_shift_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _cr_shift_id "${_cr_shift_line}")
+
+set(ENV{PONY_MUTANT_ID} "${_cr_shift_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "CR shift mutated run exited ${_rc}, expected 1")
+endif()
+
+message(STATUS "PASS: CR shift mutant ${_cr_shift_id} exits 1")
+
+# --- CR bitwise: find a cr mutant for "a and 0x07" ---
+execute_process(
+    COMMAND grep -n "let cr_bit" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _cr_bit_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_bit_src)
+    message(FATAL_ERROR "could not find 'let cr_bit' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _cr_bit_lineno "${_cr_bit_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_cr_bit_lineno}.*cr.*n->n.1" "${_json}"
+    OUTPUT_VARIABLE _cr_bit_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_bit_line)
+    message(FATAL_ERROR
+        "could not find cr mutant on line ${_cr_bit_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _cr_bit_id "${_cr_bit_line}")
+
+set(ENV{PONY_MUTANT_ID} "${_cr_bit_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "CR bitwise mutated run exited ${_rc}, expected 1")
+endif()
+
+message(STATUS "PASS: CR bitwise mutant ${_cr_bit_id} exits 1")
+
+# --- CR neg: find a cr mutant for "-7" ---
+execute_process(
+    COMMAND grep -n "let cr_neg" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _cr_neg_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_neg_src)
+    message(FATAL_ERROR "could not find 'let cr_neg' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _cr_neg_lineno "${_cr_neg_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_cr_neg_lineno}.*cr.*n->n.1" "${_json}"
+    OUTPUT_VARIABLE _cr_neg_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_neg_line)
+    message(FATAL_ERROR
+        "could not find cr mutant on line ${_cr_neg_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _cr_neg_id "${_cr_neg_line}")
+
+set(ENV{PONY_MUTANT_ID} "${_cr_neg_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "CR neg mutated run exited ${_rc}, expected 1")
+endif()
+
+message(STATUS "PASS: CR neg mutant ${_cr_neg_id} exits 1")
+
+# --- CR not: find a cr mutant for "not U64(0x0F)" ---
+execute_process(
+    COMMAND grep -n "let cr_not" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _cr_not_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_not_src)
+    message(FATAL_ERROR "could not find 'let cr_not' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _cr_not_lineno "${_cr_not_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_cr_not_lineno}.*cr.*n->n.1" "${_json}"
+    OUTPUT_VARIABLE _cr_not_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_not_line)
+    message(FATAL_ERROR
+        "could not find cr mutant on line ${_cr_not_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _cr_not_id "${_cr_not_line}")
+
+set(ENV{PONY_MUTANT_ID} "${_cr_not_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "CR not mutated run exited ${_rc}, expected 1")
+endif()
+
+message(STATUS "PASS: CR not mutant ${_cr_not_id} exits 1")
+
+# --- CR wide literal: find a cr mutant for "small + 0x1_0000..." ---
+execute_process(
+    COMMAND grep -n "let cr_wide" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _cr_wide_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_wide_src)
+    message(FATAL_ERROR "could not find 'let cr_wide' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _cr_wide_lineno "${_cr_wide_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_cr_wide_lineno}.*cr.*n->n.1" "${_json}"
+    OUTPUT_VARIABLE _cr_wide_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_wide_line)
+    message(FATAL_ERROR
+        "could not find cr mutant on line ${_cr_wide_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _cr_wide_id "${_cr_wide_line}")
+
+set(ENV{PONY_MUTANT_ID} "${_cr_wide_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "CR wide literal mutated run exited ${_rc}, expected 1")
+endif()
+
+message(STATUS "PASS: CR wide literal mutant ${_cr_wide_id} exits 1")
