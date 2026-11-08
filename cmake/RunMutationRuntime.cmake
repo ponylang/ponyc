@@ -381,14 +381,20 @@ set(ENV{PONY_MUTANT_ID} "${_cr_arith_id}")
 execute_process(
     COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
     RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _cr_arith_out
     TIMEOUT 30
 )
 unset(ENV{PONY_MUTANT_ID})
 if(NOT _rc EQUAL 1)
     message(FATAL_ERROR "CR arithmetic mutated run exited ${_rc}, expected 1")
 endif()
+string(FIND "${_cr_arith_out}" "cr_arith=14" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "CR arithmetic mutant did not compute expected value 14 (n+1: 3+11)\nstdout: ${_cr_arith_out}")
+endif()
 
-message(STATUS "PASS: CR arithmetic mutant ${_cr_arith_id} exits 1")
+message(STATUS "PASS: CR arithmetic mutant ${_cr_arith_id} computes 14")
 
 # --- CR divrem: find a cr mutant for "a % 3" ---
 execute_process(
@@ -419,14 +425,20 @@ set(ENV{PONY_MUTANT_ID} "${_cr_div_id}")
 execute_process(
     COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
     RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _cr_div_out
     TIMEOUT 30
 )
 unset(ENV{PONY_MUTANT_ID})
 if(NOT _rc EQUAL 1)
     message(FATAL_ERROR "CR divrem mutated run exited ${_rc}, expected 1")
 endif()
+string(FIND "${_cr_div_out}" "cr_rem=3\n" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "CR divrem mutant did not compute expected value 3 (n+1: 3%4)\nstdout: ${_cr_div_out}")
+endif()
 
-message(STATUS "PASS: CR divrem mutant ${_cr_div_id} exits 1")
+message(STATUS "PASS: CR divrem mutant ${_cr_div_id} computes 3")
 
 # --- CR shift: find a cr mutant for "a << 3" ---
 execute_process(
@@ -457,14 +469,20 @@ set(ENV{PONY_MUTANT_ID} "${_cr_shift_id}")
 execute_process(
     COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
     RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _cr_shift_out
     TIMEOUT 30
 )
 unset(ENV{PONY_MUTANT_ID})
 if(NOT _rc EQUAL 1)
     message(FATAL_ERROR "CR shift mutated run exited ${_rc}, expected 1")
 endif()
+string(FIND "${_cr_shift_out}" "cr_shift=48" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "CR shift mutant did not compute expected value 48 (n+1: 3<<4)\nstdout: ${_cr_shift_out}")
+endif()
 
-message(STATUS "PASS: CR shift mutant ${_cr_shift_id} exits 1")
+message(STATUS "PASS: CR shift mutant ${_cr_shift_id} computes 48")
 
 # --- CR bitwise: find a cr mutant for "a and 0x07" ---
 execute_process(
@@ -495,14 +513,20 @@ set(ENV{PONY_MUTANT_ID} "${_cr_bit_id}")
 execute_process(
     COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
     RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _cr_bit_out
     TIMEOUT 30
 )
 unset(ENV{PONY_MUTANT_ID})
 if(NOT _rc EQUAL 1)
     message(FATAL_ERROR "CR bitwise mutated run exited ${_rc}, expected 1")
 endif()
+string(FIND "${_cr_bit_out}" "cr_bit=0\n" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "CR bitwise mutant did not compute expected value 0 (n+1: 3 and 8)\nstdout: ${_cr_bit_out}")
+endif()
 
-message(STATUS "PASS: CR bitwise mutant ${_cr_bit_id} exits 1")
+message(STATUS "PASS: CR bitwise mutant ${_cr_bit_id} computes 0")
 
 # --- CR neg: find a cr mutant for "-7" ---
 execute_process(
@@ -533,14 +557,20 @@ set(ENV{PONY_MUTANT_ID} "${_cr_neg_id}")
 execute_process(
     COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
     RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _cr_neg_out
     TIMEOUT 30
 )
 unset(ENV{PONY_MUTANT_ID})
 if(NOT _rc EQUAL 1)
     message(FATAL_ERROR "CR neg mutated run exited ${_rc}, expected 1")
 endif()
+string(FIND "${_cr_neg_out}" "cr_neg=-8" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "CR neg mutant did not compute expected value -8 (n+1: -8)\nstdout: ${_cr_neg_out}")
+endif()
 
-message(STATUS "PASS: CR neg mutant ${_cr_neg_id} exits 1")
+message(STATUS "PASS: CR neg mutant ${_cr_neg_id} computes -8")
 
 # --- CR not: find a cr mutant for "not U64(0x0F)" ---
 execute_process(
@@ -571,14 +601,20 @@ set(ENV{PONY_MUTANT_ID} "${_cr_not_id}")
 execute_process(
     COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
     RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _cr_not_out
     TIMEOUT 30
 )
 unset(ENV{PONY_MUTANT_ID})
 if(NOT _rc EQUAL 1)
     message(FATAL_ERROR "CR not mutated run exited ${_rc}, expected 1")
 endif()
+string(FIND "${_cr_not_out}" "cr_not=3\n" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "CR not mutant did not compute expected value 3 (n+1: 3 and ~16)\nstdout: ${_cr_not_out}")
+endif()
 
-message(STATUS "PASS: CR not mutant ${_cr_not_id} exits 1")
+message(STATUS "PASS: CR not mutant ${_cr_not_id} computes 3")
 
 # --- CR wide literal: find a cr mutant for "small + 0x1_0000..." ---
 execute_process(
@@ -609,11 +645,19 @@ set(ENV{PONY_MUTANT_ID} "${_cr_wide_id}")
 execute_process(
     COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
     RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _cr_wide_out
     TIMEOUT 30
 )
 unset(ENV{PONY_MUTANT_ID})
 if(NOT _rc EQUAL 1)
     message(FATAL_ERROR "CR wide literal mutated run exited ${_rc}, expected 1")
 endif()
+# n+1: 0x1_0000_0000_0000_000B = 2^64+11, result = 3 + 2^64+11 = 18446744073709551630
+# If replacement were 64-bit truncated, result would be 3+11=14.
+string(FIND "${_cr_wide_out}" "cr_wide=18446744073709551630" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "CR wide literal mutant did not compute expected value 18446744073709551630\nstdout: ${_cr_wide_out}")
+endif()
 
-message(STATUS "PASS: CR wide literal mutant ${_cr_wide_id} exits 1")
+message(STATUS "PASS: CR wide literal mutant ${_cr_wide_id} computes 18446744073709551630")

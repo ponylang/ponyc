@@ -78,36 +78,42 @@ actor Main
 
     // CR arithmetic: literal 10 in a + 10.
     let cr_arith: U64 = a + 10  // 3 + 10 = 13
+    env.out.print("cr_arith=" + cr_arith.string())
     if cr_arith != U64(13) then
       env.exitcode(1)
     end
 
     // CR divrem: literal 3 in a % 3.
     let cr_rem: U64 = a % 3  // 3 % 3 = 0
+    env.out.print("cr_rem=" + cr_rem.string())
     if cr_rem != U64(0) then
       env.exitcode(1)
     end
 
     // CR shift: literal 3 in a << 3.
     let cr_shift: U64 = a << 3  // 3 << 3 = 24
+    env.out.print("cr_shift=" + cr_shift.string())
     if cr_shift != U64(24) then
       env.exitcode(1)
     end
 
     // CR bitwise: literal 0x07 in a and 0x07.
     let cr_bit: U64 = a and 0x07  // 3 and 7 = 3
+    env.out.print("cr_bit=" + cr_bit.string())
     if cr_bit != U64(3) then
       env.exitcode(1)
     end
 
     // CR neg: literal 7 in -7.
     let cr_neg: I64 = -7  // -7
+    env.out.print("cr_neg=" + cr_neg.string())
     if cr_neg != I64(-7) then
       env.exitcode(1)
     end
 
     // CR not: literal 0x0F in (a and (not 0x0F)).
     let cr_not: U64 = a and (not 0x0F)  // 3 and ~15 = 0
+    env.out.print("cr_not=" + cr_not.string())
     if cr_not != U64(0) then
       env.exitcode(1)
     end
@@ -115,6 +121,7 @@ actor Main
     // CR wide literal: U128 above 2^64. Variable operand prevents Rule 2.
     let small: U128 = a.u128()  // 3
     let cr_wide: U128 = small + 0x1_0000_0000_0000_000A  // 3 + 2^64+10
+    env.out.print("cr_wide=" + cr_wide.string())
     if cr_wide != (small + U128(0x1_0000_0000_0000_000A)) then
       env.exitcode(1)
     end
