@@ -2724,14 +2724,33 @@ TEST_F(GenMutateCodegenTest, IndependenceMultiCategory)
 TEST_F(GenMutateCodegenTest, IndependenceCrPlusSingleCategory)
 {
   const char* src =
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let y: U64 = 10\n"
-    "    let a: U64 = y + 5\n"
-    "    let b: U64 = (1 + 2) * 3\n"
-    "    let c: U64 = y << 2\n"
-    "    let d: Bool = y == 0\n"
-    "    let e: U64 = (not 0x20) * 2\n";
+    "actor Main\n"                                           // line 1
+    "  new create(env: Env) =>\n"                            // line 2
+    "    let y: U64 = 10\n"                                  // line 3
+    "    let a: U64 = y + 5\n"                               // line 4: add
+    "    let b: U64 = y * 3\n"                               // line 5: mul
+    "    let c: U64 = y / 2\n"                               // line 6: div
+    "    let d: U64 = y % 3\n"                               // line 7: rem
+    "    let e: U64 = y << 2\n"                              // line 8: shl
+    "    let f: U64 = y >> 1\n"                              // line 9: shr
+    "    let g: U64 = y and 0xFF\n"                          // line 10: and
+    "    let h: U64 = y or 1\n"                              // line 11: or
+    "    let i: U64 = y xor 7\n"                             // line 12: xor
+    "    let j: Bool = y == 0\n"                             // line 13: eq
+    "    let k: Bool = y > 5\n"                              // line 14: gt
+    "    let l: U64 = (1 + 2) * 3\n"                        // line 15: nested
+    "    let m: U64 = ((1 + 2) + 3) * 4\n"                  // line 16: nested
+    "    let n: U64 = ((1 + 2) + (3 + 4)) * 5\n"           // line 17: nested
+    "    let o: U64 = (1 << 2) * 3\n"                       // line 18: shift nested
+    "    let p: U64 = (1 xor 2) * 3\n"                      // line 19: xor nested
+    "    let q: U64 = (5 and 3) * 2\n"                      // line 20: and nested
+    "    let r: U64 = (not 0x20) * 2\n"                     // line 21: not nested
+    "    let x: I64 = 10\n"                                  // line 22
+    "    let s: I64 = (-(1 + 2)) * 3\n"                     // line 23: neg
+    "    let t: I64 = 100 / 3\n"                             // line 24: safe div
+    "    let u: I64 = if not true then x + 5 else x + 7 end\n" // line 25
+    "    let v: I64 = -0x8000000000000000 / -1\n"            // line 26: min/-1
+    "    let w: I64 = -0x8000000000000000 % -1\n";           // line 27: min/-1 rem
 
   const char* categories[] = {"aor", "bor", "ror", "sor", "uoi", "amr"};
   uint32_t cat_flags[] = {
@@ -3368,11 +3387,11 @@ TEST_F(GenMutateCodegenTest, CrDivByOneLiteral)
 }
 
 
-TEST_F(GenMutateCodegenTest, SafeSignedDivMinNeg1Shadow)
+TEST_F(GenMutateCodegenTest, SafeDivremNonPathologicalNoShadow)
 {
-  // Safe integer div with constant operands produces no shadow
-  // (the result is a phi node, not a constant). The downstream *
-  // must still get AOR.
+  // Safe integer div/rem with non-pathological constant operands produces
+  // no shadow (the result is a phi node). Downstream operators must still
+  // get their mutations.
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
@@ -3410,6 +3429,51 @@ TEST_F(GenMutateCodegenTest, SafeSignedDivMinNeg1Shadow)
   DO(test_compile(src, "ir"));
   size_t uoi_plus_cr = collect_category("uoi").size();
   ASSERT_EQ(uoi_only, uoi_plus_cr);
+}
+
+
+TEST_F(GenMutateCodegenTest, SafeDivremMinNeg1Shadow)
+{
+  // min_value / -1 and min_value % -1 are the pathological cases where
+  // make_divrem_inner constant-folds (returns a constant, not a phi).
+  // The shadow must match. Nested expressions test this: the div result
+  // feeds directly into * so the shadow propagates within the expression.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let t: I64 = (-9223372036854775808 / -1) * 2\n"    // line 3: min/-1 div * 2
+    "    let v: I64 = (-9223372036854775808 % -1) * 3\n";   // line 4: min/-1 rem * 3
+
+  // With a correct shadow, (-min/-1) is a known constant so the * has
+  // both operands constant and AOR is suppressed.
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  ASSERT_EQ(count_category_at(3, "aor"), 0u);
+  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+
+  // AOR+CR: same suppression
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  ASSERT_EQ(count_category_at(3, "aor"), 0u);
+  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+
+  // Each non-CR category alone vs +CR: identical sets
+  const char* categories[] = {"aor", "amr", "uoi"};
+  uint32_t cat_flags[] = {MUTATE_OP_AOR, MUTATE_OP_AMR, MUTATE_OP_UOI};
+  for(size_t ci = 0; ci < 3; ci++)
+  {
+    opt.mutate_operators = cat_flags[ci];
+    DO(test_compile(src, "ir"));
+    auto alone = collect_category(categories[ci]);
+
+    opt.mutate_operators = cat_flags[ci] | MUTATE_OP_CR;
+    DO(test_compile(src, "ir"));
+    auto with_cr = collect_category(categories[ci]);
+
+    ASSERT_EQ(alone, with_cr)
+      << "Category " << categories[ci] << " differs alone vs with cr";
+  }
 }
 
 

@@ -376,12 +376,7 @@ LLVMValueRef mutate_safe_divrem_shadow(
   LLVMTypeRef r_type = LLVMTypeOf(r_shadow);
 
   if(!sign)
-  {
-    long long r_const_u = LLVMConstIntGetSExtValue(r_shadow);
-    if(r_const_u == 0)
-      return LLVMConstInt(r_type, 0, false);
     return NULL;
-  }
 
   uint64_t width = LLVMGetIntTypeWidth(r_type);
   long long r_const = LLVMConstIntGetSExtValue(r_shadow);
@@ -398,9 +393,6 @@ LLVMValueRef mutate_safe_divrem_shadow(
         ? LLVMConstInt(r_type, (uint64_t)min_val, true)
         : LLVMConstInt(r_type, 0, false);
   }
-
-  if(r_const == 0)
-    return LLVMConstInt(r_type, 0, false);
 
   return NULL;
 }
