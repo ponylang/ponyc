@@ -1098,6 +1098,7 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
   if(opt->mutate)
   {
     mutate_init(&c->mutate);
+    shadow_map_init(&c->shadow_map, 0);
     c->mutant_selector = mutate_declare_selector(c);
     c->mutate_enabled = mutate_declare_enabled(c);
     c->coverage_counters = mutate_declare_coverage(c);
@@ -1190,6 +1191,7 @@ void codegen_cleanup(compile_t* c)
   LLVMDisposeTargetMachine(c->machine);
   reach_free(c->reach);
   mutate_cleanup(&c->mutate);
+  shadow_map_destroy(&c->shadow_map);
 }
 
 void codegen_switch_module(compile_t* c, size_t index)
@@ -1484,6 +1486,9 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
   {
     pony_assert(LLVMGetGlobalParent(fun) == c->module);
   }
+
+  if(c->opt->mutate)
+    mutate_shadow_clear(c);
 
   compile_frame_t* frame = push_frame(c);
 

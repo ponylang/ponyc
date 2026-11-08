@@ -71,7 +71,36 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
   {
     result = mutate_cr_binop(c, mutate_ast, left, right,
       l_value, r_value, result, build_f, build_i);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow;
+      if(is_fp(l_value))
+        shadow = build_f(c->builder, l_shadow, r_shadow, "");
+      else
+        shadow = build_i(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
     result = mutate_uoi_insert(c, mutate_ast, result);
+  }
+  else if(c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow;
+      if(is_fp(l_value))
+        shadow = build_f(c->builder, l_shadow, r_shadow, "");
+      else
+        shadow = build_i(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
   }
 
   return result;
@@ -196,12 +225,36 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
   LLVMValueRef result = make_divrem_inner(c, l_value, r_value, sign,
     build_f, build_ui, build_si, safe, is_div);
 
-  if(c->opt->mutate && (mutate_ast != NULL))
+  if(c->opt->mutate)
   {
-    result = mutate_cr_divrem(c, mutate_ast, left, right,
-      l_value, r_value, result, sign, safe, is_div,
-      build_f, build_ui, build_si);
-    result = mutate_uoi_insert(c, mutate_ast, result);
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+
+    if(mutate_ast != NULL)
+    {
+      result = mutate_cr_divrem(c, mutate_ast, left, right,
+        l_value, r_value, result, sign, safe, is_div,
+        build_f, build_ui, build_si);
+    }
+
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = NULL;
+      if(is_fp(l_value))
+        shadow = build_f(c->builder, l_shadow, r_shadow, "");
+      else if(!safe)
+      {
+        if(sign)
+          shadow = build_si(c->builder, l_shadow, r_shadow, "");
+        else
+          shadow = build_ui(c->builder, l_shadow, r_shadow, "");
+      }
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    if(mutate_ast != NULL)
+      result = mutate_uoi_insert(c, mutate_ast, result);
   }
 
   return result;
@@ -259,6 +312,20 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
   {
     result = mutate_cr_cmp(c, mutate_ast, left, right,
       l_value, r_value, result, sign, cmp_f, cmp_si, cmp_ui, safe);
+  }
+
+  if((result != NULL) && c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow =
+        make_cmp_value(c, sign, l_shadow, r_shadow,
+          cmp_f, cmp_si, cmp_ui, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
   }
 
   return result;
@@ -327,6 +394,35 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
     }
 
     return l_value;
+  }
+
+  if(c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+
+    LLVMValueRef shadow = NULL;
+    if(is_and)
+    {
+      if((l_shadow != NULL) && is_always_false(l_shadow))
+        shadow = l_shadow;
+      else if((r_shadow != NULL) && is_always_false(r_shadow))
+        shadow = r_shadow;
+      else if((l_shadow != NULL) && (r_shadow != NULL))
+        shadow = LLVMBuildAnd(c->builder, l_shadow, r_shadow, "");
+    }
+    else
+    {
+      if((l_shadow != NULL) && is_always_true(l_shadow))
+        shadow = l_shadow;
+      else if((r_shadow != NULL) && is_always_true(r_shadow))
+        shadow = r_shadow;
+      else if((l_shadow != NULL) && (r_shadow != NULL))
+        shadow = LLVMBuildOr(c->builder, l_shadow, r_shadow, "");
+    }
+
+    if((shadow != NULL) && LLVMIsConstant(shadow))
+      mutate_shadow_set(c, phi, shadow);
   }
 
   return phi;
@@ -1000,6 +1096,8 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
   if(value == NULL)
     return NULL;
 
+  LLVMValueRef neg_result;
+
   if(c->opt->mutate && (mutate_ast != NULL))
   {
     bool do_uoi = mutate_site_enabled(c, "uoi", mutate_ast);
@@ -1007,7 +1105,6 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
 
     if(do_uoi || do_amr)
     {
-      LLVMValueRef neg_result;
       bool fp = is_fp(value);
       bool is_const_fp = LLVMIsAConstantFP(value) != NULL;
       bool is_const_int = LLVMIsAConstantInt(value) != NULL;
@@ -1070,11 +1167,9 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
         safe ? LLVMBuildFNeg : make_unsafe_fneg,
         safe ? LLVMBuildNeg : LLVMBuildNeg);
 
-      return neg_result;
+      goto neg_shadow;
     }
   }
-
-  LLVMValueRef neg_result;
 
   if(LLVMIsAConstantFP(value))
     neg_result = LLVMBuildFNeg(c->builder, value, "");
@@ -1105,6 +1200,22 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
       safe ? LLVMBuildNeg : LLVMBuildNeg);
   }
 
+neg_shadow:
+  if(c->opt->mutate)
+  {
+    LLVMValueRef v_shadow = mutate_shadow_get(c, value);
+    if(v_shadow != NULL)
+    {
+      LLVMValueRef shadow;
+      if(is_fp(value))
+        shadow = LLVMBuildFNeg(c->builder, v_shadow, "");
+      else
+        shadow = LLVMConstNeg(v_shadow);
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, neg_result, shadow);
+    }
+  }
+
   return neg_result;
 }
 
@@ -1125,12 +1236,14 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
   pony_assert(LLVMGetTypeKind(l_type) == LLVMIntegerTypeKind);
   unsigned width = LLVMGetIntTypeWidth(l_type);
 
-  if(LLVMIsConstant(r_value))
+  LLVMValueRef r_check = c->opt->mutate
+    ? mutate_shadow_get(c, r_value) : r_value;
+  if((r_check != NULL) && LLVMIsConstant(r_check))
   {
-    LLVMTypeRef r_type = LLVMTypeOf(r_value);
+    LLVMTypeRef r_type = LLVMTypeOf(r_check);
     LLVMValueRef width_val = LLVMConstInt(r_type, width, false);
     LLVMValueRef too_wide = LLVMBuildICmp(c->builder, LLVMIntUGE,
-      r_value, width_val, "");
+      r_check, width_val, "");
 
     if(is_always_true(too_wide))
     {
@@ -1147,7 +1260,9 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
     bool do_sor = mutate_site_enabled(c, "sor", mutate_ast);
     bool do_amr = mutate_site_enabled(c, "amr", mutate_ast);
 
-    if(do_sor || do_amr)
+    if((do_sor || do_amr)
+        && ((mutate_shadow_get(c, l_value) == NULL)
+            || (mutate_shadow_get(c, r_value) == NULL)))
     {
       result = mutate_shift(c, mutate_ast, l_value, r_value,
         true, sign, safe, width, do_sor, do_amr);
@@ -1155,7 +1270,7 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
       result = mutate_cr_shift(c, mutate_ast, left, right,
         l_value, r_value, result, true, sign, safe, width);
 
-      return result;
+      goto shl_shadow;
     }
   }
 
@@ -1188,6 +1303,19 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
       l_value, r_value, result, true, sign, safe, width);
   }
 
+shl_shadow:
+  if(c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = LLVMBuildShl(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+  }
+
   return result;
 }
 
@@ -1208,12 +1336,14 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
   pony_assert(LLVMGetTypeKind(l_type) == LLVMIntegerTypeKind);
   unsigned width = LLVMGetIntTypeWidth(l_type);
 
-  if(LLVMIsConstant(r_value))
+  LLVMValueRef r_check = c->opt->mutate
+    ? mutate_shadow_get(c, r_value) : r_value;
+  if((r_check != NULL) && LLVMIsConstant(r_check))
   {
-    LLVMTypeRef r_type = LLVMTypeOf(r_value);
+    LLVMTypeRef r_type = LLVMTypeOf(r_check);
     LLVMValueRef width_val = LLVMConstInt(r_type, width, false);
     LLVMValueRef too_wide = LLVMBuildICmp(c->builder, LLVMIntUGE,
-      r_value, width_val, "");
+      r_check, width_val, "");
 
     if(is_always_true(too_wide))
     {
@@ -1230,7 +1360,9 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
     bool do_sor = mutate_site_enabled(c, "sor", mutate_ast);
     bool do_amr = mutate_site_enabled(c, "amr", mutate_ast);
 
-    if(do_sor || do_amr)
+    if((do_sor || do_amr)
+        && ((mutate_shadow_get(c, l_value) == NULL)
+            || (mutate_shadow_get(c, r_value) == NULL)))
     {
       result = mutate_shift(c, mutate_ast, l_value, r_value,
         false, sign, safe, width, do_sor, do_amr);
@@ -1238,7 +1370,7 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
       result = mutate_cr_shift(c, mutate_ast, left, right,
         l_value, r_value, result, false, sign, safe, width);
 
-      return result;
+      goto shr_shadow;
     }
   }
 
@@ -1278,6 +1410,23 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
       l_value, r_value, result, false, sign, safe, width);
   }
 
+shr_shadow:
+  if(c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow;
+      if(sign)
+        shadow = LLVMBuildAShr(c->builder, l_shadow, r_shadow, "");
+      else
+        shadow = LLVMBuildLShr(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+  }
+
   return result;
 }
 
@@ -1313,11 +1462,26 @@ LLVMValueRef gen_and(compile_t* c, ast_t* left, ast_t* right)
 
   LLVMValueRef result = LLVMBuildAnd(c->builder, l_value, r_value, "");
 
-  if(c->opt->mutate && (mutate_ast != NULL))
+  if(c->opt->mutate)
   {
-    result = mutate_cr_binop(c, mutate_ast, left, right,
-      l_value, r_value, result, LLVMBuildAnd, LLVMBuildAnd);
-    result = mutate_uoi_insert(c, mutate_ast, result);
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+
+    if(mutate_ast != NULL)
+    {
+      result = mutate_cr_binop(c, mutate_ast, left, right,
+        l_value, r_value, result, LLVMBuildAnd, LLVMBuildAnd);
+    }
+
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = LLVMBuildAnd(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    if(mutate_ast != NULL)
+      result = mutate_uoi_insert(c, mutate_ast, result);
   }
 
   return result;
@@ -1345,11 +1509,26 @@ LLVMValueRef gen_or(compile_t* c, ast_t* left, ast_t* right)
 
   LLVMValueRef result = LLVMBuildOr(c->builder, l_value, r_value, "");
 
-  if(c->opt->mutate && (mutate_ast != NULL))
+  if(c->opt->mutate)
   {
-    result = mutate_cr_binop(c, mutate_ast, left, right,
-      l_value, r_value, result, LLVMBuildOr, LLVMBuildOr);
-    result = mutate_uoi_insert(c, mutate_ast, result);
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+
+    if(mutate_ast != NULL)
+    {
+      result = mutate_cr_binop(c, mutate_ast, left, right,
+        l_value, r_value, result, LLVMBuildOr, LLVMBuildOr);
+    }
+
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = LLVMBuildOr(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    if(mutate_ast != NULL)
+      result = mutate_uoi_insert(c, mutate_ast, result);
   }
 
   return result;
@@ -1382,11 +1561,26 @@ LLVMValueRef gen_xor(compile_t* c, ast_t* left, ast_t* right)
   else
     result = LLVMBuildXor(c->builder, l_value, r_value, "");
 
-  if(c->opt->mutate && (mutate_ast != NULL))
+  if(c->opt->mutate)
   {
-    result = mutate_cr_binop(c, mutate_ast, left, right,
-      l_value, r_value, result, LLVMBuildXor, LLVMBuildXor);
-    result = mutate_uoi_insert(c, mutate_ast, result);
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+
+    if(mutate_ast != NULL)
+    {
+      result = mutate_cr_binop(c, mutate_ast, left, right,
+        l_value, r_value, result, LLVMBuildXor, LLVMBuildXor);
+    }
+
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = LLVMBuildXor(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    if(mutate_ast != NULL)
+      result = mutate_uoi_insert(c, mutate_ast, result);
   }
 
   return result;
@@ -1404,11 +1598,11 @@ LLVMValueRef gen_not(compile_t* c, ast_t* ast)
   bool bool_type = is_bool(type);
   ast_free_unattached(type);
 
+  LLVMValueRef not_result;
+
   if(c->opt->mutate && (mutate_ast != NULL)
       && mutate_site_enabled(c, "uoi", mutate_ast))
   {
-    LLVMValueRef not_result;
-
     if(bool_type)
     {
       if(LLVMIsAConstantInt(value))
@@ -1439,10 +1633,8 @@ LLVMValueRef gen_not(compile_t* c, ast_t* ast)
         NULL, LLVMBuildNot);
     }
 
-    return not_result;
+    goto not_shadow;
   }
-
-  LLVMValueRef not_result;
 
   if(bool_type)
   {
@@ -1471,6 +1663,26 @@ LLVMValueRef gen_not(compile_t* c, ast_t* ast)
   {
     not_result = mutate_cr_unary(c, mutate_ast, ast, value, not_result,
       NULL, LLVMBuildNot);
+  }
+
+not_shadow:
+  if(c->opt->mutate)
+  {
+    LLVMValueRef v_shadow = mutate_shadow_get(c, value);
+    if(v_shadow != NULL)
+    {
+      LLVMValueRef shadow;
+      if(bool_type)
+      {
+        shadow = is_always_true(v_shadow)
+          ? LLVMConstInt(c->i1, 0, false)
+          : LLVMConstInt(c->i1, 1, false);
+      }
+      else
+        shadow = LLVMConstNot(v_shadow);
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, not_result, shadow);
+    }
   }
 
   return not_result;
@@ -1508,6 +1720,16 @@ LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right, bool safe)
       l_value, r_value, result, sign,
       LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
 
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
     return result;
   }
 
@@ -1542,6 +1764,16 @@ LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value,
       l_value, r_value, result, sign,
       LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
 
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
     return result;
   }
 
@@ -1553,6 +1785,19 @@ LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value,
     result = mutate_cr_cmp(c, mutate_ast, left, NULL,
       l_value, r_value, result, sign,
       LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+  }
+
+  if((result != NULL) && c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
   }
 
   return result;
@@ -1589,6 +1834,16 @@ LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right, bool safe)
     result = mutate_cr_cmp(c, mutate_ast, left, right,
       l_value, r_value, result, sign,
       LLVMRealONE, LLVMIntNE, LLVMIntNE, safe);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealONE, LLVMIntNE, LLVMIntNE, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
 
     return result;
   }
@@ -1628,6 +1883,16 @@ LLVMValueRef gen_lt(compile_t* c, ast_t* left, ast_t* right, bool safe)
       l_value, r_value, result, sign,
       LLVMRealOLT, LLVMIntSLT, LLVMIntULT, safe);
 
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOLT, LLVMIntSLT, LLVMIntULT, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
     return result;
   }
 
@@ -1665,6 +1930,16 @@ LLVMValueRef gen_le(compile_t* c, ast_t* left, ast_t* right, bool safe)
     result = mutate_cr_cmp(c, mutate_ast, left, right,
       l_value, r_value, result, sign,
       LLVMRealOLE, LLVMIntSLE, LLVMIntULE, safe);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOLE, LLVMIntSLE, LLVMIntULE, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
 
     return result;
   }
@@ -1704,6 +1979,16 @@ LLVMValueRef gen_ge(compile_t* c, ast_t* left, ast_t* right, bool safe)
       l_value, r_value, result, sign,
       LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, safe);
 
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
     return result;
   }
 
@@ -1741,6 +2026,16 @@ LLVMValueRef gen_gt(compile_t* c, ast_t* left, ast_t* right, bool safe)
     result = mutate_cr_cmp(c, mutate_ast, left, right,
       l_value, r_value, result, sign,
       LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, safe);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
 
     return result;
   }

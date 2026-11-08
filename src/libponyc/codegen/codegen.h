@@ -96,6 +96,9 @@ DECLARE_HASHMAP(compile_locals, compile_locals_t, compile_local_t);
 typedef struct ffi_decl_t ffi_decl_t;
 DECLARE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t);
 
+typedef struct shadow_entry_t shadow_entry_t;
+DECLARE_HASHMAP(shadow_map, shadow_map_t, shadow_entry_t);
+
 typedef struct per_module_state_t
 {
   LLVMModuleRef module;
@@ -255,6 +258,7 @@ typedef struct compile_t
   LLVMValueRef mutant_selector;
   LLVMValueRef mutate_enabled;
   LLVMValueRef coverage_counters;
+  shadow_map_t shadow_map;
 } compile_t;
 
 bool codegen_merge_runtime_bitcode(compile_t* c);

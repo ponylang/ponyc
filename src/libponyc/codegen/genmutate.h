@@ -208,6 +208,17 @@ LLVMValueRef mutate_cr_unary(compile_t* c, ast_t* ast,
 // Check whether an AST node (after unwrapping TK_SEQ) is a numeric literal.
 bool mutate_is_literal(ast_t* ast);
 
+// Return the constant a value would have without CR instrumentation.
+// An LLVM constant is its own shadow; a CR phi's shadow is the original.
+// Returns NULL when the value has no known shadow.
+LLVMValueRef mutate_shadow_get(compile_t* c, LLVMValueRef val);
+
+// Register a shadow: val -> shadow. Ignored when not mutating.
+void mutate_shadow_set(compile_t* c, LLVMValueRef val, LLVMValueRef shadow);
+
+// Clear the shadow map (called per function).
+void mutate_shadow_clear(compile_t* c);
+
 // Declare the @pony_mutant_selector i32 global in the current module.
 LLVMValueRef mutate_declare_selector(compile_t* c);
 

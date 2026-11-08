@@ -17,6 +17,30 @@
 
 #define INITIAL_ALLOC 64
 
+struct shadow_entry_t
+{
+  LLVMValueRef key;
+  LLVMValueRef shadow;
+};
+
+static size_t shadow_entry_hash(shadow_entry_t* e)
+{
+  return ponyint_hash_ptr(e->key);
+}
+
+static bool shadow_entry_cmp(shadow_entry_t* a, shadow_entry_t* b)
+{
+  return a->key == b->key;
+}
+
+static void shadow_entry_free(shadow_entry_t* e)
+{
+  POOL_FREE(shadow_entry_t, e);
+}
+
+DEFINE_HASHMAP(shadow_map, shadow_map_t, shadow_entry_t,
+  shadow_entry_hash, shadow_entry_cmp, shadow_entry_free);
+
 void mutate_init(mutate_state_t* state)
 {
   state->mutants = (mutant_record_t*)ponyint_pool_alloc_size(
@@ -363,6 +387,33 @@ LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
+  if((mutate_shadow_get(c, l_value) != NULL)
+      && (mutate_shadow_get(c, r_value) != NULL))
+  {
+    bool fp = is_fp(l_value);
+    LLVMValueRef result = fp
+      ? orig_f(c->builder, l_value, r_value, "")
+      : orig_i(c->builder, l_value, r_value, "");
+
+    LLVMValueRef cr_result =
+      mutate_cr_binop(c, ast, left, right,
+        l_value, r_value, result, orig_f, orig_i);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    LLVMValueRef shadow = fp
+      ? orig_f(c->builder, l_shadow, r_shadow, "")
+      : orig_i(c->builder, l_shadow, r_shadow, "");
+    if(LLVMIsConstant(shadow))
+      mutate_shadow_set(c, cr_result, shadow);
+
+    LLVMValueRef final_result = mutate_uoi_insert(c, ast, cr_result);
+    if(LLVMIsConstant(shadow))
+      mutate_shadow_set(c, final_result, shadow);
+
+    return final_result;
+  }
+
   bool fp = is_fp(l_value);
   LLVMTypeRef result_type = LLVMTypeOf(l_value);
 
@@ -450,7 +501,20 @@ LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
   LLVMValueRef cr_result =
     mutate_cr_binop(c, ast, left, right,
       l_value, r_value, phi, orig_f, orig_i);
-  return mutate_uoi_insert(c, ast, cr_result);
+  LLVMValueRef final_result = mutate_uoi_insert(c, ast, cr_result);
+
+  LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+  LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+  if((l_shadow != NULL) && (r_shadow != NULL))
+  {
+    LLVMValueRef shadow = fp
+      ? orig_f(c->builder, l_shadow, r_shadow, "")
+      : orig_i(c->builder, l_shadow, r_shadow, "");
+    if(LLVMIsConstant(shadow))
+      mutate_shadow_set(c, final_result, shadow);
+  }
+
+  return final_result;
 }
 
 LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
@@ -476,6 +540,38 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
 
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
+
+  if((mutate_shadow_get(c, l_value) != NULL)
+      && (mutate_shadow_get(c, r_value) != NULL))
+  {
+    LLVMValueRef result = make_divrem_inner(c, l_value, r_value, sign,
+      orig_f, orig_ui, orig_si, safe, is_div);
+
+    LLVMValueRef cr_result = mutate_cr_divrem(c, ast, left, right,
+      l_value, r_value, result, sign, safe, is_div,
+      orig_f, orig_ui, orig_si);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    LLVMValueRef shadow = NULL;
+    if(is_fp(l_value))
+      shadow = orig_f(c->builder, l_shadow, r_shadow, "");
+    else if(!safe)
+    {
+      if(sign)
+        shadow = orig_si(c->builder, l_shadow, r_shadow, "");
+      else
+        shadow = orig_ui(c->builder, l_shadow, r_shadow, "");
+    }
+    if((shadow != NULL) && LLVMIsConstant(shadow))
+      mutate_shadow_set(c, cr_result, shadow);
+
+    LLVMValueRef final_result = mutate_uoi_insert(c, ast, cr_result);
+    if((shadow != NULL) && LLVMIsConstant(shadow))
+      mutate_shadow_set(c, final_result, shadow);
+
+    return final_result;
+  }
 
   LLVMTypeRef result_type = LLVMTypeOf(l_value);
 
@@ -564,7 +660,27 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
   LLVMValueRef cr_result = mutate_cr_divrem(c, ast, left, right,
     l_value, r_value, phi, sign, safe, is_div,
     orig_f, orig_ui, orig_si);
-  return mutate_uoi_insert(c, ast, cr_result);
+  LLVMValueRef final_result = mutate_uoi_insert(c, ast, cr_result);
+
+  LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+  LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+  if((l_shadow != NULL) && (r_shadow != NULL))
+  {
+    LLVMValueRef shadow = NULL;
+    if(is_fp(l_value))
+      shadow = orig_f(c->builder, l_shadow, r_shadow, "");
+    else if(!safe)
+    {
+      if(sign)
+        shadow = orig_si(c->builder, l_shadow, r_shadow, "");
+      else
+        shadow = orig_ui(c->builder, l_shadow, r_shadow, "");
+    }
+    if((shadow != NULL) && LLVMIsConstant(shadow))
+      mutate_shadow_set(c, final_result, shadow);
+  }
+
+  return final_result;
 }
 
 LLVMValueRef mutate_cmp_values(compile_t* c, ast_t* ast,
@@ -574,6 +690,11 @@ LLVMValueRef mutate_cmp_values(compile_t* c, ast_t* ast,
   mutate_cmp_variant_t* variants, size_t count)
 {
   pony_assert(count > 0);
+
+  if((mutate_shadow_get(c, l_value) != NULL)
+      && (mutate_shadow_get(c, r_value) != NULL))
+    return make_cmp_value(c, sign, l_value, r_value,
+      orig_f, orig_si, orig_ui, safe);
 
   source_t* source = ast_source(ast);
   const char* file =
@@ -681,6 +802,9 @@ LLVMValueRef mutate_unary(compile_t* c, ast_t* ast,
   mutate_unary_variant_t* variants, size_t count)
 {
   pony_assert(count > 0);
+
+  if(mutate_shadow_get(c, operand) != NULL)
+    return original_result;
 
   bool fp = is_fp(operand);
 
@@ -939,6 +1063,9 @@ LLVMValueRef mutate_uoi_insert(compile_t* c, ast_t* ast,
   LLVMValueRef result)
 {
   if(!mutate_site_enabled(c, "uoi", ast))
+    return result;
+
+  if(mutate_shadow_get(c, result) != NULL)
     return result;
 
   LLVMTypeRef val_type = LLVMTypeOf(result);
@@ -2209,6 +2336,45 @@ LLVMValueRef mutate_cr_unary(compile_t* c, ast_t* ast,
 
   return phi;
   #undef MAX_CR_VARIANTS
+}
+
+LLVMValueRef mutate_shadow_get(compile_t* c, LLVMValueRef val)
+{
+  if(val == NULL)
+    return NULL;
+
+  if(LLVMIsConstant(val))
+    return val;
+
+  shadow_entry_t key;
+  key.key = val;
+  size_t index = HASHMAP_UNKNOWN;
+  shadow_entry_t* found = shadow_map_get(&c->shadow_map, &key, &index);
+  if(found != NULL)
+    return found->shadow;
+
+  return NULL;
+}
+
+void mutate_shadow_set(compile_t* c, LLVMValueRef val, LLVMValueRef shadow)
+{
+  if((val == NULL) || (shadow == NULL))
+    return;
+
+  if(LLVMIsConstant(val))
+    return;
+
+  shadow_entry_t* entry = POOL_ALLOC(shadow_entry_t);
+  entry->key = val;
+  entry->shadow = shadow;
+
+  shadow_map_put(&c->shadow_map, entry);
+}
+
+void mutate_shadow_clear(compile_t* c)
+{
+  shadow_map_destroy(&c->shadow_map);
+  shadow_map_init(&c->shadow_map, 0);
 }
 
 LLVMValueRef mutate_declare_selector(compile_t* c)
