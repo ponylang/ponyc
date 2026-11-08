@@ -2841,10 +2841,10 @@ TEST_F(GenMutateCodegenTest, IndependenceNegBranchConditional)
 }
 
 
-TEST_F(GenMutateCodegenTest, ShortCircuitShadowConstantFalseAnd)
+TEST_F(GenMutateCodegenTest, ShortCircuitConstFoldLeftSuppressesUoi)
 {
   // not (false and (x > 0)): left is constant false, so the and
-  // short-circuits. The outer not has a constant shadow, so no UOI.
+  // constant-folds. The outer not has a constant operand, so no UOI.
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
@@ -2868,10 +2868,10 @@ TEST_F(GenMutateCodegenTest, ShortCircuitShadowConstantFalseAnd)
 }
 
 
-TEST_F(GenMutateCodegenTest, ShortCircuitShadowVariableLeftAnd)
+TEST_F(GenMutateCodegenTest, ShortCircuitVariableAllowsUoi)
 {
   // not ((x > 0) and (x < 100)): both sides are variable, so
-  // the result has no shadow and UOI fires on the outer not.
+  // the result is non-constant and UOI fires on the outer not.
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
@@ -2894,12 +2894,11 @@ TEST_F(GenMutateCodegenTest, ShortCircuitShadowVariableLeftAnd)
 }
 
 
-TEST_F(GenMutateCodegenTest, ShortCircuitShadowConstantRightAnd)
+TEST_F(GenMutateCodegenTest, ShortCircuitConstFoldRightSuppressesUoi)
 {
   // not ((x > 0) and false): right is constant false.
-  // Both branches of the and produce false (short-circuit: left false →
-  // false; fall-through: true and false → false), so the phi has a
-  // constant shadow and UOI does not fire on the outer not.
+  // The right-constant optimization at the phi returns false directly,
+  // so the outer not has a constant operand and UOI does not fire.
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
