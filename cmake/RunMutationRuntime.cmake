@@ -390,7 +390,7 @@ endif()
 
 message(STATUS "PASS: CR arithmetic mutant ${_cr_arith_id} exits 1")
 
-# --- CR divrem: find a cr mutant for "a % 2" ---
+# --- CR divrem: find a cr mutant for "a % 3" ---
 execute_process(
     COMMAND grep -n "let cr_rem" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _cr_div_src

@@ -82,9 +82,9 @@ actor Main
       env.exitcode(1)
     end
 
-    // CR divrem: literal 2 in a % 2.
-    let cr_rem: U64 = a % 2  // 3 % 2 = 1
-    if cr_rem != U64(1) then
+    // CR divrem: literal 3 in a % 3.
+    let cr_rem: U64 = a % 3  // 3 % 3 = 0
+    if cr_rem != U64(0) then
       env.exitcode(1)
     end
 
