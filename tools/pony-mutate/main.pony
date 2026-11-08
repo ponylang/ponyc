@@ -127,8 +127,14 @@ actor Main
       let reporter: Reporter val =
         if output_format == "json" then
           StrykerReporter
-        else
+        elseif output_format == "terminal" then
           TerminalReporter
+        else
+          env.err.print(
+            "error: unknown format '" + output_format +
+              "' (expected 'terminal' or 'json')")
+          env.exitcode(1)
+          return
         end
 
       let binary_path = FilePath(auth, binary)
