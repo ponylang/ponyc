@@ -13,6 +13,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <set>
 
 #include "llvm_config_begin.h"
 
@@ -331,6 +332,87 @@ protected:
         return true;
     }
     return false;
+  }
+
+  bool has_mutant_at(size_t line, size_t col, const char* category,
+    const char* original, const char* replacement)
+  {
+    for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+    {
+      mutant_record_t* r = &compile->mutate.mutants[i];
+      if(r->line == line && r->column == col &&
+        strcmp(r->category, category) == 0 &&
+        strcmp(r->original, original) == 0 &&
+        strcmp(r->replacement, replacement) == 0)
+        return true;
+    }
+    return false;
+  }
+
+  size_t count_category_at(size_t line, const char* category)
+  {
+    size_t count = 0;
+    for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+    {
+      mutant_record_t* r = &compile->mutate.mutants[i];
+      if(r->line == line && strcmp(r->category, category) == 0)
+        count++;
+    }
+    return count;
+  }
+
+  struct mutant_key
+  {
+    std::string file;
+    size_t line;
+    size_t column;
+    std::string category;
+    std::string original;
+    std::string replacement;
+
+    bool operator<(const mutant_key& o) const
+    {
+      if(file != o.file) return file < o.file;
+      if(line != o.line) return line < o.line;
+      if(column != o.column) return column < o.column;
+      if(category != o.category) return category < o.category;
+      if(original != o.original) return original < o.original;
+      return replacement < o.replacement;
+    }
+
+    bool operator==(const mutant_key& o) const
+    {
+      return file == o.file && line == o.line && column == o.column &&
+        category == o.category && original == o.original &&
+        replacement == o.replacement;
+    }
+  };
+
+  std::set<mutant_key> collect_category(const char* category)
+  {
+    std::set<mutant_key> result;
+    for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+    {
+      mutant_record_t* r = &compile->mutate.mutants[i];
+      if(strcmp(r->category, category) == 0)
+      {
+        result.insert({r->file, r->line, r->column,
+          r->category, r->original, r->replacement});
+      }
+    }
+    return result;
+  }
+
+  std::set<mutant_key> collect_all()
+  {
+    std::set<mutant_key> result;
+    for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+    {
+      mutant_record_t* r = &compile->mutate.mutants[i];
+      result.insert({r->file, r->line, r->column,
+        r->category, r->original, r->replacement});
+    }
+    return result;
   }
 };
 
@@ -2318,4 +2400,272 @@ TEST_F(GenMutateCodegenTest, AmrAndUoiTogether)
   ASSERT_GT(compile->mutate.mutant_count, 0u);
   ASSERT_TRUE(has_mutant("uoi", "neg", "identity"));
   ASSERT_TRUE(has_mutant("amr", "neg", "neg_unsafe"));
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2ConstantAddNoAor)
+{
+  const char* src =
+    "actor Main\n"                   // line 1
+    "  new create(env: Env) =>\n"    // line 2
+    "    let x: U64 = 3 + 2\n";     // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_EQ(count_category_at(3, "aor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2ConstantAddHasCr)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 3 + 2\n";     // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at(3, "cr"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2ConstantAddNoUoi)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 3 + 2\n";     // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_UOI;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_EQ(count_category_at(3, "uoi"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2VariableAddHasAor)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y + 1\n";     // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at(4, "aor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2NestedConstantNoAor)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = (1 + 2) * 3\n";  // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_EQ(count_category_at(3, "aor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2ConstantShiftNoSor)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 1 << 4\n";    // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_SOR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_EQ(count_category_at(3, "sor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2ConstantBitwiseNoBor)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 0xFF and 0x0F\n";  // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_BOR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_EQ(count_category_at(3, "bor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2VariableCmpHasRor)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 3\n"          // line 3
+    "    let y: Bool = x == 3\n";   // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_ROR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at(4, "ror"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2VariableShiftHasSor)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 3\n"
+    "    let x: U64 = y << 4\n";    // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_SOR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at(4, "sor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, CrIndependenceAdd)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y + 5\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  auto cr_only = collect_category("cr");
+
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+  auto cr_all = collect_category("cr");
+
+  ASSERT_EQ(cr_only, cr_all);
+}
+
+
+TEST_F(GenMutateCodegenTest, CrIndependenceNested)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y + (1 + 2)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  auto cr_only = collect_category("cr");
+
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+  auto cr_all = collect_category("cr");
+
+  ASSERT_EQ(cr_only, cr_all);
+}
+
+
+TEST_F(GenMutateCodegenTest, CrIndependenceShift)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y << 4\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  auto cr_only = collect_category("cr");
+
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+  auto cr_all = collect_category("cr");
+
+  ASSERT_EQ(cr_only, cr_all);
+}
+
+
+TEST_F(GenMutateCodegenTest, CrAtShiftOperands)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 1 << 0\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "lhs", "1->0"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "0->1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, CrAtComparison)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: Bool = y == 0\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "rhs", "0->1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, ConstructorCallNotCrTarget)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x = U64(10) + U64(5)\n";  // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("aor", "add", "sub"));
+  ASSERT_FALSE(has_mutant("cr", "lhs", "n->n+1"));
+  ASSERT_FALSE(has_mutant("cr", "rhs", "n->n+1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2AllCategoriesOnConstantExpr)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 3 + 2\n";     // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at(3, "cr"), 0u);
+  ASSERT_EQ(count_category_at(3, "aor"), 0u);
+  ASSERT_EQ(count_category_at(3, "uoi"), 0u);
+  ASSERT_EQ(count_category_at(3, "amr"), 0u);
 }
