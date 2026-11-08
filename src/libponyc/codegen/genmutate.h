@@ -152,9 +152,11 @@ bool mutate_vcr_begin(compile_t* c, ast_t* ast,
 LLVMValueRef mutate_vcr_end(compile_t* c, LLVMValueRef call_result,
   LLVMBasicBlockRef skip_bb, LLVMBasicBlockRef merge_bb);
 
-// Emit constant-replacement mutations for binary operator operands. Returns
-// original_result unchanged if no compile-time constants are found.
+// Emit constant-replacement mutations for binary operator operands.
+// left_ast/right_ast are the operand AST nodes (may be TK_SEQ-wrapped).
+// Returns original_result unchanged if no operand is a source literal.
 LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
+  ast_t* left_ast, ast_t* right_ast,
   LLVMValueRef l_value, LLVMValueRef r_value,
   LLVMValueRef original_result,
   LLVMValueRef (*build_f)(LLVMBuilderRef, LLVMValueRef, LLVMValueRef,
@@ -162,10 +164,12 @@ LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
   LLVMValueRef (*build_i)(LLVMBuilderRef, LLVMValueRef, LLVMValueRef,
     const char*));
 
-// Emit constant-replacement mutations for div/rem operands. Each variant
-// is built through make_divrem_inner so division by a mutated-to-zero
-// constant gets Pony's safe-division semantics.
+// Emit constant-replacement mutations for div/rem operands.
+// left_ast/right_ast are the operand AST nodes. Each variant is built
+// through make_divrem_inner so division by a mutated-to-zero constant
+// gets Pony's safe-division semantics.
 LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
+  ast_t* left_ast, ast_t* right_ast,
   LLVMValueRef l_value, LLVMValueRef r_value,
   LLVMValueRef original_result,
   bool sign, bool safe, bool is_div,
@@ -175,6 +179,9 @@ LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
     const char*),
   LLVMValueRef (*build_si)(LLVMBuilderRef, LLVMValueRef, LLVMValueRef,
     const char*));
+
+// Check whether an AST node (after unwrapping TK_SEQ) is a numeric literal.
+bool mutate_is_literal(ast_t* ast);
 
 // Declare the @pony_mutant_selector i32 global in the current module.
 LLVMValueRef mutate_declare_selector(compile_t* c);

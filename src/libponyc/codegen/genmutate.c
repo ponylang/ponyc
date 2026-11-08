@@ -3,7 +3,9 @@
 #include "genexpr.h"
 #include "genoperator.h"
 #include "../ast/ast.h"
+#include "../ast/lexint.h"
 #include "../ast/source.h"
+#include "../ast/token.h"
 #include "../pass/pass.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
@@ -446,7 +448,8 @@ LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
   ponyint_pool_free_size(phi_count * sizeof(LLVMBasicBlockRef), phi_bbs);
 
   LLVMValueRef cr_result =
-    mutate_cr_binop(c, ast, l_value, r_value, phi, orig_f, orig_i);
+    mutate_cr_binop(c, ast, left, right,
+      l_value, r_value, phi, orig_f, orig_i);
   return mutate_uoi_insert(c, ast, cr_result);
 }
 
@@ -558,7 +561,7 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
   ponyint_pool_free_size(phi_count * sizeof(LLVMValueRef), phi_vals);
   ponyint_pool_free_size(phi_count * sizeof(LLVMBasicBlockRef), phi_bbs);
 
-  LLVMValueRef cr_result = mutate_cr_divrem(c, ast,
+  LLVMValueRef cr_result = mutate_cr_divrem(c, ast, left, right,
     l_value, r_value, phi, sign, safe, is_div,
     orig_f, orig_ui, orig_si);
   return mutate_uoi_insert(c, ast, cr_result);
@@ -1285,35 +1288,73 @@ LLVMValueRef mutate_vcr_end(compile_t* c, LLVMValueRef call_result,
   return phi;
 }
 
-// Collect constant-replacement variants for one operand. The caller must
-// recompute the operation with each replacement value.
-static size_t cr_variants_for_operand(LLVMValueRef operand,
+static ast_t* cr_unwrap_seq(ast_t* ast)
+{
+  if(ast == NULL)
+    return NULL;
+
+  while((ast_id(ast) == TK_SEQ) && (ast_childcount(ast) == 1))
+    ast = ast_child(ast);
+
+  return ast;
+}
+
+static bool cr_is_literal(ast_t* ast)
+{
+  if(ast == NULL)
+    return false;
+
+  ast = cr_unwrap_seq(ast);
+  token_id id = ast_id(ast);
+  return (id == TK_INT) || (id == TK_FLOAT);
+}
+
+bool mutate_is_literal(ast_t* ast)
+{
+  return cr_is_literal(ast);
+}
+
+static size_t cr_variants_for_operand(ast_t* operand_ast,
+  LLVMValueRef operand,
   LLVMValueRef* out_vals, const char** out_labels, size_t max_variants)
 {
+  if(operand_ast == NULL)
+    return 0;
+
+  ast_t* lit = cr_unwrap_seq(operand_ast);
+  token_id tk = ast_id(lit);
+
+  if((tk != TK_INT) && (tk != TK_FLOAT))
+    return 0;
+
   size_t n = 0;
   LLVMTypeRef type = LLVMTypeOf(operand);
+  LLVMTypeKind kind = LLVMGetTypeKind(type);
 
-  if(LLVMIsAConstantInt(operand))
+  if(tk == TK_INT)
   {
-    long long val = LLVMConstIntGetSExtValue(operand);
-
+    if((kind == LLVMFloatTypeKind) || (kind == LLVMDoubleTypeKind) ||
+       (kind == LLVMHalfTypeKind))
     {
-      // Integer: 0↔1, n→n+1, n→n-1
-      if(val == 0)
+      double val = 0.0;
+      LLVMBool loses_info;
+      val = LLVMConstRealGetDouble(operand, &loses_info);
+
+      if(val == 0.0)
       {
         if(n < max_variants)
         {
-          out_vals[n] = LLVMConstInt(type, 1, false);
-          out_labels[n] = "0->1";
+          out_vals[n] = LLVMConstReal(type, 1.0);
+          out_labels[n] = "0.0->1.0";
           n++;
         }
       }
-      else if(val == 1)
+      else if(val == 1.0)
       {
         if(n < max_variants)
         {
-          out_vals[n] = LLVMConstInt(type, 0, false);
-          out_labels[n] = "1->0";
+          out_vals[n] = LLVMConstReal(type, 0.0);
+          out_labels[n] = "1.0->0.0";
           n++;
         }
       }
@@ -1321,30 +1362,78 @@ static size_t cr_variants_for_operand(LLVMValueRef operand,
       {
         if(n < max_variants)
         {
-          out_vals[n] = LLVMConstInt(type, (unsigned long long)(val + 1), true);
-          out_labels[n] = "n->n+1";
-          n++;
-        }
-        if(n < max_variants)
-        {
-          out_vals[n] = LLVMConstInt(type, (unsigned long long)(val - 1), true);
-          out_labels[n] = "n->n-1";
+          out_vals[n] = LLVMConstReal(type, -val);
+          out_labels[n] = "x->-x";
           n++;
         }
       }
+      return n;
+    }
+
+    pony_assert(kind == LLVMIntegerTypeKind);
+    unsigned width = LLVMGetIntTypeWidth(type);
+
+    lexint_t* value = ast_int(lit);
+    lexint_t one;
+    lexint_zero(&one);
+    one.low = 1;
+
+    lexint_t zero;
+    lexint_zero(&zero);
+
+    if(lexint_cmp(value, &zero) == 0)
+    {
+      if(n < max_variants)
+      {
+        out_vals[n] = LLVMConstInt(type, 1, false);
+        out_labels[n] = "0->1";
+        n++;
+      }
+    }
+    else if(lexint_cmp(value, &one) == 0)
+    {
+      if(n < max_variants)
+      {
+        out_vals[n] = LLVMConstInt(type, 0, false);
+        out_labels[n] = "1->0";
+        n++;
+      }
+    }
+    else
+    {
+      if(n < max_variants)
+      {
+        lexint_t plus;
+        lexint_add64(&plus, value, 1);
+        uint64_t words_p[2] = { plus.low, plus.high };
+        if(width <= 64)
+          out_vals[n] = LLVMConstInt(type, plus.low, false);
+        else
+          out_vals[n] = LLVMConstIntOfArbitraryPrecision(type, 2, words_p);
+        out_labels[n] = "n->n+1";
+        n++;
+      }
+      if(n < max_variants)
+      {
+        lexint_t minus;
+        lexint_sub64(&minus, value, 1);
+        uint64_t words_m[2] = { minus.low, minus.high };
+        if(width <= 64)
+          out_vals[n] = LLVMConstInt(type, minus.low, false);
+        else
+          out_vals[n] = LLVMConstIntOfArbitraryPrecision(type, 2, words_m);
+        out_labels[n] = "n->n-1";
+        n++;
+      }
     }
   }
-  else if(LLVMIsAConstantFP(operand))
+  else
   {
+    pony_assert(tk == TK_FLOAT);
+
     double val = 0.0;
     LLVMBool loses_info;
-
-    if(LLVMGetTypeKind(type) == LLVMFloatTypeKind)
-      val = (double)LLVMConstRealGetDouble(operand, &loses_info);
-    else if(LLVMGetTypeKind(type) == LLVMDoubleTypeKind)
-      val = LLVMConstRealGetDouble(operand, &loses_info);
-    else if(LLVMGetTypeKind(type) == LLVMHalfTypeKind)
-      val = LLVMConstRealGetDouble(operand, &loses_info);
+    val = LLVMConstRealGetDouble(operand, &loses_info);
 
     if(val == 0.0)
     {
@@ -1379,6 +1468,7 @@ static size_t cr_variants_for_operand(LLVMValueRef operand,
 }
 
 LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
+  ast_t* left_ast, ast_t* right_ast,
   LLVMValueRef l_value, LLVMValueRef r_value,
   LLVMValueRef original_result,
   LLVMValueRef (*build_f)(LLVMBuilderRef, LLVMValueRef, LLVMValueRef,
@@ -1392,13 +1482,13 @@ LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
   #define MAX_CR_VARIANTS 8
   LLVMValueRef l_alts[MAX_CR_VARIANTS];
   const char* l_labels[MAX_CR_VARIANTS];
-  size_t l_count = cr_variants_for_operand(l_value, l_alts, l_labels,
-    MAX_CR_VARIANTS);
+  size_t l_count = cr_variants_for_operand(left_ast, l_value,
+    l_alts, l_labels, MAX_CR_VARIANTS);
 
   LLVMValueRef r_alts[MAX_CR_VARIANTS];
   const char* r_labels[MAX_CR_VARIANTS];
-  size_t r_count = cr_variants_for_operand(r_value, r_alts, r_labels,
-    MAX_CR_VARIANTS);
+  size_t r_count = cr_variants_for_operand(right_ast, r_value,
+    r_alts, r_labels, MAX_CR_VARIANTS);
 
   size_t total = l_count + r_count;
   if(total == 0)
@@ -1529,6 +1619,7 @@ LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
 }
 
 LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
+  ast_t* left_ast, ast_t* right_ast,
   LLVMValueRef l_value, LLVMValueRef r_value,
   LLVMValueRef original_result,
   bool sign, bool safe, bool is_div,
@@ -1545,13 +1636,13 @@ LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
   #define MAX_CR_VARIANTS 8
   LLVMValueRef l_alts[MAX_CR_VARIANTS];
   const char* l_labels[MAX_CR_VARIANTS];
-  size_t l_count = cr_variants_for_operand(l_value, l_alts, l_labels,
-    MAX_CR_VARIANTS);
+  size_t l_count = cr_variants_for_operand(left_ast, l_value,
+    l_alts, l_labels, MAX_CR_VARIANTS);
 
   LLVMValueRef r_alts[MAX_CR_VARIANTS];
   const char* r_labels[MAX_CR_VARIANTS];
-  size_t r_count = cr_variants_for_operand(r_value, r_alts, r_labels,
-    MAX_CR_VARIANTS);
+  size_t r_count = cr_variants_for_operand(right_ast, r_value,
+    r_alts, r_labels, MAX_CR_VARIANTS);
 
   size_t total = l_count + r_count;
   if(total == 0)

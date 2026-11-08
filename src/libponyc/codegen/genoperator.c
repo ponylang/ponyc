@@ -69,7 +69,7 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
 
   if(c->opt->mutate && (mutate_ast != NULL))
   {
-    result = mutate_cr_binop(c, mutate_ast,
+    result = mutate_cr_binop(c, mutate_ast, left, right,
       l_value, r_value, result, build_f, build_i);
     result = mutate_uoi_insert(c, mutate_ast, result);
   }
@@ -198,7 +198,7 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
 
   if(c->opt->mutate && (mutate_ast != NULL))
   {
-    result = mutate_cr_divrem(c, mutate_ast,
+    result = mutate_cr_divrem(c, mutate_ast, left, right,
       l_value, r_value, result, sign, safe, is_div,
       build_f, build_ui, build_si);
     result = mutate_uoi_insert(c, mutate_ast, result);
@@ -1266,7 +1266,7 @@ LLVMValueRef gen_and(compile_t* c, ast_t* left, ast_t* right)
 
   if(c->opt->mutate && (mutate_ast != NULL))
   {
-    result = mutate_cr_binop(c, mutate_ast,
+    result = mutate_cr_binop(c, mutate_ast, left, right,
       l_value, r_value, result, LLVMBuildAnd, LLVMBuildAnd);
     result = mutate_uoi_insert(c, mutate_ast, result);
   }
@@ -1298,7 +1298,7 @@ LLVMValueRef gen_or(compile_t* c, ast_t* left, ast_t* right)
 
   if(c->opt->mutate && (mutate_ast != NULL))
   {
-    result = mutate_cr_binop(c, mutate_ast,
+    result = mutate_cr_binop(c, mutate_ast, left, right,
       l_value, r_value, result, LLVMBuildOr, LLVMBuildOr);
     result = mutate_uoi_insert(c, mutate_ast, result);
   }
@@ -1335,7 +1335,7 @@ LLVMValueRef gen_xor(compile_t* c, ast_t* left, ast_t* right)
 
   if(c->opt->mutate && (mutate_ast != NULL))
   {
-    result = mutate_cr_binop(c, mutate_ast,
+    result = mutate_cr_binop(c, mutate_ast, left, right,
       l_value, r_value, result, LLVMBuildXor, LLVMBuildXor);
     result = mutate_uoi_insert(c, mutate_ast, result);
   }
