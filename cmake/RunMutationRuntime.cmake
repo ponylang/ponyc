@@ -177,3 +177,48 @@ if(NOT _amr_id MATCHES "^[0-9]+$")
 endif()
 
 message(STATUS "PASS: AMR mutant ${_amr_id} (add->add_unsafe) recorded in JSON")
+
+# --- CR: find the n->n+1 mutant for the literal 5 in "result == 5" ---
+# Find the line number of "result == 5" in the test source.
+execute_process(
+    COMMAND grep -n "result == 5 then" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _cr_src_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_src_line)
+    message(FATAL_ERROR "could not find 'result == 5' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _cr_lineno "${_cr_src_line}")
+
+# Match the CR mutant (n->n+1) on that line.
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_cr_lineno}.*cr.*n->n.1" "${_json}"
+    OUTPUT_VARIABLE _cr_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_line)
+    message(FATAL_ERROR
+        "could not find cr n->n+1 mutant on line ${_cr_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _cr_id "${_cr_line}")
+if(NOT _cr_id MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "could not extract CR mutant ID from: ${_cr_line}")
+endif()
+
+message(STATUS "Using CR mutant ID: ${_cr_id}")
+
+set(ENV{PONY_MUTANT_ID} "${_cr_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "CR mutated run exited ${_rc}, expected 1")
+endif()
+
+message(STATUS "PASS: CR mutant ${_cr_id} (n->n+1) exits 1")

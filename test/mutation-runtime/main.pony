@@ -45,6 +45,14 @@ actor Main
       env.exitcode(1)
     end
 
+    // Exercise CR: a literal in a comparison.
+    // result (5) == 5 is true; CR mutant 5->6 or 5->4 makes it false.
+    if result == 5 then
+      None
+    else
+      env.exitcode(1)
+    end
+
   fun _compute(x: U64, y: U64): U64 =>
     x + y
 

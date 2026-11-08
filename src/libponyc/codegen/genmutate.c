@@ -370,6 +370,37 @@ bool mutate_site_enabled(compile_t* c, const char* category, ast_t* ast)
   return true;
 }
 
+LLVMValueRef mutate_safe_divrem_shadow(LLVMBuilderRef builder,
+  LLVMValueRef l_shadow, LLVMValueRef r_shadow, bool sign, bool is_div,
+  build_binop build_ui, build_binop build_si)
+{
+  if(!sign)
+    return build_ui(builder, l_shadow, r_shadow, "");
+
+  LLVMTypeRef r_type = LLVMTypeOf(r_shadow);
+  uint64_t width = LLVMGetIntTypeWidth(r_type);
+  long long r_const = LLVMConstIntGetSExtValue(r_shadow);
+
+  if(r_const == -1)
+  {
+    long long l_const = LLVMConstIntGetSExtValue(l_shadow);
+    long long min_val = (width == 64)
+      ? (long long)INT64_MIN
+      : -(1LL << (width - 1));
+
+    if(l_const == min_val)
+      return is_div
+        ? LLVMConstInt(r_type, (uint64_t)min_val, true)
+        : LLVMConstInt(r_type, 0, false);
+  }
+
+  if(r_const == 0)
+    return LLVMConstInt(r_type, 0, false);
+
+  return build_si(builder, l_shadow, r_shadow, "");
+}
+
+
 LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
   ast_t* left, ast_t* right,
   LLVMValueRef (*orig_f)(LLVMBuilderRef, LLVMValueRef, LLVMValueRef,
@@ -407,7 +438,8 @@ LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
     if(LLVMIsConstant(shadow))
       mutate_shadow_set(c, cr_result, shadow);
 
-    LLVMValueRef final_result = mutate_uoi_insert(c, ast, cr_result);
+    LLVMValueRef final_result =
+      mutate_uoi_insert(c, ast, cr_result, l_value, r_value);
     if(LLVMIsConstant(shadow))
       mutate_shadow_set(c, final_result, shadow);
 
@@ -501,7 +533,8 @@ LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
   LLVMValueRef cr_result =
     mutate_cr_binop(c, ast, left, right,
       l_value, r_value, phi, orig_f, orig_i);
-  LLVMValueRef final_result = mutate_uoi_insert(c, ast, cr_result);
+  LLVMValueRef final_result =
+    mutate_uoi_insert(c, ast, cr_result, l_value, r_value);
 
   LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
   LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
@@ -553,21 +586,18 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
 
     LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
     LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
-    LLVMValueRef shadow = NULL;
+    LLVMValueRef shadow;
     if(is_fp(l_value))
       shadow = orig_f(c->builder, l_shadow, r_shadow, "");
-    else if(!safe)
-    {
-      if(sign)
-        shadow = orig_si(c->builder, l_shadow, r_shadow, "");
-      else
-        shadow = orig_ui(c->builder, l_shadow, r_shadow, "");
-    }
-    if((shadow != NULL) && LLVMIsConstant(shadow))
+    else
+      shadow = mutate_safe_divrem_shadow(c->builder, l_shadow, r_shadow,
+        sign, is_div, orig_ui, orig_si);
+    if(LLVMIsConstant(shadow))
       mutate_shadow_set(c, cr_result, shadow);
 
-    LLVMValueRef final_result = mutate_uoi_insert(c, ast, cr_result);
-    if((shadow != NULL) && LLVMIsConstant(shadow))
+    LLVMValueRef final_result =
+      mutate_uoi_insert(c, ast, cr_result, l_value, r_value);
+    if(LLVMIsConstant(shadow))
       mutate_shadow_set(c, final_result, shadow);
 
     return final_result;
@@ -660,23 +690,20 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
   LLVMValueRef cr_result = mutate_cr_divrem(c, ast, left, right,
     l_value, r_value, phi, sign, safe, is_div,
     orig_f, orig_ui, orig_si);
-  LLVMValueRef final_result = mutate_uoi_insert(c, ast, cr_result);
+  LLVMValueRef final_result =
+    mutate_uoi_insert(c, ast, cr_result, l_value, r_value);
 
   LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
   LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
   if((l_shadow != NULL) && (r_shadow != NULL))
   {
-    LLVMValueRef shadow = NULL;
+    LLVMValueRef shadow;
     if(is_fp(l_value))
       shadow = orig_f(c->builder, l_shadow, r_shadow, "");
-    else if(!safe)
-    {
-      if(sign)
-        shadow = orig_si(c->builder, l_shadow, r_shadow, "");
-      else
-        shadow = orig_ui(c->builder, l_shadow, r_shadow, "");
-    }
-    if((shadow != NULL) && LLVMIsConstant(shadow))
+    else
+      shadow = mutate_safe_divrem_shadow(c->builder, l_shadow, r_shadow,
+        sign, is_div, orig_ui, orig_si);
+    if(LLVMIsConstant(shadow))
       mutate_shadow_set(c, final_result, shadow);
   }
 
@@ -776,25 +803,6 @@ LLVMValueRef mutate_cmp_values(compile_t* c, ast_t* ast,
   return phi;
 }
 
-LLVMValueRef mutate_cmp(compile_t* c, ast_t* ast,
-  ast_t* left, ast_t* right,
-  LLVMRealPredicate orig_f, LLVMIntPredicate orig_si, LLVMIntPredicate orig_ui,
-  const char* original, const char* category, bool safe,
-  mutate_cmp_variant_t* variants, size_t count)
-{
-  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
-  bool sign = is_signed(type);
-  ast_free_unattached(type);
-
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  return mutate_cmp_values(c, ast, l_value, r_value, sign,
-    orig_f, orig_si, orig_ui, original, category, safe, variants, count);
-}
 
 LLVMValueRef mutate_unary(compile_t* c, ast_t* ast,
   LLVMValueRef operand, LLVMValueRef original_result,
@@ -906,8 +914,17 @@ LLVMValueRef mutate_unary(compile_t* c, ast_t* ast,
 
 static LLVMValueRef build_shift(LLVMBuilderRef builder,
   LLVMValueRef l_value, LLVMValueRef shift_amount,
-  bool is_shl, bool sign, bool safe)
+  bool is_shl, bool sign, bool safe, unsigned width)
 {
+  if(safe && (width > 0))
+  {
+    LLVMTypeRef r_type = LLVMTypeOf(shift_amount);
+    LLVMValueRef clamp = LLVMConstInt(r_type, width - 1, false);
+    LLVMValueRef cmp = LLVMBuildICmp(builder, LLVMIntULE, shift_amount,
+      clamp, "");
+    shift_amount = LLVMBuildSelect(builder, cmp, shift_amount, clamp, "");
+  }
+
   LLVMValueRef result;
 
   if(is_shl)
@@ -1004,7 +1021,7 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
 
   LLVMPositionBuilderAtEnd(c->builder, orig_bb);
   LLVMValueRef orig_result =
-    build_shift(c->builder, l_value, shift_amount, is_shl, sign, safe);
+    build_shift(c->builder, l_value, shift_amount, is_shl, sign, safe, 0);
   LLVMBuildBr(c->builder, merge_bb);
 
   size_t phi_count = 1 + var_count;
@@ -1020,7 +1037,7 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
     LLVMAddCase(sw, LLVMConstInt(c->i32, sor_id, false), var_bb);
     LLVMPositionBuilderAtEnd(c->builder, var_bb);
     LLVMValueRef var_result =
-      build_shift(c->builder, l_value, shift_amount, !is_shl, sign, safe);
+      build_shift(c->builder, l_value, shift_amount, !is_shl, sign, safe, 0);
     LLVMBuildBr(c->builder, merge_bb);
     phi_vals[idx] = var_result;
     phi_bbs[idx] = var_bb;
@@ -1033,18 +1050,8 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
     LLVMAddCase(sw, LLVMConstInt(c->i32, amr_id, false), var_bb);
     LLVMPositionBuilderAtEnd(c->builder, var_bb);
 
-    LLVMValueRef amr_shift = r_value;
-    if(!safe)
-    {
-      LLVMTypeRef r_type = LLVMTypeOf(r_value);
-      LLVMValueRef clamp = LLVMConstInt(r_type, width - 1, false);
-      LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntULE, r_value,
-        clamp, "");
-      amr_shift = LLVMBuildSelect(c->builder, cmp, r_value, clamp, "");
-    }
-
     LLVMValueRef var_result =
-      build_shift(c->builder, l_value, amr_shift, is_shl, sign, !safe);
+      build_shift(c->builder, l_value, r_value, is_shl, sign, !safe, width);
     LLVMBuildBr(c->builder, merge_bb);
     phi_vals[idx] = var_result;
     phi_bbs[idx] = var_bb;
@@ -1060,12 +1067,13 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
 
 
 LLVMValueRef mutate_uoi_insert(compile_t* c, ast_t* ast,
-  LLVMValueRef result)
+  LLVMValueRef result, LLVMValueRef l_value, LLVMValueRef r_value)
 {
   if(!mutate_site_enabled(c, "uoi", ast))
     return result;
 
-  if(mutate_shadow_get(c, result) != NULL)
+  if((mutate_shadow_get(c, l_value) != NULL)
+      && ((r_value == NULL) || (mutate_shadow_get(c, r_value) != NULL)))
     return result;
 
   LLVMTypeRef val_type = LLVMTypeOf(result);
@@ -1424,21 +1432,6 @@ static ast_t* cr_unwrap_seq(ast_t* ast)
     ast = ast_child(ast);
 
   return ast;
-}
-
-static bool cr_is_literal(ast_t* ast)
-{
-  if(ast == NULL)
-    return false;
-
-  ast = cr_unwrap_seq(ast);
-  token_id id = ast_id(ast);
-  return (id == TK_INT) || (id == TK_FLOAT);
-}
-
-bool mutate_is_literal(ast_t* ast)
-{
-  return cr_is_literal(ast);
 }
 
 static size_t cr_variants_for_operand(ast_t* operand_ast,
@@ -2028,18 +2021,8 @@ LLVMValueRef mutate_cr_shift(compile_t* c, ast_t* ast,
     LLVMValueRef new_l = (i < l_count) ? l_alts[i] : l_value;
     LLVMValueRef new_r = (i < l_count) ? r_value : r_alts[i - l_count];
 
-    LLVMValueRef shift_amount = new_r;
-    if(safe)
-    {
-      LLVMTypeRef r_type = LLVMTypeOf(new_r);
-      LLVMValueRef clamp = LLVMConstInt(r_type, width - 1, false);
-      LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntULE, new_r,
-        clamp, "");
-      shift_amount = LLVMBuildSelect(c->builder, cmp, new_r, clamp, "");
-    }
-
     LLVMValueRef var_result =
-      build_shift(c->builder, new_l, shift_amount, is_shl, sign, safe);
+      build_shift(c->builder, new_l, new_r, is_shl, sign, safe, width);
 
     LLVMBuildBr(c->builder, merge_bb);
     phi_vals[ui + 1] = var_result;
@@ -2368,7 +2351,9 @@ void mutate_shadow_set(compile_t* c, LLVMValueRef val, LLVMValueRef shadow)
   entry->key = val;
   entry->shadow = shadow;
 
-  shadow_map_put(&c->shadow_map, entry);
+  shadow_entry_t* old = shadow_map_put(&c->shadow_map, entry);
+  if(old != NULL)
+    POOL_FREE(shadow_entry_t, old);
 }
 
 void mutate_shadow_clear(compile_t* c)

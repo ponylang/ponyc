@@ -85,7 +85,7 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
         mutate_shadow_set(c, result, shadow);
     }
 
-    result = mutate_uoi_insert(c, mutate_ast, result);
+    result = mutate_uoi_insert(c, mutate_ast, result, l_value, r_value);
   }
   else if(c->opt->mutate)
   {
@@ -239,22 +239,18 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
 
     if((l_shadow != NULL) && (r_shadow != NULL))
     {
-      LLVMValueRef shadow = NULL;
+      LLVMValueRef shadow;
       if(is_fp(l_value))
         shadow = build_f(c->builder, l_shadow, r_shadow, "");
-      else if(!safe)
-      {
-        if(sign)
-          shadow = build_si(c->builder, l_shadow, r_shadow, "");
-        else
-          shadow = build_ui(c->builder, l_shadow, r_shadow, "");
-      }
-      if((shadow != NULL) && LLVMIsConstant(shadow))
+      else
+        shadow = mutate_safe_divrem_shadow(c->builder, l_shadow, r_shadow,
+          sign, is_div, build_ui, build_si);
+      if(LLVMIsConstant(shadow))
         mutate_shadow_set(c, result, shadow);
     }
 
     if(mutate_ast != NULL)
-      result = mutate_uoi_insert(c, mutate_ast, result);
+      result = mutate_uoi_insert(c, mutate_ast, result, l_value, r_value);
   }
 
   return result;
@@ -1481,7 +1477,7 @@ LLVMValueRef gen_and(compile_t* c, ast_t* left, ast_t* right)
     }
 
     if(mutate_ast != NULL)
-      result = mutate_uoi_insert(c, mutate_ast, result);
+      result = mutate_uoi_insert(c, mutate_ast, result, l_value, r_value);
   }
 
   return result;
@@ -1528,7 +1524,7 @@ LLVMValueRef gen_or(compile_t* c, ast_t* left, ast_t* right)
     }
 
     if(mutate_ast != NULL)
-      result = mutate_uoi_insert(c, mutate_ast, result);
+      result = mutate_uoi_insert(c, mutate_ast, result, l_value, r_value);
   }
 
   return result;
@@ -1580,7 +1576,7 @@ LLVMValueRef gen_xor(compile_t* c, ast_t* left, ast_t* right)
     }
 
     if(mutate_ast != NULL)
-      result = mutate_uoi_insert(c, mutate_ast, result);
+      result = mutate_uoi_insert(c, mutate_ast, result, l_value, r_value);
   }
 
   return result;
@@ -1779,13 +1775,6 @@ LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value,
 
   LLVMValueRef result = make_cmp_value(c, sign, l_value, r_value,
     LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
-
-  if((result != NULL) && c->opt->mutate && (mutate_ast != NULL))
-  {
-    result = mutate_cr_cmp(c, mutate_ast, left, NULL,
-      l_value, r_value, result, sign,
-      LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
-  }
 
   if((result != NULL) && c->opt->mutate)
   {

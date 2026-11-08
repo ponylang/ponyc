@@ -102,16 +102,8 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
   const char* original, const char* category,
   mutate_divrem_variant_t* variants, size_t count);
 
-// Emit switch/phi for a comparison mutation. Evaluates operands once;
-// result is always i1.
-LLVMValueRef mutate_cmp(compile_t* c, ast_t* ast,
-  ast_t* left, ast_t* right,
-  LLVMRealPredicate orig_f, LLVMIntPredicate orig_si, LLVMIntPredicate orig_ui,
-  const char* original, const char* category, bool safe,
-  mutate_cmp_variant_t* variants, size_t count);
-
-// Like mutate_cmp, but takes pre-evaluated operand values instead of AST
-// nodes. The source-location AST is used only for the JSON record.
+// Emit switch/phi for a comparison mutation. Takes pre-evaluated operand
+// values; the source-location AST is used only for the JSON record.
 LLVMValueRef mutate_cmp_values(compile_t* c, ast_t* ast,
   LLVMValueRef l_value, LLVMValueRef r_value, bool sign,
   LLVMRealPredicate orig_f, LLVMIntPredicate orig_si, LLVMIntPredicate orig_ui,
@@ -132,9 +124,10 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
   bool do_sor, bool do_amr);
 
 // Emit UOI-insertion mutations on an arithmetic result: negation for all
-// numeric types, bitwise complement for integers.
+// numeric types, bitwise complement for integers. Skips when both operands
+// are compile-time constants (Rule 2). r_value is NULL for unary operators.
 LLVMValueRef mutate_uoi_insert(compile_t* c, ast_t* ast,
-  LLVMValueRef result);
+  LLVMValueRef result, LLVMValueRef l_value, LLVMValueRef r_value);
 
 // Emit return-value-replacement mutation. Returns original_value unchanged
 // if the type has no known defaults. pony_type is the Pony-level return
@@ -205,8 +198,14 @@ LLVMValueRef mutate_cr_unary(compile_t* c, ast_t* ast,
   LLVMValueRef (*build_f)(LLVMBuilderRef, LLVMValueRef, const char*),
   LLVMValueRef (*build_i)(LLVMBuilderRef, LLVMValueRef, const char*));
 
-// Check whether an AST node (after unwrapping TK_SEQ) is a numeric literal.
-bool mutate_is_literal(ast_t* ast);
+// Compute the shadow for a safe integer divrem. Handles the min/-1 case
+// (div → min, rem → 0) and division by zero (→ 0) as pure constants.
+LLVMValueRef mutate_safe_divrem_shadow(LLVMBuilderRef builder,
+  LLVMValueRef l_shadow, LLVMValueRef r_shadow, bool sign, bool is_div,
+  LLVMValueRef (*build_ui)(LLVMBuilderRef, LLVMValueRef, LLVMValueRef,
+    const char*),
+  LLVMValueRef (*build_si)(LLVMBuilderRef, LLVMValueRef, LLVMValueRef,
+    const char*));
 
 // Return the constant a value would have without CR instrumentation.
 // An LLVM constant is its own shadow; a CR phi's shadow is the original.

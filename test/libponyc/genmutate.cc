@@ -2669,3 +2669,752 @@ TEST_F(GenMutateCodegenTest, Rule2AllCategoriesOnConstantExpr)
   ASSERT_EQ(count_category_at(3, "uoi"), 0u);
   ASSERT_EQ(count_category_at(3, "amr"), 0u);
 }
+
+
+TEST_F(GenMutateCodegenTest, IndependenceMultiCategory)
+{
+  const char* src =
+    "actor Main\n"                                   // line 1
+    "  new create(env: Env) =>\n"                    // line 2
+    "    let y: U64 = 10\n"                          // line 3
+    "    let a: U64 = y + 5\n"                       // line 4  add
+    "    let b: U64 = y * 3\n"                       // line 5  mul
+    "    let c: U64 = y / 2\n"                        // line 6  div
+    "    let d: U64 = y % 3\n"                       // line 7  rem
+    "    let e: U64 = y << 2\n"                      // line 8  shl
+    "    let f: U64 = y >> 1\n"                      // line 9  shr
+    "    let g: U64 = y and 0xFF\n"                  // line 10 and
+    "    let h: U64 = y or 1\n"                      // line 11 or
+    "    let i: U64 = y xor 7\n"                     // line 12 xor
+    "    let j: Bool = y == 0\n"                     // line 13 eq
+    "    let k: Bool = y > 5\n"                      // line 14 gt
+    "    let l: U64 = (1 + 2) * 3\n"                // line 15 nested
+    "    let m: U64 = ((1 + 2) + 3) * 4\n"          // line 16 nested
+    "    let n: U64 = ((1 + 2) + (3 + 4)) * 5\n"   // line 17 nested
+    "    let o: U64 = (1 << 2) * 3\n"               // line 18 shift nested
+    "    let p: U64 = (1 xor 2) * 3\n"              // line 19 xor nested
+    "    let q: U64 = (5 and 3) * 2\n"              // line 20 and nested
+    "    let r: U64 = (not 0x20) * 2\n";            // line 21 not nested
+
+  const char* categories[] = {"aor", "bor", "ror", "sor", "uoi", "cr", "amr"};
+  size_t cat_count = sizeof(categories) / sizeof(categories[0]);
+
+  uint32_t cat_flags[] = {
+    MUTATE_OP_AOR, MUTATE_OP_BOR, MUTATE_OP_ROR, MUTATE_OP_SOR,
+    MUTATE_OP_UOI, MUTATE_OP_CR, MUTATE_OP_AMR
+  };
+
+  for(size_t ci = 0; ci < cat_count; ci++)
+  {
+    opt.mutate = true;
+    opt.mutate_operators = cat_flags[ci];
+    DO(test_compile(src, "ir"));
+    auto alone = collect_category(categories[ci]);
+
+    opt.mutate_operators = MUTATE_OP_ALL;
+    DO(test_compile(src, "ir"));
+    auto with_all = collect_category(categories[ci]);
+
+    ASSERT_EQ(alone, with_all)
+      << "Category " << categories[ci] << " differs alone vs all-operators";
+  }
+}
+
+
+TEST_F(GenMutateCodegenTest, IndependenceCrPlusSingleCategory)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let a: U64 = y + 5\n"
+    "    let b: U64 = (1 + 2) * 3\n"
+    "    let c: U64 = y << 2\n"
+    "    let d: Bool = y == 0\n"
+    "    let e: U64 = (not 0x20) * 2\n";
+
+  const char* categories[] = {"aor", "bor", "ror", "sor", "uoi", "amr"};
+  uint32_t cat_flags[] = {
+    MUTATE_OP_AOR, MUTATE_OP_BOR, MUTATE_OP_ROR, MUTATE_OP_SOR,
+    MUTATE_OP_UOI, MUTATE_OP_AMR
+  };
+  size_t cat_count = sizeof(categories) / sizeof(categories[0]);
+
+  for(size_t ci = 0; ci < cat_count; ci++)
+  {
+    opt.mutate = true;
+    opt.mutate_operators = cat_flags[ci];
+    DO(test_compile(src, "ir"));
+    auto alone = collect_category(categories[ci]);
+
+    opt.mutate_operators = cat_flags[ci] | MUTATE_OP_CR;
+    DO(test_compile(src, "ir"));
+    auto with_cr = collect_category(categories[ci]);
+
+    ASSERT_EQ(alone, with_cr)
+      << "Category " << categories[ci] << " differs alone vs with cr";
+  }
+}
+
+
+TEST_F(GenMutateCodegenTest, IndependenceNestedDivFloat)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let a: U64 = (10 / 2) * 3\n"                // line 4
+    "    let x: F64 = F64(1.0)\n"                     // line 5
+    "    let b: F64 = (10.0 / 4.0) * 2.0\n";         // line 6
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  // (10 div 2) * 3: both operands of * are constant, no AOR at the *
+  // But 10 div 2 is constant, so no AOR there either
+  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+
+  // (10.0 / 4.0) * 2.0: float div produces constant shadow, no AOR at *
+  ASSERT_EQ(count_category_at(6, "aor"), 0u);
+
+  // With cr, check that AOR is still suppressed
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+  ASSERT_EQ(count_category_at(6, "aor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, ShortCircuitShadowConstantFalseAnd)
+{
+  // not (false and (x > 0)): left is constant false, so the and
+  // short-circuits. The outer not has a constant shadow, so no UOI.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 10\n"
+    "    let r: Bool = not (false and (x > 0))\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_UOI;
+  DO(test_compile(src, "ir"));
+
+  // No UOI at the outer not: the operand is constant (false and ... = false)
+  bool has_uoi_not = false;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "uoi") == 0 &&
+       strcmp(r->original, "not") == 0)
+      has_uoi_not = true;
+  }
+  ASSERT_FALSE(has_uoi_not);
+}
+
+
+TEST_F(GenMutateCodegenTest, ShortCircuitShadowVariableLeftAnd)
+{
+  // not ((x > 0) and (x < 100)): both sides are variable, so
+  // the result has no shadow and UOI fires on the outer not.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 10\n"
+    "    let r: Bool = not ((x > 0) and (x < 100))\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_UOI;
+  DO(test_compile(src, "ir"));
+
+  bool has_uoi_not = false;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "uoi") == 0 &&
+       strcmp(r->original, "not") == 0)
+      has_uoi_not = true;
+  }
+  ASSERT_TRUE(has_uoi_not);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2NotTrueNoUoi)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Bool = not true\n";  // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_UOI;
+  DO(test_compile(src, "ir"));
+  ASSERT_EQ(count_category_at(3, "uoi"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2NegOneLiteral)
+{
+  // -1: no UOI identity, one CR (1->0)
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: I64 = 10\n"
+    "    let x: I64 = y + -1\n";  // line 4, neg on line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_UOI | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "operand", "1->0"));
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2NegOneLiteralNoUoiIdentity)
+{
+  // -1: the operand of neg is constant 1, so no UOI identity at neg
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: I64 = 10\n"
+    "    let x: I64 = y + -1\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_UOI;
+  DO(test_compile(src, "ir"));
+
+  // UOI insertion on the add result (y is variable) should exist
+  ASSERT_TRUE(has_mutant_at(4, 20, "uoi", "result", "neg"));
+  // No UOI identity at the neg site (constant operand 1)
+  ASSERT_FALSE(has_mutant_at(4, 24, "uoi", "neg", "identity"));
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2NegFloatCr)
+{
+  // -2.5: CR records x->-x
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: F64 = F64(1.0)\n"
+    "    let x: F64 = y + -2.5\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "operand", "x->-x"));
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2ConstantShiftCrOnly)
+{
+  // 1 << 4: no SOR, but CR on both literals
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y and (1 << 4)\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_SOR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_EQ(count_category_at(4, "sor"), 0u);
+  ASSERT_GT(count_category_at(4, "cr"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2NestedConstantAcrossBuilds)
+{
+  // (1 + 2) * 3: no AOR at * in both aor and aor+cr builds
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y + ((1 + 2) * 3)\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  auto aor_alone = collect_category("aor");
+
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  auto aor_with_cr = collect_category("aor");
+
+  ASSERT_EQ(aor_alone, aor_with_cr);
+}
+
+
+TEST_F(GenMutateCodegenTest, ShiftCheckViaShadow)
+{
+  // x << (32 + 40) on U64 is a compile error — sum is 72, exceeds 64-bit width
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y << (32 + 40)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_error(src, "ir"));
+}
+
+
+TEST_F(GenMutateCodegenTest, ShiftCheckViaShadowCrOnly)
+{
+  // Same compile error with cr only — shadow detects the constant
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y << (32 + 40)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_error(src, "ir"));
+}
+
+
+TEST_F(GenMutateCodegenTest, SafeSignedDivremShadowValidIr)
+{
+  // Safe signed divrem with constant operands produces valid IR
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: I64 = 10\n"
+    "    let a: I64 = y + (10 / 3)\n"     // line 4 safe signed div
+    "    let b: I64 = y + (10 % 3)\n";    // line 5 safe signed rem
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at(4, "cr"), 0u);
+  ASSERT_GT(count_category_at(5, "cr"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, CrCharLiteral)
+{
+  // Character literal: c == 'a' records n->n+1 and n->n-1
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: U64 = 10\n"
+    "    let x: Bool = c == 'a'\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n+1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n-1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, ComputedValueNotCrTargetAnd)
+{
+  // x and (1 << 4): no CR at the and (1<<4 is computed)
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y and (1 << 4)\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  // CR at the shift (line 4) for lhs=1 and rhs=4, but not at the and
+  ASSERT_TRUE(has_mutant("cr", "lhs", "1->0"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n+1"));
+
+  // No CR with original "rhs" at the and since (1<<4) is computed
+  ASSERT_FALSE(has_mutant_at(4, 25, "cr", "rhs", "n->n+1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, ComputedValueNotCrTargetAdd)
+{
+  // x + (2 * 4): no CR at the outer +
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y + (2 * 4)\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  // CR at the mul for 2 and 4, but not at the + for the computed result
+  ASSERT_TRUE(has_mutant("cr", "lhs", "n->n+1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n+1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, CrShiftWidth1Amount)
+{
+  // Shift by width-1 (63 on U64): records n->n-1 but not n->n+1
+  // because n+1 (64) >= width and is silently dropped
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y << 63\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n-1"));
+  ASSERT_FALSE(has_mutant("cr", "rhs", "n->n+1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, CrComparisonOperands)
+{
+  // x == 0 records 0->1 (rhs); x > 5 records n->n+1 and n->n-1
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let a: Bool = y == 0\n"   // line 4
+    "    let b: Bool = y > 5\n";   // line 5
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at(4, "cr"), 0u);
+  ASSERT_TRUE(has_mutant("cr", "rhs", "0->1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n+1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n-1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, CrNegOperand)
+{
+  // -1: records 1->0 at the neg site, no CR at the outer +
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: I64 = 10\n"
+    "    let x: I64 = y + -1\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "operand", "1->0"));
+}
+
+
+TEST_F(GenMutateCodegenTest, CrNegTwoOperand)
+{
+  // -2: records n->n+1 and n->n-1 at the neg site
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: I64 = 10\n"
+    "    let x: I64 = y + -2\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "operand", "n->n+1"));
+  ASSERT_TRUE(has_mutant("cr", "operand", "n->n-1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, CrNotOperand)
+{
+  // x and not 0x20: CR at the not site, none at the and
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y and (not 0x20)\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "operand", "n->n+1"));
+  ASSERT_TRUE(has_mutant("cr", "operand", "n->n-1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, CrWideLiteralU128)
+{
+  // U128 literal above 2^64: records n->n+1 and n->n-1, not 0->1
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U128 = U128(1)\n"
+    "    let x: U128 = y + 0x1_0000_0000_0000_0000\n";  // line 4, 2^64
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n+1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n-1"));
+  ASSERT_FALSE(has_mutant("cr", "rhs", "0->1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, CrWrapU8)
+{
+  // U8 255 + n->n+1 wraps to 0
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U8 = U8(1)\n"
+    "    let x: U8 = y + 255\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n+1"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "n->n-1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, CrIntLiteralInFloatContext)
+{
+  // Integer literal 2 in F64 context records float variants (x->-x)
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: F64 = F64(1.0)\n"
+    "    let x: F64 = y + 2\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "rhs", "x->-x"));
+}
+
+
+TEST_F(GenMutateCodegenTest, CrIndependenceDiv)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y / 5\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  auto cr_only = collect_category("cr");
+
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+  auto cr_all = collect_category("cr");
+
+  ASSERT_EQ(cr_only, cr_all);
+}
+
+
+TEST_F(GenMutateCodegenTest, CrIndependenceCmp)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let a: Bool = y == 0\n"
+    "    let b: Bool = y > 5\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  auto cr_only = collect_category("cr");
+
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+  auto cr_all = collect_category("cr");
+
+  ASSERT_EQ(cr_only, cr_all);
+}
+
+
+TEST_F(GenMutateCodegenTest, CrIndependenceNeg)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: I64 = 10\n"
+    "    let x: I64 = y + -2\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  auto cr_only = collect_category("cr");
+
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+  auto cr_all = collect_category("cr");
+
+  ASSERT_EQ(cr_only, cr_all);
+}
+
+
+TEST_F(GenMutateCodegenTest, CrIndependenceNot)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y and (not 0x20)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  auto cr_only = collect_category("cr");
+
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+  auto cr_all = collect_category("cr");
+
+  ASSERT_EQ(cr_only, cr_all);
+}
+
+
+TEST_F(GenMutateCodegenTest, CrDivByOneLiteral)
+{
+  // x div 1: records CR on the 1 (1->0, 1->n+1 which is 2)
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y / 1\n";    // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at(4, "cr"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, SafeSignedDivMinNeg1Shadow)
+{
+  // Safe signed div of min/-1 case: shadow computes correctly
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: I64 = 10\n"
+    "    let x: I64 = y + (I64(-9223372036854775807 + -1) / -1)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2ConstantDivNoAor)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 10 / 2\n";    // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_EQ(count_category_at(3, "aor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2ConstantNegNoAmr)
+{
+  // -1: constant operand, no AMR
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: I64 = 10\n"
+    "    let x: I64 = y + -1\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AMR;
+  DO(test_compile(src, "ir"));
+
+  // No AMR for neg at line 4 (constant operand 1)
+  // AMR at the add on line 4 is fine (y is variable)
+  size_t amr_neg_count = 0;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "amr") == 0 &&
+       strcmp(r->original, "neg") == 0)
+      amr_neg_count++;
+  }
+  ASSERT_EQ(amr_neg_count, 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, Rule2ConstantNotNoUoi)
+{
+  // not 0x20: constant operand, no UOI at the not
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 10\n"
+    "    let x: U64 = y and (not 0x20)\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_UOI;
+  DO(test_compile(src, "ir"));
+
+  // UOI at the and (variable y) but not at the not (constant 0x20)
+  // UOI on not would record "not" as original
+  bool has_uoi_not_at_4 = false;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "uoi") == 0 &&
+       strcmp(r->original, "not") == 0)
+      has_uoi_not_at_4 = true;
+  }
+  ASSERT_FALSE(has_uoi_not_at_4);
+}
+
+
+TEST_F(GenMutateCodegenTest, CrShiftLhsOperand)
+{
+  // 1 << 0: check lhs CR records
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 1 << 0\n";  // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("cr", "lhs", "1->0"));
+  ASSERT_TRUE(has_mutant("cr", "rhs", "0->1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, SafeSignedRemValidIr)
+{
+  // Safe signed rem with constant operands produces valid IR
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: I8 = I8(10)\n"
+    "    let x: I8 = y.rem(I8(-128) % -1)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+}
