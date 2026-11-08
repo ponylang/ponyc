@@ -53,6 +53,7 @@ bool is_fp(LLVMValueRef val)
 static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
   build_binop build_f, build_binop build_i)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
@@ -66,9 +67,12 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
   else
     result = build_i(c->builder, l_value, r_value, "");
 
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL))
-    result = mutate_cr_binop(c, c->frame->mutate_ast,
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_binop(c, mutate_ast,
       l_value, r_value, result, build_f, build_i);
+    result = mutate_uoi_insert(c, mutate_ast, result);
+  }
 
   return result;
 }
@@ -177,6 +181,8 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
   build_binop build_f, build_binop build_ui, build_binop build_si,
   bool safe, bool is_div)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
@@ -190,10 +196,13 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
   LLVMValueRef result = make_divrem_inner(c, l_value, r_value, sign,
     build_f, build_ui, build_si, safe, is_div);
 
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL))
-    result = mutate_cr_divrem(c, c->frame->mutate_ast,
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_divrem(c, mutate_ast,
       l_value, r_value, result, sign, safe, is_div,
       build_f, build_ui, build_si);
+    result = mutate_uoi_insert(c, mutate_ast, result);
+  }
 
   return result;
 }
@@ -1246,13 +1255,23 @@ LLVMValueRef gen_and(compile_t* c, ast_t* left, ast_t* right)
       LLVMBuildAnd, LLVMBuildAnd, "and", "bor", variants, 2);
   }
 
+  ast_t* mutate_ast = c->frame->mutate_ast;
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  return LLVMBuildAnd(c->builder, l_value, r_value, "");
+  LLVMValueRef result = LLVMBuildAnd(c->builder, l_value, r_value, "");
+
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_binop(c, mutate_ast,
+      l_value, r_value, result, LLVMBuildAnd, LLVMBuildAnd);
+    result = mutate_uoi_insert(c, mutate_ast, result);
+  }
+
+  return result;
 }
 
 LLVMValueRef gen_or(compile_t* c, ast_t* left, ast_t* right)
@@ -1268,16 +1287,23 @@ LLVMValueRef gen_or(compile_t* c, ast_t* left, ast_t* right)
       LLVMBuildOr, LLVMBuildOr, "or", "bor", variants, 2);
   }
 
+  ast_t* mutate_ast = c->frame->mutate_ast;
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-    return LLVMBuildOr(c->builder, l_value, r_value, "");
+  LLVMValueRef result = LLVMBuildOr(c->builder, l_value, r_value, "");
 
-  return LLVMBuildOr(c->builder, l_value, r_value, "");
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_binop(c, mutate_ast,
+      l_value, r_value, result, LLVMBuildOr, LLVMBuildOr);
+    result = mutate_uoi_insert(c, mutate_ast, result);
+  }
+
+  return result;
 }
 
 LLVMValueRef gen_xor(compile_t* c, ast_t* left, ast_t* right)
@@ -1293,16 +1319,28 @@ LLVMValueRef gen_xor(compile_t* c, ast_t* left, ast_t* right)
       LLVMBuildXor, LLVMBuildXor, "xor", "bor", variants, 2);
   }
 
+  ast_t* mutate_ast = c->frame->mutate_ast;
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-    return LLVMConstXor(l_value, r_value);
+  LLVMValueRef result;
 
-  return LLVMBuildXor(c->builder, l_value, r_value, "");
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
+    result = LLVMConstXor(l_value, r_value);
+  else
+    result = LLVMBuildXor(c->builder, l_value, r_value, "");
+
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_binop(c, mutate_ast,
+      l_value, r_value, result, LLVMBuildXor, LLVMBuildXor);
+    result = mutate_uoi_insert(c, mutate_ast, result);
+  }
+
+  return result;
 }
 
 LLVMValueRef gen_not(compile_t* c, ast_t* ast)
