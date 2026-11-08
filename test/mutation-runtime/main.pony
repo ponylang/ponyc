@@ -53,6 +53,29 @@ actor Main
       env.exitcode(1)
     end
 
+    // Exercise SOR: shift operator.
+    let shifted: U64 = a << b  // 3 << 2 = 12
+    if shifted != U64(12) then
+      env.exitcode(1)
+    end
+
+    // Exercise BOR: bitwise operator.
+    let anded: U64 = U64(0xFF) and U64(0x0F)  // 15
+    if anded != U64(15) then
+      env.exitcode(1)
+    end
+
+    // Exercise ROR: comparison operator.
+    if not (a > b) then  // 3 > 2 is true
+      env.exitcode(1)
+    end
+
+    // Exercise UOI: unary neg.
+    let neg_val: I64 = -I64(5)  // -5
+    if neg_val != I64(-5) then
+      env.exitcode(1)
+    end
+
   fun _compute(x: U64, y: U64): U64 =>
     x + y
 

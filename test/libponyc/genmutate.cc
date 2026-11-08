@@ -2771,18 +2771,54 @@ TEST_F(GenMutateCodegenTest, IndependenceNestedDivFloat)
   opt.mutate_operators = MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
 
-  // (10 div 2) * 3: both operands of * are constant, no AOR at the *
-  // But 10 div 2 is constant, so no AOR there either
-  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+  // (10 / 2) * 3: safe integer div produces a phi (no shadow), so the *
+  // has a non-constant operand and AOR fires there.
+  ASSERT_GT(count_category_at(4, "aor"), 0u);
 
   // (10.0 / 4.0) * 2.0: float div produces constant shadow, no AOR at *
   ASSERT_EQ(count_category_at(6, "aor"), 0u);
 
-  // With cr, check that AOR is still suppressed
+  // With cr, same: integer div still non-constant, float div still constant
   opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_CR;
   DO(test_compile(src, "ir"));
-  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+  ASSERT_GT(count_category_at(4, "aor"), 0u);
   ASSERT_EQ(count_category_at(6, "aor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, IndependenceNegBranchConditional)
+{
+  // Nesting: neg of a sum, safe div, branch with constant guard.
+  // Each non-CR category's set must be identical with and without CR.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: I64 = 10\n"
+    "    let a: I64 = (-(1 + 2)) * 3\n"                      // line 4: neg, add, mul
+    "    let b: I64 = 100 / 3\n"                              // line 5: safe div
+    "    let c: I64 = if not true then x + 5 else x + 7 end\n" // line 6
+    "    let d: I64 = x * b\n";                               // line 7
+
+  const char* categories[] = {"aor", "ror", "uoi", "amr"};
+  uint32_t cat_flags[] = {
+    MUTATE_OP_AOR, MUTATE_OP_ROR, MUTATE_OP_UOI, MUTATE_OP_AMR
+  };
+  size_t cat_count = sizeof(categories) / sizeof(categories[0]);
+
+  for(size_t ci = 0; ci < cat_count; ci++)
+  {
+    opt.mutate = true;
+    opt.mutate_operators = cat_flags[ci];
+    DO(test_compile(src, "ir"));
+    auto alone = collect_category(categories[ci]);
+
+    opt.mutate_operators = cat_flags[ci] | MUTATE_OP_CR;
+    DO(test_compile(src, "ir"));
+    auto with_cr = collect_category(categories[ci]);
+
+    ASSERT_EQ(alone, with_cr)
+      << "Category " << categories[ci] << " differs alone vs with cr";
+  }
 }
 
 
@@ -2836,6 +2872,34 @@ TEST_F(GenMutateCodegenTest, ShortCircuitShadowVariableLeftAnd)
       has_uoi_not = true;
   }
   ASSERT_TRUE(has_uoi_not);
+}
+
+
+TEST_F(GenMutateCodegenTest, ShortCircuitShadowConstantRightAnd)
+{
+  // not ((x > 0) and false): right is constant false.
+  // Both branches of the and produce false (short-circuit: left false →
+  // false; fall-through: true and false → false), so the phi has a
+  // constant shadow and UOI does not fire on the outer not.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 10\n"
+    "    let r: Bool = not ((x > 0) and false)\n";  // line 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_UOI;
+  DO(test_compile(src, "ir"));
+
+  bool has_uoi_not = false;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "uoi") == 0 &&
+       strcmp(r->original, "not") == 0)
+      has_uoi_not = true;
+  }
+  ASSERT_FALSE(has_uoi_not);
 }
 
 
@@ -3306,15 +3370,68 @@ TEST_F(GenMutateCodegenTest, CrDivByOneLiteral)
 
 TEST_F(GenMutateCodegenTest, SafeSignedDivMinNeg1Shadow)
 {
-  // Safe signed div of min/-1 case: shadow computes correctly
+  // Safe integer div with constant operands produces no shadow
+  // (the result is a phi node, not a constant). The downstream *
+  // must still get AOR.
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    let y: I64 = 10\n"
-    "    let x: I64 = y + (I64(-9223372036854775807 + -1) / -1)\n";
+    "    let x: I64 = 100 / 3\n"                            // line 3: safe div
+    "    let y: I64 = x * 2\n"                               // line 4
+    "    let a: I64 = (10 % 3) + 3\n";                       // line 5: safe rem
+
+  // AOR only: safe divrem has no shadow, so * on line 4 has AOR
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  ASSERT_GT(count_category_at(4, "aor"), 0u);
+
+  // AOR+CR: same
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  ASSERT_GT(count_category_at(4, "aor"), 0u);
+
+  // AMR only vs AMR+CR: should match
+  opt.mutate_operators = MUTATE_OP_AMR;
+  DO(test_compile(src, "ir"));
+  size_t amr_only = collect_category("amr").size();
+
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  size_t amr_plus_cr = collect_category("amr").size();
+  ASSERT_EQ(amr_only, amr_plus_cr);
+
+  // UOI only vs UOI+CR: should match
+  opt.mutate_operators = MUTATE_OP_UOI;
+  DO(test_compile(src, "ir"));
+  size_t uoi_only = collect_category("uoi").size();
+
+  opt.mutate_operators = MUTATE_OP_UOI | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+  size_t uoi_plus_cr = collect_category("uoi").size();
+  ASSERT_EQ(uoi_only, uoi_plus_cr);
+}
+
+
+TEST_F(GenMutateCodegenTest, SafeDivFeedingShiftCompiles)
+{
+  // Safe div result feeding a shift must compile under all mutation flags.
+  // Regression: the shadow said the div result was constant, causing
+  // the width check to reject it at compile time (100 > 64-bit width).
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 10\n"
+    "    let y: U64 = x << (100 / 1)\n";
 
   opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+
   opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  opt.mutate_operators = MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
 }
 

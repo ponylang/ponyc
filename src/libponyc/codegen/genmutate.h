@@ -200,12 +200,8 @@ LLVMValueRef mutate_cr_unary(compile_t* c, ast_t* ast,
 
 // Compute the shadow for a safe integer divrem. Handles the min/-1 case
 // (div → min, rem → 0) and division by zero (→ 0) as pure constants.
-LLVMValueRef mutate_safe_divrem_shadow(LLVMBuilderRef builder,
-  LLVMValueRef l_shadow, LLVMValueRef r_shadow, bool sign, bool is_div,
-  LLVMValueRef (*build_ui)(LLVMBuilderRef, LLVMValueRef, LLVMValueRef,
-    const char*),
-  LLVMValueRef (*build_si)(LLVMBuilderRef, LLVMValueRef, LLVMValueRef,
-    const char*));
+LLVMValueRef mutate_safe_divrem_shadow(
+  LLVMValueRef l_shadow, LLVMValueRef r_shadow, bool sign, bool is_div);
 
 // Return the constant a value would have without CR instrumentation.
 // An LLVM constant is its own shadow; a CR phi's shadow is the original.

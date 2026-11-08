@@ -243,9 +243,9 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
       if(is_fp(l_value))
         shadow = build_f(c->builder, l_shadow, r_shadow, "");
       else
-        shadow = mutate_safe_divrem_shadow(c->builder, l_shadow, r_shadow,
-          sign, is_div, build_ui, build_si);
-      if(LLVMIsConstant(shadow))
+        shadow = mutate_safe_divrem_shadow(l_shadow, r_shadow,
+          sign, is_div);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
         mutate_shadow_set(c, result, shadow);
     }
 

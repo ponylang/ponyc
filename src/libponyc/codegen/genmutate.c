@@ -370,14 +370,19 @@ bool mutate_site_enabled(compile_t* c, const char* category, ast_t* ast)
   return true;
 }
 
-LLVMValueRef mutate_safe_divrem_shadow(LLVMBuilderRef builder,
-  LLVMValueRef l_shadow, LLVMValueRef r_shadow, bool sign, bool is_div,
-  build_binop build_ui, build_binop build_si)
+LLVMValueRef mutate_safe_divrem_shadow(
+  LLVMValueRef l_shadow, LLVMValueRef r_shadow, bool sign, bool is_div)
 {
-  if(!sign)
-    return build_ui(builder, l_shadow, r_shadow, "");
-
   LLVMTypeRef r_type = LLVMTypeOf(r_shadow);
+
+  if(!sign)
+  {
+    long long r_const_u = LLVMConstIntGetSExtValue(r_shadow);
+    if(r_const_u == 0)
+      return LLVMConstInt(r_type, 0, false);
+    return NULL;
+  }
+
   uint64_t width = LLVMGetIntTypeWidth(r_type);
   long long r_const = LLVMConstIntGetSExtValue(r_shadow);
 
@@ -397,7 +402,7 @@ LLVMValueRef mutate_safe_divrem_shadow(LLVMBuilderRef builder,
   if(r_const == 0)
     return LLVMConstInt(r_type, 0, false);
 
-  return build_si(builder, l_shadow, r_shadow, "");
+  return NULL;
 }
 
 
@@ -590,14 +595,14 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
     if(is_fp(l_value))
       shadow = orig_f(c->builder, l_shadow, r_shadow, "");
     else
-      shadow = mutate_safe_divrem_shadow(c->builder, l_shadow, r_shadow,
-        sign, is_div, orig_ui, orig_si);
-    if(LLVMIsConstant(shadow))
+      shadow = mutate_safe_divrem_shadow(l_shadow, r_shadow,
+        sign, is_div);
+    if((shadow != NULL) && LLVMIsConstant(shadow))
       mutate_shadow_set(c, cr_result, shadow);
 
     LLVMValueRef final_result =
       mutate_uoi_insert(c, ast, cr_result, l_value, r_value);
-    if(LLVMIsConstant(shadow))
+    if((shadow != NULL) && LLVMIsConstant(shadow))
       mutate_shadow_set(c, final_result, shadow);
 
     return final_result;
@@ -701,9 +706,9 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
     if(is_fp(l_value))
       shadow = orig_f(c->builder, l_shadow, r_shadow, "");
     else
-      shadow = mutate_safe_divrem_shadow(c->builder, l_shadow, r_shadow,
-        sign, is_div, orig_ui, orig_si);
-    if(LLVMIsConstant(shadow))
+      shadow = mutate_safe_divrem_shadow(l_shadow, r_shadow,
+        sign, is_div);
+    if((shadow != NULL) && LLVMIsConstant(shadow))
       mutate_shadow_set(c, final_result, shadow);
   }
 

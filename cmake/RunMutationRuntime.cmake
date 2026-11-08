@@ -222,3 +222,132 @@ if(NOT _rc EQUAL 1)
 endif()
 
 message(STATUS "PASS: CR mutant ${_cr_id} (n->n+1) exits 1")
+
+# --- SOR: find the shl->shr mutant for "a << b" ---
+execute_process(
+    COMMAND grep -n "a << b" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _sor_src_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _sor_src_line)
+    message(FATAL_ERROR "could not find 'a << b' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _sor_lineno "${_sor_src_line}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_sor_lineno}.*sor.*shl.*shr" "${_json}"
+    OUTPUT_VARIABLE _sor_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _sor_line)
+    message(FATAL_ERROR
+        "could not find sor shl->shr mutant on line ${_sor_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _sor_id "${_sor_line}")
+if(NOT _sor_id MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "could not extract SOR mutant ID from: ${_sor_line}")
+endif()
+
+message(STATUS "Using SOR mutant ID: ${_sor_id}")
+
+set(ENV{PONY_MUTANT_ID} "${_sor_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "SOR mutated run exited ${_rc}, expected 1")
+endif()
+
+message(STATUS "PASS: SOR mutant ${_sor_id} (shl->shr) exits 1")
+
+# --- BOR: find the and->or mutant for "0xFF and 0x0F" ---
+execute_process(
+    COMMAND grep -n "0xFF) and" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _bor_src_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _bor_src_line)
+    message(FATAL_ERROR "could not find '0xFF) and' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _bor_lineno "${_bor_src_line}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_bor_lineno}.*bor.*and.*or" "${_json}"
+    OUTPUT_VARIABLE _bor_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _bor_line)
+    message(FATAL_ERROR
+        "could not find bor and->or mutant on line ${_bor_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _bor_id "${_bor_line}")
+if(NOT _bor_id MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "could not extract BOR mutant ID from: ${_bor_line}")
+endif()
+
+message(STATUS "Using BOR mutant ID: ${_bor_id}")
+
+set(ENV{PONY_MUTANT_ID} "${_bor_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "BOR mutated run exited ${_rc}, expected 1")
+endif()
+
+message(STATUS "PASS: BOR mutant ${_bor_id} (and->or) exits 1")
+
+# --- ROR: find a comparison mutant for "a > b" ---
+execute_process(
+    COMMAND grep -n "a > b" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _ror_src_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _ror_src_line)
+    message(FATAL_ERROR "could not find 'a > b' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _ror_lineno "${_ror_src_line}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_ror_lineno}.*ror.*gt.*\"lt\"" "${_json}"
+    OUTPUT_VARIABLE _ror_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _ror_line)
+    message(FATAL_ERROR
+        "could not find ror mutant on line ${_ror_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _ror_id "${_ror_line}")
+if(NOT _ror_id MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "could not extract ROR mutant ID from: ${_ror_line}")
+endif()
+
+message(STATUS "Using ROR mutant ID: ${_ror_id}")
+
+set(ENV{PONY_MUTANT_ID} "${_ror_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "ROR mutated run exited ${_rc}, expected 1")
+endif()
+
+message(STATUS "PASS: ROR mutant ${_ror_id} exits 1")
