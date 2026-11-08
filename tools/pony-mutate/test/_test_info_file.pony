@@ -226,6 +226,60 @@ class \nodoc\ _TestInfoFileFilterByAmr is UnitTest
       h.fail("index out of bounds")
     end
 
+class \nodoc\ _TestInfoFileFilterByScopeLine is UnitTest
+  fun name(): String =>
+    "InfoFile.filter: scope with single line"
+
+  fun apply(h: TestHelper) =>
+    let mutants = _FourMutants()
+    let result =
+      mutate.InfoFile.filter(
+        mutants where scope = "src/main.pony:5")
+    h.assert_eq[USize](1, result.size())
+    try
+      h.assert_eq[I32](2, result(0)?.id)
+    else
+      h.fail("index out of bounds")
+    end
+
+class \nodoc\ _TestInfoFileFilterByScopeLineRange is UnitTest
+  fun name(): String =>
+    "InfoFile.filter: scope with line range"
+
+  fun apply(h: TestHelper) =>
+    let mutants = _FourMutants()
+    let result =
+      mutate.InfoFile.filter(
+        mutants where scope = "src/main.pony:1-3")
+    h.assert_eq[USize](2, result.size())
+
+class \nodoc\ _TestInfoFileFilterByScopeLineRangeNoMatch is UnitTest
+  fun name(): String =>
+    "InfoFile.filter: scope line range excludes out-of-range mutants"
+
+  fun apply(h: TestHelper) =>
+    let mutants = _FourMutants()
+    let result =
+      mutate.InfoFile.filter(
+        mutants where scope = "src/main.pony:10-20")
+    h.assert_eq[USize](0, result.size())
+
+class \nodoc\ _TestInfoFileFilterByScopeLineWithOperator is UnitTest
+  fun name(): String =>
+    "InfoFile.filter: scope line range combined with operator"
+
+  fun apply(h: TestHelper) =>
+    let mutants = _FourMutants()
+    let result =
+      mutate.InfoFile.filter(
+        mutants where operators = "aor", scope = "src/main.pony:1-5")
+    h.assert_eq[USize](1, result.size())
+    try
+      h.assert_eq[I32](1, result(0)?.id)
+    else
+      h.fail("index out of bounds")
+    end
+
 primitive \nodoc\ _FourMutants
   fun apply(): Array[mutate.Mutant] val =>
     recover val

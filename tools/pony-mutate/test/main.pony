@@ -34,3 +34,7 @@ actor \nodoc\ Main is TestList
     test(_TestInfoFileFilterScopeEmpty)
     test(_TestInfoFileFilterOperatorEmpty)
     test(_TestInfoFileFilterByAmr)
+    test(_TestInfoFileFilterByScopeLine)
+    test(_TestInfoFileFilterByScopeLineRange)
+    test(_TestInfoFileFilterByScopeLineRangeNoMatch)
+    test(_TestInfoFileFilterByScopeLineWithOperator)

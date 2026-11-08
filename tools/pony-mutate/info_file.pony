@@ -80,11 +80,15 @@ primitive InfoFile
   =>
     """
     Filter mutants by operator category and/or source file scope.
+
+    The scope string uses the same format as the compiler's `--mutate-scope`:
+    a file path optionally followed by `:line` or `:start-end` to restrict to
+    specific lines.
     """
     let op_set = _parse_operators(operators)
-    let scope_file = _parse_scope(scope)
+    let scope_parsed = _parse_scope(scope)
 
-    if (op_set.size() == 0) and (scope_file is None) then
+    if (op_set.size() == 0) and (scope_parsed is None) then
       return mutants
     end
 
@@ -93,9 +97,14 @@ primitive InfoFile
       if (op_set.size() > 0) and not op_set.contains(m.category) then
         continue
       end
-      match scope_file
-      | let sf: String val =>
+      match scope_parsed
+      | (let sf: String val, let start_line: USize, let end_line: USize) =>
         if not _file_matches(m.file, sf) then
+          continue
+        end
+        if (start_line > 0) and
+          ((m.line < start_line) or (m.line > end_line))
+        then
           continue
         end
       end
@@ -157,9 +166,29 @@ primitive InfoFile
       Set[String val]
     end
 
-  fun _parse_scope(scope: (String val | None)): (String val | None) =>
+  fun _parse_scope(scope: (String val | None))
+    : ((String val, USize, USize) | None)
+  =>
     match scope
-    | let s: String val if s.size() > 0 => s
+    | let s: String val if s.size() > 0 =>
+      try
+        let colon = s.rfind(":")?
+        let after = s.trim(colon.usize() + 1)
+        let before = s.trim(0, colon.usize())
+        try
+          let dash = after.find("-")?
+          let start_str = after.trim(0, dash.usize())
+          let end_str = after.trim(dash.usize() + 1)
+          let start_line = start_str.usize()?
+          let end_line = end_str.usize()?
+          (before, start_line, end_line)
+        else
+          let line = after.usize()?
+          (before, line, line)
+        end
+      else
+        (s, USize(0), USize(0))
+      end
     else
       None
     end
