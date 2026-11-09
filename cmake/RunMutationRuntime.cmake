@@ -616,6 +616,51 @@ endif()
 
 message(STATUS "PASS: CR not mutant ${_cr_not_id} computes 3")
 
+# --- CR U8 boundary: find a cr mutant for "y_u8 + 255" ---
+# n+1 wraps 255 to 0 via LLVMConstInt truncation, so 1+0=1 instead of 1+255=0.
+execute_process(
+    COMMAND grep -n "let cr_u8: U8" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _cr_u8_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_u8_src)
+    message(FATAL_ERROR "could not find 'let cr_u8: U8' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _cr_u8_lineno "${_cr_u8_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_cr_u8_lineno}.*cr.*n->n[+]1" "${_json}"
+    OUTPUT_VARIABLE _cr_u8_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _cr_u8_line)
+    message(FATAL_ERROR
+        "could not find cr mutant on line ${_cr_u8_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _cr_u8_id "${_cr_u8_line}")
+
+set(ENV{PONY_MUTANT_ID} "${_cr_u8_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _cr_u8_out
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "CR U8 boundary mutated run exited ${_rc}, expected 1")
+endif()
+string(FIND "${_cr_u8_out}" "cr_u8=1" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "CR U8 boundary mutant did not compute expected value 1 (n+1 wraps 255->0: 1+0=1)\nstdout: ${_cr_u8_out}")
+endif()
+
+message(STATUS "PASS: CR U8 boundary mutant ${_cr_u8_id} (n+1 wraps 255->0) computes 1")
+
 # --- CR wide literal: find a cr mutant for "small + 0x1_0000..." ---
 execute_process(
     COMMAND grep -n "let cr_wide" "${TEST_SRC}/main.pony"

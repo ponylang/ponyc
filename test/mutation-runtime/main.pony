@@ -118,6 +118,15 @@ actor Main
       env.exitcode(1)
     end
 
+    // CR U8 boundary: literal 255 in y + 255 on U8.
+    // n+1 wraps to 0 via LLVMConstInt truncation (256 → 0 for i8).
+    let y_u8: U8 = U8(1)
+    let cr_u8: U8 = y_u8 + 255  // 1 + 255 = 0 (wraps)
+    env.out.print("cr_u8=" + cr_u8.string())
+    if cr_u8 != U8(0) then
+      env.exitcode(1)
+    end
+
     // CR wide literal: U128 above 2^64. Variable operand prevents Rule 2.
     let small: U128 = a.u128()  // 3
     let cr_wide: U128 = small + 0x1_0000_0000_0000_000A  // 3 + 2^64+10
