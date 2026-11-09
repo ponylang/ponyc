@@ -197,7 +197,8 @@ static void maybe_mark_should_mute(pony_ctx_t* ctx, pony_actor_t* to)
       {
         if(ctx->current->batch_size > PONY_SCHED_BATCH_STEP)
         {
-          ctx->current->batch_size -= PONY_SCHED_BATCH_STEP;
+          ctx->current->batch_size =
+            (uint16_t)(ctx->current->batch_size - PONY_SCHED_BATCH_STEP);
           TRACING_ACTOR_BATCH_SIZE_CHANGED(ctx->current);
         }
       }
@@ -209,7 +210,8 @@ static void maybe_mark_should_mute(pony_ctx_t* ctx, pony_actor_t* to)
       }
       else
       {
-        ctx->current->batch_size -= PONY_SCHED_BATCH_STEP;
+        ctx->current->batch_size =
+          (uint16_t)(ctx->current->batch_size - PONY_SCHED_BATCH_STEP);
         TRACING_ACTOR_BATCH_SIZE_CHANGED(ctx->current);
       }
     }
@@ -539,7 +541,7 @@ static bool batch_limit_reached(pony_actor_t* actor)
     actor_setoverloaded(actor);
   }
 
-  actor->batch_size += PONY_SCHED_BATCH_STEP;
+  actor->batch_size = (uint16_t)(actor->batch_size + PONY_SCHED_BATCH_STEP);
   TRACING_ACTOR_BATCH_SIZE_CHANGED(actor);
 
   return true;
@@ -650,9 +652,9 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
 
   if(!actor->sent_to_overloaded && actor->batch_size < PONY_SCHED_BATCH)
   {
-    actor->batch_size += PONY_SCHED_BATCH_STEP;
+    actor->batch_size = (uint16_t)(actor->batch_size + PONY_SCHED_BATCH_STEP);
     if(actor->batch_size > PONY_SCHED_BATCH)
-      actor->batch_size = PONY_SCHED_BATCH;
+      actor->batch_size = (uint16_t)PONY_SCHED_BATCH;
     TRACING_ACTOR_BATCH_SIZE_CHANGED(actor);
   }
 
@@ -910,7 +912,7 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   ponyint_messageq_init(&actor->q);
   ponyint_heap_init(&actor->heap);
   ponyint_gc_done(&actor->gc);
-  actor->batch_size = PONY_SCHED_BATCH;
+  actor->batch_size = (uint16_t)PONY_SCHED_BATCH;
 
   if(ctx->current != NULL && !orphaned)
   {

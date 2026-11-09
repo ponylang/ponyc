@@ -21,6 +21,9 @@
 #else
 #  include <fnmatch.h>
 #  include <unistd.h>
+#  if defined(PLATFORM_IS_LINUX)
+#    include <sys/syscall.h>
+#  endif
 #  if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX)
 #    include <execinfo.h>
 #    define PONY_HAS_EXECINFO
@@ -1435,7 +1438,7 @@ void ponyint_tracing_thread_start(scheduler_t* sched)
 #if defined(PLATFORM_IS_WINDOWS)
   this_tracing_scheduler->tid = (uint64_t)GetCurrentThreadId();
 #elif defined(PLATFORM_IS_LINUX)
-  this_tracing_scheduler->tid = gettid();
+  this_tracing_scheduler->tid = (uint64_t)syscall(SYS_gettid);
 #elif defined(PLATFORM_IS_MACOSX)
   pthread_threadid_np(NULL, &this_tracing_scheduler->tid);
 #elif defined(PLATFORM_IS_OPENBSD)
