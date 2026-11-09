@@ -230,9 +230,8 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
 static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   bool is_and)
 {
-  LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef left_block = codegen_block(c, "sc_left");
-  LLVMValueRef branch = LLVMBuildBr(c->builder, left_block);
+  LLVMBuildBr(c->builder, left_block);
 
   LLVMPositionBuilderAtEnd(c->builder, left_block);
   LLVMValueRef l_value = gen_expr(c, left);
@@ -242,17 +241,13 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
 
   if(LLVMIsAConstantInt(l_value))
   {
-    LLVMInstructionEraseFromParent(branch);
-    LLVMDeleteBasicBlock(left_block);
-    LLVMPositionBuilderAtEnd(c->builder, entry_block);
-
     if(is_and)
     {
       if(is_always_false(l_value))
-        return gen_expr(c, left);
+        return l_value;
     } else {
       if(is_always_true(l_value))
-        return gen_expr(c, left);
+        return l_value;
     }
 
     return gen_expr(c, right);
