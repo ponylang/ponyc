@@ -87,7 +87,7 @@ message(STATUS "PASS: AOR mutant ${_mutant_id} (add->sub) exits 1")
 
 # --- RVR: find the return->0 mutant from _compute in main.pony ---
 execute_process(
-    COMMAND grep -m1 "main.pony.*rvr.*return.*0" "${_json}"
+    COMMAND grep -m1 "main.pony.*rvr.*return.*\"replacement\": \"0\"" "${_json}"
     OUTPUT_VARIABLE _rvr_line
     RESULT_VARIABLE _grep_rc
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -706,3 +706,135 @@ if(_pos EQUAL -1)
 endif()
 
 message(STATUS "PASS: CR wide literal mutant ${_cr_wide_id} computes 18446744073709551630")
+
+# --- Bool BOR and->or: (a>b) and (b>10) = false; mutant flips to true ---
+execute_process(
+    COMMAND grep -n "let bor_and_r" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _bor_and_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _bor_and_src)
+    message(FATAL_ERROR "could not find 'let bor_and_r' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _bor_and_lineno "${_bor_and_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_bor_and_lineno}.*bor.*and.*or" "${_json}"
+    OUTPUT_VARIABLE _bor_and_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _bor_and_line)
+    message(FATAL_ERROR
+        "could not find bor and->or mutant on line ${_bor_and_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _bor_and_id "${_bor_and_line}")
+
+set(ENV{PONY_MUTANT_ID} "${_bor_and_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _bor_and_out
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "BOR and->or mutated run exited ${_rc}, expected 1")
+endif()
+string(FIND "${_bor_and_out}" "bor_and=true" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "BOR and->or mutant did not flip result to true\nstdout: ${_bor_and_out}")
+endif()
+
+message(STATUS "PASS: BOR and->or mutant ${_bor_and_id} flips false to true")
+
+# --- Bool BOR or->and: (a>10) or (b>0) = true; mutant flips to false ---
+execute_process(
+    COMMAND grep -n "let bor_or_r" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _bor_or_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _bor_or_src)
+    message(FATAL_ERROR "could not find 'let bor_or_r' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _bor_or_lineno "${_bor_or_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_bor_or_lineno}.*bor.*or.*and" "${_json}"
+    OUTPUT_VARIABLE _bor_or_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _bor_or_line)
+    message(FATAL_ERROR
+        "could not find bor or->and mutant on line ${_bor_or_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _bor_or_id "${_bor_or_line}")
+
+set(ENV{PONY_MUTANT_ID} "${_bor_or_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _bor_or_out
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "BOR or->and mutated run exited ${_rc}, expected 1")
+endif()
+string(FIND "${_bor_or_out}" "bor_or=false" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "BOR or->and mutant did not flip result to false\nstdout: ${_bor_or_out}")
+endif()
+
+message(STATUS "PASS: BOR or->and mutant ${_bor_or_id} flips true to false")
+
+# --- Bool BOR xor->and: (a>b) xor (b>0) = false; xor->and gives true ---
+execute_process(
+    COMMAND grep -n "let bor_xor_r" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _bor_xor_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _bor_xor_src)
+    message(FATAL_ERROR "could not find 'let bor_xor_r' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _bor_xor_lineno "${_bor_xor_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_bor_xor_lineno}.*bor.*xor.*and" "${_json}"
+    OUTPUT_VARIABLE _bor_xor_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _bor_xor_line)
+    message(FATAL_ERROR
+        "could not find bor xor->and mutant on line ${_bor_xor_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _bor_xor_id "${_bor_xor_line}")
+
+set(ENV{PONY_MUTANT_ID} "${_bor_xor_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _bor_xor_out
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR "BOR xor->and mutated run exited ${_rc}, expected 1")
+endif()
+string(FIND "${_bor_xor_out}" "bor_xor=true" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "BOR xor->and mutant did not flip result to true\nstdout: ${_bor_xor_out}")
+endif()
+
+message(STATUS "PASS: BOR xor->and mutant ${_bor_xor_id} flips false to true")
