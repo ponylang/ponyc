@@ -26,3 +26,7 @@ let r = ((x = x + 1; true) and (x > 2))
 
 A related shape — a nested short-circuit that folds to a constant, used as the left operand of an outer `and` or `or` — crashed the compiler instead of producing a wrong answer.
 
+## Fix F64.min() and F64.max() on ARM32
+
+`F64.min()` and `F64.max()` returned incorrect results on ARM32 — both returned the maximum of their two arguments regardless of which was called. They now produce correct results, preserving IEEE 754-2019 minimum/maximum semantics for NaN and signed zero.
+
