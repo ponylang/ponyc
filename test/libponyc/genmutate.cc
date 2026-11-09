@@ -3713,3 +3713,41 @@ TEST_F(GenMutateCodegenTest, SafeSignedRemValidIr)
   opt.mutate_operators = MUTATE_OP_CR;
   DO(test_compile(src, "ir"));
 }
+
+
+TEST_F(GenMutateCodegenTest, I128DivremShadowFalseNegOne)
+{
+  // I128 divisor 18446744073709551615 (2^64-1) has low 64 bits all-ones,
+  // which LLVMConstIntGetSExtValue truncates to -1. The full I128 value
+  // is positive, so mutate_safe_divrem_shadow must return NULL. With the
+  // bug: the div result incorrectly gets a shadow, suppressing AOR on the
+  // downstream add. Without: no shadow, AOR fires on the add.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let z: I128 = (9223372036854775808 / 18446744073709551615)"
+                        " + 1\n";                                // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  ASSERT_GT(count_category_at(3, "aor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, CrShiftWidthBoundaryFilter)
+{
+  // CR on a U64 shift by 63 produces rhs replacements 64 (n+1) and 62
+  // (n-1). The filter must drop 64 (>= width) and keep 62.
+  // LHS literal 1 produces 1->0. Total: 2 CR mutants at line 3.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U64 = 1 << 63\n";                               // line 3
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_EQ(count_category_at(3, "cr"), 2u);
+}

@@ -371,30 +371,31 @@ bool mutate_site_enabled(compile_t* c, const char* category, ast_t* ast)
 }
 
 LLVMValueRef mutate_safe_divrem_shadow(
+  LLVMBuilderRef builder,
   LLVMValueRef l_shadow, LLVMValueRef r_shadow, bool sign, bool is_div)
 {
-  LLVMTypeRef r_type = LLVMTypeOf(r_shadow);
-
   if(!sign)
     return NULL;
 
-  uint64_t width = LLVMGetIntTypeWidth(r_type);
-  long long r_const = LLVMConstIntGetSExtValue(r_shadow);
+  LLVMTypeRef r_type = LLVMTypeOf(r_shadow);
+  unsigned width = LLVMGetIntTypeWidth(r_type);
 
-  if(r_const == -1)
-  {
-    long long l_const = LLVMConstIntGetSExtValue(l_shadow);
-    long long min_val = (width == 64)
-      ? (long long)INT64_MIN
-      : -(1LL << (width - 1));
+  LLVMValueRef neg_one = LLVMConstNot(LLVMConstInt(r_type, 0, false));
+  LLVMValueRef r_eq = LLVMBuildICmp(builder, LLVMIntEQ,
+    r_shadow, neg_one, "");
+  if(!LLVMIsConstant(r_eq) || LLVMConstIntGetZExtValue(r_eq) != 1)
+    return NULL;
 
-    if(l_const == min_val)
-      return is_div
-        ? LLVMConstInt(r_type, (uint64_t)min_val, true)
-        : LLVMConstInt(r_type, 0, false);
-  }
+  LLVMValueRef v_min = LLVMBuildShl(builder, neg_one,
+    LLVMConstInt(r_type, width - 1, false), "");
+  LLVMValueRef l_eq = LLVMBuildICmp(builder, LLVMIntEQ,
+    l_shadow, v_min, "");
+  if(!LLVMIsConstant(l_eq) || LLVMConstIntGetZExtValue(l_eq) != 1)
+    return NULL;
 
-  return NULL;
+  return is_div
+    ? v_min
+    : LLVMConstInt(r_type, 0, false);
 }
 
 
@@ -587,7 +588,7 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
     if(is_fp(l_value))
       shadow = orig_f(c->builder, l_shadow, r_shadow, "");
     else
-      shadow = mutate_safe_divrem_shadow(l_shadow, r_shadow,
+      shadow = mutate_safe_divrem_shadow(c->builder, l_shadow, r_shadow,
         sign, is_div);
     if((shadow != NULL) && LLVMIsConstant(shadow))
       mutate_shadow_set(c, cr_result, shadow);
@@ -698,7 +699,7 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
     if(is_fp(l_value))
       shadow = orig_f(c->builder, l_shadow, r_shadow, "");
     else
-      shadow = mutate_safe_divrem_shadow(l_shadow, r_shadow,
+      shadow = mutate_safe_divrem_shadow(c->builder, l_shadow, r_shadow,
         sign, is_div);
     if((shadow != NULL) && LLVMIsConstant(shadow))
       mutate_shadow_set(c, final_result, shadow);
@@ -1909,9 +1910,15 @@ LLVMValueRef mutate_cr_shift(compile_t* c, ast_t* ast,
   size_t r_count = 0;
   for(size_t i = 0; i < r_raw; i++)
   {
-    if(LLVMIsAConstantInt(r_alts[i]) &&
-       LLVMConstIntGetZExtValue(r_alts[i]) >= width)
-      continue;
+    if(LLVMIsAConstantInt(r_alts[i]))
+    {
+      LLVMValueRef width_val = LLVMConstInt(LLVMTypeOf(r_alts[i]),
+        width, false);
+      LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntUGE,
+        r_alts[i], width_val, "");
+      if(LLVMIsConstant(cmp) && LLVMConstIntGetZExtValue(cmp) == 1)
+        continue;
+    }
     r_alts[r_count] = r_alts[i];
     r_labels[r_count] = r_labels[i];
     r_count++;
