@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix PosixDate on 32-bit ([PR #6418](https://github.com/ponylang/ponyc/pull/6418))
 - Fix short-circuit `and`/`or` dropping side effects when left operand is a compile-time constant ([PR #6424](https://github.com/ponylang/ponyc/pull/6424))
 - Fix F64.min() and F64.max() on ARM32 ([PR #6421](https://github.com/ponylang/ponyc/pull/6421))
+- Fix incorrect constant folding of I128 division and shift operations ([PR #6425](https://github.com/ponylang/ponyc/pull/6425))
 
 ### Added
 
