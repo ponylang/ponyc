@@ -14,3 +14,15 @@ On systems with 32-bit `time_t` (such as 32-bit ARM Linux), every `PosixDate` pr
 
 The upper bound for dates is now clamped to the `time_t` range on each platform. On 32-bit `time_t` systems, this means the maximum representable date is 2038-01-19 03:14:07 UTC (the Y2038 limit) rather than year 2147483647.
 
+## Fix short-circuit `and`/`or` dropping side effects when left operand is a compile-time constant
+
+When the left operand of a short-circuit `and` or `or` folded to a compile-time constant, ponyc dropped the code that computed it. Any side effects in that left operand — assignments, field writes — never ran, and the program silently produced wrong results.
+
+```pony
+var x: U32 = 1
+let r = ((x = x + 1; true) and (x > 2))
+// x was 1 (the assignment never ran); now x is 2
+```
+
+A related shape — a nested short-circuit that folds to a constant, used as the left operand of an outer `and` or `or` — crashed the compiler instead of producing a wrong answer.
+
