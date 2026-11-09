@@ -1747,6 +1747,13 @@ LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value,
   LLVMValueRef result = make_cmp_value(c, sign, l_value, r_value,
     LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
 
+  if((result != NULL) && c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_cmp(c, mutate_ast, left, NULL,
+      l_value, r_value, result, sign,
+      LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+  }
+
   if((result != NULL) && c->opt->mutate)
   {
     LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
