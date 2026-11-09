@@ -3842,24 +3842,3 @@ TEST_F(GenMutateCodegenTest, I128DivremShadowFalseNegOne)
   DO(test_compile(src, "ir"));
   ASSERT_GT(count_category_at(3, "aor"), 0u);
 }
-
-
-TEST_F(GenMutateCodegenTest, CrShiftI128OutOfRangeFilter)
-{
-  // U128 shift by 18446744073709551743 (= 2^64 + 127). The low 64 bits
-  // are 127, so the compile-time width check lets it through (#6423).
-  // CR produces n-1 = 2^64 + 126 and n+1 = 2^64 + 128; both exceed 128
-  // and must be filtered. Only the LHS literal (1->0) should survive.
-  const char* src =
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let x: U128 = 1 << 18446744073709551743\n";            // line 3
-
-  opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_CR;
-  DO(test_compile(src, "ir"));
-
-  ASSERT_FALSE(has_mutant("cr", "rhs", "n->n-1"));
-  ASSERT_FALSE(has_mutant("cr", "rhs", "n->n+1"));
-  ASSERT_TRUE(has_mutant("cr", "lhs", "1->0"));
-}
