@@ -1067,6 +1067,108 @@ TEST_F(GenMutateCodegenTest, MatchPatternUnion)
 }
 
 
+TEST_F(GenMutateCodegenTest, MatchPatternCrOnly)
+{
+  const char* src =
+    "actor Main\n"                     // line 1
+    "  new create(env: Env) =>\n"      // line 2
+    "    let y: U64 = 5\n"             // line 3
+    "    match y\n"                     // line 4
+    "    | 3 => None\n"                // line 5, pattern at col 7
+    "    end\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at(5, "cr"), 0u);
+  ASSERT_EQ(count_category_at(5, "ror"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, MatchPatternCategoryIndependence)
+{
+  const char* sources[] = {
+    // int pattern
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 5\n"
+    "    match y\n"
+    "    | 3 => None\n"
+    "    end\n",
+    // float pattern
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: F64 = 5.0\n"
+    "    match y\n"
+    "    | 1.5 => None\n"
+    "    end\n",
+    // bool pattern
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: Bool = true\n"
+    "    match y\n"
+    "    | true => None\n"
+    "    end\n",
+    // union arm
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: (U64 | None) = U64(4)\n"
+    "    match y\n"
+    "    | 4 => None\n"
+    "    end\n",
+    // alternatives
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U64 = 5\n"
+    "    match y\n"
+    "    | 3 | 7 => None\n"
+    "    end\n",
+    // char (U8) pattern
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: U8 = 'a'\n"
+    "    match y\n"
+    "    | 'b' => None\n"
+    "    end\n"
+  };
+  size_t src_count = sizeof(sources) / sizeof(sources[0]);
+
+  const char* categories[] = {"ror", "cr"};
+  uint32_t cat_flags[] = {MUTATE_OP_ROR, MUTATE_OP_CR};
+
+  for(size_t si = 0; si < src_count; si++)
+  {
+    for(size_t ci = 0; ci < 2; ci++)
+    {
+      opt.mutate = true;
+      opt.mutate_operators = cat_flags[ci];
+      DO(test_compile(sources[si], "ir"));
+      auto alone = collect_category(categories[ci]);
+
+      if(ci == 0)
+        ASSERT_GT(count_category_at(5, "ror"), 0u)
+          << "Shape " << si << " produced no ror mutants at pattern line";
+
+      opt.mutate_operators = cat_flags[ci] | MUTATE_OP_CR;
+      DO(test_compile(sources[si], "ir"));
+      auto with_cr = collect_category(categories[ci]);
+
+      opt.mutate_operators = MUTATE_OP_ALL;
+      DO(test_compile(sources[si], "ir"));
+      auto with_all = collect_category(categories[ci]);
+
+      ASSERT_EQ(alone, with_cr)
+        << "Shape " << si << ", category " << categories[ci]
+        << " differs alone vs alone+cr";
+      ASSERT_EQ(alone, with_all)
+        << "Shape " << si << ", category " << categories[ci]
+        << " differs alone vs all";
+    }
+  }
+}
+
+
 TEST_F(GenMutateCodegenTest, CmpEmitsSwitchPhi)
 {
   const char* src =
@@ -3735,19 +3837,22 @@ TEST_F(GenMutateCodegenTest, I128DivremShadowFalseNegOne)
 }
 
 
-TEST_F(GenMutateCodegenTest, CrShiftWidthBoundaryFilter)
+TEST_F(GenMutateCodegenTest, CrShiftI128OutOfRangeFilter)
 {
-  // CR on a U64 shift by 63 produces rhs replacements 64 (n+1) and 62
-  // (n-1). The filter must drop 64 (>= width) and keep 62.
-  // LHS literal 1 produces 1->0. Total: 2 CR mutants at line 3.
+  // U128 shift by 18446744073709551743 (= 2^64 + 127). The low 64 bits
+  // are 127, so the compile-time width check lets it through (#6423).
+  // CR produces n-1 = 2^64 + 126 and n+1 = 2^64 + 128; both exceed 128
+  // and must be filtered. Only the LHS literal (1->0) should survive.
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    let x: U64 = 1 << 63\n";                               // line 3
+    "    let x: U128 = 1 << 18446744073709551743\n";            // line 3
 
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_CR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_EQ(count_category_at(3, "cr"), 2u);
+  ASSERT_FALSE(has_mutant("cr", "rhs", "n->n-1"));
+  ASSERT_FALSE(has_mutant("cr", "rhs", "n->n+1"));
+  ASSERT_TRUE(has_mutant("cr", "lhs", "1->0"));
 }
