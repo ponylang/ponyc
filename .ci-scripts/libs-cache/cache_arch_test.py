@@ -29,6 +29,10 @@ CANONICAL_TABLE = [
     ('aarch64', 'arm64'),    # Linux arm
     ('arm64', 'arm64'),      # macOS arm
     ('ARM64', 'arm64'),      # Windows arm
+    ('i686', 'i686'),        # i386 Docker container (uname -m returns i686)
+    ('i386', 'i686'),        # alternative 32-bit x86 spelling
+    ('I686', 'i686'),        # defensive: any uppercase variant
+    ('I386', 'i686'),        # defensive: any uppercase variant
 ]
 
 
