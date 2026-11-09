@@ -10,10 +10,11 @@ class PosixDate
   day_of_year follows C's tm_yday convention (0-based, January 1 is 0).
 
   The representable range starts at 1970-01-01 00:00:00. The upper bound
-  depends on the platform's `gmtime` implementation: year 3000 on Windows,
-  year 2147483647 elsewhere. Arguments that fall outside this range are
-  clamped: negative values are treated as zero, and values beyond the
-  maximum representable date are treated as the maximum.
+  depends on the platform: year 3000 on Windows, year 2038 on systems with
+  32-bit `time_t` (the Y2038 limit), and year 2147483647 on systems with
+  64-bit `time_t`. Arguments that fall outside this range are clamped:
+  negative values are treated as zero, and values beyond the maximum
+  representable date are treated as the maximum.
   """
   var nsec: I32 = 0
   var sec: I32 = 0
@@ -28,7 +29,7 @@ class PosixDate
   new create(seconds: I64 = 0, nanoseconds: I64 = 0) =>
     """
     Create a date from a POSIX time. Negative arguments are clamped to zero.
-    Combined values beyond year 2147483647 are clamped to the maximum
+    Combined values beyond the platform's maximum are clamped to the maximum
     representable date.
     """
     @ponyint_gmtime(

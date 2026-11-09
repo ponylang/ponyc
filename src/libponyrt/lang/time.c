@@ -68,9 +68,14 @@ PONY_API int64_t ponyint_timegm(date_t* date)
 #define PONYINT_GMTIME_MAX_SEC INT64_C(67767976233532799)
 #endif
 
+// Maximum value representable by the platform's time_t.  On ILP32 systems
+// where time_t is 32-bit, this caps at 2^31-1 (2038-01-19 03:14:07 UTC).
+#define PONYINT_TIME_T_MAX \
+  ((int64_t)((((uint64_t)1) << (sizeof(time_t) * 8 - 1)) - 1))
+
 PONY_API void ponyint_gmtime(date_t* date, int64_t sec, int64_t nsec)
 {
-  time_t overflow_sec = (time_t)(nsec / 1000000000);
+  int64_t overflow_sec = nsec / 1000000000;
   nsec -= (overflow_sec * 1000000000);
 
   if(nsec < 0)
@@ -79,28 +84,35 @@ PONY_API void ponyint_gmtime(date_t* date, int64_t sec, int64_t nsec)
     overflow_sec--;
   }
 
-  // Clamp to avoid signed overflow in the addition and to stay within the
-  // range where gmtime_r succeeds and tm_year + 1900 fits in int.
-  time_t t;
+  int64_t gmtime_max = PONYINT_GMTIME_MAX_SEC;
+  if(gmtime_max > PONYINT_TIME_T_MAX)
+    gmtime_max = PONYINT_TIME_T_MAX;
 
-  if((overflow_sec > 0) && (sec > PONYINT_GMTIME_MAX_SEC - overflow_sec))
+  // Clamp to avoid signed overflow in the addition and to stay within the
+  // range where gmtime_r succeeds, tm_year + 1900 fits in int, and the
+  // result fits in time_t.
+  int64_t combined;
+
+  if((overflow_sec > 0) && (sec > gmtime_max - overflow_sec))
   {
-    t = (time_t)PONYINT_GMTIME_MAX_SEC;
+    combined = gmtime_max;
     nsec = 0;
   }
   else if((overflow_sec < 0) && (sec < -overflow_sec))
   {
-    t = 0;
+    combined = 0;
     nsec = 0;
   }
   else
-    t = (time_t)sec + overflow_sec;
+    combined = sec + overflow_sec;
 
-  if(t > (time_t)PONYINT_GMTIME_MAX_SEC)
+  if(combined > gmtime_max)
   {
-    t = (time_t)PONYINT_GMTIME_MAX_SEC;
+    combined = gmtime_max;
     nsec = 0;
   }
+
+  time_t t = (time_t)combined;
 
   struct tm tm;
 

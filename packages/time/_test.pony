@@ -56,7 +56,8 @@ class \nodoc\ iso _TestPosixDateClamping is UnitTest
 
   fun apply(h: TestHelper) =>
     // The clamping boundary is platform-dependent: year 3000 on Windows
-    // (gmtime_s limit), year 2147483647 elsewhere.
+    // (gmtime_s limit), year 2038 on 32-bit time_t, year 2147483647
+    // on 64-bit time_t.
     ifdef windows then
       let max_date = PosixDate(32535215999)
       h.assert_eq[I32](3000, max_date.year)
@@ -78,6 +79,32 @@ class \nodoc\ iso _TestPosixDateClamping is UnitTest
       h.assert_eq[I32](3000, nsec_over.year)
       h.assert_eq[I32](0, nsec_over.nsec)
       h.assert_eq[I64](32535215999, nsec_over.time())
+    elseif ilp32 then
+      // ILP32 is used as a proxy for 32-bit time_t.  The C runtime uses
+      // sizeof(time_t) directly; if a future ILP32 target has 64-bit time_t
+      // (musl, glibc with _TIME_BITS=64, x32 ABI), this branch needs a
+      // finer-grained condition.
+      let max_date = PosixDate(2147483647)
+      h.assert_eq[I32](2038, max_date.year)
+      h.assert_eq[I32](1, max_date.month)
+      h.assert_eq[I32](19, max_date.day_of_month)
+      h.assert_eq[I32](3, max_date.hour)
+      h.assert_eq[I32](14, max_date.min)
+      h.assert_eq[I32](7, max_date.sec)
+      h.assert_eq[I64](2147483647, max_date.time())
+
+      let clamped = PosixDate(2147483648)
+      h.assert_eq[I32](2038, clamped.year)
+      h.assert_eq[I32](1, clamped.month)
+      h.assert_eq[I32](19, clamped.day_of_month)
+      h.assert_eq[I32](0, clamped.nsec)
+      h.assert_eq[I64](2147483647, clamped.time())
+
+      // Nanoseconds pushing past the boundary
+      let nsec_over = PosixDate(2147483647, 1_000_000_000)
+      h.assert_eq[I32](2038, nsec_over.year)
+      h.assert_eq[I32](0, nsec_over.nsec)
+      h.assert_eq[I64](2147483647, nsec_over.time())
     else
       let max_date = PosixDate(67767976233532799)
       h.assert_eq[I32](2147483647, max_date.year)
@@ -126,7 +153,8 @@ class \nodoc\ iso _TestPosixDateFieldsInRange is Property2[I64, I64]
         (3, Generators.i64(0, 67767976233532799))
         (1, Generators.one_of[I64](
           [
-            I64(0); I64(1); I64(32535215999); I64(32535216000)
+            I64(0); I64(1); I64(2147483647); I64(2147483648)
+            I64(32535215999); I64(32535216000)
             I64(67767976233532798); I64(67767976233532799)
             I64(67767976233532800); I64.max_value()
           ]))
