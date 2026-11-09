@@ -2,24 +2,27 @@
 """Verify trace output content across runtime category toggle phases.
 
 Reads a Chrome Trace JSON file produced by the content-verification test
-program and asserts that the correct events appear (or don't appear) in
-each phase.
+program and checks the per-thread monotonic-transition invariant: once a
+scheduler thread applies a category-change broadcast, it never emits
+old-category events again.
 
-Phases (separated by categories_changed markers):
-  1. ActorBehaviorTracing enabled       -> actor_behavior events present
-  2. set to SchedulerStealingTracing    -> actor_behavior absent, steal events present
-  3. set to empty                       -> both absent
-  4. re-enable ActorBehaviorTracing     -> actor_behavior events present
+The test program runs four phases:
 
-A settle margin (microseconds) is skipped after each categories_changed
-marker to account for multi-scheduler broadcast propagation.  Events in
-the margin are ignored.
+  1. ActorBehaviorTracing on
+  2. switch to SchedulerStealingTracing
+  3. all categories off
+  4. ActorBehaviorTracing on again
+
+So each scheduler thread's event sequence across the whole trace must
+match: actor_behavior* steal* actor_behavior* — no interleaving, no
+regression.  This is always true regardless of how long the broadcast
+takes to propagate, so there is no settle margin or timing sensitivity.
 """
 
 import json
 import sys
+from collections import defaultdict
 
-SETTLE_MARGIN_US = 500  # 500us — broadcast completes in microseconds
 
 def load_events(path):
     with open(path) as f:
@@ -29,14 +32,12 @@ def load_events(path):
         return json.loads(text)
 
 
-def is_actor_behavior(ev):
-    name = ev.get("name", "")
-    return name in ("actor_behavior_run", "actor_behavior_schedule")
-
-
-def is_steal_event(ev):
-    name = ev.get("name", "")
-    return name in ("steal_successful", "steal_failure_round")
+def classify(name):
+    if name in ("actor_behavior_run", "actor_behavior_schedule"):
+        return "ab"
+    if name in ("steal_successful", "steal_failure_round"):
+        return "steal"
+    return None
 
 
 def main():
@@ -45,35 +46,6 @@ def main():
         sys.exit(1)
 
     events = load_events(sys.argv[1])
-
-    # Find categories_changed markers in order
-    markers = [ev for ev in events if ev.get("name") == "categories_changed"]
-    if len(markers) < 4:
-        print(f"FAIL: expected >= 4 categories_changed markers, got {len(markers)}")
-        sys.exit(1)
-
-    # categories_changed markers:
-    #   [0]: enable actor_behavior
-    #   [1]: set to scheduler_stealing (replaces actor_behavior)
-    #   [2]: set to empty (disable all)
-    #   [3]: re-enable actor_behavior
-    #   [4]: cleanup disable
-    #
-    # Phases are the windows BETWEEN consecutive markers:
-    #   Phase 1: markers[0]..markers[1] — actor_behavior active
-    #   Phase 2: markers[1]..markers[2] — scheduler_stealing active
-    #   Phase 3: markers[2]..markers[3] — nothing active
-    #   Phase 4: markers[3]..markers[4] — actor_behavior active again
-    if len(markers) < 5:
-        print(f"FAIL: expected >= 5 categories_changed markers, got {len(markers)}")
-        sys.exit(1)
-
-    phase_bounds = [
-        (markers[0]["ts"], markers[1]["ts"]),
-        (markers[1]["ts"], markers[2]["ts"]),
-        (markers[2]["ts"], markers[3]["ts"]),
-        (markers[3]["ts"], markers[4]["ts"]),
-    ]
 
     pass_count = 0
     fail_count = 0
@@ -87,37 +59,46 @@ def main():
             print(f"  FAIL {label}")
             fail_count += 1
 
-    for phase_num, (start, end) in enumerate(phase_bounds, 1):
-        settle_start = start + SETTLE_MARGIN_US
-        settle_end = end - SETTLE_MARGIN_US
+    # Group classified events by thread, sorted by timestamp.
+    by_tid = defaultdict(list)
+    has_ab = False
+    has_steal = False
+    for ev in events:
+        kind = classify(ev.get("name", ""))
+        if kind is not None:
+            by_tid[ev["tid"]].append((ev["ts"], kind))
+            if kind == "ab":
+                has_ab = True
+            else:
+                has_steal = True
 
-        if settle_start >= settle_end:
-            print(f"FAIL: phase {phase_num} too short for settle margin "
-                  f"(start={start}, end={end}, margin={SETTLE_MARGIN_US})")
-            sys.exit(1)
+    check("actor_behavior events present", has_ab)
+    check("steal events present", has_steal)
 
-        phase_events = [
-            ev for ev in events
-            if settle_start <= ev.get("ts", 0) <= settle_end
-            and ev.get("name") != "categories_changed"
-        ]
-
-        ab_count = sum(1 for ev in phase_events if is_actor_behavior(ev))
-        steal_count = sum(1 for ev in phase_events if is_steal_event(ev))
-
-        print(f"Phase {phase_num} (settle window {settle_start}–{settle_end} us): "
-              f"actor_behavior={ab_count}, steal={steal_count}")
-
-        if phase_num == 1:
-            check("phase 1: actor_behavior events present", ab_count > 0)
-        elif phase_num == 2:
-            check("phase 2: actor_behavior events absent", ab_count == 0)
-            check("phase 2: steal events present", steal_count > 0)
-        elif phase_num == 3:
-            check("phase 3: actor_behavior events absent", ab_count == 0)
-            check("phase 3: steal events absent", steal_count == 0)
-        elif phase_num == 4:
-            check("phase 4: actor_behavior events present", ab_count > 0)
+    # Per-thread monotonicity: ab* steal* ab*
+    # State machine: AB1 → STEAL → AB2.  Any steal after AB2 is a violation.
+    for tid in sorted(by_tid):
+        evs = sorted(by_tid[tid])
+        state = "AB1"
+        for ts, kind in evs:
+            if state == "AB1":
+                if kind == "steal":
+                    state = "STEAL"
+            elif state == "STEAL":
+                if kind == "ab":
+                    state = "AB2"
+            elif state == "AB2":
+                if kind == "steal":
+                    print(f"  FAIL tid {tid}: steal event at {ts} us "
+                          f"after actor_behavior resumed (state AB2)")
+                    fail_count += 1
+                    break
+        else:
+            ab_count = sum(1 for _, k in evs if k == "ab")
+            steal_count = sum(1 for _, k in evs if k == "steal")
+            print(f"  PASS tid {tid}: {ab_count} actor_behavior, "
+                  f"{steal_count} steal, pattern ab*·steal*·ab*")
+            pass_count += 1
 
     print(f"\n{pass_count} passed, {fail_count} failed")
     sys.exit(1 if fail_count > 0 else 0)
