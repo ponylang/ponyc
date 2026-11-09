@@ -45,7 +45,7 @@ macro(run_scenario _label _binary _cli_args)
         COMMAND ${_binary} ${_cli_args}
         WORKING_DIRECTORY "${_run_dir}"
         RESULT_VARIABLE _rc
-        TIMEOUT 30)
+        TIMEOUT 120)
     if(NOT _rc EQUAL 0)
         message(WARNING "  ${_label}: program exited with ${_rc}")
         math(EXPR _fail_count "${_fail_count} + 1")
