@@ -30,6 +30,7 @@
 #include "llvm_config_end.h"
 
 #define TEST_COMPILE(src) DO(test_compile(src, "ir"))
+#define TEST_ERROR(src) DO(test_error(src, "ir"))
 
 
 class CodegenTest : public PassTest
@@ -369,6 +370,53 @@ TEST(CodegenPassInitTest, DefaultTripleLeavesUserTripleClear)
   codegen_pass_cleanup(&opt);
   pass_opt_done(&opt);
 }
+
+
+TEST_F(CodegenTest, ShiftLeft128BitOversize)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/6423
+  //
+  // LLVMConstIntGetZExtValue returned only the low 64 bits of a 128-bit shift
+  // amount passed to gen_shl. A shift amount of 0x1_0000_0000_0000_0005
+  // (2^64 + 5) truncated to 5, passing the width check.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: U128 = 1 << 0x1_0000_0000_0000_0005\n"
+    "    env.out.print(a.string())";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(CodegenTest, ShiftRight128BitOversize)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/6423
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: I128 = I128.min_value() >> 0x1_0000_0000_0000_0001\n"
+    "    env.out.print(a.string())";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(CodegenTest, ShiftLeft128BitExact2to64)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/6423
+  //
+  // Shift amount of exactly 2^64: the low 64 bits are all zero, so the old
+  // truncation produced 0, which passed the width check (0 < 128).
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: U128 = 1 << 0x1_0000_0000_0000_0000\n"
+    "    env.out.print(a.string())";
+
+  TEST_ERROR(src);
+}
+
 
 #ifdef PLATFORM_IS_LINUX
 
