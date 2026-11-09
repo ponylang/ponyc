@@ -47,6 +47,8 @@ actor \nodoc\ Main is TestList
     test(_TestDiv)
     test(_TestDivc)
     test(_TestDivrem)
+    test(_TestF32MinMax)
+    test(_TestF64MinMax)
     test(_TestFld)
     test(_TestFldc)
     test(_TestFloatToString)
@@ -774,6 +776,102 @@ class \nodoc\ iso _TestSpecialValuesF64 is UnitTest
     h.assert_false(F64(0.0 / 0.0).finite())
     h.assert_false(F64(0.0 / 0.0).infinite())
     h.assert_true(F64(0.0 / 0.0).nan())
+
+class \nodoc\ iso _TestF32MinMax is UnitTest
+  """
+  Test F32.min() and F32.max() IEEE 754-2019 minimum/maximum semantics.
+  """
+  fun name(): String => "builtin/F32.min_max"
+
+  fun apply(h: TestHelper) =>
+    // Normal values
+    h.assert_eq[F32](1.0, F32(1.0).min(2.0))
+    h.assert_eq[F32](1.0, F32(2.0).min(1.0))
+    h.assert_eq[F32](2.0, F32(1.0).max(2.0))
+    h.assert_eq[F32](2.0, F32(2.0).max(1.0))
+
+    // Negative values
+    h.assert_eq[F32](-2.0, F32(-1.0).min(-2.0))
+    h.assert_eq[F32](-1.0, F32(-1.0).max(-2.0))
+
+    // NaN propagation
+    let nan = F32(0.0 / 0.0)
+    h.assert_true(F32(1.0).min(nan).nan())
+    h.assert_true(nan.min(F32(1.0)).nan())
+    h.assert_true(F32(1.0).max(nan).nan())
+    h.assert_true(nan.max(F32(1.0)).nan())
+    h.assert_true(nan.min(nan).nan())
+    h.assert_true(nan.max(nan).nan())
+
+    // Equal values
+    h.assert_eq[F32](3.0, F32(3.0).min(3.0))
+    h.assert_eq[F32](3.0, F32(3.0).max(3.0))
+
+    // Infinity
+    let pos_inf = F32(1.0 / 0.0)
+    let neg_inf = F32(-1.0 / 0.0)
+    h.assert_eq[F32](1.0, F32(1.0).min(pos_inf))
+    h.assert_eq[F32](neg_inf, F32(1.0).min(neg_inf))
+    h.assert_eq[F32](pos_inf, F32(1.0).max(pos_inf))
+    h.assert_eq[F32](1.0, F32(1.0).max(neg_inf))
+    h.assert_eq[F32](neg_inf, pos_inf.min(neg_inf))
+    h.assert_eq[F32](pos_inf, pos_inf.max(neg_inf))
+
+    // Signed zero: min(-0, +0) = -0, max(-0, +0) = +0
+    let neg_zero = F32.from_bits(0x8000_0000)
+    let pos_zero = F32(0.0)
+    h.assert_eq[U32](0x8000_0000, neg_zero.min(pos_zero).bits())
+    h.assert_eq[U32](0x8000_0000, pos_zero.min(neg_zero).bits())
+    h.assert_eq[U32](0, neg_zero.max(pos_zero).bits())
+    h.assert_eq[U32](0, pos_zero.max(neg_zero).bits())
+
+class \nodoc\ iso _TestF64MinMax is UnitTest
+  """
+  Test F64.min() and F64.max() IEEE 754-2019 minimum/maximum semantics.
+  """
+  fun name(): String => "builtin/F64.min_max"
+
+  fun apply(h: TestHelper) =>
+    // Normal values
+    h.assert_eq[F64](1.0, F64(1.0).min(2.0))
+    h.assert_eq[F64](1.0, F64(2.0).min(1.0))
+    h.assert_eq[F64](2.0, F64(1.0).max(2.0))
+    h.assert_eq[F64](2.0, F64(2.0).max(1.0))
+
+    // Negative values
+    h.assert_eq[F64](-2.0, F64(-1.0).min(-2.0))
+    h.assert_eq[F64](-1.0, F64(-1.0).max(-2.0))
+
+    // NaN propagation
+    let nan = F64(0.0 / 0.0)
+    h.assert_true(F64(1.0).min(nan).nan())
+    h.assert_true(nan.min(F64(1.0)).nan())
+    h.assert_true(F64(1.0).max(nan).nan())
+    h.assert_true(nan.max(F64(1.0)).nan())
+    h.assert_true(nan.min(nan).nan())
+    h.assert_true(nan.max(nan).nan())
+
+    // Equal values
+    h.assert_eq[F64](3.0, F64(3.0).min(3.0))
+    h.assert_eq[F64](3.0, F64(3.0).max(3.0))
+
+    // Infinity
+    let pos_inf = F64(1.0 / 0.0)
+    let neg_inf = F64(-1.0 / 0.0)
+    h.assert_eq[F64](1.0, F64(1.0).min(pos_inf))
+    h.assert_eq[F64](neg_inf, F64(1.0).min(neg_inf))
+    h.assert_eq[F64](pos_inf, F64(1.0).max(pos_inf))
+    h.assert_eq[F64](1.0, F64(1.0).max(neg_inf))
+    h.assert_eq[F64](neg_inf, pos_inf.min(neg_inf))
+    h.assert_eq[F64](pos_inf, pos_inf.max(neg_inf))
+
+    // Signed zero: min(-0, +0) = -0, max(-0, +0) = +0
+    let neg_zero = F64.from_bits(0x8000_0000_0000_0000)
+    let pos_zero = F64(0.0)
+    h.assert_eq[U64](0x8000_0000_0000_0000, neg_zero.min(pos_zero).bits())
+    h.assert_eq[U64](0x8000_0000_0000_0000, pos_zero.min(neg_zero).bits())
+    h.assert_eq[U64](0, neg_zero.max(pos_zero).bits())
+    h.assert_eq[U64](0, pos_zero.max(neg_zero).bits())
 
 class \nodoc\ iso _TestLdexpF32 is UnitTest
   """
