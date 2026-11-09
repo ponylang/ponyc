@@ -338,6 +338,7 @@ static const char* elf_emulation(compile_t* c)
     case llvm::Triple::aarch64: return "aarch64linux";
     case llvm::Triple::riscv64: return "elf64lriscv";
     case llvm::Triple::riscv32: return "elf32lriscv";
+    case llvm::Triple::x86: return "elf_i386";
     case llvm::Triple::arm:
     case llvm::Triple::thumb: return "armelf_linux_eabi";
     default: return NULL;
@@ -381,6 +382,9 @@ static const char* dynamic_linker_path(compile_t* c)
     case llvm::Triple::aarch64:
       return is_musl ? "/lib/ld-musl-aarch64.so.1"
                      : "/lib/ld-linux-aarch64.so.1";
+    case llvm::Triple::x86:
+      return is_musl ? "/lib/ld-musl-i386.so.1"
+                     : "/lib/ld-linux.so.2";
     case llvm::Triple::riscv64:
       return is_musl ? "/lib/ld-musl-riscv64.so.1"
                      : "/lib/ld-linux-riscv64-lp64d.so.1";
@@ -407,11 +411,13 @@ static const char* dynamic_linker_path(compile_t* c)
 // "armv6", "armv7", etc. — but Debian/Ubuntu/Raspbian multiarch directories
 // (/usr/lib/<tuple>, /usr/lib/gcc/<tuple>/) and GNU cross-toolchain triples
 // normalize all of them to "arm"; the EABI float variant is carried in the
-// environment (gnueabihf vs gnueabi), not the arch. The other architectures
-// this embedded linker supports (see expected_elf_machine: x86_64, aarch64,
-// riscv64, riscv32) already match LLVM's spelling, so fall back to
-// getArchName() there. system_triple (genopt) carries a twin of this for the
-// multiarch tuple it builds; keep the two in sync.
+// environment (gnueabihf vs gnueabi), not the arch. The remaining
+// architectures (x86_64, aarch64, riscv64, riscv32, x86) fall back to
+// getArchName(). For x86, getArchName() returns "i686" or "i386" while
+// GCC install directories may use a different i*86 variant;
+// arch_prefix_matches() resolves this at the directory-scan call sites.
+// system_triple (genopt) carries a twin of this for the multiarch tuple it
+// builds; keep the two in sync.
 static std::string gnu_multiarch_arch(const llvm::Triple& triple)
 {
   switch(triple.getArch())
@@ -424,6 +430,29 @@ static std::string gnu_multiarch_arch(const llvm::Triple& triple)
   }
 }
 
+// Match a directory name's architecture prefix against arch_prefix. For most
+// architectures a plain strncmp suffices (x86_64- matches x86_64-linux-gnu,
+// arm- matches arm-linux-gnueabihf, etc.). 32-bit x86 is the exception: the
+// compiler triple may say i686 while the GCC install directory uses i586 or
+// i386 — all are the same architecture. This function treats any i[3-6]86-
+// prefix as matching any other.
+static bool arch_prefix_matches(const char* dirname, const char* arch_prefix,
+  size_t prefix_len)
+{
+  if(prefix_len >= 5
+    && arch_prefix[0] == 'i'
+    && arch_prefix[2] == '8' && arch_prefix[3] == '6'
+    && arch_prefix[4] == '-')
+  {
+    return dirname[0] == 'i'
+      && dirname[1] >= '3' && dirname[1] <= '6'
+      && dirname[2] == '8' && dirname[3] == '6'
+      && dirname[4] == '-';
+  }
+
+  return strncmp(dirname, arch_prefix, prefix_len) == 0;
+}
+
 static uint16_t expected_elf_machine(char* target_triple)
 {
   llvm::Triple triple(target_triple);
@@ -433,6 +462,7 @@ static uint16_t expected_elf_machine(char* target_triple)
     case llvm::Triple::x86_64:  return 62;   // EM_X86_64
     case llvm::Triple::aarch64: return 183;  // EM_AARCH64
     case llvm::Triple::riscv64: return 243;  // EM_RISCV
+    case llvm::Triple::x86:     return 3;    // EM_386
     case llvm::Triple::riscv32: return 243;  // EM_RISCV
     case llvm::Triple::arm:
     case llvm::Triple::thumb:   return 40;   // EM_ARM
@@ -664,7 +694,7 @@ static const char* find_dragonfly_gcc_lib_dir(const char* sysroot,
       {
         if(triple_entry->d_name[0] == '.')
           continue;
-        if(strncmp(triple_entry->d_name, arch_prefix, prefix_len) != 0)
+        if(!arch_prefix_matches(triple_entry->d_name, arch_prefix, prefix_len))
           continue;
 
         char triple_dir[PATH_MAX];
@@ -838,7 +868,7 @@ static const char* find_gcc_lib_dir(const char* sysroot,
         continue;
 
       // Skip cross-compiler directories for a different architecture.
-      if(strncmp(triple_entry->d_name, arch_prefix, prefix_len) != 0)
+      if(!arch_prefix_matches(triple_entry->d_name, arch_prefix, prefix_len))
         continue;
 
       char triple_dir[PATH_MAX];
@@ -1632,6 +1662,14 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     args.push_back("-lgcc_s");
     args.push_back("--no-as-needed");
     args.push_back("-lc");
+    // On i386 with PIC, GCC emits calls to __stack_chk_fail_local (a
+    // hidden PLT-local stub) rather than the libc-provided
+    // __stack_chk_fail. libssp_nonshared.a provides it. This is
+    // i386-specific — ARM and other ILP32 targets use the standard
+    // __stack_chk_fail symbol.
+    if(target_triple.getArch() == llvm::Triple::x86
+      && !target_is_bsd(c->opt->triple))
+      args.push_back("-lssp_nonshared");
   }
 
   // CRT finalization objects.
