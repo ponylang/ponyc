@@ -1130,6 +1130,13 @@ TEST_F(GenMutateCodegenTest, MatchPatternCategoryIndependence)
     "    let y: U8 = 'a'\n"
     "    match y\n"
     "    | 'b' => None\n"
+    "    end\n",
+    // tuple element
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y: (U64, U64) = (3, 4)\n"
+    "    match y\n"
+    "    | (1, 2) => None\n"
     "    end\n"
   };
   size_t src_count = sizeof(sources) / sizeof(sources[0]);
