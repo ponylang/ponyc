@@ -118,6 +118,28 @@ if(PONY_RUNTIME_BITCODE)
         message(FATAL_ERROR "You can only use runtime-bitcode with Clang.")
     endif()
 
+    # The compiler's actual default target triple, for the --target= flag on
+    # the bitcode compile.  CMAKE_C_COMPILER_TARGET is set for explicit
+    # cross-compilation; otherwise ask the compiler directly.
+    # LLVM_TARGET_TRIPLE comes from config.guess / uname -m and can differ
+    # from the compiler's target in containers where the kernel arch
+    # differs from the userland (e.g. an i386 Docker image on an x86_64
+    # host, where uname -m still reports x86_64).
+    if(CMAKE_C_COMPILER_TARGET)
+        set(_bc_target_triple ${CMAKE_C_COMPILER_TARGET})
+    else()
+        execute_process(
+            COMMAND ${CMAKE_C_COMPILER} -dumpmachine
+            OUTPUT_VARIABLE _bc_target_triple
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE _dumpmachine_rc
+        )
+        if(NOT _dumpmachine_rc EQUAL 0)
+            message(FATAL_ERROR "${CMAKE_C_COMPILER} -dumpmachine failed (exit ${_dumpmachine_rc})")
+        endif()
+    endif()
+    string(REGEX REPLACE "-.*" "" _bc_arch "${_bc_target_triple}")
+
     set(_c_flags ${CMAKE_C_FLAGS})
     separate_arguments(_c_flags)
 
@@ -128,17 +150,14 @@ if(PONY_RUNTIME_BITCODE)
     # widest feature set for the CPU family so that those decisions — vector
     # widths, instruction selection during IR transforms — are as good as
     # possible regardless of what the end user targets.
-    if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86-64"
-        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64"
-        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "amd64"
-        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64"
-        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86")
+    #
+    # Match on _bc_arch (from -dumpmachine), not CMAKE_SYSTEM_PROCESSOR:
+    # uname -m can differ from the compiler's target in cross-arch containers.
+    if(_bc_arch MATCHES "^(x86_64|amd64|AMD64)$")
         list(FILTER _c_flags EXCLUDE REGEX "^-march=")
         list(FILTER _c_flags EXCLUDE REGEX "^-mtune=")
         list(APPEND _c_flags -march=x86-64-v4 -mcx16)
-    elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64"
-        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64"
-        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "ARM64")
+    elseif(_bc_arch MATCHES "^(aarch64|arm64|ARM64)$")
         list(FILTER _c_flags EXCLUDE REGEX "^-march=")
         list(FILTER _c_flags EXCLUDE REGEX "^-mtune=")
         list(APPEND _c_flags -march=armv8.9-a+crypto+sha3+sm4+dotprod+fp16fml+bf16+i8mm+lse+lse128+rcpc3+pauth+memtag+rng+flagm+predres+ssbs+sb+ls64+hbc+mops+cssc+the+gcs+ite)
@@ -153,7 +172,7 @@ if(PONY_RUNTIME_BITCODE)
         #message("${libponyrt_SOURCE_DIR}/${_src_file} -> ${libponyrt_BINARY_DIR}/${_src_file}.bc")
         get_filename_component(_src_dir ${_src_file} DIRECTORY)
         add_custom_command(
-            COMMAND mkdir -p "${libponyrt_BINARY_DIR}/${_src_dir}" && ${CMAKE_C_COMPILER} --target=$<IF:$<BOOL:${CMAKE_C_COMPILER_TARGET}>,${CMAKE_C_COMPILER_TARGET},${LLVM_TARGET_TRIPLE}> -DBUILD_COMPILER="${CMAKE_C_COMPILER_VERSION}" -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -DLLVM_BUILD_MODE=${PONY_LLVM_BUILD_MODE} -DLLVM_VERSION="${LLVM_VERSION}" -DPONY_COMPILER="${CMAKE_C_COMPILER}" -DPONY_ARCH="${CMAKE_SYSTEM_PROCESSOR}" -DPONY_BUILD_CONFIG="release" -DNDEBUG -DPONY_USE_BIGINT ${PONY_RUNTIME_DEFINES} -pthread -fexceptions -Werror -Wconversion -Wno-sign-conversion -Wno-atomic-alignment -Wextra -Wall ${_c_flags} -I${libponyrt_SOURCE_DIR} -I${libponyrt_SOURCE_DIR}/../common -I${CMAKE_BINARY_DIR}/pony_generated -I/usr/local/include -O2 -emit-llvm -MD -MF "${libponyrt_BINARY_DIR}/${_src_file}.bc.d" -o "${libponyrt_BINARY_DIR}/${_src_file}.bc" -c "${libponyrt_SOURCE_DIR}/${_src_file}"
+            COMMAND mkdir -p "${libponyrt_BINARY_DIR}/${_src_dir}" && ${CMAKE_C_COMPILER} --target=${_bc_target_triple} -DBUILD_COMPILER="${CMAKE_C_COMPILER_VERSION}" -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -DLLVM_BUILD_MODE=${PONY_LLVM_BUILD_MODE} -DLLVM_VERSION="${LLVM_VERSION}" -DPONY_COMPILER="${CMAKE_C_COMPILER}" -DPONY_ARCH="${CMAKE_SYSTEM_PROCESSOR}" -DPONY_BUILD_CONFIG="release" -DNDEBUG -DPONY_USE_BIGINT ${PONY_RUNTIME_DEFINES} -pthread -fexceptions -Werror -Wconversion -Wno-sign-conversion -Wno-atomic-alignment -Wextra -Wall ${_c_flags} -I${libponyrt_SOURCE_DIR} -I${libponyrt_SOURCE_DIR}/../common -I${CMAKE_BINARY_DIR}/pony_generated -I/usr/local/include -O2 -emit-llvm -MD -MF "${libponyrt_BINARY_DIR}/${_src_file}.bc.d" -o "${libponyrt_BINARY_DIR}/${_src_file}.bc" -c "${libponyrt_SOURCE_DIR}/${_src_file}"
             DEPENDS "${libponyrt_SOURCE_DIR}/${_src_file}"
             DEPFILE "${libponyrt_BINARY_DIR}/${_src_file}.bc.d"
             OUTPUT "${libponyrt_BINARY_DIR}/${_src_file}.bc"
