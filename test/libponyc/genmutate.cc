@@ -4222,6 +4222,45 @@ TEST_F(GenMutateCodegenTest, ShortCircuitCoverageTiming)
   ASSERT_FALSE(ror_covs.empty()) << "no ror records at line 4";
   ASSERT_EQ(ror_covs.count(bor_cov), 0u)
     << "bor and ror share a coverage counter";
+
+  // The coverage atomicrmw must be in the same block as the condbr
+  // that uses the flip condition, not in the right-side block.
+  auto module = llvm::unwrap(compile->module);
+  bool found_cov_in_condbr_block = false;
+  for(auto& fn : *module)
+  {
+    if(fn.getName().find("create") == llvm::StringRef::npos)
+      continue;
+    for(auto& bb : fn)
+    {
+      for(auto& inst : bb)
+      {
+        if(auto* rmw = llvm::dyn_cast<llvm::AtomicRMWInst>(&inst))
+        {
+          if(auto* gep = llvm::dyn_cast<llvm::GetElementPtrInst>(
+            rmw->getPointerOperand()))
+          {
+            if(auto* ci = llvm::dyn_cast<llvm::ConstantInt>(
+              gep->getOperand(1)))
+            {
+              if(ci->getSExtValue() == bor_cov)
+              {
+                auto* term = bb.getTerminator();
+                auto* br = llvm::dyn_cast<llvm::BranchInst>(term);
+                ASSERT_NE(br, nullptr)
+                  << "bor coverage block has no branch terminator";
+                ASSERT_TRUE(br->isConditional())
+                  << "bor coverage block ends with unconditional br";
+                found_cov_in_condbr_block = true;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  ASSERT_TRUE(found_cov_in_condbr_block)
+    << "bor coverage atomicrmw not found in a condbr block";
 }
 
 // Coverage timing for Bool xor.
@@ -4251,6 +4290,45 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCoverageTiming)
   ASSERT_FALSE(ror_covs.empty()) << "no ror records at line 4";
   ASSERT_EQ(ror_covs.count(bor_cov), 0u)
     << "bor and ror share a coverage counter for xor site";
+
+  // The coverage atomicrmw must be in the left-exit block (which ends
+  // with a condbr on the enter condition), not in the right-side block.
+  auto module = llvm::unwrap(compile->module);
+  bool found_cov_in_condbr_block = false;
+  for(auto& fn : *module)
+  {
+    if(fn.getName().find("create") == llvm::StringRef::npos)
+      continue;
+    for(auto& bb : fn)
+    {
+      for(auto& inst : bb)
+      {
+        if(auto* rmw = llvm::dyn_cast<llvm::AtomicRMWInst>(&inst))
+        {
+          if(auto* gep = llvm::dyn_cast<llvm::GetElementPtrInst>(
+            rmw->getPointerOperand()))
+          {
+            if(auto* ci = llvm::dyn_cast<llvm::ConstantInt>(
+              gep->getOperand(1)))
+            {
+              if(ci->getSExtValue() == bor_cov)
+              {
+                auto* term = bb.getTerminator();
+                auto* br = llvm::dyn_cast<llvm::BranchInst>(term);
+                ASSERT_NE(br, nullptr)
+                  << "xor bor coverage block has no branch terminator";
+                ASSERT_TRUE(br->isConditional())
+                  << "xor bor coverage block ends with unconditional br";
+                found_cov_in_condbr_block = true;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  ASSERT_TRUE(found_cov_in_condbr_block)
+    << "xor bor coverage atomicrmw not found in a condbr block";
 }
 
 // Nested sites get distinct ids and columns.
