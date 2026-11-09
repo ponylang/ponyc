@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix building on 32-bit ([PR #6416](https://github.com/ponylang/ponyc/pull/6416))
 
 ### Added
 
