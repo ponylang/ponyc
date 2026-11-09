@@ -548,6 +548,68 @@ LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
   return final_result;
 }
 
+LLVMValueRef mutate_sc_flip(compile_t* c, ast_t* ast, bool is_and,
+  LLVMValueRef l_value)
+{
+  source_t* source = ast_source(ast);
+  const char* file =
+    ((source != NULL) && (source->file != NULL)) ? source->file : "";
+  size_t line = ast_line(ast);
+  size_t pos = ast_pos(ast);
+
+  size_t prev_count = c->mutate.mutant_count;
+  int32_t cov_id = c->mutate.next_coverage_id;
+
+  const char* original = is_and ? "and" : "or";
+  const char* replacement = is_and ? "or" : "and";
+
+  int32_t out_cov;
+  int32_t id = mutate_find_or_record(&c->mutate, file, line, pos,
+    "bor", original, replacement, cov_id, &out_cov);
+  cov_id = out_cov;
+
+  if(c->mutate.mutant_count > prev_count)
+    c->mutate.next_coverage_id++;
+
+  mutate_emit_coverage_inc(c, cov_id);
+
+  LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
+  LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
+    selector, "mut.sel");
+  LLVMValueRef match = LLVMBuildICmp(c->builder, LLVMIntEQ,
+    sel, LLVMConstInt(c->i32, id, false), "");
+  LLVMValueRef cond = LLVMBuildXor(c->builder, l_value, match, "");
+
+  return cond;
+}
+
+void mutate_sc_xor_record(compile_t* c, ast_t* ast,
+  int32_t* and_id_out, int32_t* or_id_out, int32_t* cov_id_out)
+{
+  source_t* source = ast_source(ast);
+  const char* file =
+    ((source != NULL) && (source->file != NULL)) ? source->file : "";
+  size_t line = ast_line(ast);
+  size_t pos = ast_pos(ast);
+
+  size_t prev_count = c->mutate.mutant_count;
+  int32_t cov_id = c->mutate.next_coverage_id;
+
+  int32_t out_cov;
+  *and_id_out = mutate_find_or_record(&c->mutate, file, line, pos,
+    "bor", "xor", "and", cov_id, &out_cov);
+  cov_id = out_cov;
+
+  *or_id_out = mutate_find_or_record(&c->mutate, file, line, pos,
+    "bor", "xor", "or", cov_id, &out_cov);
+  cov_id = out_cov;
+
+  if(c->mutate.mutant_count > prev_count)
+    c->mutate.next_coverage_id++;
+
+  *cov_id_out = cov_id;
+}
+
 LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
   ast_t* left, ast_t* right,
   LLVMValueRef (*orig_f)(LLVMBuilderRef, LLVMValueRef, LLVMValueRef,

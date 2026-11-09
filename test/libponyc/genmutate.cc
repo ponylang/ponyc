@@ -17,6 +17,7 @@
 
 #include "llvm_config_begin.h"
 
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 
@@ -361,6 +362,33 @@ protected:
     return count;
   }
 
+  size_t count_category_at_col(size_t line, size_t col,
+    const char* category)
+  {
+    size_t count = 0;
+    for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+    {
+      mutant_record_t* r = &compile->mutate.mutants[i];
+      if(r->line == line && r->column == col
+        && strcmp(r->category, category) == 0)
+        count++;
+    }
+    return count;
+  }
+
+  int32_t coverage_counter_at(size_t line, size_t col,
+    const char* category)
+  {
+    for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+    {
+      mutant_record_t* r = &compile->mutate.mutants[i];
+      if(r->line == line && r->column == col
+        && strcmp(r->category, category) == 0)
+        return r->coverage_counter;
+    }
+    return -1;
+  }
+
   struct mutant_key
   {
     std::string file;
@@ -413,6 +441,21 @@ protected:
         r->category, r->original, r->replacement});
     }
     return result;
+  }
+
+  void verify_module()
+  {
+    char* msg = NULL;
+    LLVMBool failed = LLVMVerifyModule(compile->module,
+      LLVMReturnStatusAction, &msg);
+    if(failed)
+    {
+      std::string err(msg ? msg : "(no message)");
+      LLVMDisposeMessage(msg);
+      FAIL() << "LLVMVerifyModule failed:\n" << err;
+    }
+    if(msg)
+      LLVMDisposeMessage(msg);
   }
 };
 
@@ -3841,4 +3884,461 @@ TEST_F(GenMutateCodegenTest, I128DivremShadowFalseNegOne)
   opt.mutate_operators = MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
   ASSERT_GT(count_category_at(3, "aor"), 0u);
+}
+
+TEST_F(GenMutateCodegenTest, ShortCircuitVerifyBaseline)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x = U64(3) + U64(5)\n";
+
+  opt.mutate = true;
+  DO(test_compile(src, "ir"));
+  verify_module();
+}
+
+// Table-driven test: {and, or} x left {true, false, x>0} x right
+// {true, false, x<100}. BOR count is 1 iff fire, 0 otherwise.
+// All code lives inside create so it's reachable; x is a local variable.
+TEST_F(GenMutateCodegenTest, ShortCircuitBorFiringTable)
+{
+  struct row {
+    const char* op;
+    const char* left_expr;
+    const char* right_expr;
+    bool expect_fire;
+  };
+
+  // x is a local U64, so (x > U64(0)) and (x < U64(100)) produce
+  // non-constant LLVM values. true/false are constant.
+  row rows[] = {
+    // and: left non-deciding const (true) + non-const right -> fire
+    {"and", "true", "(x < U64(100))", true},
+    // and: left non-deciding const + const right -> no fire
+    {"and", "true", "false", false},
+    // and: left non-const + non-const right -> fire
+    {"and", "(x > U64(0))", "(x < U64(100))", true},
+    // and: left non-const + non-deciding const right (true) -> fire
+    {"and", "(x > U64(0))", "true", true},
+    // and: left non-const + deciding const right (false) -> no fire
+    {"and", "(x > U64(0))", "false", false},
+    // or: left non-deciding const (false) + non-const right -> fire
+    {"or", "false", "(x < U64(100))", true},
+    // or: left non-deciding const + const right -> no fire
+    {"or", "false", "true", false},
+    // or: left non-const + non-const right -> fire
+    {"or", "(x > U64(0))", "(x < U64(100))", true},
+    // or: left non-const + non-deciding const right (false) -> fire
+    {"or", "(x > U64(0))", "false", true},
+    // or: left non-const + deciding const right (true) -> no fire
+    {"or", "(x > U64(0))", "true", false},
+  };
+
+  for(size_t i = 0; i < sizeof(rows) / sizeof(rows[0]); i++)
+  {
+    row& r = rows[i];
+    char src[512];
+    snprintf(src, sizeof(src),
+      "actor Main\n"                              // 1
+      "  new create(env: Env) =>\n"               // 2
+      "    let x: U64 = 10\n"                     // 3
+      "    let z = %s %s %s\n",                    // 4
+      r.left_expr, r.op, r.right_expr);
+
+    opt.mutate = true;
+    opt.mutate_operators = MUTATE_OP_BOR;
+    DO(test_compile(src, "ir"))
+      << "row " << i << ": " << r.left_expr << " " << r.op
+      << " " << r.right_expr;
+
+    size_t bor_at_4 = count_category_at(4, "bor");
+    ASSERT_EQ(bor_at_4, r.expect_fire ? 1u : 0u)
+      << "row " << i << ": " << r.left_expr << " " << r.op
+      << " " << r.right_expr
+      << " expected fire=" << r.expect_fire
+      << " got bor count=" << bor_at_4;
+
+    ASSERT_FALSE(has_mutant_at(4, 0, "bor", r.op, "xor"))
+      << "row " << i << ": unexpected xor replacement for " << r.op;
+
+    verify_module();
+
+    // Also verify under ALL categories.
+    opt.mutate_operators = MUTATE_OP_ALL;
+    DO(test_compile(src, "ir"))
+      << "row " << i << " ALL: " << r.left_expr << " " << r.op
+      << " " << r.right_expr;
+    verify_module();
+  }
+}
+
+// false and <expr with an operator>: right side gets no mutants.
+TEST_F(GenMutateCodegenTest, ShortCircuitDecidingLeftSuppresses)
+{
+  const char* src =
+    "actor Main\n"                                     // 1
+    "  new create(env: Env) =>\n"                      // 2
+    "    let x: U64 = 10\n"                            // 3
+    "    let z = false and ((x + U64(1)) > U64(0))\n"; // 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_BOR;
+  DO(test_compile(src, "ir"));
+  ASSERT_EQ(count_category_at(4, "bor"), 0u);
+  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+  ASSERT_EQ(count_category_at(4, "bor"), 0u);
+  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+}
+
+// Independence: each category's record set equals alone, +bor,
+// and with all categories; bor equals alone and +cr.
+TEST_F(GenMutateCodegenTest, ShortCircuitCategoryIndependence)
+{
+  const char* src =
+    "actor Main\n"                                             // 1
+    "  new create(env: Env) =>\n"                              // 2
+    "    let x: U64 = 10\n"                                    // 3
+    "    let a = (x > U64(0)) and (x < U64(100))\n"           // 4
+    "    let b = (x > U64(0)) or (x < U64(100))\n"            // 5
+    "    let c = (x > U64(0)) xor (x < U64(100))\n"           // 6
+    "    let d = ((x > U64(0)) and (x < U64(100)))"
+      " or (x == U64(5))\n"                                   // 7
+    "    let e = if (x > U64(0)) and false then\n"             // 8
+    "      x + U64(1)\n"                                       // 9
+    "    else\n"                                                // 10
+    "      x + U64(2)\n"                                       // 11
+    "    end\n"                                                 // 12
+    "    let f = if (x > U64(0)) and (x < U64(100)) then\n"   // 13
+    "      x + U64(1)\n"                                       // 14
+    "    else\n"                                                // 15
+    "      x + U64(2)\n"                                       // 16
+    "    end\n"                                                 // 17
+    "    let g = e + f\n";                                      // 18
+
+  const char* categories[] = {"ror", "cr", "aor", "bor", "uoi"};
+
+  std::map<std::string, std::set<mutant_key>> alone;
+  for(const char* cat : categories)
+  {
+    opt.mutate = true;
+    if(strcmp(cat, "ror") == 0)
+      opt.mutate_operators = MUTATE_OP_ROR;
+    else if(strcmp(cat, "cr") == 0)
+      opt.mutate_operators = MUTATE_OP_CR;
+    else if(strcmp(cat, "aor") == 0)
+      opt.mutate_operators = MUTATE_OP_AOR;
+    else if(strcmp(cat, "bor") == 0)
+      opt.mutate_operators = MUTATE_OP_BOR;
+    else if(strcmp(cat, "uoi") == 0)
+      opt.mutate_operators = MUTATE_OP_UOI;
+    DO(test_compile(src, "ir"));
+    alone[cat] = collect_category(cat);
+  }
+
+  for(const char* cat : categories)
+  {
+    if(strcmp(cat, "bor") == 0) continue;
+    opt.mutate = true;
+    if(strcmp(cat, "ror") == 0)
+      opt.mutate_operators = MUTATE_OP_ROR | MUTATE_OP_BOR;
+    else if(strcmp(cat, "cr") == 0)
+      opt.mutate_operators = MUTATE_OP_CR | MUTATE_OP_BOR;
+    else if(strcmp(cat, "aor") == 0)
+      opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_BOR;
+    else if(strcmp(cat, "uoi") == 0)
+      opt.mutate_operators = MUTATE_OP_UOI | MUTATE_OP_BOR;
+    DO(test_compile(src, "ir"));
+    auto with_bor = collect_category(cat);
+    ASSERT_EQ(alone[cat], with_bor)
+      << cat << " differs alone vs +bor";
+  }
+
+  {
+    opt.mutate = true;
+    opt.mutate_operators = MUTATE_OP_BOR | MUTATE_OP_CR;
+    DO(test_compile(src, "ir"));
+    auto bor_with_cr = collect_category("bor");
+    ASSERT_EQ(alone["bor"], bor_with_cr) << "bor differs alone vs +cr";
+  }
+
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+  for(const char* cat : categories)
+  {
+    auto with_all = collect_category(cat);
+    ASSERT_EQ(alone[cat], with_all) << cat << " differs alone vs all";
+  }
+
+  // Positive control: then-arm of the firing and on line 14 has AOR.
+  ASSERT_GT(count_category_at(14, "aor"), 0u)
+    << "positive control: no aor on firing and's then arm";
+
+  // Zero AOR on the then-arm of (x>0) and false (line 9).
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_BOR;
+  DO(test_compile(src, "ir"));
+  ASSERT_EQ(count_category_at(9, "aor"), 0u)
+    << "and-false then-arm has AOR under AOR|BOR";
+
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+  ASSERT_EQ(count_category_at(9, "aor"), 0u)
+    << "and-false then-arm has AOR under ALL";
+}
+
+// Bool xor codegen: records at the site are exactly xor->and and
+// xor->or with a shared coverage counter.
+TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCodegen)
+{
+  const char* src =
+    "actor Main\n"                                          // 1
+    "  new create(env: Env) =>\n"                           // 2
+    "    let x: U64 = 10\n"                                 // 3
+    "    let z = (x > U64(0)) xor (x < U64(100))\n";       // 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_BOR;
+  DO(test_compile(src, "ir"));
+
+  // Find the column of the xor site.
+  size_t xor_col = 0;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "bor") == 0)
+    {
+      xor_col = r->column;
+      break;
+    }
+  }
+  ASSERT_GT(xor_col, 0u) << "no bor record at line 4";
+
+  ASSERT_TRUE(has_mutant_at(4, xor_col, "bor", "xor", "and"))
+    << "no xor->and at line 4";
+  ASSERT_TRUE(has_mutant_at(4, xor_col, "bor", "xor", "or"))
+    << "no xor->or at line 4";
+  ASSERT_EQ(count_category_at(4, "bor"), 2u);
+
+  int32_t cov = coverage_counter_at(4, xor_col, "bor");
+  ASSERT_GE(cov, 0) << "could not find bor record at line 4";
+  verify_module();
+
+  // Under ALL categories.
+  opt.mutate_operators = MUTATE_OP_ALL;
+  DO(test_compile(src, "ir"));
+  ASSERT_TRUE(has_mutant_at(4, xor_col, "bor", "xor", "and"));
+  ASSERT_TRUE(has_mutant_at(4, xor_col, "bor", "xor", "or"));
+  ASSERT_EQ(count_category_at(4, "bor"), 2u);
+  verify_module();
+
+  // true xor false: both constant, no mutants.
+  const char* const_src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let z = true xor false\n";  // line 3
+
+  opt.mutate_operators = MUTATE_OP_BOR;
+  DO(test_compile(const_src, "ir"));
+  ASSERT_EQ(count_category_at(3, "bor"), 0u);
+}
+
+// Coverage timing: BOR coverage counter differs from ROR counters.
+TEST_F(GenMutateCodegenTest, ShortCircuitCoverageTiming)
+{
+  const char* src =
+    "actor Main\n"                                          // 1
+    "  new create(env: Env) =>\n"                           // 2
+    "    let x: U64 = 10\n"                                 // 3
+    "    let z = (x > U64(0)) and (x < U64(100))\n";       // 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_BOR | MUTATE_OP_ROR;
+  DO(test_compile(src, "ir"));
+
+  int32_t bor_cov = -1;
+  std::set<int32_t> ror_covs;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "bor") == 0)
+      bor_cov = r->coverage_counter;
+    if(r->line == 4 && strcmp(r->category, "ror") == 0)
+      ror_covs.insert(r->coverage_counter);
+  }
+  ASSERT_GE(bor_cov, 0) << "no bor record at line 4";
+  ASSERT_FALSE(ror_covs.empty()) << "no ror records at line 4";
+  ASSERT_EQ(ror_covs.count(bor_cov), 0u)
+    << "bor and ror share a coverage counter";
+}
+
+// Coverage timing for Bool xor.
+TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCoverageTiming)
+{
+  const char* src =
+    "actor Main\n"                                          // 1
+    "  new create(env: Env) =>\n"                           // 2
+    "    let x: U64 = 10\n"                                 // 3
+    "    let z = (x > U64(0)) xor (x < U64(100))\n";       // 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_BOR | MUTATE_OP_ROR;
+  DO(test_compile(src, "ir"));
+
+  int32_t bor_cov = -1;
+  std::set<int32_t> ror_covs;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "bor") == 0)
+      bor_cov = r->coverage_counter;
+    if(r->line == 4 && strcmp(r->category, "ror") == 0)
+      ror_covs.insert(r->coverage_counter);
+  }
+  ASSERT_GE(bor_cov, 0) << "no bor record at line 4";
+  ASSERT_FALSE(ror_covs.empty()) << "no ror records at line 4";
+  ASSERT_EQ(ror_covs.count(bor_cov), 0u)
+    << "bor and ror share a coverage counter for xor site";
+}
+
+// Nested sites get distinct ids and columns.
+TEST_F(GenMutateCodegenTest, ShortCircuitNestedDistinctIds)
+{
+  const char* src =
+    "actor Main\n"                                             // 1
+    "  new create(env: Env) =>\n"                              // 2
+    "    let x: U64 = 10\n"                                    // 3
+    "    let z = ((x > U64(0)) and (x < U64(100)))"
+      " or (x == U64(5))\n";                                  // 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_BOR;
+  DO(test_compile(src, "ir"));
+
+  size_t bor_count = count_category_at(4, "bor");
+  ASSERT_GE(bor_count, 2u)
+    << "nested and/or should produce distinct BOR sites";
+
+  std::set<int32_t> ids;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "bor") == 0)
+      ids.insert(r->id);
+  }
+  ASSERT_GE(ids.size(), 2u) << "nested sites should have distinct ids";
+}
+
+// \nomutate\ suppresses BOR at the site.
+TEST_F(GenMutateCodegenTest, ShortCircuitNomutate)
+{
+  const char* src =
+    "actor Main\n"                                          // 1
+    "  new \\nomutate\\ create(env: Env) =>\n"             // 2
+    "    let x: U64 = 10\n"                                 // 3
+    "    let z = (x > U64(0)) and (x < U64(100))\n";       // 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_BOR;
+  DO(test_compile(src, "ir"));
+  ASSERT_EQ(count_category_at(4, "bor"), 0u);
+}
+
+// --mutate-scope line range that excludes the site suppresses it.
+TEST_F(GenMutateCodegenTest, ShortCircuitScopeFilter)
+{
+  const char* src =
+    "actor Main\n"                                          // 1
+    "  new create(env: Env) =>\n"                           // 2
+    "    let x: U64 = 10\n"                                 // 3
+    "    let z = (x > U64(0)) and (x < U64(100))\n";       // 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_BOR;
+
+  mutate_scope_t scope_exclude = {"", 1, 3};
+  opt.mutate_scope_count = 1;
+  opt.mutate_scopes = &scope_exclude;
+  DO(test_compile(src, "ir"));
+  ASSERT_EQ(count_category_at(4, "bor"), 0u);
+
+  mutate_scope_t scope_include = {"", 1, 4};
+  opt.mutate_scopes = &scope_include;
+  DO(test_compile(src, "ir"));
+  ASSERT_GT(count_category_at(4, "bor"), 0u);
+
+  opt.mutate_scope_count = 0;
+  opt.mutate_scopes = NULL;
+}
+
+// IR inspection: branch condition is xor(l_value, icmp eq sel id).
+TEST_F(GenMutateCodegenTest, ShortCircuitIrShape)
+{
+  const char* src =
+    "actor Main\n"                                          // 1
+    "  new create(env: Env) =>\n"                           // 2
+    "    let x: U64 = 10\n"                                 // 3
+    "    let z = (x > U64(0)) and (x < U64(100))\n";       // 4
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_BOR;
+  DO(test_compile(src, "ir"));
+  ASSERT_GT(count_category_at(4, "bor"), 0u);
+
+  int32_t bor_id = -1;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "bor") == 0)
+    {
+      bor_id = r->id;
+      break;
+    }
+  }
+  ASSERT_GE(bor_id, 0);
+
+  auto module = llvm::unwrap(compile->module);
+  bool found_xor = false;
+  for(auto& fn : *module)
+  {
+    if(fn.getName().find("create") == llvm::StringRef::npos)
+      continue;
+    for(auto& bb : fn)
+    {
+      for(auto& inst : bb)
+      {
+        if(auto* xor_inst = llvm::dyn_cast<llvm::BinaryOperator>(&inst))
+        {
+          if(xor_inst->getOpcode() != llvm::Instruction::Xor)
+            continue;
+          for(unsigned op = 0; op < 2; op++)
+          {
+            if(auto* icmp = llvm::dyn_cast<llvm::ICmpInst>(
+              xor_inst->getOperand(op)))
+            {
+              if(icmp->getPredicate() != llvm::ICmpInst::ICMP_EQ)
+                continue;
+              for(unsigned j = 0; j < 2; j++)
+              {
+                if(auto* ci = llvm::dyn_cast<llvm::ConstantInt>(
+                  icmp->getOperand(j)))
+                {
+                  if(ci->getSExtValue() == bor_id)
+                    found_xor = true;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  ASSERT_TRUE(found_xor)
+    << "could not find xor(l_value, icmp eq sel " << bor_id << ")";
 }

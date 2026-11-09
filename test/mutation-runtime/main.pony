@@ -135,6 +135,30 @@ actor Main
       env.exitcode(1)
     end
 
+    // Bool BOR and: (a>b) and (b>10) with a=3 b=2:
+    // true and false = false.
+    // and->or mutant flips branch at left=true, skips right, returns
+    // true instead of false. Killed.
+    let bor_and_r = (a > b) and (b > U64(10))
+    env.out.print("bor_and=" + bor_and_r.string())
+    if bor_and_r != false then env.exitcode(1) end
+
+    // Bool BOR or: (a>U64(10)) or (b>U64(0)) with a=3 b=2:
+    // false or true = true.
+    // or->and mutant flips branch at left=false, skips right, returns
+    // false instead of true. Killed.
+    let bor_or_r = (a > U64(10)) or (b > U64(0))
+    env.out.print("bor_or=" + bor_or_r.string())
+    if bor_or_r != true then env.exitcode(1) end
+
+    // Bool BOR xor: (a>b) xor (b>U64(0)) with a=3 b=2:
+    // true xor true = false.
+    // xor->and mutant: true and true = true (flipped from false). Killed.
+    // xor->or mutant: true or true = true (flipped from false). Killed.
+    let bor_xor_r = (a > b) xor (b > U64(0))
+    env.out.print("bor_xor=" + bor_xor_r.string())
+    if bor_xor_r != false then env.exitcode(1) end
+
   fun _compute(x: U64, y: U64): U64 =>
     x + y
 

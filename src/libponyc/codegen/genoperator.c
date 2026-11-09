@@ -330,6 +330,10 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
 static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   bool is_and)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
+  bool do_bor = c->opt->mutate && (mutate_ast != NULL)
+    && mutate_site_enabled(c, "bor", mutate_ast);
+
   LLVMBasicBlockRef left_block = codegen_block(c, "sc_left");
   LLVMBuildBr(c->builder, left_block);
 
@@ -339,6 +343,8 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   if(l_value == NULL)
     return NULL;
 
+  // Deciding constant: and+false or or+true. The result is determined
+  // regardless of the right side, so no mutant can change it.
   if(LLVMIsAConstantInt(l_value))
   {
     if(is_and)
@@ -350,34 +356,138 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
         return l_value;
     }
 
-    return gen_expr(c, right);
+    // Non-deciding constant, BOR disabled: just evaluate the right side.
+    if(!do_bor)
+      return gen_expr(c, right);
   }
 
-  LLVMBasicBlockRef left_exit_block = LLVMGetInsertBlock(c->builder);
+  if(!do_bor)
+  {
+    // No BOR: emit the branch and phi exactly as a non-mutation build.
+    LLVMBasicBlockRef left_exit_block = LLVMGetInsertBlock(c->builder);
 
-  LLVMBasicBlockRef right_block = codegen_block(c, "sc_right");
-  LLVMBasicBlockRef post_block = codegen_block(c, "sc_post");
+    LLVMBasicBlockRef right_block = codegen_block(c, "sc_right");
+    LLVMBasicBlockRef post_block = codegen_block(c, "sc_post");
 
-  if(is_and)
-    LLVMBuildCondBr(c->builder, l_value, right_block, post_block);
-  else
-    LLVMBuildCondBr(c->builder, l_value, post_block, right_block);
+    if(is_and)
+      LLVMBuildCondBr(c->builder, l_value, right_block, post_block);
+    else
+      LLVMBuildCondBr(c->builder, l_value, post_block, right_block);
 
-  LLVMPositionBuilderAtEnd(c->builder, right_block);
+    LLVMPositionBuilderAtEnd(c->builder, right_block);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if(r_value == NULL)
+      return NULL;
+
+    LLVMBasicBlockRef right_exit_block = LLVMGetInsertBlock(c->builder);
+    LLVMBuildBr(c->builder, post_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
+
+    LLVMAddIncoming(phi, &l_value, &left_exit_block, 1);
+    LLVMAddIncoming(phi, &r_value, &right_exit_block, 1);
+
+    if(LLVMIsAConstantInt(r_value))
+    {
+      if(is_and)
+      {
+        if(is_always_false(r_value))
+          return r_value;
+      } else {
+        if(is_always_true(r_value))
+          return r_value;
+      }
+
+      return l_value;
+    }
+
+    return phi;
+  }
+
+  // BOR enabled. Generate the right side in sc_right so both operands
+  // are available, then decide whether the mutant fires based on LLVM
+  // constness of the result without CR.
+  LLVMBasicBlockRef left_exit = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef sc_right = codegen_block(c, "sc_right");
+  LLVMBasicBlockRef sc_post = codegen_block(c, "sc_post");
+
+  // Don't write left_exit's terminator yet — it depends on fire.
+  LLVMPositionBuilderAtEnd(c->builder, sc_right);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if(r_value == NULL)
     return NULL;
 
-  LLVMBasicBlockRef right_exit_block = LLVMGetInsertBlock(c->builder);
-  LLVMBuildBr(c->builder, post_block);
+  LLVMBasicBlockRef right_exit = LLVMGetInsertBlock(c->builder);
+  LLVMBuildBr(c->builder, sc_post);
 
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  // Constness of operand shadows tells us whether the unmutated result
+  // is a compile-time constant. A Bool that is LLVM-constant has no
+  // shadow (Bool literals aren't CR targets and Pony can't type a
+  // comparison of two literals), so LLVM constness is the right test.
+  pony_assert(LLVMIsConstant(l_value)
+    || (mutate_shadow_get(c, l_value) == NULL));
+  pony_assert(LLVMIsConstant(r_value)
+    || (mutate_shadow_get(c, r_value) == NULL));
+
+  bool l_const = LLVMIsAConstantInt(l_value) != NULL;
+  bool r_const = LLVMIsAConstantInt(r_value) != NULL;
+
+  // The unmutated result is constant when:
+  // - left decides (handled above, already returned)
+  // - left non-deciding const + right const
+  // - left non-const + right is a deciding const
+  bool r_decides = false;
+  if(r_const)
+  {
+    if(is_and)
+      r_decides = is_always_false(r_value);
+    else
+      r_decides = is_always_true(r_value);
+  }
+
+  bool fire = !((l_const && r_const) || (!l_const && r_decides));
+
+  // Write left_exit's terminator.
+  LLVMPositionBuilderAtEnd(c->builder, left_exit);
+
+  if(l_const && !fire)
+  {
+    // Non-deciding constant, not firing: fall through to the right side.
+    LLVMBuildBr(c->builder, sc_right);
+    LLVMPositionBuilderAtEnd(c->builder, sc_post);
+    return r_value;
+  }
+
+  if(fire)
+  {
+    codegen_debugloc(c, mutate_ast);
+    LLVMValueRef cond = mutate_sc_flip(c, mutate_ast, is_and, l_value);
+
+    if(is_and)
+      LLVMBuildCondBr(c->builder, cond, sc_right, sc_post);
+    else
+      LLVMBuildCondBr(c->builder, cond, sc_post, sc_right);
+  } else {
+    // Not firing, left non-constant: branch on l_value as main does.
+    if(is_and)
+      LLVMBuildCondBr(c->builder, l_value, sc_right, sc_post);
+    else
+      LLVMBuildCondBr(c->builder, l_value, sc_post, sc_right);
+  }
+
+  LLVMPositionBuilderAtEnd(c->builder, sc_post);
   LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
 
-  LLVMAddIncoming(phi, &l_value, &left_exit_block, 1);
-  LLVMAddIncoming(phi, &r_value, &right_exit_block, 1);
+  LLVMAddIncoming(phi, &l_value, &left_exit, 1);
+  LLVMAddIncoming(phi, &r_value, &right_exit, 1);
 
+  if(fire)
+    return phi;
+
+  // Not firing: keep main's constant-right tail.
   if(LLVMIsAConstantInt(r_value))
   {
     if(is_and)
@@ -1503,18 +1613,130 @@ LLVMValueRef gen_or(compile_t* c, ast_t* left, ast_t* right)
 
 LLVMValueRef gen_xor(compile_t* c, ast_t* left, ast_t* right)
 {
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
-      && mutate_site_enabled(c, "bor", c->frame->mutate_ast))
+  ast_t* mutate_ast = c->frame->mutate_ast;
+  bool do_bor = c->opt->mutate && (mutate_ast != NULL)
+    && mutate_site_enabled(c, "bor", mutate_ast);
+
+  // Bool xor needs its own path when BOR is enabled: the replacement
+  // operators (and, or) are short-circuit, so the right side must be
+  // generated in a separate block that the branch can skip.
+  if(do_bor)
+  {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool is_bool_type = is_bool(type);
+    ast_free_unattached(type);
+
+    if(is_bool_type)
+    {
+      LLVMValueRef l_value = gen_expr(c, left);
+      if(l_value == NULL)
+        return NULL;
+
+      LLVMBasicBlockRef left_exit = LLVMGetInsertBlock(c->builder);
+      LLVMBasicBlockRef xor_right = codegen_block(c, "xor_right");
+      LLVMBasicBlockRef xor_post = codegen_block(c, "xor_post");
+
+      LLVMPositionBuilderAtEnd(c->builder, xor_right);
+      LLVMValueRef r_value = gen_expr(c, right);
+      if(r_value == NULL)
+        return NULL;
+
+      LLVMBasicBlockRef right_exit = LLVMGetInsertBlock(c->builder);
+
+      bool l_has_shadow = LLVMIsConstant(l_value)
+        || (mutate_shadow_get(c, l_value) != NULL);
+      bool r_has_shadow = LLVMIsConstant(r_value)
+        || (mutate_shadow_get(c, r_value) != NULL);
+      bool fire = !(l_has_shadow && r_has_shadow);
+
+      if(!fire)
+      {
+        // Both operands constant/shadowed: no mutant. Fall through to
+        // the right side unconditionally, compute xor, register shadow.
+        LLVMPositionBuilderAtEnd(c->builder, left_exit);
+        LLVMBuildBr(c->builder, xor_right);
+        LLVMPositionBuilderAtEnd(c->builder, right_exit);
+        LLVMBuildBr(c->builder, xor_post);
+        LLVMPositionBuilderAtEnd(c->builder, xor_post);
+
+        LLVMValueRef result;
+        if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
+          result = LLVMConstXor(l_value, r_value);
+        else
+          result = LLVMBuildXor(c->builder, l_value, r_value, "");
+
+        LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+        LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+        if((l_shadow != NULL) && (r_shadow != NULL))
+        {
+          LLVMValueRef shadow =
+            LLVMBuildXor(c->builder, l_shadow, r_shadow, "");
+          if(LLVMIsConstant(shadow))
+            mutate_shadow_set(c, result, shadow);
+        }
+
+        return result;
+      }
+
+      // Firing: record both mutants and emit the short-circuit branch.
+      int32_t and_id, or_id, cov_id;
+      mutate_sc_xor_record(c, mutate_ast, &and_id, &or_id, &cov_id);
+
+      // Coverage increment goes in left_exit so it runs before the
+      // right side, matching the placement of other BOR sites.
+      LLVMPositionBuilderAtEnd(c->builder, left_exit);
+      codegen_debugloc(c, mutate_ast);
+      mutate_emit_coverage_inc(c, cov_id);
+
+      LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
+      LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
+        selector, "mut.sel");
+
+      LLVMValueRef is_and = LLVMBuildICmp(c->builder, LLVMIntEQ,
+        sel, LLVMConstInt(c->i32, and_id, false), "");
+      LLVMValueRef is_or = LLVMBuildICmp(c->builder, LLVMIntEQ,
+        sel, LLVMConstInt(c->i32, or_id, false), "");
+
+      // enter = (is_and AND l) OR (is_or AND NOT l) OR NOT (is_and OR is_or)
+      LLVMValueRef and_enter = LLVMBuildAnd(c->builder, is_and, l_value, "");
+      LLVMValueRef not_l = LLVMBuildNot(c->builder, l_value, "");
+      LLVMValueRef or_enter = LLVMBuildAnd(c->builder, is_or, not_l, "");
+      LLVMValueRef either = LLVMBuildOr(c->builder, is_and, is_or, "");
+      LLVMValueRef neither = LLVMBuildNot(c->builder, either, "");
+      LLVMValueRef enter = LLVMBuildOr(c->builder,
+        LLVMBuildOr(c->builder, and_enter, or_enter, ""), neither, "");
+
+      LLVMBuildCondBr(c->builder, enter, xor_right, xor_post);
+
+      // In xor_right after the right side:
+      // res = select (is_and OR is_or), r, xor(l, r)
+      LLVMPositionBuilderAtEnd(c->builder, right_exit);
+      LLVMValueRef xor_val =
+        LLVMBuildXor(c->builder, l_value, r_value, "");
+      LLVMValueRef res = LLVMBuildSelect(c->builder, either, r_value,
+        xor_val, "");
+      LLVMBuildBr(c->builder, xor_post);
+
+      LLVMPositionBuilderAtEnd(c->builder, xor_post);
+      LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
+      LLVMAddIncoming(phi, &l_value, &left_exit, 1);
+      LLVMAddIncoming(phi, &res, &right_exit, 1);
+
+      return phi;
+    }
+  }
+
+  // Integer xor, or Bool xor without BOR.
+  if(do_bor)
   {
     mutate_variant_t variants[] = {
       {LLVMBuildAnd, LLVMBuildAnd, "and", NULL},
       {LLVMBuildOr, LLVMBuildOr, "or", NULL}
     };
-    return mutate_binop(c, c->frame->mutate_ast, left, right,
+    return mutate_binop(c, mutate_ast, left, right,
       LLVMBuildXor, LLVMBuildXor, "xor", "bor", variants, 2);
   }
 
-  ast_t* mutate_ast = c->frame->mutate_ast;
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 

@@ -88,6 +88,16 @@ LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
   const char* original, const char* category,
   mutate_variant_t* variants, size_t count);
 
+// Record one BOR mutant for a Bool short-circuit site and return the
+// flipped branch condition: l_value XOR (selector == this_record's_id).
+LLVMValueRef mutate_sc_flip(compile_t* c, ast_t* ast, bool is_and,
+  LLVMValueRef l_value);
+
+// Record the two BOR mutants (xor->and, xor->or) for a Bool xor site.
+// Returns both mutant IDs and the shared coverage counter.
+void mutate_sc_xor_record(compile_t* c, ast_t* ast,
+  int32_t* and_id_out, int32_t* or_id_out, int32_t* cov_id_out);
+
 // Emit switch/phi for a div/rem mutation. Each branch runs make_divrem_inner
 // with its own build functions and is_div flag.
 LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,

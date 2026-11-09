@@ -131,6 +131,8 @@ static const char* const _builtin =
   "  new create(a: Bool) => a\n"
   "  fun eq(a: Bool): Bool => this == a\n"
   "  fun op_and(a: Bool): Bool => this and a\n"
+  "  fun op_or(a: Bool): Bool => this or a\n"
+  "  fun op_xor(a: Bool): Bool => this xor a\n"
   "  fun op_not(): Bool => not this\n"
   "class val String\n"
   "struct Pointer[A]\n"
