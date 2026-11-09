@@ -215,7 +215,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-i386-unknown-linux-alpine3.24-builder:20261108
+          - image: ghcr.io/ponylang/ponyc-ci-i386-unknown-linux-alpine3.24-builder:20261109
             name: i386 Linux musl
 
     name: ${{ matrix.name }}
