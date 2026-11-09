@@ -797,8 +797,11 @@ bool is_cross_compiling(pass_opt_t* opt)
 // 32-bit little-endian ARM as the raw triple arch ("armv7l", "armv6", etc.),
 // but Debian/Ubuntu/Raspbian multiarch directories normalize all of them to
 // "arm" (the EABI float variant rides in the environment, not the arch). The
-// other arches this linker supports already match LLVM's spelling, so fall
-// back to getArchName(). See the fuller explanation on the genexe.cc twin.
+// remaining architectures (x86_64, aarch64, riscv64, riscv32, x86) fall back
+// to getArchName(). For x86, getArchName() returns "i686" or "i386" while
+// GCC install directories may use a different i*86 variant;
+// arch_prefix_matches() in genexe.cc resolves this at the directory-scan call
+// sites. See the fuller explanation on the genexe.cc twin.
 static std::string gnu_multiarch_arch(const Triple& triple)
 {
   switch(triple.getArch())
