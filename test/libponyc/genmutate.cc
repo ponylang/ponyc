@@ -932,23 +932,138 @@ TEST_F(GenMutateCodegenTest, SignedEqRecordsMutant)
 TEST_F(GenMutateCodegenTest, MatchEqRecordsMutant)
 {
   const char* src =
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let y: U64 = 5\n"
-    "    match y\n"
-    "    | 3 => None\n"
-    "    | 5 => None\n"
+    "actor Main\n"                     // line 1
+    "  new create(env: Env) =>\n"      // line 2
+    "    let y: U64 = 5\n"             // line 3
+    "    match y\n"                     // line 4
+    "    | 3 => None\n"                // line 5, pattern at col 7
+    "    | 5 => None\n"                // line 6, pattern at col 7
     "    end\n";
 
   opt.mutate = true;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("ror", "eq", "ne"));
-  ASSERT_TRUE(has_mutant("ror", "eq", "lt"));
-  ASSERT_TRUE(has_mutant("ror", "eq", "le"));
-  ASSERT_TRUE(has_mutant("ror", "eq", "ge"));
-  ASSERT_TRUE(has_mutant("ror", "eq", "gt"));
+  // ROR at pattern | 3
+  ASSERT_TRUE(has_mutant_at(5, 7, "ror", "eq", "ne"));
+  ASSERT_TRUE(has_mutant_at(5, 7, "ror", "eq", "lt"));
+  ASSERT_TRUE(has_mutant_at(5, 7, "ror", "eq", "le"));
+  ASSERT_TRUE(has_mutant_at(5, 7, "ror", "eq", "ge"));
+  ASSERT_TRUE(has_mutant_at(5, 7, "ror", "eq", "gt"));
+
+  // CR at pattern | 3
+  ASSERT_TRUE(has_mutant_at(5, 7, "cr", "lhs", "n->n+1"));
+  ASSERT_TRUE(has_mutant_at(5, 7, "cr", "lhs", "n->n-1"));
+
+  // ROR at pattern | 5
+  ASSERT_TRUE(has_mutant_at(6, 7, "ror", "eq", "ne"));
+  ASSERT_TRUE(has_mutant_at(6, 7, "ror", "eq", "lt"));
+  ASSERT_TRUE(has_mutant_at(6, 7, "ror", "eq", "le"));
+  ASSERT_TRUE(has_mutant_at(6, 7, "ror", "eq", "ge"));
+  ASSERT_TRUE(has_mutant_at(6, 7, "ror", "eq", "gt"));
+
+  // CR at pattern | 5
+  ASSERT_TRUE(has_mutant_at(6, 7, "cr", "lhs", "n->n+1"));
+  ASSERT_TRUE(has_mutant_at(6, 7, "cr", "lhs", "n->n-1"));
+}
+
+
+TEST_F(GenMutateCodegenTest, MatchPatternRorOnly)
+{
+  const char* src =
+    "actor Main\n"                     // line 1
+    "  new create(env: Env) =>\n"      // line 2
+    "    let y: U64 = 5\n"             // line 3
+    "    match y\n"                     // line 4
+    "    | 3 => None\n"                // line 5, pattern at col 7
+    "    end\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_ROR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant_at(5, 7, "ror", "eq", "ne"));
+  ASSERT_TRUE(has_mutant_at(5, 7, "ror", "eq", "gt"));
+  ASSERT_EQ(count_category_at(5, "cr"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, MatchPatternCrBoundary)
+{
+  const char* src =
+    "actor Main\n"                     // line 1
+    "  new create(env: Env) =>\n"      // line 2
+    "    let y: U64 = 5\n"             // line 3
+    "    match y\n"                     // line 4
+    "    | 0 => None\n"                // line 5, CR: 0->1
+    "    | 1 => None\n"                // line 6, CR: 1->0
+    "    end\n";
+
+  opt.mutate = true;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant_at(5, 7, "cr", "lhs", "0->1"));
+  ASSERT_TRUE(has_mutant_at(6, 7, "cr", "lhs", "1->0"));
+}
+
+
+TEST_F(GenMutateCodegenTest, MatchPatternFloat)
+{
+  const char* src =
+    "actor Main\n"                     // line 1
+    "  new create(env: Env) =>\n"      // line 2
+    "    let y: F64 = F64(1.0)\n"      // line 3
+    "    match y\n"                     // line 4
+    "    | 1.5 => None\n"              // line 5, pattern at col 7
+    "    end\n";
+
+  opt.mutate = true;
+  DO(test_compile(src, "ir"));
+
+  // ROR on the equality comparison
+  ASSERT_TRUE(has_mutant_at(5, 7, "ror", "eq", "ne"));
+
+  // CR on the float literal: 1.5 -> -1.5
+  ASSERT_TRUE(has_mutant_at(5, 7, "cr", "lhs", "x->-x"));
+}
+
+
+TEST_F(GenMutateCodegenTest, MatchPatternBool)
+{
+  const char* src =
+    "actor Main\n"                     // line 1
+    "  new create(env: Env) =>\n"      // line 2
+    "    let y: Bool = true\n"         // line 3
+    "    match y\n"                     // line 4
+    "    | true => None\n"             // line 5, pattern at col 7
+    "    end\n";
+
+  opt.mutate = true;
+  DO(test_compile(src, "ir"));
+
+  // ROR on the equality comparison
+  ASSERT_TRUE(has_mutant_at(5, 7, "ror", "eq", "ne"));
+
+  // No CR — Bool patterns are TK_TRUE/TK_FALSE, not TK_INT/TK_FLOAT
+  ASSERT_EQ(count_category_at(5, "cr"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, MatchPatternUnion)
+{
+  const char* src =
+    "actor Main\n"                     // line 1
+    "  new create(env: Env) =>\n"      // line 2
+    "    let y: (U64 | None) = U64(4)\n"  // line 3
+    "    match y\n"                     // line 4
+    "    | 4 => None\n"                // line 5, pattern at col 7
+    "    end\n";
+
+  opt.mutate = true;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant_at(5, 7, "ror", "eq", "ne"));
+  ASSERT_TRUE(has_mutant_at(5, 7, "cr", "lhs", "n->n+1"));
+  ASSERT_TRUE(has_mutant_at(5, 7, "cr", "lhs", "n->n-1"));
 }
 
 

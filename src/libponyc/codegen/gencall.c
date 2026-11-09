@@ -1285,7 +1285,10 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
         )
       {
         ast_free_unattached(pattern_type);
-        return gen_eq_rvalue(c, pattern, r_value, true);
+        c->frame->mutate_ast = pattern;
+        LLVMValueRef result = gen_eq_rvalue(c, pattern, r_value, true);
+        c->frame->mutate_ast = NULL;
+        return result;
       }
     }
   }

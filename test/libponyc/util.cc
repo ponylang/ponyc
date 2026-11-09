@@ -126,6 +126,7 @@ static const char* const _builtin =
   "interface tag Any\n"
   "primitive Bool\n"
   "  new create(a: Bool) => a\n"
+  "  fun eq(a: Bool): Bool => this == a\n"
   "  fun op_and(a: Bool): Bool => this and a\n"
   "  fun op_not(): Bool => not this\n"
   "class val String\n"
