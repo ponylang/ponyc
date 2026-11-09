@@ -362,6 +362,32 @@ protected:
     return count;
   }
 
+  size_t count_category_at_file(const char* file, size_t line,
+    const char* category)
+  {
+    size_t count = 0;
+    size_t flen = strlen(file);
+    for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+    {
+      mutant_record_t* r = &compile->mutate.mutants[i];
+      if(r->line != line || strcmp(r->category, category) != 0)
+        continue;
+      if(flen == 0)
+      {
+        if(strlen(r->file) == 0)
+          count++;
+      }
+      else
+      {
+        size_t rlen = strlen(r->file);
+        if(rlen >= flen
+          && strcmp(r->file + rlen - flen, file) == 0)
+          count++;
+      }
+    }
+    return count;
+  }
+
   size_t count_category_at_col(size_t line, size_t col,
     const char* category)
   {
@@ -3952,15 +3978,32 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBorFiringTable)
       << "row " << i << ": " << r.left_expr << " " << r.op
       << " " << r.right_expr;
 
-    size_t bor_at_4 = count_category_at(4, "bor");
+    size_t bor_at_4 = count_category_at_file("", 4, "bor");
     ASSERT_EQ(bor_at_4, r.expect_fire ? 1u : 0u)
       << "row " << i << ": " << r.left_expr << " " << r.op
       << " " << r.right_expr
       << " expected fire=" << r.expect_fire
       << " got bor count=" << bor_at_4;
 
-    ASSERT_FALSE(has_mutant_at(4, 0, "bor", r.op, "xor"))
-      << "row " << i << ": unexpected xor replacement for " << r.op;
+    // Find the site's real column (if it fired) and verify no xor
+    // replacement exists there.
+    if(r.expect_fire)
+    {
+      size_t site_col = 0;
+      for(size_t j = 0; j < compile->mutate.mutant_count; j++)
+      {
+        mutant_record_t* m = &compile->mutate.mutants[j];
+        if(m->line == 4 && strcmp(m->category, "bor") == 0)
+        {
+          site_col = m->column;
+          break;
+        }
+      }
+      ASSERT_GT(site_col, 0u)
+        << "row " << i << ": fired but no bor record found";
+      ASSERT_FALSE(has_mutant_at(4, site_col, "bor", r.op, "xor"))
+        << "row " << i << ": unexpected xor replacement for " << r.op;
+    }
 
     verify_module();
 
@@ -3969,6 +4012,9 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBorFiringTable)
     DO(test_compile(src, "ir"))
       << "row " << i << " ALL: " << r.left_expr << " " << r.op
       << " " << r.right_expr;
+    size_t bor_at_4_all = count_category_at_file("", 4, "bor");
+    ASSERT_EQ(bor_at_4_all, r.expect_fire ? 1u : 0u)
+      << "row " << i << " ALL: bor count=" << bor_at_4_all;
     verify_module();
   }
 }
@@ -3985,17 +4031,17 @@ TEST_F(GenMutateCodegenTest, ShortCircuitDecidingLeftSuppresses)
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_BOR;
   DO(test_compile(src, "ir"));
-  ASSERT_EQ(count_category_at(4, "bor"), 0u);
-  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+  ASSERT_EQ(count_category_at_file("", 4, "bor"), 0u);
+  ASSERT_EQ(count_category_at_file("", 4, "aor"), 0u);
 
   opt.mutate_operators = MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
-  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+  ASSERT_EQ(count_category_at_file("", 4, "aor"), 0u);
 
   opt.mutate_operators = MUTATE_OP_ALL;
   DO(test_compile(src, "ir"));
-  ASSERT_EQ(count_category_at(4, "bor"), 0u);
-  ASSERT_EQ(count_category_at(4, "aor"), 0u);
+  ASSERT_EQ(count_category_at_file("", 4, "bor"), 0u);
+  ASSERT_EQ(count_category_at_file("", 4, "aor"), 0u);
 }
 
 // Independence: each category's record set equals alone, +bor,
@@ -4078,18 +4124,18 @@ TEST_F(GenMutateCodegenTest, ShortCircuitCategoryIndependence)
   }
 
   // Positive control: then-arm of the firing and on line 14 has AOR.
-  ASSERT_GT(count_category_at(14, "aor"), 0u)
+  ASSERT_GT(count_category_at_file("", 14, "aor"), 0u)
     << "positive control: no aor on firing and's then arm";
 
   // Zero AOR on the then-arm of (x>0) and false (line 9).
   opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_BOR;
   DO(test_compile(src, "ir"));
-  ASSERT_EQ(count_category_at(9, "aor"), 0u)
+  ASSERT_EQ(count_category_at_file("", 9, "aor"), 0u)
     << "and-false then-arm has AOR under AOR|BOR";
 
   opt.mutate_operators = MUTATE_OP_ALL;
   DO(test_compile(src, "ir"));
-  ASSERT_EQ(count_category_at(9, "aor"), 0u)
+  ASSERT_EQ(count_category_at_file("", 9, "aor"), 0u)
     << "and-false then-arm has AOR under ALL";
 }
 
@@ -4124,7 +4170,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCodegen)
     << "no xor->and at line 4";
   ASSERT_TRUE(has_mutant_at(4, xor_col, "bor", "xor", "or"))
     << "no xor->or at line 4";
-  ASSERT_EQ(count_category_at(4, "bor"), 2u);
+  ASSERT_EQ(count_category_at_file("", 4, "bor"), 2u);
 
   int32_t cov = coverage_counter_at(4, xor_col, "bor");
   ASSERT_GE(cov, 0) << "could not find bor record at line 4";
@@ -4135,7 +4181,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCodegen)
   DO(test_compile(src, "ir"));
   ASSERT_TRUE(has_mutant_at(4, xor_col, "bor", "xor", "and"));
   ASSERT_TRUE(has_mutant_at(4, xor_col, "bor", "xor", "or"));
-  ASSERT_EQ(count_category_at(4, "bor"), 2u);
+  ASSERT_EQ(count_category_at_file("", 4, "bor"), 2u);
   verify_module();
 
   // true xor false: both constant, no mutants.
@@ -4146,7 +4192,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCodegen)
 
   opt.mutate_operators = MUTATE_OP_BOR;
   DO(test_compile(const_src, "ir"));
-  ASSERT_EQ(count_category_at(3, "bor"), 0u);
+  ASSERT_EQ(count_category_at_file("", 3, "bor"), 0u);
 }
 
 // Coverage timing: BOR coverage counter differs from ROR counters.
@@ -4221,7 +4267,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitNestedDistinctIds)
   opt.mutate_operators = MUTATE_OP_BOR;
   DO(test_compile(src, "ir"));
 
-  size_t bor_count = count_category_at(4, "bor");
+  size_t bor_count = count_category_at_file("", 4, "bor");
   ASSERT_GE(bor_count, 2u)
     << "nested and/or should produce distinct BOR sites";
 
@@ -4247,7 +4293,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitNomutate)
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_BOR;
   DO(test_compile(src, "ir"));
-  ASSERT_EQ(count_category_at(4, "bor"), 0u);
+  ASSERT_EQ(count_category_at_file("", 4, "bor"), 0u);
 }
 
 // --mutate-scope line range that excludes the site suppresses it.
@@ -4266,12 +4312,12 @@ TEST_F(GenMutateCodegenTest, ShortCircuitScopeFilter)
   opt.mutate_scope_count = 1;
   opt.mutate_scopes = &scope_exclude;
   DO(test_compile(src, "ir"));
-  ASSERT_EQ(count_category_at(4, "bor"), 0u);
+  ASSERT_EQ(count_category_at_file("", 4, "bor"), 0u);
 
   mutate_scope_t scope_include = {"", 1, 4};
   opt.mutate_scopes = &scope_include;
   DO(test_compile(src, "ir"));
-  ASSERT_GT(count_category_at(4, "bor"), 0u);
+  ASSERT_GT(count_category_at_file("", 4, "bor"), 0u);
 
   opt.mutate_scope_count = 0;
   opt.mutate_scopes = NULL;
@@ -4289,7 +4335,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitIrShape)
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_BOR;
   DO(test_compile(src, "ir"));
-  ASSERT_GT(count_category_at(4, "bor"), 0u);
+  ASSERT_GT(count_category_at_file("", 4, "bor"), 0u);
 
   int32_t bor_id = -1;
   for(size_t i = 0; i < compile->mutate.mutant_count; i++)

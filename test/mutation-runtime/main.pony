@@ -11,6 +11,17 @@ class Accumulator
   fun total(): U64 =>
     _total
 
+class _BorHelper
+  var ran: Bool = false
+
+  fun ref f(v: Bool): Bool =>
+    ran = true
+    v
+
+  fun ref g(v: Bool): Bool ? =>
+    ran = true
+    error
+
 actor Main
   new create(env: Env) =>
     let a: U64 = 3
@@ -135,29 +146,81 @@ actor Main
       env.exitcode(1)
     end
 
-    // Bool BOR and: (a>b) and (b>10) with a=3 b=2:
-    // true and false = false.
-    // and->or mutant flips branch at left=true, skips right, returns
-    // true instead of false. Killed.
-    let bor_and_r = (a > b) and (b > U64(10))
-    env.out.print("bor_and=" + bor_and_r.string())
-    if bor_and_r != false then env.exitcode(1) end
+    let p: U64 = 2
+    let q: U64 = 3
+    let atrue: Bool = p < q
+    let afalse: Bool = p > q
 
-    // Bool BOR or: (a>U64(10)) or (b>U64(0)) with a=3 b=2:
-    // false or true = true.
-    // or->and mutant flips branch at left=false, skips right, returns
-    // false instead of true. Killed.
-    let bor_or_r = (a > U64(10)) or (b > U64(0))
-    env.out.print("bor_or=" + bor_or_r.string())
-    if bor_or_r != true then env.exitcode(1) end
+    // Row 1: a and f() with a=true, f returns false.
+    // Unmutated: true and false = false, ran=true.
+    // and->or: left true, skip right, result true, ran=false.
+    let h1 = _BorHelper
+    let r1 = atrue and h1.f(false)
+    env.out.print("bor1=" + r1.string() + "," + h1.ran.string())
+    if r1 != false then env.exitcode(1) end
 
-    // Bool BOR xor: (a>b) xor (b>U64(0)) with a=3 b=2:
-    // true xor true = false.
-    // xor->and mutant: true and true = true (flipped from false). Killed.
-    // xor->or mutant: true or true = true (flipped from false). Killed.
-    let bor_xor_r = (a > b) xor (b > U64(0))
-    env.out.print("bor_xor=" + bor_xor_r.string())
-    if bor_xor_r != false then env.exitcode(1) end
+    // Row 2: a and f() with a=false, f returns true.
+    // Unmutated: false and (skip) = false, ran=false.
+    // and->or: left false, enter right, result true, ran=true.
+    let h2 = _BorHelper
+    let r2 = afalse and h2.f(true)
+    env.out.print("bor2=" + r2.string() + "," + h2.ran.string())
+    if r2 != false then env.exitcode(1) end
+
+    // Row 3: a or f() with a=true, f returns false.
+    // Unmutated: true or (skip) = true, ran=false.
+    // or->and: left true, enter right, result false, ran=true.
+    let h3 = _BorHelper
+    let r3 = atrue or h3.f(false)
+    env.out.print("bor3=" + r3.string() + "," + h3.ran.string())
+    if r3 != true then env.exitcode(1) end
+
+    // Row 4: a or f() with a=false, f returns true.
+    // Unmutated: false or true = true, ran=true.
+    // or->and: left false, skip right, result false, ran=false.
+    let h4 = _BorHelper
+    let r4 = afalse or h4.f(true)
+    env.out.print("bor4=" + r4.string() + "," + h4.ran.string())
+    if r4 != true then env.exitcode(1) end
+
+    // Row 5: (p < q) and true where p<q is false at runtime (p=2,q=3
+    // so p<q=true; use p>q=false instead).
+    // Unmutated: false and true = false. and->or: false, skip, true.
+    let r5 = (p > q) and true
+    env.out.print("bor5=" + r5.string())
+    if r5 != false then env.exitcode(1) end
+
+    // Row 6: a xor f() with a=false, f returns true.
+    // Unmutated: false xor true = true, ran=true.
+    // xor->and: a=false, skip right, result false, ran=false.
+    let h6 = _BorHelper
+    let r6 = afalse xor h6.f(true)
+    env.out.print("bor6=" + r6.string() + "," + h6.ran.string())
+    if r6 != true then env.exitcode(1) end
+
+    // Row 7: a xor f() with a=true, f returns true.
+    // Unmutated: true xor true = false, ran=true.
+    // xor->and: a=true, enter right, result true, ran=true.
+    let h7 = _BorHelper
+    let r7 = atrue xor h7.f(true)
+    env.out.print("bor7=" + r7.string() + "," + h7.ran.string())
+    if r7 != false then env.exitcode(1) end
+
+    // Row 8: a xor f() with a=true, f returns true.
+    // Unmutated: true xor true = false, ran=true.
+    // xor->or: a=true, skip right, result true, ran=false.
+    let h8 = _BorHelper
+    let r8 = atrue xor h8.f(true)
+    env.out.print("bor8=" + r8.string() + "," + h8.ran.string())
+    if r8 != false then env.exitcode(1) end
+
+    // Row 9: try a xor g()? else false end with a=false.
+    // Unmutated: false xor (error) → false, ran=true.
+    // xor->and: a=false, skip right, result false, ran=false.
+    let h9 = _BorHelper
+    let r9 = try afalse xor h9.g(true)? else false end
+    env.out.print("bor9=" + r9.string() + "," + h9.ran.string())
+    if r9 != false then env.exitcode(1) end
 
   fun _compute(x: U64, y: U64): U64 =>
     x + y
