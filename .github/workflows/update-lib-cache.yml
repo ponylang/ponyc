@@ -135,7 +135,7 @@ jobs:
     needs: [x86_64-linux-other, openbsd]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    name: i386 Linux musl
+    name: i386 Linux
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
