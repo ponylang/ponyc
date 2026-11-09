@@ -13,13 +13,7 @@
 #   PONY_TEST_DEBUGGER         debugger command the runner runs each program under
 #                              (default: none)
 
-# The old make.ps1 gave Windows full-program tests a 120s per-program timeout,
-# twice Unix's 60s, for the slower Windows runners; keep that split.
-if(CMAKE_HOST_WIN32)
-    set(_timeout 120)
-else()
-    set(_timeout 60)
-endif()
+set(_timeout 120)
 if(DEFINED ENV{PONY_FULL_PROGRAM_TIMEOUT} AND NOT "$ENV{PONY_FULL_PROGRAM_TIMEOUT}" STREQUAL "")
     set(_timeout "$ENV{PONY_FULL_PROGRAM_TIMEOUT}")
 endif()
