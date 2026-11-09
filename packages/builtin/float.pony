@@ -376,8 +376,34 @@ primitive F64 is FloatingPoint[F64]
   fun round(): F64 => @"llvm.round.f64"(this)
   fun trunc(): F64 => @"llvm.trunc.f64"(this)
 
-  fun min(y: F64): F64 => @"llvm.minimum.f64"(this, y)
-  fun max(y: F64): F64 => @"llvm.maximum.f64"(this, y)
+  fun min(y: F64): F64 =>
+    // LLVM 23's ARM32 backend miscompiles llvm.minimum.f64, returning the
+    // maximum in both min and max. The reproducer in the commit that added
+    // this workaround can verify whether a newer LLVM has fixed the bug.
+    ifdef arm and ilp32 then
+      if nan() or y.nan() then
+        F64.from_bits(0x7FF8_0000_0000_0000)
+      elseif this == y then
+        F64.from_bits(bits() or y.bits())
+      elseif this < y then this
+      else y
+      end
+    else
+      @"llvm.minimum.f64"(this, y)
+    end
+
+  fun max(y: F64): F64 =>
+    ifdef arm and ilp32 then
+      if nan() or y.nan() then
+        F64.from_bits(0x7FF8_0000_0000_0000)
+      elseif this == y then
+        F64.from_bits(bits() and y.bits())
+      elseif this > y then this
+      else y
+      end
+    else
+      @"llvm.maximum.f64"(this, y)
+    end
 
   fun fld(y: F64): F64 =>
     (this / y).floor()
