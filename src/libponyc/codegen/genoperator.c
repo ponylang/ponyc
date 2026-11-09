@@ -85,9 +85,11 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
 
   if(!is_fp(r_value) && LLVMIsConstant(r_value))
   {
-    long long r_const = LLVMConstIntGetSExtValue(r_value);
+    LLVMValueRef neg_one = LLVMConstAllOnes(r_type);
+    LLVMValueRef is_neg_one = LLVMBuildICmp(c->builder, LLVMIntEQ,
+      r_value, neg_one, "");
 
-    if((r_const == -1) && LLVMIsConstant(l_value) && sign)
+    if(is_always_true(is_neg_one) && LLVMIsConstant(l_value) && sign)
     {
       uint64_t width = LLVMGetIntTypeWidth(r_type);
       LLVMValueRef v_min = LLVMConstInt(r_type, 0, false);
@@ -741,7 +743,12 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
   if(LLVMIsConstant(r_value))
   {
-    if(LLVMConstIntGetZExtValue(r_value) >= width)
+    LLVMTypeRef r_type = LLVMTypeOf(r_value);
+    LLVMValueRef width_val = LLVMConstInt(r_type, width, false);
+    LLVMValueRef too_wide = LLVMBuildICmp(c->builder, LLVMIntUGE,
+      r_value, width_val, "");
+
+    if(is_always_true(too_wide))
     {
       ast_error(c->opt->check.errors, right,
         "shift amount greater than type width");
@@ -796,7 +803,12 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
   if(LLVMIsConstant(r_value))
   {
-    if(LLVMConstIntGetZExtValue(r_value) >= width)
+    LLVMTypeRef r_type = LLVMTypeOf(r_value);
+    LLVMValueRef width_val = LLVMConstInt(r_type, width, false);
+    LLVMValueRef too_wide = LLVMBuildICmp(c->builder, LLVMIntUGE,
+      r_value, width_val, "");
+
+    if(is_always_true(too_wide))
     {
       ast_error(c->opt->check.errors, right,
         "shift amount greater than type width");
