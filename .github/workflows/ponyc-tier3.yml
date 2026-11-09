@@ -206,6 +206,214 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
+  i386-linux:
+    needs: check-for-changes
+    if: needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-i386-unknown-linux-alpine3.24-builder:20261108
+            name: i386 Linux musl
+
+    name: ${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull Docker image
+        run: docker pull --platform linux/386 ${{ matrix.image }}
+      - name: Restore libs
+        env:
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+          LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DJOBS=2 -P lib/build-libs.cmake') || '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+            -e GITHUB_REPOSITORY \
+            -e GITHUB_ACTOR \
+            -e LIBS_IMAGE="${{ matrix.image }}" \
+            -e LIBS_TAG="$LIBS_TAG" \
+            -e LIBS_MODE="$LIBS_MODE" \
+            -e LIBS_BUILD="$LIBS_BUILD" \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD'
+      - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            sh -c "cmake --preset debug && cmake --build --preset debug && cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests"
+      - name: Test with Debug Runtime (debug codegen)
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -e PONY_DEBUG=1 \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            ctest --preset debug -L ci-core -E "^stdlib$"
+      - name: Per-package stdlib (debug codegen)
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -e PONY_DEBUG=1 \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            sh .ci-scripts/i386-stdlib-perpkg.sh debug
+      - name: Test with Debug Runtime (release codegen)
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            ctest --preset debug -R "^full-programs$"
+      - name: Per-package stdlib (release codegen)
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            sh .ci-scripts/i386-stdlib-perpkg.sh debug
+      - name: Build Release Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            sh -c "cmake --preset release && cmake --build --preset release"
+      - name: Test with Release Runtime (debug codegen)
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -e PONY_DEBUG=1 \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            ctest --preset release -L ci-core -E "^stdlib$"
+      - name: Per-package stdlib (release runtime, debug codegen)
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -e PONY_DEBUG=1 \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            sh .ci-scripts/i386-stdlib-perpkg.sh release
+      - name: Test with Release Runtime (release codegen)
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            ctest --preset release -R "^full-programs$"
+      - name: Per-package stdlib (release runtime, release codegen)
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            sh .ci-scripts/i386-stdlib-perpkg.sh release
+      - name: Test pony-doc
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            ctest --preset debug -R pony-doc-tests
+      - name: Test pony-lint
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            ctest --preset debug -R pony-lint-tests
+      - name: Test pony-lsp
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --platform linux/386 \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            ctest --preset debug -R pony-lsp-tests
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
   freebsd:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'

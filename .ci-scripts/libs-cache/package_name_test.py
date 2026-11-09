@@ -45,6 +45,8 @@ def test_main_cache_names():
          'ponyc-libs-cache/x86-macos-15-intel-x86_64'),
         ('aarch64', 'alpine3.23', 'ponyc-libs-cache/alpine3.23-arm64'),
         ('ARM64', 'arm64-macos-26', 'ponyc-libs-cache/arm64-macos-26-arm64'),
+        ('i686', 'i386-unknown-linux-alpine3.24-builder_20261108',
+         'ponyc-libs-cache/i386-unknown-linux-alpine3.24-builder_20261108-i686'),
     ]
     for machine, label, want in cases:
         got = with_machine(machine, lambda: oci.cache_package(label))
@@ -59,6 +61,8 @@ def test_branch_cache_names():
          'ponyc-branch-libs-cache/windows-2025-vs2026-x86_64'),
         ('arm64', 'arm64-macos-26',
          'ponyc-branch-libs-cache/arm64-macos-26-arm64'),
+        ('i686', 'i386-unknown-linux-alpine3.24-builder_20261108',
+         'ponyc-branch-libs-cache/i386-unknown-linux-alpine3.24-builder_20261108-i686'),
     ]
     for machine, label, want in cases:
         got = with_machine(machine, lambda: branch.cache_package(label))
@@ -71,7 +75,8 @@ def test_branch_matches_main_modulo_namespace():
     # str.removeprefix, to stay 3.8-safe like the scripts).
     for machine, label in [('x86_64', 'freebsd-15.1'),
                            ('aarch64', 'alpine3.23'),
-                           ('AMD64', 'windows-2025-vs2026')]:
+                           ('AMD64', 'windows-2025-vs2026'),
+                           ('i686', 'i386-unknown-linux-alpine3.24-builder_20261108')]:
         main = with_machine(machine, lambda: oci.cache_package(label))
         br = with_machine(machine, lambda: branch.cache_package(label))
         main_suffix = main[len(oci.NAMESPACE) + 1:]
