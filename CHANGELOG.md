@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add i386 (32-bit x86) support to the embedded LLD linker ([PR #6417](https://github.com/ponylang/ponyc/pull/6417))
 
 ### Changed
 
