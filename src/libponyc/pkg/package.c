@@ -533,17 +533,37 @@ static const char* id_to_string(const char* prefix, size_t id, pass_opt_t* opt)
 }
 
 
-static bool symbol_in_use(ast_t* program, const char* symbol)
+static const char* string_to_symbol(const char* string, pass_opt_t* opt);
+
+static bool symbol_in_use(ast_t* program, const char* symbol,
+  pass_opt_t* opt)
 {
+  uint32_t index = 0;
   ast_t* module = ast_child(program);
 
   while(module != NULL)
   {
     module_t* pkg = (module_t*)ast_data(module);
 
-    if(pkg->symbol == symbol)
-      return true;
+    if(pkg->symbol != NULL)
+    {
+      if(pkg->symbol == symbol)
+        return true;
+    } else {
+      // Modules without a symbol still get a codegen filename: "main" for
+      // the program module, the lowercased directory name for builtin.
+      const char* codegen_name;
 
+      if(index == 0)
+        codegen_name = stringtab(opt->strtab, "main");
+      else
+        codegen_name = string_to_symbol(pkg->filename, opt);
+
+      if(codegen_name == symbol)
+        return true;
+    }
+
+    index++;
     module = ast_sibling(module);
   }
 
@@ -610,7 +630,7 @@ static const char* create_module_symbol(ast_t* program, const char* filename,
   const char* symbol = string_to_symbol(filename, opt);
   size_t suffix = 1;
 
-  while(symbol_in_use(program, symbol))
+  while(symbol_in_use(program, symbol, opt))
   {
     symbol = symbol_suffix(symbol, suffix, opt);
     suffix++;
