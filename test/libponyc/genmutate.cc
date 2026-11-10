@@ -4398,10 +4398,9 @@ TEST_F(GenMutateCodegenTest, ShortCircuitCoverageTiming)
               if(ci->getSExtValue() == bor_cov)
               {
                 auto* term = bb.getTerminator();
-                auto* br = llvm::dyn_cast<llvm::BranchInst>(term);
-                ASSERT_NE(br, nullptr)
-                  << "bor coverage block has no branch terminator";
-                ASSERT_TRUE(br->isConditional())
+                ASSERT_NE(term, nullptr)
+                  << "bor coverage block has no terminator";
+                ASSERT_TRUE(llvm::isa<llvm::CondBrInst>(term))
                   << "bor coverage block ends with unconditional br";
                 found_cov_in_condbr_block = true;
               }
@@ -4466,10 +4465,9 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCoverageTiming)
               if(ci->getSExtValue() == bor_cov)
               {
                 auto* term = bb.getTerminator();
-                auto* br = llvm::dyn_cast<llvm::BranchInst>(term);
-                ASSERT_NE(br, nullptr)
-                  << "xor bor coverage block has no branch terminator";
-                ASSERT_TRUE(br->isConditional())
+                ASSERT_NE(term, nullptr)
+                  << "xor bor coverage block has no terminator";
+                ASSERT_TRUE(llvm::isa<llvm::CondBrInst>(term))
                   << "xor bor coverage block ends with unconditional br";
                 found_cov_in_condbr_block = true;
               }
