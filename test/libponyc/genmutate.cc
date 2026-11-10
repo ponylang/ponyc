@@ -4735,6 +4735,57 @@ TEST_F(GenMutateCodegenTest, VcrAorIndependence)
     << "expected VCR record on line 8 when VCR is enabled";
 }
 
+TEST_F(GenMutateCodegenTest, VcrSkipsCallWithAssignmentInArgs)
+{
+  // Skipping a call whose argument contains an assignment would leave
+  // the assigned variable uninitialized. VCR must not be emitted here.
+  const char* src =
+    "class Obj\n"                                            // 1
+    "  var _count: U64 = 0\n"                                // 2
+    "  fun ref bump(): U64 =>\n"                             // 3
+    "    _count = _count + U64(1)\n"                         // 4
+    "    _count\n"                                           // 5
+    "  fun ref store(x: U64) => None\n"                      // 6
+    "\n"                                                     // 7
+    "actor Main\n"                                           // 8
+    "  new create(env: Env) =>\n"                            // 9
+    "    var x: U64 = 0\n"                                   // 10
+    "    let obj = Obj\n"                                    // 11
+    "    obj.store(x = obj.bump())\n";                       // 12
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_VCR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_EQ(count_category_at_file("", 12, "vcr"), 0u)
+    << "VCR must not be emitted when an argument contains an assignment";
+}
+
+TEST_F(GenMutateCodegenTest, VcrKeepsPlainSideEffectArg)
+{
+  // A call with a plain side-effect argument (no assignment) should
+  // still get a VCR record.
+  const char* src =
+    "class Obj\n"                                            // 1
+    "  var _count: U64 = 0\n"                                // 2
+    "  fun ref bump(): U64 =>\n"                             // 3
+    "    _count = _count + U64(1)\n"                         // 4
+    "    _count\n"                                           // 5
+    "  fun ref store(x: U64) => None\n"                      // 6
+    "\n"                                                     // 7
+    "actor Main\n"                                           // 8
+    "  new create(env: Env) =>\n"                            // 9
+    "    let obj = Obj\n"                                    // 10
+    "    obj.store(obj.bump())\n";                            // 11
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_VCR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at_file("", 11, "vcr"), 0u)
+    << "VCR should be emitted for a call with a plain side-effect arg";
+}
+
 TEST_F(GenMutateCodegenTest, RvrSuppressesSynthesizedPrimitiveEq)
 {
   // Synthesized eq/ne on primitives use identity checks (this is that)

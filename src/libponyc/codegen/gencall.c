@@ -988,6 +988,26 @@ static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
   return true;
 }
 
+static bool subtree_has_definition(ast_t* ast)
+{
+  if(ast == NULL)
+    return false;
+
+  token_id id = ast_id(ast);
+  if(id == TK_ASSIGN || id == TK_LET || id == TK_VAR)
+    return true;
+
+  ast_t* child = ast_child(ast);
+  while(child != NULL)
+  {
+    if(subtree_has_definition(child))
+      return true;
+    child = ast_sibling(child);
+  }
+
+  return false;
+}
+
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
   // Special case calls.
@@ -1041,7 +1061,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   LLVMBasicBlockRef vcr_merge = NULL;
 
   if(c->opt->mutate && !is_constructor && !is_chain
-    && is_none(m->result->ast))
+    && is_none(m->result->ast)
+    && !subtree_has_definition(receiver)
+    && !subtree_has_definition(positional))
   {
     vcr_active = mutate_vcr_begin(c, ast, &vcr_skip, &vcr_merge);
   }
