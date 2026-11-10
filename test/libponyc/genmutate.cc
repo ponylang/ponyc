@@ -3943,6 +3943,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBorFiringTable)
     {"and", "true", "(x < U64(100))", true},
     // and: left non-deciding const + const right -> no fire
     {"and", "true", "false", false},
+    {"and", "true", "true", false},
     // and: left non-const + non-const right -> fire
     {"and", "(x > U64(0))", "(x < U64(100))", true},
     // and: left non-const + non-deciding const right (true) -> fire
@@ -3953,6 +3954,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBorFiringTable)
     {"or", "false", "(x < U64(100))", true},
     // or: left non-deciding const + const right -> no fire
     {"or", "false", "true", false},
+    {"or", "false", "false", false},
     // or: left non-const + non-const right -> fire
     {"or", "(x > U64(0))", "(x < U64(100))", true},
     // or: left non-const + non-deciding const right (false) -> fire
