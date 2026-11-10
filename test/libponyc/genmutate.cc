@@ -4698,38 +4698,37 @@ TEST_F(GenMutateCodegenTest, VcrSkipsReceiverAndArgs)
 
 TEST_F(GenMutateCodegenTest, VcrAorIndependence)
 {
-  // AOR records inside a VCR-eligible call's argument must be the same
-  // whether VCR is enabled or not.
+  // AOR records inside a VCR-eligible call's argument expression must be
+  // the same whether VCR is enabled or not. The AOR site is in the argument
+  // itself (a + U64(1)), not in a separate function body.
   const char* src =
     "class Obj\n"                                          // 1
-    "  var _count: U64 = 0\n"                              // 2
-    "  fun ref bump(): U64 =>\n"                           // 3
-    "    _count = _count + U64(1)\n"                       // 4
-    "    _count\n"                                         // 5
-    "  fun ref do_something(x: U64) => None\n"             // 6
-    "\n"                                                   // 7
-    "actor Main\n"                                         // 8
-    "  new create(env: Env) =>\n"                          // 9
-    "    let obj = Obj\n"                                  // 10
-    "    obj.do_something(obj.bump())\n";                  // 11
+    "  fun ref do_something(x: U64) => None\n"             // 2
+    "\n"                                                   // 3
+    "actor Main\n"                                         // 4
+    "  new create(env: Env) =>\n"                          // 5
+    "    let obj = Obj\n"                                  // 6
+    "    let a: U64 = 3\n"                                 // 7
+    "    obj.do_something(a + U64(1))\n";                  // 8
 
   // Compile with AOR only — no VCR.
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
 
-  unsigned aor_only = count_category_at_file("", 4, "aor");
-  ASSERT_GT(aor_only, 0u) << "expected AOR records on line 4 (bump body)";
+  unsigned aor_only = count_category_at_file("", 8, "aor");
+  ASSERT_GT(aor_only, 0u)
+    << "expected AOR records on line 8 (argument expression)";
 
   // Compile with AOR + VCR.
   opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_VCR;
   DO(test_compile(src, "ir"));
 
-  unsigned aor_with_vcr = count_category_at_file("", 4, "aor");
+  unsigned aor_with_vcr = count_category_at_file("", 8, "aor");
   ASSERT_EQ(aor_only, aor_with_vcr)
-    << "AOR records on line 4 differ with VCR enabled";
+    << "AOR records on line 8 differ with VCR enabled";
 
-  unsigned vcr_count = count_category_at_file("", 11, "vcr");
+  unsigned vcr_count = count_category_at_file("", 8, "vcr");
   ASSERT_GT(vcr_count, 0u)
-    << "expected VCR record on line 11 when VCR is enabled";
+    << "expected VCR record on line 8 when VCR is enabled";
 }
