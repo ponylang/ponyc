@@ -4945,8 +4945,8 @@ TEST_F(GenMutateCodegenTest, RvrNoneDeclaredWithNonNoneBody)
 {
   // A function declared `: None` whose body is a call returning U64
   // should get no RVR mutants. The compiler coerces body_type to None
-  // before codegen, so Rule 2 (return type is None) catches this,
-  // with Rule 3's pointer-None path as a second line of defense.
+  // before codegen, so Rule 2's pointer-None path filters the only
+  // possible replacement (None->None) as equivalent.
   const char* src =
     "class Obj\n"                                            // 1
     "  fun compute(): U64 => 42\n"                           // 2
