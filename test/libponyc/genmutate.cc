@@ -4623,3 +4623,61 @@ TEST_F(GenMutateCodegenTest, ShortCircuitIrShape)
   ASSERT_TRUE(found_xor)
     << "could not find xor(l_value, icmp eq sel " << bor_id << ")";
 }
+
+
+TEST_F(GenMutateCodegenTest, VcrSkipsReceiverAndArgs)
+{
+  // The VCR switch must be placed before arg/receiver generation so the
+  // skip path bypasses evaluating them entirely.
+  const char* src =
+    "class Obj\n"                                          // 1
+    "  var _count: U64 = 0\n"                              // 2
+    "  fun ref bump(): U64 =>\n"                           // 3
+    "    _count = _count + U64(1)\n"                       // 4
+    "    _count\n"                                         // 5
+    "  fun ref do_something(x: U64) => None\n"             // 6
+    "\n"                                                   // 7
+    "actor Main\n"                                         // 8
+    "  new create(env: Env) =>\n"                          // 9
+    "    let obj = Obj\n"                                  // 10
+    "    obj.do_something(obj.bump())\n";                  // 11
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_VCR;
+  DO(test_compile(src, "ir"));
+
+  // There should be a VCR mutant for do_something at line 11.
+  ASSERT_GT(count_category_at_file("", 11, "vcr"), 0u)
+    << "expected VCR mutant for do_something call";
+
+  // Walk the IR: find the vcr.skip block in the create function and verify
+  // it contains no call instructions (the skip path should branch directly
+  // to vcr.merge without evaluating receiver or args).
+  auto module = llvm::unwrap(compile->module);
+  bool found_skip = false;
+  bool skip_has_call = false;
+
+  for(auto& fn : *module)
+  {
+    if(fn.getName().find("create") == llvm::StringRef::npos)
+      continue;
+    for(auto& bb : fn)
+    {
+      if(bb.getName() != "vcr.skip")
+        continue;
+      found_skip = true;
+      for(auto& inst : bb)
+      {
+        if(llvm::isa<llvm::CallInst>(&inst) ||
+           llvm::isa<llvm::InvokeInst>(&inst))
+        {
+          skip_has_call = true;
+        }
+      }
+    }
+  }
+
+  ASSERT_TRUE(found_skip) << "vcr.skip block not found in create function";
+  ASSERT_FALSE(skip_has_call)
+    << "vcr.skip block should not contain any call instructions";
+}

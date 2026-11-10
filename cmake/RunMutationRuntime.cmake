@@ -788,3 +788,60 @@ bor_test_row("bor7-xor->and" "let r7 = atrue xor h7" "bor" "xor" "and" 1 "bor7=t
 bor_test_row("bor8-xor->or" "let r8 = atrue xor h8" "bor" "xor" "\"or\"" 1 "bor8=true,false")
 # Row 9: try afalse xor h9.g(true)? else false end — xor->and: false,true -> false,false
 bor_test_row("bor9-xor->and" "let r9 = try" "bor" "xor" "and" 0 "bor9=false,false")
+
+# --- VCR side-effect bypass: acc2.add(acc2.bump()) ---
+# When VCR fires, both the argument (bump) and the call (add) should be
+# skipped. Baseline: bump increments to 1, add adds 1 → total=2.
+# VCR active: neither runs → total=0, printed as vcr_se=0.
+execute_process(
+    COMMAND grep -n "acc2\\.add(acc2\\.bump())" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _vcr_se_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _vcr_se_src)
+    message(FATAL_ERROR "could not find acc2.add(acc2.bump()) in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _vcr_se_lineno "${_vcr_se_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_se_lineno}.*vcr.*call.*remove" "${_json}"
+    OUTPUT_VARIABLE _vcr_se_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _vcr_se_line)
+    message(FATAL_ERROR
+        "could not find vcr call->remove mutant on line ${_vcr_se_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _vcr_se_id "${_vcr_se_line}")
+if(NOT _vcr_se_id MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "could not extract VCR side-effect mutant ID from: ${_vcr_se_line}")
+endif()
+
+message(STATUS "Using VCR side-effect mutant ID: ${_vcr_se_id}")
+
+set(ENV{PONY_MUTANT_ID} "${_vcr_se_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _vcr_se_out
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+
+# VCR mutant should exit 1 (total is 0, not 2).
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR
+        "VCR side-effect mutated run exited ${_rc}, expected 1\nstdout: ${_vcr_se_out}")
+endif()
+
+# The argument expression (bump) must not have run: total should be 0.
+string(FIND "${_vcr_se_out}" "vcr_se=0" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "VCR side-effect bypass failed: expected vcr_se=0 (arg not evaluated)\nstdout: ${_vcr_se_out}")
+endif()
+
+message(STATUS "PASS: VCR side-effect mutant ${_vcr_se_id} skips arg evaluation (vcr_se=0)")

@@ -1030,6 +1030,22 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   ast_free_unattached(type);
   ast_free_unattached(typeargs);
 
+  // VCR: skip None-returning calls when the mutant is active. Placed before
+  // arg/receiver generation so the skip path bypasses evaluating them.
+  bool is_constructor =
+    (ast_id(postfix) == TK_NEWREF) || (ast_id(postfix) == TK_NEWBEREF);
+  bool is_chain =
+    (ast_id(postfix) == TK_BECHAIN) || (ast_id(postfix) == TK_FUNCHAIN);
+  bool vcr_active = false;
+  LLVMBasicBlockRef vcr_skip = NULL;
+  LLVMBasicBlockRef vcr_merge = NULL;
+
+  if(c->opt->mutate && !is_constructor && !is_chain
+    && is_none(m->result->ast))
+  {
+    vcr_active = mutate_vcr_begin(c, ast, &vcr_skip, &vcr_merge);
+  }
+
   // Generate the arguments.
   size_t count = m->param_count + 1;
   size_t buf_size = count * sizeof(void*);
@@ -1117,21 +1133,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   bool bare = m->cap == TK_AT;
   LLVMValueRef r = NULL;
-
-  // VCR: skip None-returning calls when the mutant is active.
-  bool is_constructor =
-    (ast_id(postfix) == TK_NEWREF) || (ast_id(postfix) == TK_NEWBEREF);
-  bool is_chain =
-    (ast_id(postfix) == TK_BECHAIN) || (ast_id(postfix) == TK_FUNCHAIN);
-  bool vcr_active = false;
-  LLVMBasicBlockRef vcr_skip = NULL;
-  LLVMBasicBlockRef vcr_merge = NULL;
-
-  if(c->opt->mutate && !is_constructor && !is_chain
-    && is_none(m->result->ast))
-  {
-    vcr_active = mutate_vcr_begin(c, ast, &vcr_skip, &vcr_merge);
-  }
 
   if(is_message)
   {

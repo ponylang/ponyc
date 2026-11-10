@@ -8,6 +8,10 @@ class Accumulator
   fun ref add(n: U64) =>
     _total = _total + n
 
+  fun ref bump(): U64 =>
+    _total = _total + 1
+    _total
+
   fun total(): U64 =>
     _total
 
@@ -53,6 +57,16 @@ actor Main
     let acc = Accumulator
     acc.add(a)
     if acc.total() != a then
+      env.exitcode(1)
+    end
+
+    // Exercise VCR side-effect bypass: the argument expression has a side
+    // effect (bump increments acc2). When VCR fires, the argument must not
+    // be evaluated, so acc2.total() stays 0.
+    let acc2 = Accumulator
+    acc2.add(acc2.bump())
+    env.out.print("vcr_se=" + acc2.total().string())
+    if acc2.total() != U64(2) then
       env.exitcode(1)
     end
 
