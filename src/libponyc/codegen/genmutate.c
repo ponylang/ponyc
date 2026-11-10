@@ -1348,11 +1348,14 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
 
   // Rule 3: skip any replacement whose value equals the original
   // (equivalent mutant). Keep replacements that differ.
-  // For scalars: compare LLVM constant values.
+  // For scalars: compare via the shadow (the constant a CR phi would
+  // have without instrumentation). A constant is its own shadow.
   // For pointers: when the body's type is exactly None, a None
   // replacement is equivalent regardless of the LLVM value form.
   if(count > 0)
   {
+    LLVMValueRef cmp_value = mutate_shadow_get(c, original_value);
+
     size_t dst = 0;
     for(size_t i = 0; i < count; i++)
     {
@@ -1364,23 +1367,31 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
           (strcmp(labels[i], "None") == 0))
           equiv = true;
       }
-      else if(LLVMIsConstant(original_value))
+      else if(cmp_value != NULL)
       {
         switch(kind)
         {
           case LLVMIntegerTypeKind:
-            equiv = (LLVMConstIntGetZExtValue(original_value) ==
-              LLVMConstIntGetZExtValue(defaults[i]));
+          {
+            LLVMValueRef icmp = LLVMBuildICmp(c->builder, LLVMIntEQ,
+              cmp_value, defaults[i], "");
+            equiv = LLVMIsConstant(icmp) &&
+              (LLVMConstIntGetZExtValue(icmp) != 0);
+            if(!LLVMIsConstant(icmp))
+              LLVMInstructionEraseFromParent(icmp);
             break;
+          }
 
           case LLVMHalfTypeKind:
           case LLVMFloatTypeKind:
           case LLVMDoubleTypeKind:
           {
-            LLVMBool lossy1, lossy2;
-            double orig_d = LLVMConstRealGetDouble(original_value, &lossy1);
-            double repl_d = LLVMConstRealGetDouble(defaults[i], &lossy2);
-            equiv = (!lossy1 && !lossy2 && (orig_d == repl_d));
+            LLVMValueRef fcmp = LLVMBuildFCmp(c->builder, LLVMRealOEQ,
+              cmp_value, defaults[i], "");
+            equiv = LLVMIsConstant(fcmp) &&
+              (LLVMConstIntGetZExtValue(fcmp) != 0);
+            if(!LLVMIsConstant(fcmp))
+              LLVMInstructionEraseFromParent(fcmp);
             break;
           }
 

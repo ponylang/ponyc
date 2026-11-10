@@ -4961,3 +4961,83 @@ TEST_F(GenMutateCodegenTest, RvrUnionMaybeGetsNoneReplacement)
   ASSERT_TRUE(has_mutant("rvr", "return", "None"))
     << "None replacement should be offered (declared type admits None)";
 }
+
+TEST_F(GenMutateCodegenTest, RvrU128ConstantNotTruncated)
+{
+  // U128 value 2^64 has low 64 bits = 0. The comparison must use
+  // full-width LLVM constant comparison, not LLVMConstIntGetZExtValue
+  // which truncates to 64 bits.
+  const char* src =
+    "primitive Val\n"                                        // 1
+    "  fun f(): U128 => 0x1_0000_0000_0000_0000\n"          // 2
+    "\n"                                                     // 3
+    "actor Main\n"                                           // 4
+    "  new create(env: Env) =>\n"                            // 5
+    "    Val.f()\n";                                         // 6
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("rvr", "return", "0"))
+    << "return->0 must survive (2^64 != 0, must not truncate to 64 bits)";
+  ASSERT_TRUE(has_mutant("rvr", "return", "1"))
+    << "return->1 must survive (2^64 != 1)";
+}
+
+TEST_F(GenMutateCodegenTest, RvrCrIndependenceU64)
+{
+  // When CR wraps operator operands in phis, the add result is no longer
+  // an LLVM constant. RVR must use the shadow (the pre-CR constant) to
+  // detect equivalent replacements, so the record set is the same with
+  // or without CR.
+  const char* src =
+    "primitive Val\n"                                        // 1
+    "  fun f(): U64 => 0 + 1\n"                             // 2
+    "\n"                                                     // 3
+    "actor Main\n"                                           // 4
+    "  new create(env: Env) =>\n"                            // 5
+    "    Val.f()\n";                                         // 6
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  bool has_0 = false;
+  bool has_1 = false;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 2 && strcmp(r->category, "rvr") == 0)
+    {
+      if(strcmp(r->replacement, "0") == 0) has_0 = true;
+      if(strcmp(r->replacement, "1") == 0) has_1 = true;
+    }
+  }
+  ASSERT_TRUE(has_0)
+    << "return->0 should survive (body is 1, 0 differs)";
+  ASSERT_FALSE(has_1)
+    << "return->1 should be suppressed via shadow (body is 1 even with CR)";
+}
+
+TEST_F(GenMutateCodegenTest, RvrCrIndependenceBool)
+{
+  // Bool literals are not CR targets, so `true` remains a constant even
+  // with CR. Verify the equivalent replacement is still filtered.
+  const char* src =
+    "primitive Val\n"                                        // 1
+    "  fun g(): Bool => true\n"                              // 2
+    "\n"                                                     // 3
+    "actor Main\n"                                           // 4
+    "  new create(env: Env) =>\n"                            // 5
+    "    Val.g()\n";                                         // 6
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("rvr", "return", "false"))
+    << "return->false should survive (body is true, false differs)";
+  ASSERT_FALSE(has_mutant("rvr", "return", "true"))
+    << "return->true should be suppressed (body is true)";
+}
