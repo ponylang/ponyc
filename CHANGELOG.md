@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix F64.min() and F64.max() on ARM32 ([PR #6421](https://github.com/ponylang/ponyc/pull/6421))
 - Fix incorrect constant folding of I128 division and shift operations ([PR #6425](https://github.com/ponylang/ponyc/pull/6425))
 - Fix `ponyc -r=ir` writing builtin's IR over the program's IR ([PR #6432](https://github.com/ponylang/ponyc/pull/6432))
+- Fix user package named `main` colliding with program module at link ([PR #6434](https://github.com/ponylang/ponyc/pull/6434))
 
 ### Added
 
