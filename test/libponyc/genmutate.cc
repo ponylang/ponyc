@@ -4941,6 +4941,37 @@ TEST_F(GenMutateCodegenTest, RvrNoneFunctionNoMutants)
     << "a :None function should produce no RVR records";
 }
 
+TEST_F(GenMutateCodegenTest, RvrNoneDeclaredWithNonNoneBody)
+{
+  // A function declared `: None` whose body is a call returning U64
+  // should get no RVR mutants. The compiler coerces body_type to None
+  // before codegen, so Rule 2 (return type is None) catches this,
+  // with Rule 3's pointer-None path as a second line of defense.
+  const char* src =
+    "class Obj\n"                                            // 1
+    "  fun compute(): U64 => 42\n"                           // 2
+    "  fun ref work(): None =>\n"                            // 3
+    "    compute()\n"                                        // 4
+    "\n"                                                     // 5
+    "actor Main\n"                                           // 6
+    "  new create(env: Env) =>\n"                            // 7
+    "    Obj.work()\n";                                      // 8
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  size_t rvr_on_work = 0;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(strcmp(r->category, "rvr") == 0 && r->line == 4)
+      rvr_on_work++;
+  }
+  ASSERT_EQ(rvr_on_work, 0u)
+    << "a :None function with non-None body should produce no RVR records";
+}
+
 TEST_F(GenMutateCodegenTest, RvrUnionMaybeGetsNoneReplacement)
 {
   // `fun maybe(): (String | None) => "hello"` should get a None
