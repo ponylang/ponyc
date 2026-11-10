@@ -86,7 +86,6 @@ endif()
 
 message(STATUS "PASS: AOR mutant ${_mutant_id} (add->sub) exits 1")
 
-# --- RVR: find the return->0 mutant from _compute in main.pony ---
 # Pin to _compute's line so another RVR record can't match first.
 execute_process(
     COMMAND grep -n "fun _compute" "${TEST_SRC}/main.pony"
@@ -131,7 +130,6 @@ endif()
 
 message(STATUS "PASS: RVR mutant ${_rvr_id} (return->0) exits 1")
 
-# --- VCR: find the call->remove mutant for acc.add in main.pony ---
 # Find the line number of "acc.add" in the test source.
 execute_process(
     COMMAND grep -n "acc\\.add" "${TEST_SRC}/main.pony"
@@ -175,7 +173,6 @@ endif()
 
 message(STATUS "PASS: VCR mutant ${_vcr_id} (call->remove) exits 1")
 
-# --- AMR: verify wrapping add records an amr mutant ---
 execute_process(
     COMMAND grep -m1 "main.pony.*amr.*add.*add_unsafe" "${_json}"
     OUTPUT_VARIABLE _amr_line
@@ -193,7 +190,6 @@ endif()
 
 message(STATUS "PASS: AMR mutant ${_amr_id} (add->add_unsafe) recorded in JSON")
 
-# --- CR: find the n->n+1 mutant for the literal 5 in "result == 5" ---
 # Find the line number of "result == 5" in the test source.
 execute_process(
     COMMAND grep -n "result == 5 then" "${TEST_SRC}/main.pony"
@@ -238,7 +234,6 @@ endif()
 
 message(STATUS "PASS: CR mutant ${_cr_id} (n->n+1) exits 1")
 
-# --- SOR: find the shl->shr mutant for "a << b" ---
 execute_process(
     COMMAND grep -n "a << b" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _sor_src_line
@@ -281,7 +276,6 @@ endif()
 
 message(STATUS "PASS: SOR mutant ${_sor_id} (shl->shr) exits 1")
 
-# --- BOR: find the and->or mutant for "0xFF and 0x0F" ---
 execute_process(
     COMMAND grep -n "0xFF) and" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _bor_src_line
@@ -324,7 +318,6 @@ endif()
 
 message(STATUS "PASS: BOR mutant ${_bor_id} (and->or) exits 1")
 
-# --- ROR: find a comparison mutant for "a > b" ---
 execute_process(
     COMMAND grep -n "a > b" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _ror_src_line
@@ -367,7 +360,6 @@ endif()
 
 message(STATUS "PASS: ROR mutant ${_ror_id} exits 1")
 
-# --- CR arithmetic: find a cr mutant for "a + 10" ---
 execute_process(
     COMMAND grep -n "let cr_arith" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _cr_arith_src
@@ -411,7 +403,6 @@ endif()
 
 message(STATUS "PASS: CR arithmetic mutant ${_cr_arith_id} computes 14")
 
-# --- CR divrem: find a cr mutant for "a % 3" ---
 execute_process(
     COMMAND grep -n "let cr_rem" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _cr_div_src
@@ -455,7 +446,6 @@ endif()
 
 message(STATUS "PASS: CR divrem mutant ${_cr_div_id} computes 3")
 
-# --- CR shift: find a cr mutant for "a << 3" ---
 execute_process(
     COMMAND grep -n "let cr_shift" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _cr_shift_src
@@ -499,7 +489,6 @@ endif()
 
 message(STATUS "PASS: CR shift mutant ${_cr_shift_id} computes 48")
 
-# --- CR bitwise: find a cr mutant for "a and 0x07" ---
 execute_process(
     COMMAND grep -n "let cr_bit" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _cr_bit_src
@@ -543,7 +532,6 @@ endif()
 
 message(STATUS "PASS: CR bitwise mutant ${_cr_bit_id} computes 0")
 
-# --- CR neg: find a cr mutant for "-7" ---
 execute_process(
     COMMAND grep -n "let cr_neg" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _cr_neg_src
@@ -587,7 +575,6 @@ endif()
 
 message(STATUS "PASS: CR neg mutant ${_cr_neg_id} computes -8")
 
-# --- CR not: find a cr mutant for "not U64(0x0F)" ---
 execute_process(
     COMMAND grep -n "let cr_not" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _cr_not_src
@@ -631,7 +618,6 @@ endif()
 
 message(STATUS "PASS: CR not mutant ${_cr_not_id} computes 3")
 
-# --- CR U8 boundary: find a cr mutant for "y_u8 + 255" ---
 # n+1 wraps 255 to 0 via LLVMConstInt truncation, so 1+0=1 instead of 1+255=0.
 execute_process(
     COMMAND grep -n "let cr_u8: U8" "${TEST_SRC}/main.pony"
@@ -676,7 +662,6 @@ endif()
 
 message(STATUS "PASS: CR U8 boundary mutant ${_cr_u8_id} (n+1 wraps 255->0) computes 1")
 
-# --- CR wide literal: find a cr mutant for "small + 0x1_0000..." ---
 execute_process(
     COMMAND grep -n "let cr_wide" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _cr_wide_src
@@ -722,8 +707,6 @@ endif()
 
 message(STATUS "PASS: CR wide literal mutant ${_cr_wide_id} computes 18446744073709551630")
 
-# --- Helper macro: find a BOR mutant by source grep and JSON pattern, run it,
-# check exit code and expected stdout string (with trailing \n). ---
 macro(bor_test_row _label _src_grep _json_cat _json_orig _json_repl _expect_exit _expect_str)
     execute_process(
         COMMAND grep -n "${_src_grep}" "${TEST_SRC}/main.pony"
@@ -789,7 +772,6 @@ bor_test_row("bor8-xor->or" "let r8 = atrue xor h8" "bor" "xor" "\"or\"" 1 "bor8
 # Row 9: try afalse xor h9.g(true)? else false end — xor->and: false,true -> false,false
 bor_test_row("bor9-xor->and" "let r9 = try" "bor" "xor" "and" 0 "bor9=false,false")
 
-# --- VCR side-effect bypass: acc2.add(acc2.bump()) ---
 # When VCR fires, both the argument (bump) and the call (add) should be
 # skipped. Baseline: bump increments to 1, add adds 1 → total=2.
 # VCR active: neither runs → total=0, printed as vcr_se=0.
@@ -846,7 +828,6 @@ endif()
 
 message(STATUS "PASS: VCR side-effect mutant ${_vcr_se_id} skips arg evaluation (vcr_se=0)")
 
-# --- VCR receiver side effect: _make_recv().add(U64(10)) in _VcrRecvTest ---
 # _make_recv() increments a counter and returns an Accumulator. With VCR on
 # add, the receiver expression is bypassed, so counter stays 0.
 execute_process(
@@ -900,7 +881,6 @@ endif()
 
 message(STATUS "PASS: VCR receiver mutant ${_vcr_recv_id} skips receiver evaluation (vcr_recv=0)")
 
-# --- VCR behaviour send: sink.take(acc4.bump()) ---
 # The argument side effect must not happen when VCR fires on the behaviour send.
 execute_process(
     COMMAND grep -n "sink\\.take(acc4\\.bump())" "${TEST_SRC}/main.pony"
