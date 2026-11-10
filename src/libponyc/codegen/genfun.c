@@ -592,7 +592,44 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
         }
 
         if(c->opt->mutate)
-          ret = mutate_rvr(c, body, ret, body_type);
+        {
+          bool suppress_rvr = false;
+
+          // Rule 1: synthesized primitive eq/ne. The body is a single
+          // identity check that always returns the same value.
+          if(t->underlying == TK_PRIMITIVE)
+          {
+            const char* fname = ast_name(id);
+            if(strcmp(fname, "eq") == 0 || strcmp(fname, "ne") == 0)
+            {
+              ast_t* body_expr = ast_child(body);
+              if(body_expr != NULL && ast_sibling(body_expr) == NULL)
+              {
+                token_id bid = ast_id(body_expr);
+                if(bid == TK_IS || bid == TK_ISNT)
+                  suppress_rvr = true;
+              }
+            }
+          }
+
+          // Rule 3: constant-body return. A body whose single expression
+          // is a compile-time constant produces one equivalent and one
+          // trivially-killed RVR mutant — both are noise.
+          if(!suppress_rvr)
+          {
+            ast_t* body_expr = ast_child(body);
+            if(body_expr != NULL && ast_sibling(body_expr) == NULL)
+            {
+              token_id bid = ast_id(body_expr);
+              if(bid == TK_INT || bid == TK_FLOAT ||
+                bid == TK_TRUE || bid == TK_FALSE)
+                suppress_rvr = true;
+            }
+          }
+
+          if(!suppress_rvr)
+            ret = mutate_rvr(c, body, ret, body_type);
+        }
 
         ast_free_unattached(body_type);
         ast_free_unattached(r_result);

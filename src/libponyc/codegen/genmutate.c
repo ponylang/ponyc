@@ -1281,6 +1281,11 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
   if(!mutate_site_enabled(c, "rvr", ast))
     return original_value;
 
+  // Rule 2: when the value's type is exactly None, the only pointer
+  // replacement is None→None — an equivalent mutant.
+  if(is_none(pony_type))
+    return original_value;
+
   LLVMTypeRef val_type = LLVMTypeOf(original_value);
   LLVMTypeKind kind = LLVMGetTypeKind(val_type);
 
