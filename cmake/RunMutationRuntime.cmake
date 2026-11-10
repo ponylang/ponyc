@@ -845,3 +845,167 @@ if(_pos EQUAL -1)
 endif()
 
 message(STATUS "PASS: VCR side-effect mutant ${_vcr_se_id} skips arg evaluation (vcr_se=0)")
+
+# --- VCR receiver side effect: _make_recv().add(U64(10)) in _VcrRecvTest ---
+# _make_recv() increments a counter and returns an Accumulator. With VCR on
+# add, the receiver expression is bypassed, so counter stays 0.
+execute_process(
+    COMMAND grep -n "_make_recv()\\.add" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _vcr_recv_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _vcr_recv_src)
+    message(FATAL_ERROR "could not find _make_recv().add in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _vcr_recv_lineno "${_vcr_recv_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_recv_lineno}.*vcr.*call.*remove" "${_json}"
+    OUTPUT_VARIABLE _vcr_recv_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _vcr_recv_line)
+    message(FATAL_ERROR
+        "could not find vcr call->remove mutant on line ${_vcr_recv_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _vcr_recv_id "${_vcr_recv_line}")
+
+message(STATUS "Using VCR receiver mutant ID: ${_vcr_recv_id}")
+
+set(ENV{PONY_MUTANT_ID} "${_vcr_recv_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _vcr_recv_out
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR
+        "VCR receiver mutated run exited ${_rc}, expected 1\nstdout: ${_vcr_recv_out}")
+endif()
+
+string(FIND "${_vcr_recv_out}" "vcr_recv=0" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "VCR receiver bypass failed: expected vcr_recv=0 (receiver not evaluated)\nstdout: ${_vcr_recv_out}")
+endif()
+
+message(STATUS "PASS: VCR receiver mutant ${_vcr_recv_id} skips receiver evaluation (vcr_recv=0)")
+
+# --- VCR behaviour send: sink.consume(acc4.bump()) ---
+# The argument side effect must not happen when VCR fires on the behaviour send.
+execute_process(
+    COMMAND grep -n "sink\\.take(acc4\\.bump())" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _vcr_be_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _vcr_be_src)
+    message(FATAL_ERROR "could not find sink.consume(acc4.bump()) in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _vcr_be_lineno "${_vcr_be_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_be_lineno}.*vcr.*call.*remove" "${_json}"
+    OUTPUT_VARIABLE _vcr_be_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _vcr_be_line)
+    message(FATAL_ERROR
+        "could not find vcr call->remove mutant on line ${_vcr_be_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _vcr_be_id "${_vcr_be_line}")
+
+message(STATUS "Using VCR behaviour mutant ID: ${_vcr_be_id}")
+
+set(ENV{PONY_MUTANT_ID} "${_vcr_be_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _vcr_be_out
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+
+if(NOT _rc EQUAL 1)
+    message(FATAL_ERROR
+        "VCR behaviour mutated run exited ${_rc}, expected 1\nstdout: ${_vcr_be_out}")
+endif()
+
+string(FIND "${_vcr_be_out}" "vcr_be=0" _pos)
+if(_pos EQUAL -1)
+    message(FATAL_ERROR
+        "VCR behaviour bypass failed: expected vcr_be=0 (arg not evaluated)\nstdout: ${_vcr_be_out}")
+endif()
+
+message(STATUS "PASS: VCR behaviour mutant ${_vcr_be_id} skips arg evaluation (vcr_be=0)")
+
+# --- VCR/AOR independence: AOR mutant inside VCR-eligible call's arg ---
+# The AOR mutant for acc2.bump()'s "_total + 1" should still fire when
+# PONY_MUTANT_ID selects it (not the VCR). The VCR switch falls through to
+# default (vcr.call), and the AOR mutation changes + to -.
+# Baseline: bump does _total + 1 = 1, add adds 1 → total=2, vcr_se=2.
+# AOR active: bump does _total - 1 = max_u64, add adds max_u64 → wraps.
+# Either way, total != 2 so exit code 1.
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_se_lineno}.*aor.*add.*sub" "${_json}"
+    OUTPUT_VARIABLE _aor_inside_vcr
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+# The AOR site is on bump's body line, not the call line. Find bump's line.
+execute_process(
+    COMMAND grep -n "_total = _total + 1" "${TEST_SRC}/main.pony"
+    OUTPUT_VARIABLE _bump_src
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _bump_src)
+    message(FATAL_ERROR "could not find '_total = _total + 1' in test source")
+endif()
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _bump_lineno "${_bump_src}")
+
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_bump_lineno}.*aor.*add.*sub" "${_json}"
+    OUTPUT_VARIABLE _aor_vcr_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _aor_vcr_line)
+    message(FATAL_ERROR
+        "could not find aor add->sub mutant on line ${_bump_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _aor_vcr_id "${_aor_vcr_line}")
+
+message(STATUS "Using AOR-inside-VCR mutant ID: ${_aor_vcr_id}")
+
+set(ENV{PONY_MUTANT_ID} "${_aor_vcr_id}")
+execute_process(
+    COMMAND "${_bin}" --ponynoscale --ponymaxthreads=1
+    RESULT_VARIABLE _rc
+    OUTPUT_VARIABLE _aor_vcr_out
+    TIMEOUT 30
+)
+unset(ENV{PONY_MUTANT_ID})
+
+if(_rc EQUAL 0)
+    message(FATAL_ERROR
+        "AOR-inside-VCR mutated run exited 0, expected nonzero\nstdout: ${_aor_vcr_out}")
+endif()
+
+# The AOR mutant should have changed the total (not 2).
+string(FIND "${_aor_vcr_out}" "vcr_se=2" _pos)
+if(NOT _pos EQUAL -1)
+    message(FATAL_ERROR
+        "AOR-inside-VCR: total is still 2, AOR mutation did not take effect\nstdout: ${_aor_vcr_out}")
+endif()
+
+message(STATUS "PASS: AOR mutant ${_aor_vcr_id} inside VCR-eligible arg takes effect")

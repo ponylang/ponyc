@@ -15,6 +15,20 @@ class Accumulator
   fun total(): U64 =>
     _total
 
+actor _Sink
+  be take(x: U64) => None
+
+class _VcrRecvTest
+  var counter: U64 = 0
+  let _acc: Accumulator = Accumulator
+
+  fun ref run() =>
+    _make_recv().add(U64(10))
+
+  fun ref _make_recv(): Accumulator =>
+    counter = counter + 1
+    _acc
+
 class _BorHelper
   var ran: Bool = false
 
@@ -67,6 +81,26 @@ actor Main
     acc2.add(acc2.bump())
     env.out.print("vcr_se=" + acc2.total().string())
     if acc2.total() != U64(2) then
+      env.exitcode(1)
+    end
+
+    // Exercise VCR receiver side effect: _vcr_recv_test returns an
+    // Accumulator whose recv_bump() was called as a side effect during
+    // receiver evaluation. With VCR on add, the receiver is bypassed.
+    let vcr_recv = _VcrRecvTest
+    vcr_recv.run()
+    env.out.print("vcr_recv=" + vcr_recv.counter.string())
+    if vcr_recv.counter != U64(1) then
+      env.exitcode(1)
+    end
+
+    // Exercise VCR on behaviour send: the argument side effect must not
+    // happen when VCR fires on the behaviour send.
+    let sink = _Sink
+    let acc4 = Accumulator
+    sink.take(acc4.bump())
+    env.out.print("vcr_be=" + acc4.total().string())
+    if acc4.total() != U64(1) then
       env.exitcode(1)
     end
 

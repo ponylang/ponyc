@@ -4628,7 +4628,8 @@ TEST_F(GenMutateCodegenTest, ShortCircuitIrShape)
 TEST_F(GenMutateCodegenTest, VcrSkipsReceiverAndArgs)
 {
   // The VCR switch must be placed before arg/receiver generation so the
-  // skip path bypasses evaluating them entirely.
+  // skip path bypasses evaluating them entirely. Verify that the switch
+  // instruction appears before any call to bump (the arg side-effect).
   const char* src =
     "class Obj\n"                                          // 1
     "  var _count: U64 = 0\n"                              // 2
@@ -4650,12 +4651,13 @@ TEST_F(GenMutateCodegenTest, VcrSkipsReceiverAndArgs)
   ASSERT_GT(count_category_at_file("", 11, "vcr"), 0u)
     << "expected VCR mutant for do_something call";
 
-  // Walk the IR: find the vcr.skip block in the create function and verify
-  // it contains no call instructions (the skip path should branch directly
-  // to vcr.merge without evaluating receiver or args).
+  // Walk the IR: in the create function, iterate instructions in block order.
+  // The VCR switch instruction must appear before any call to bump.
+  // If VCR were placed after arg gen, bump's call would precede the switch.
   auto module = llvm::unwrap(compile->module);
-  bool found_skip = false;
-  bool skip_has_call = false;
+  bool found_switch = false;
+  bool found_bump_before_switch = false;
+  bool found_bump_after_switch = false;
 
   for(auto& fn : *module)
   {
@@ -4663,21 +4665,71 @@ TEST_F(GenMutateCodegenTest, VcrSkipsReceiverAndArgs)
       continue;
     for(auto& bb : fn)
     {
-      if(bb.getName() != "vcr.skip")
-        continue;
-      found_skip = true;
       for(auto& inst : bb)
       {
-        if(llvm::isa<llvm::CallInst>(&inst) ||
-           llvm::isa<llvm::InvokeInst>(&inst))
+        if(auto* si = llvm::dyn_cast<llvm::SwitchInst>(&inst))
         {
-          skip_has_call = true;
+          // Check if default case goes to a block named vcr.call
+          auto* def_bb = si->getDefaultDest();
+          if(def_bb && def_bb->getName() == "vcr.call")
+            found_switch = true;
+        }
+        if(auto* ci = llvm::dyn_cast<llvm::CallInst>(&inst))
+        {
+          auto* callee = ci->getCalledFunction();
+          if(callee && callee->getName().find("bump") != llvm::StringRef::npos)
+          {
+            if(found_switch)
+              found_bump_after_switch = true;
+            else
+              found_bump_before_switch = true;
+          }
         }
       }
     }
   }
 
-  ASSERT_TRUE(found_skip) << "vcr.skip block not found in create function";
-  ASSERT_FALSE(skip_has_call)
-    << "vcr.skip block should not contain any call instructions";
+  ASSERT_TRUE(found_switch) << "VCR switch not found in create function";
+  ASSERT_FALSE(found_bump_before_switch)
+    << "bump call found before VCR switch — args are not inside vcr.call";
+  ASSERT_TRUE(found_bump_after_switch)
+    << "bump call not found after VCR switch — expected it inside vcr.call";
+}
+
+TEST_F(GenMutateCodegenTest, VcrAorIndependence)
+{
+  // AOR records inside a VCR-eligible call's argument must be the same
+  // whether VCR is enabled or not.
+  const char* src =
+    "class Obj\n"                                          // 1
+    "  var _count: U64 = 0\n"                              // 2
+    "  fun ref bump(): U64 =>\n"                           // 3
+    "    _count = _count + U64(1)\n"                       // 4
+    "    _count\n"                                         // 5
+    "  fun ref do_something(x: U64) => None\n"             // 6
+    "\n"                                                   // 7
+    "actor Main\n"                                         // 8
+    "  new create(env: Env) =>\n"                          // 9
+    "    let obj = Obj\n"                                  // 10
+    "    obj.do_something(obj.bump())\n";                  // 11
+
+  // Compile with AOR only — no VCR.
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  unsigned aor_only = count_category_at_file("", 4, "aor");
+  ASSERT_GT(aor_only, 0u) << "expected AOR records on line 4 (bump body)";
+
+  // Compile with AOR + VCR.
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_VCR;
+  DO(test_compile(src, "ir"));
+
+  unsigned aor_with_vcr = count_category_at_file("", 4, "aor");
+  ASSERT_EQ(aor_only, aor_with_vcr)
+    << "AOR records on line 4 differ with VCR enabled";
+
+  unsigned vcr_count = count_category_at_file("", 11, "vcr");
+  ASSERT_GT(vcr_count, 0u)
+    << "expected VCR record on line 11 when VCR is enabled";
 }
