@@ -2877,11 +2877,12 @@ TEST_F(GenMutateCodegenTest, BoolRorSwapOnly)
   ASSERT_FALSE(has_mutant_at_line("", 6, "ror", "ne", "lt"))
     << "Bool != must not have ne->lt";
 
-  // Bool match pattern: exactly 1 ROR record (eq->ne) per case
+  // Bool match pattern: first case gets 1 ROR (eq->ne); last case of
+  // exhaustive match gets 0 (branch result is dead — both sides continue)
   ASSERT_EQ(count_category_at_file("", 8, "ror"), 1u)
     << "Bool match | true should have exactly 1 ROR record";
-  ASSERT_EQ(count_category_at_file("", 9, "ror"), 1u)
-    << "Bool match | false should have exactly 1 ROR record";
+  ASSERT_EQ(count_category_at_file("", 9, "ror"), 0u)
+    << "Bool match | false (last case, exhaustive) should have 0 ROR records";
 
   // Numeric ==: still gets all 5 replacements
   ASSERT_EQ(count_category_at_file("", 12, "ror"), 5u)
@@ -2891,6 +2892,75 @@ TEST_F(GenMutateCodegenTest, BoolRorSwapOnly)
   ASSERT_TRUE(has_mutant_at_line("", 12, "ror", "eq", "le"));
   ASSERT_TRUE(has_mutant_at_line("", 12, "ror", "eq", "ge"));
   ASSERT_TRUE(has_mutant_at_line("", 12, "ror", "eq", "gt"));
+}
+
+
+TEST_F(GenMutateCodegenTest, ExhaustiveMatchLastCaseSuppressed)
+{
+  // Last case of an exhaustive match with no else has a dead branch —
+  // both sides continue to the same block. Mutating the pattern comparison
+  // is pointless. Earlier cases and matches with else should still mutate.
+  const char* src =
+    "primitive A\n"                                       // 1
+    "primitive B\n"                                       // 2
+    "primitive C\n"                                       // 3
+    "type ABC is (A | B | C)\n"                           // 4
+    "\n"                                                  // 5
+    "actor Main\n"                                        // 6
+    "  new create(env: Env) =>\n"                         // 7
+    "    _bool(true)\n"                                   // 8
+    "    _numelse(U8(1))\n"                               // 9
+    "    _tup(true, false)\n"                             // 10
+    "\n"                                                  // 11
+    "  fun _bool(b: Bool): String =>\n"                   // 12
+    "    match \\exhaustive\\ b\n"                        // 13
+    "    | true => \"T\"\n"                               // 14
+    "    | false => \"F\"\n"                              // 15
+    "    end\n"                                           // 16
+    "\n"                                                  // 17
+    "  fun _numelse(n: U8): String =>\n"                  // 18
+    "    match n\n"                                       // 19
+    "    | 1 => \"one\"\n"                                // 20
+    "    | 2 => \"two\"\n"                                // 21
+    "    else \"other\"\n"                                // 22
+    "    end\n"                                           // 23
+    "\n"                                                  // 24
+    "  fun _tup(p: Bool, q: Bool): String =>\n"           // 25
+    "    match \\exhaustive\\ (p, q)\n"                   // 26
+    "    | (true, true) => \"TT\"\n"                      // 27
+    "    | (true, false) => \"TF\"\n"                     // 28
+    "    | (false, true) => \"FT\"\n"                     // 29
+    "    | (false, false) => \"FF\"\n"                    // 30
+    "    end\n";                                          // 31
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_ROR;
+  DO(test_compile(src, "ir"));
+
+  // Bool exhaustive: | true (first case) has 1 ROR; | false (last) has 0
+  ASSERT_EQ(count_category_at_file("", 14, "ror"), 1u)
+    << "first Bool case should have 1 ROR";
+  ASSERT_EQ(count_category_at_file("", 15, "ror"), 0u)
+    << "last Bool case (exhaustive, no else) should have 0 ROR";
+
+  // Numeric with else: both cases mutate (else provides a real fallthrough)
+  ASSERT_GT(count_category_at_file("", 20, "ror"), 0u)
+    << "first numeric case with else should have ROR";
+  ASSERT_GT(count_category_at_file("", 21, "ror"), 0u)
+    << "second numeric case with else should have ROR";
+
+  // Tuple exhaustive: (true,true) first case — both elements mutate;
+  // (false,false) last case — neither element mutates
+  ASSERT_GT(count_category_at_file("", 27, "ror"), 0u)
+    << "first tuple case should have ROR";
+  ASSERT_EQ(count_category_at_file("", 30, "ror"), 0u)
+    << "last tuple case (exhaustive, no else) should have 0 ROR";
+
+  // Middle tuple cases: not last, so they should still mutate
+  ASSERT_GT(count_category_at_file("", 28, "ror"), 0u)
+    << "middle tuple case should have ROR";
+  ASSERT_GT(count_category_at_file("", 29, "ror"), 0u)
+    << "second-to-last tuple case should have ROR";
 }
 
 

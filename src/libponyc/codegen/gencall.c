@@ -1250,7 +1250,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   return r;
 }
 
-LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
+LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value,
+  bool mutate)
 {
   // This is used for structural equality in pattern matching.
   ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
@@ -1285,9 +1286,11 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
         )
       {
         ast_free_unattached(pattern_type);
-        c->frame->mutate_ast = pattern;
+        if(mutate)
+          c->frame->mutate_ast = pattern;
         LLVMValueRef result = gen_eq_rvalue(c, pattern, r_value, true);
-        c->frame->mutate_ast = NULL;
+        if(mutate)
+          c->frame->mutate_ast = NULL;
         return result;
       }
     }

@@ -284,7 +284,8 @@ static bool check_value(compile_t* c, ast_t* pattern, ast_t* param_type,
   if(r_value == NULL)
     return false;
 
-  LLVMValueRef result = gen_pattern_eq(c, pattern, r_value);
+  LLVMValueRef result = gen_pattern_eq(c, pattern, r_value,
+    next_block != NULL);
 
   if(result == NULL)
     return false;
@@ -869,7 +870,13 @@ static bool guard_match(compile_t* c, ast_t* guard,
   if(ast_id(guard) == TK_NONE)
     return true;
 
+  bool saved_mutate = c->opt->mutate;
+  if(next_block == NULL)
+    c->opt->mutate = false;
+
   LLVMValueRef value = gen_expr(c, guard);
+
+  c->opt->mutate = saved_mutate;
 
   if(value == NULL)
     return false;
