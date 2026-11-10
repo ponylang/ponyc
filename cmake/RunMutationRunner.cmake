@@ -6,6 +6,7 @@
 #
 # Args (passed with -D): COMPILER, RUNNER, OUTPUT, TEST_SRC.
 
+file(REMOVE_RECURSE "${OUTPUT}")
 file(MAKE_DIRECTORY "${OUTPUT}")
 
 set(_bin "${OUTPUT}/mutation-runner-test")
