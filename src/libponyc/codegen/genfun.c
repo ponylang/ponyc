@@ -595,22 +595,10 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
         {
           bool suppress_rvr = false;
 
-          // Rule 1: synthesized primitive eq/ne. The body is a single
-          // identity check that always returns the same value.
-          if(t->underlying == TK_PRIMITIVE)
-          {
-            const char* fname = ast_name(id);
-            if(strcmp(fname, "eq") == 0 || strcmp(fname, "ne") == 0)
-            {
-              ast_t* body_expr = ast_child(body);
-              if(body_expr != NULL && ast_sibling(body_expr) == NULL)
-              {
-                token_id bid = ast_id(body_expr);
-                if(bid == TK_IS || bid == TK_ISNT)
-                  suppress_rvr = true;
-              }
-            }
-          }
+          // Compiler-generated eq/ne on primitives are not user code and
+          // their mutant records land on the wrong source line.
+          if(ast_checkflag(m->fun->ast, AST_FLAG_SYNTHESIZED))
+            suppress_rvr = true;
 
           if(!suppress_rvr)
             ret = mutate_rvr(c, body, ret, r_result, body_type);
