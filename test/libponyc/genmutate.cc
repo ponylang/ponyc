@@ -4386,19 +4386,28 @@ TEST_F(GenMutateCodegenTest, ShortCircuitScopeFilter)
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_BOR;
 
-  mutate_scope_t scope_exclude = {"", 1, 3};
+  size_t alloc_size = sizeof(mutate_scope_t);
+  mutate_scope_t* scopes =
+    (mutate_scope_t*)ponyint_pool_alloc_size(alloc_size);
+  char* file = (char*)ponyint_pool_alloc_size(1);
+  file[0] = '\0';
+  scopes[0].file = file;
+  scopes[0].start_line = 1;
+  scopes[0].end_line = 3;
   opt.mutate_scope_count = 1;
-  opt.mutate_scopes = &scope_exclude;
+  opt.mutate_scopes = scopes;
   DO(test_compile(src, "ir"));
   ASSERT_EQ(count_category_at_file("", 4, "bor"), 0u);
 
-  mutate_scope_t scope_include = {"", 1, 4};
-  opt.mutate_scopes = &scope_include;
+  scopes = (mutate_scope_t*)ponyint_pool_alloc_size(alloc_size);
+  file = (char*)ponyint_pool_alloc_size(1);
+  file[0] = '\0';
+  scopes[0].file = file;
+  scopes[0].start_line = 1;
+  scopes[0].end_line = 4;
+  opt.mutate_scopes = scopes;
   DO(test_compile(src, "ir"));
   ASSERT_GT(count_category_at_file("", 4, "bor"), 0u);
-
-  opt.mutate_scope_count = 0;
-  opt.mutate_scopes = NULL;
 }
 
 // IR inspection: branch condition is xor(l_value, icmp eq sel id).
