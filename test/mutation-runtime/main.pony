@@ -84,9 +84,9 @@ actor Main
       env.exitcode(1)
     end
 
-    // Exercise VCR receiver side effect: _vcr_recv_test returns an
-    // Accumulator whose recv_bump() was called as a side effect during
-    // receiver evaluation. With VCR on add, the receiver is bypassed.
+    // Exercise VCR receiver side effect: _make_recv() increments counter
+    // and returns an Accumulator. With VCR on add, the receiver is
+    // bypassed, so counter stays 0.
     let vcr_recv = _VcrRecvTest
     vcr_recv.run()
     env.out.print("vcr_recv=" + vcr_recv.counter.string())

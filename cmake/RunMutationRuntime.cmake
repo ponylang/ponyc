@@ -102,7 +102,7 @@ string(REGEX REPLACE "^([0-9]+):.*" "\\1" _compute_lineno "${_compute_src}")
 math(EXPR _rvr_lineno "${_compute_lineno} + 1")
 
 execute_process(
-    COMMAND grep -m1 "main.pony.*\"line\": ${_rvr_lineno}.*rvr.*return.*\"replacement\": \"0\"" "${_json}"
+    COMMAND grep -m1 "main.pony.*\"line\": ${_rvr_lineno},.*rvr.*return.*\"replacement\": \"0\"" "${_json}"
     OUTPUT_VARIABLE _rvr_line
     RESULT_VARIABLE _grep_rc
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -146,7 +146,7 @@ string(REGEX REPLACE "^([0-9]+):.*" "\\1" _vcr_lineno "${_acc_add_line}")
 
 # Match the VCR mutant on that line.
 execute_process(
-    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_lineno}.*vcr.*call.*remove" "${_json}"
+    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_lineno},.*vcr.*call.*remove" "${_json}"
     OUTPUT_VARIABLE _vcr_line
     RESULT_VARIABLE _grep_rc
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -251,7 +251,7 @@ endif()
 string(REGEX REPLACE "^([0-9]+):.*" "\\1" _sor_lineno "${_sor_src_line}")
 
 execute_process(
-    COMMAND grep -m1 "main.pony.*\"line\": ${_sor_lineno}.*sor.*shl.*shr" "${_json}"
+    COMMAND grep -m1 "main.pony.*\"line\": ${_sor_lineno},.*sor.*shl.*shr" "${_json}"
     OUTPUT_VARIABLE _sor_line
     RESULT_VARIABLE _grep_rc
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -337,7 +337,7 @@ endif()
 string(REGEX REPLACE "^([0-9]+):.*" "\\1" _ror_lineno "${_ror_src_line}")
 
 execute_process(
-    COMMAND grep -m1 "main.pony.*\"line\": ${_ror_lineno}.*ror.*gt.*\"lt\"" "${_json}"
+    COMMAND grep -m1 "main.pony.*\"line\": ${_ror_lineno},.*ror.*gt.*\"lt\"" "${_json}"
     OUTPUT_VARIABLE _ror_line
     RESULT_VARIABLE _grep_rc
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -805,7 +805,7 @@ endif()
 string(REGEX REPLACE "^([0-9]+):.*" "\\1" _vcr_se_lineno "${_vcr_se_src}")
 
 execute_process(
-    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_se_lineno}.*vcr.*call.*remove" "${_json}"
+    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_se_lineno},.*vcr.*call.*remove" "${_json}"
     OUTPUT_VARIABLE _vcr_se_line
     RESULT_VARIABLE _grep_rc
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -861,7 +861,7 @@ endif()
 string(REGEX REPLACE "^([0-9]+):.*" "\\1" _vcr_recv_lineno "${_vcr_recv_src}")
 
 execute_process(
-    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_recv_lineno}.*vcr.*call.*remove" "${_json}"
+    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_recv_lineno},.*vcr.*call.*remove" "${_json}"
     OUTPUT_VARIABLE _vcr_recv_line
     RESULT_VARIABLE _grep_rc
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -872,6 +872,9 @@ if(NOT _grep_rc EQUAL 0 OR NOT _vcr_recv_line)
 endif()
 
 string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _vcr_recv_id "${_vcr_recv_line}")
+if(NOT _vcr_recv_id MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "could not extract VCR receiver mutant ID from: ${_vcr_recv_line}")
+endif()
 
 message(STATUS "Using VCR receiver mutant ID: ${_vcr_recv_id}")
 
@@ -897,7 +900,7 @@ endif()
 
 message(STATUS "PASS: VCR receiver mutant ${_vcr_recv_id} skips receiver evaluation (vcr_recv=0)")
 
-# --- VCR behaviour send: sink.consume(acc4.bump()) ---
+# --- VCR behaviour send: sink.take(acc4.bump()) ---
 # The argument side effect must not happen when VCR fires on the behaviour send.
 execute_process(
     COMMAND grep -n "sink\\.take(acc4\\.bump())" "${TEST_SRC}/main.pony"
@@ -906,12 +909,12 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 if(NOT _grep_rc EQUAL 0 OR NOT _vcr_be_src)
-    message(FATAL_ERROR "could not find sink.consume(acc4.bump()) in test source")
+    message(FATAL_ERROR "could not find sink.take(acc4.bump()) in test source")
 endif()
 string(REGEX REPLACE "^([0-9]+):.*" "\\1" _vcr_be_lineno "${_vcr_be_src}")
 
 execute_process(
-    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_be_lineno}.*vcr.*call.*remove" "${_json}"
+    COMMAND grep -m1 "main.pony.*\"line\": ${_vcr_be_lineno},.*vcr.*call.*remove" "${_json}"
     OUTPUT_VARIABLE _vcr_be_line
     RESULT_VARIABLE _grep_rc
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -922,6 +925,9 @@ if(NOT _grep_rc EQUAL 0 OR NOT _vcr_be_line)
 endif()
 
 string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _vcr_be_id "${_vcr_be_line}")
+if(NOT _vcr_be_id MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "could not extract VCR behaviour mutant ID from: ${_vcr_be_line}")
+endif()
 
 message(STATUS "Using VCR behaviour mutant ID: ${_vcr_be_id}")
 

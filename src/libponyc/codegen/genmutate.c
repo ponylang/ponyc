@@ -1341,8 +1341,8 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
       return original_value;
   }
 
-  // Rule 2: skip any replacement whose value equals the original
-  // (equivalent mutant). Keep replacements that differ.
+  // Skip any replacement whose value equals the original (equivalent
+  // mutant). Keep replacements that differ.
   // For scalars: compare via the shadow (the constant a CR phi would
   // have without instrumentation). A constant is its own shadow.
   // For pointers: when the body's type is exactly None, a None

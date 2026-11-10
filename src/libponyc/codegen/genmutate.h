@@ -135,7 +135,7 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
 
 // Emit UOI-insertion mutations on an arithmetic result: negation for all
 // numeric types, bitwise complement for integers. Skips when both operands
-// are compile-time constants (Rule 2). r_value is NULL for unary operators.
+// are compile-time constants. r_value is NULL for unary operators.
 LLVMValueRef mutate_uoi_insert(compile_t* c, ast_t* ast,
   LLVMValueRef result, LLVMValueRef l_value, LLVMValueRef r_value);
 

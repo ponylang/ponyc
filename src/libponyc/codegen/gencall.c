@@ -100,6 +100,7 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
   *value = NULL;
 
   codegen_debugloc(c, ast);
+  ast_t* saved_mutate_ast = c->frame->mutate_ast;
   c->frame->mutate_ast = ast;
 
   if(name == c->str_add)
@@ -173,7 +174,7 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
   else
     special_case = false;
 
-  c->frame->mutate_ast = NULL;
+  c->frame->mutate_ast = saved_mutate_ast;
   codegen_debugloc(c, NULL);
   return special_case;
 }
@@ -1274,7 +1275,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 }
 
 LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value,
-  bool mutate)
+  bool emit_ror)
 {
   // This is used for structural equality in pattern matching.
   ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
@@ -1309,11 +1310,12 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value,
         )
       {
         ast_free_unattached(pattern_type);
-        if(mutate)
+        ast_t* saved_mutate_ast = c->frame->mutate_ast;
+        if(emit_ror)
           c->frame->mutate_ast = pattern;
         LLVMValueRef result = gen_eq_rvalue(c, pattern, r_value, true);
-        if(mutate)
-          c->frame->mutate_ast = NULL;
+        if(emit_ror)
+          c->frame->mutate_ast = saved_mutate_ast;
         return result;
       }
     }

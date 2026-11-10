@@ -2721,7 +2721,7 @@ TEST_F(GenMutateCodegenTest, AmrAndUoiTogether)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2ConstantAddNoAor)
+TEST_F(GenMutateCodegenTest, ConstantAddNoAor)
 {
   const char* src =
     "actor Main\n"                   // line 1
@@ -2736,7 +2736,7 @@ TEST_F(GenMutateCodegenTest, Rule2ConstantAddNoAor)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2ConstantAddHasCr)
+TEST_F(GenMutateCodegenTest, ConstantAddHasCr)
 {
   const char* src =
     "actor Main\n"
@@ -2751,7 +2751,7 @@ TEST_F(GenMutateCodegenTest, Rule2ConstantAddHasCr)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2ConstantAddNoUoi)
+TEST_F(GenMutateCodegenTest, ConstantAddNoUoi)
 {
   const char* src =
     "actor Main\n"
@@ -2766,7 +2766,7 @@ TEST_F(GenMutateCodegenTest, Rule2ConstantAddNoUoi)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2VariableAddHasAor)
+TEST_F(GenMutateCodegenTest, VariableAddHasAor)
 {
   const char* src =
     "actor Main\n"
@@ -2782,7 +2782,7 @@ TEST_F(GenMutateCodegenTest, Rule2VariableAddHasAor)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2NestedConstantNoAor)
+TEST_F(GenMutateCodegenTest, NestedConstantNoAor)
 {
   const char* src =
     "actor Main\n"
@@ -2797,7 +2797,7 @@ TEST_F(GenMutateCodegenTest, Rule2NestedConstantNoAor)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2ConstantShiftNoSor)
+TEST_F(GenMutateCodegenTest, ConstantShiftNoSor)
 {
   const char* src =
     "actor Main\n"
@@ -2812,7 +2812,7 @@ TEST_F(GenMutateCodegenTest, Rule2ConstantShiftNoSor)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2ConstantBitwiseNoBor)
+TEST_F(GenMutateCodegenTest, ConstantBitwiseNoBor)
 {
   const char* src =
     "actor Main\n"
@@ -2827,7 +2827,7 @@ TEST_F(GenMutateCodegenTest, Rule2ConstantBitwiseNoBor)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2VariableCmpHasRor)
+TEST_F(GenMutateCodegenTest, VariableCmpHasRor)
 {
   const char* src =
     "actor Main\n"
@@ -2905,70 +2905,91 @@ TEST_F(GenMutateCodegenTest, ExhaustiveMatchLastCaseSuppressed)
   // both sides continue to the same block. Mutating the pattern comparison
   // is pointless. Earlier cases and matches with else should still mutate.
   const char* src =
-    "primitive A\n"                                       // 1
-    "primitive B\n"                                       // 2
-    "primitive C\n"                                       // 3
-    "type ABC is (A | B | C)\n"                           // 4
-    "\n"                                                  // 5
-    "actor Main\n"                                        // 6
-    "  new create(env: Env) =>\n"                         // 7
-    "    _bool(true)\n"                                   // 8
-    "    _numelse(U8(1))\n"                               // 9
-    "    _tup(true, false)\n"                             // 10
-    "\n"                                                  // 11
-    "  fun _bool(b: Bool): String =>\n"                   // 12
-    "    match \\exhaustive\\ b\n"                        // 13
-    "    | true => \"T\"\n"                               // 14
-    "    | false => \"F\"\n"                              // 15
-    "    end\n"                                           // 16
-    "\n"                                                  // 17
-    "  fun _numelse(n: U8): String =>\n"                  // 18
-    "    match n\n"                                       // 19
-    "    | 1 => \"one\"\n"                                // 20
-    "    | 2 => \"two\"\n"                                // 21
-    "    else \"other\"\n"                                // 22
-    "    end\n"                                           // 23
-    "\n"                                                  // 24
-    "  fun _tup(p: Bool, q: Bool): String =>\n"           // 25
-    "    match \\exhaustive\\ (p, q)\n"                   // 26
-    "    | (true, true) => \"TT\"\n"                      // 27
-    "    | (true, false) => \"TF\"\n"                     // 28
-    "    | (false, true) => \"FT\"\n"                     // 29
-    "    | (false, false) => \"FF\"\n"                    // 30
-    "    end\n";                                          // 31
+    "actor Main\n"                                        // 1
+    "  new create(env: Env) =>\n"                         // 2
+    "    _bool(true)\n"                                   // 3
+    "    _numelse(U8(1))\n"                               // 4
+    "    _tup(true, false)\n"                             // 5
+    "\n"                                                  // 6
+    "  fun _bool(b: Bool): String =>\n"                   // 7
+    "    match \\exhaustive\\ b\n"                        // 8
+    "    | true => \"T\"\n"                               // 9
+    "    | false => \"F\"\n"                              // 10
+    "    end\n"                                           // 11
+    "\n"                                                  // 12
+    "  fun _numelse(n: U8): String =>\n"                  // 13
+    "    match n\n"                                       // 14
+    "    | 1 => \"one\"\n"                                // 15
+    "    | 2 => \"two\"\n"                                // 16
+    "    else \"other\"\n"                                // 17
+    "    end\n"                                           // 18
+    "\n"                                                  // 19
+    "  fun _tup(p: Bool, q: Bool): String =>\n"           // 20
+    "    match \\exhaustive\\ (p, q)\n"                   // 21
+    "    | (true, true) => \"TT\"\n"                      // 22
+    "    | (true, false) => \"TF\"\n"                     // 23
+    "    | (false, true) => \"FT\"\n"                     // 24
+    "    | (false, false) => \"FF\"\n"                    // 25
+    "    end\n";                                          // 26
 
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_ROR;
   DO(test_compile(src, "ir"));
 
   // Bool exhaustive: | true (first case) has 1 ROR; | false (last) has 0
-  ASSERT_EQ(count_category_at_file("", 14, "ror"), 1u)
+  ASSERT_EQ(count_category_at_file("", 9, "ror"), 1u)
     << "first Bool case should have 1 ROR";
-  ASSERT_EQ(count_category_at_file("", 15, "ror"), 0u)
+  ASSERT_EQ(count_category_at_file("", 10, "ror"), 0u)
     << "last Bool case (exhaustive, no else) should have 0 ROR";
 
   // Numeric with else: both cases mutate (else provides a real fallthrough)
-  ASSERT_GT(count_category_at_file("", 20, "ror"), 0u)
+  ASSERT_GT(count_category_at_file("", 15, "ror"), 0u)
     << "first numeric case with else should have ROR";
-  ASSERT_GT(count_category_at_file("", 21, "ror"), 0u)
+  ASSERT_GT(count_category_at_file("", 16, "ror"), 0u)
     << "second numeric case with else should have ROR";
 
   // Tuple exhaustive: (true,true) first case — both elements mutate;
   // (false,false) last case — neither element mutates
-  ASSERT_GT(count_category_at_file("", 27, "ror"), 0u)
+  ASSERT_GT(count_category_at_file("", 22, "ror"), 0u)
     << "first tuple case should have ROR";
-  ASSERT_EQ(count_category_at_file("", 30, "ror"), 0u)
+  ASSERT_EQ(count_category_at_file("", 25, "ror"), 0u)
     << "last tuple case (exhaustive, no else) should have 0 ROR";
 
   // Middle tuple cases: not last, so they should still mutate
-  ASSERT_GT(count_category_at_file("", 28, "ror"), 0u)
+  ASSERT_GT(count_category_at_file("", 23, "ror"), 0u)
     << "middle tuple case should have ROR";
-  ASSERT_GT(count_category_at_file("", 29, "ror"), 0u)
+  ASSERT_GT(count_category_at_file("", 24, "ror"), 0u)
     << "second-to-last tuple case should have ROR";
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2VariableShiftHasSor)
+TEST_F(GenMutateCodegenTest, NonExhaustiveMatchLastCaseMutates)
+{
+  // A non-exhaustive match with no written else gets a synthesized
+  // else from the compiler, so the last case has a real fallthrough
+  // target and must still be mutated.
+  const char* src =
+    "actor Main\n"                                           // 1
+    "  new create(env: Env) =>\n"                            // 2
+    "    _m(U8(1))\n"                                        // 3
+    "\n"                                                     // 4
+    "  fun _m(n: U8): (String | None) =>\n"                  // 5
+    "    match n\n"                                           // 6
+    "    | 1 => \"a\"\n"                                     // 7
+    "    | 2 => \"b\"\n"                                     // 8
+    "    end\n";                                             // 9
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_ROR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at_file("", 7, "ror"), 0u)
+    << "first case should have ROR";
+  ASSERT_GT(count_category_at_file("", 8, "ror"), 0u)
+    << "last case of non-exhaustive match must still have ROR";
+}
+
+TEST_F(GenMutateCodegenTest, VariableShiftHasSor)
 {
   const char* src =
     "actor Main\n"
@@ -3096,7 +3117,7 @@ TEST_F(GenMutateCodegenTest, ConstructorCallNotCrTarget)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2AllCategoriesOnConstantExpr)
+TEST_F(GenMutateCodegenTest, AllCategoriesOnConstantExpr)
 {
   const char* src =
     "actor Main\n"
@@ -3364,7 +3385,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitConstFoldRightSuppressesUoi)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2NotTrueNoUoi)
+TEST_F(GenMutateCodegenTest, NotTrueNoUoi)
 {
   const char* src =
     "actor Main\n"
@@ -3378,7 +3399,7 @@ TEST_F(GenMutateCodegenTest, Rule2NotTrueNoUoi)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2NegOneLiteral)
+TEST_F(GenMutateCodegenTest, NegOneLiteral)
 {
   // -1: no UOI identity, one CR (1->0)
   const char* src =
@@ -3395,7 +3416,7 @@ TEST_F(GenMutateCodegenTest, Rule2NegOneLiteral)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2NegOneLiteralNoUoiIdentity)
+TEST_F(GenMutateCodegenTest, NegOneLiteralNoUoiIdentity)
 {
   // -1: the operand of neg is constant 1, so no UOI identity at neg
   const char* src =
@@ -3415,7 +3436,7 @@ TEST_F(GenMutateCodegenTest, Rule2NegOneLiteralNoUoiIdentity)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2NegFloatCr)
+TEST_F(GenMutateCodegenTest, NegFloatCr)
 {
   // -2.5: CR records x->-x
   const char* src =
@@ -3432,7 +3453,7 @@ TEST_F(GenMutateCodegenTest, Rule2NegFloatCr)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2ConstantShiftCrOnly)
+TEST_F(GenMutateCodegenTest, ConstantShiftCrOnly)
 {
   // 1 << 4: no SOR, but CR on both literals
   const char* src =
@@ -3450,7 +3471,7 @@ TEST_F(GenMutateCodegenTest, Rule2ConstantShiftCrOnly)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2NestedConstantAcrossBuilds)
+TEST_F(GenMutateCodegenTest, NestedConstantAcrossBuilds)
 {
   // (1 + 2) * 3: no AOR at * in both aor and aor+cr builds
   const char* src =
@@ -3942,7 +3963,7 @@ TEST_F(GenMutateCodegenTest, SafeDivFeedingShiftCompiles)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2ConstantDivNoAor)
+TEST_F(GenMutateCodegenTest, ConstantDivNoAor)
 {
   const char* src =
     "actor Main\n"
@@ -3957,7 +3978,7 @@ TEST_F(GenMutateCodegenTest, Rule2ConstantDivNoAor)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2ConstantNegNoAmr)
+TEST_F(GenMutateCodegenTest, ConstantNegNoAmr)
 {
   // -1: constant operand, no AMR
   const char* src =
@@ -3984,7 +4005,7 @@ TEST_F(GenMutateCodegenTest, Rule2ConstantNegNoAmr)
 }
 
 
-TEST_F(GenMutateCodegenTest, Rule2ConstantNotNoUoi)
+TEST_F(GenMutateCodegenTest, ConstantNotNoUoi)
 {
   // not 0x20: constant operand, no UOI at the not
   const char* src =
@@ -4627,7 +4648,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitIrShape)
 }
 
 
-TEST_F(GenMutateCodegenTest, VcrSkipsReceiverAndArgs)
+TEST_F(GenMutateCodegenTest, VcrSwitchPrecedesArgEvaluation)
 {
   // The VCR switch must be placed before arg/receiver generation so the
   // skip path bypasses evaluating them entirely. Verify that the switch
@@ -4701,8 +4722,8 @@ TEST_F(GenMutateCodegenTest, VcrSkipsReceiverAndArgs)
 TEST_F(GenMutateCodegenTest, VcrAorIndependence)
 {
   // AOR records inside a VCR-eligible call's argument expression must be
-  // the same whether VCR is enabled or not. The AOR site is in the argument
-  // itself (a + U64(1)), not in a separate function body.
+  // the same whether VCR is enabled or not. Compare full (column,
+  // original, replacement) tuples, not just counts.
   const char* src =
     "class Obj\n"                                          // 1
     "  fun ref do_something(x: U64) => None\n"             // 2
@@ -4718,15 +4739,36 @@ TEST_F(GenMutateCodegenTest, VcrAorIndependence)
   opt.mutate_operators = MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
 
-  unsigned aor_only = count_category_at_file("", 8, "aor");
-  ASSERT_GT(aor_only, 0u)
+  std::set<std::string> aor_only;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 8 && strcmp(r->category, "aor") == 0)
+    {
+      std::string key = std::to_string(r->column) + ":" +
+        r->original + ":" + r->replacement;
+      aor_only.insert(key);
+    }
+  }
+  ASSERT_FALSE(aor_only.empty())
     << "expected AOR records on line 8 (argument expression)";
 
   // Compile with AOR + VCR.
   opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_VCR;
   DO(test_compile(src, "ir"));
 
-  unsigned aor_with_vcr = count_category_at_file("", 8, "aor");
+  std::set<std::string> aor_with_vcr;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 8 && strcmp(r->category, "aor") == 0)
+    {
+      std::string key = std::to_string(r->column) + ":" +
+        r->original + ":" + r->replacement;
+      aor_with_vcr.insert(key);
+    }
+  }
+
   ASSERT_EQ(aor_only, aor_with_vcr)
     << "AOR records on line 8 differ with VCR enabled";
 
@@ -4984,29 +5026,33 @@ TEST_F(GenMutateCodegenTest, RvrConstantF32DropsEquivalent)
 
 TEST_F(GenMutateCodegenTest, RvrSuppressesNoneReturnValue)
 {
-  // When the return value's type is exactly None, the only pointer
-  // replacement is None→None — an equivalent mutant.
+  // A union-returning function whose body is None should drop the
+  // None replacement (equivalent) and keep the non-None replacement.
   const char* src =
     "class Obj\n"                                            // 1
     "  fun apply(): (U64 | None) => None\n"                  // 2
-    "\n"                                                     // 3
-    "actor Main\n"                                           // 4
-    "  new create(env: Env) =>\n"                            // 5
-    "    Obj()\n";                                           // 6
+    "  fun not_none(): (U64 | None) => U64(42)\n"            // 3
+    "\n"                                                     // 4
+    "actor Main\n"                                           // 5
+    "  new create(env: Env) =>\n"                            // 6
+    "    let o = Obj\n"                                      // 7
+    "    o.apply()\n"                                        // 8
+    "    o.not_none()\n";                                    // 9
 
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_RVR;
   DO(test_compile(src, "ir"));
 
-  size_t rvr_total = 0;
-  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
-  {
-    mutant_record_t* r = &compile->mutate.mutants[i];
-    if(strcmp(r->category, "rvr") == 0)
-      rvr_total++;
-  }
-  ASSERT_EQ(rvr_total, 0u)
-    << "expected no RVR records (None return value should be suppressed)";
+  // apply (body is None): None replacement dropped, but non-None
+  // replacements should remain if the declared type admits them.
+  unsigned apply_rvr = count_category_at_file("", 2, "rvr");
+  ASSERT_EQ(apply_rvr, 0u)
+    << "apply with None body should have no RVR (only replacement is None)";
+
+  // not_none (body is U64): should have RVR records.
+  unsigned not_none_rvr = count_category_at_file("", 3, "rvr");
+  ASSERT_GT(not_none_rvr, 0u)
+    << "not_none with U64 body should have RVR records";
 }
 
 TEST_F(GenMutateCodegenTest, RvrNotSuppressedForNonConstant)
@@ -5081,6 +5127,70 @@ TEST_F(GenMutateCodegenTest, RvrExplicitReturnDropsEquivalent)
     << "return->true should be suppressed for explicit return true";
 }
 
+TEST_F(GenMutateCodegenTest, RvrExplicitReturnStringGetsNoneReplacement)
+{
+  // `return "x"` in a `(String | None)` function must get a None
+  // replacement via the declared return type, not just String ones.
+  const char* src =
+    "class Obj\n"                                            // 1
+    "  fun check(flag: Bool): (String | None) =>\n"          // 2
+    "    if flag then\n"                                      // 3
+    "      return \"x\"\n"                                   // 4
+    "    end\n"                                              // 5
+    "    None\n"                                             // 6
+    "\n"                                                     // 7
+    "actor Main\n"                                           // 8
+    "  new create(env: Env) =>\n"                            // 9
+    "    Obj.check(true)\n";                                 // 10
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  bool has_none_on_4 = false;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(strcmp(r->category, "rvr") == 0 && r->line == 4 &&
+      strcmp(r->replacement, "None") == 0)
+      has_none_on_4 = true;
+  }
+  ASSERT_TRUE(has_none_on_4)
+    << "explicit return String in (String|None) should get None replacement";
+}
+
+TEST_F(GenMutateCodegenTest, RvrExplicitReturnNoneDropped)
+{
+  // `return None` in a `(U64 | None)` function: the None replacement
+  // is equivalent to the body and must be dropped.
+  const char* src =
+    "class Obj\n"                                            // 1
+    "  fun check(flag: Bool): (U64 | None) =>\n"             // 2
+    "    if flag then\n"                                      // 3
+    "      return None\n"                                    // 4
+    "    end\n"                                              // 5
+    "    U64(42)\n"                                          // 6
+    "\n"                                                     // 7
+    "actor Main\n"                                           // 8
+    "  new create(env: Env) =>\n"                            // 9
+    "    Obj.check(true)\n";                                 // 10
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  bool has_none_on_4 = false;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(strcmp(r->category, "rvr") == 0 && r->line == 4 &&
+      strcmp(r->replacement, "None") == 0)
+      has_none_on_4 = true;
+  }
+  ASSERT_FALSE(has_none_on_4)
+    << "return None in union function should drop None replacement";
+}
+
 TEST_F(GenMutateCodegenTest, RvrNoneFunctionNoMutants)
 {
   // A function declared `: None` should get no RVR mutants at all,
@@ -5114,7 +5224,7 @@ TEST_F(GenMutateCodegenTest, RvrNoneDeclaredWithNonNoneBody)
 {
   // A function declared `: None` whose body is a call returning U64
   // should get no RVR mutants. The compiler coerces body_type to None
-  // before codegen, so Rule 2's pointer-None path filters the only
+  // before codegen, so the pointer-None equivalence path filters the only
   // possible replacement (None->None) as equivalent.
   const char* src =
     "class Obj\n"                                            // 1
@@ -5185,12 +5295,33 @@ TEST_F(GenMutateCodegenTest, RvrU128ConstantNotTruncated)
     << "return->1 must survive (2^64 != 1)";
 }
 
+TEST_F(GenMutateCodegenTest, RvrU128ConstantDropsEquivalent)
+{
+  // A U128 body equal to a replacement must drop it, even at 128-bit
+  // width.
+  const char* src =
+    "primitive Val\n"                                        // 1
+    "  fun f(): U128 => 1\n"                                 // 2
+    "\n"                                                     // 3
+    "actor Main\n"                                           // 4
+    "  new create(env: Env) =>\n"                            // 5
+    "    Val.f()\n";                                         // 6
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("rvr", "return", "0"))
+    << "return->0 must survive (1 != 0)";
+  ASSERT_FALSE(has_mutant("rvr", "return", "1"))
+    << "return->1 must be dropped (equivalent to constant 1)";
+}
+
 TEST_F(GenMutateCodegenTest, RvrCrIndependenceU64)
 {
-  // When CR wraps operator operands in phis, the add result is no longer
-  // an LLVM constant. RVR must use the shadow (the pre-CR constant) to
-  // detect equivalent replacements, so the record set is the same with
-  // or without CR.
+  // CR wraps the operator in a phi, making the add result non-constant.
+  // RVR must use the shadow to detect equivalence. The RVR record set
+  // must match between RVR-only and RVR+CR builds.
   const char* src =
     "primitive Val\n"                                        // 1
     "  fun f(): U64 => 0 + 1\n"                             // 2
@@ -5199,45 +5330,35 @@ TEST_F(GenMutateCodegenTest, RvrCrIndependenceU64)
     "  new create(env: Env) =>\n"                            // 5
     "    Val.f()\n";                                         // 6
 
+  // RVR-only build.
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_RVR | MUTATE_OP_CR;
+  opt.mutate_operators = MUTATE_OP_RVR;
   DO(test_compile(src, "ir"));
 
-  bool has_0 = false;
-  bool has_1 = false;
+  std::set<std::string> rvr_only;
   for(size_t i = 0; i < compile->mutate.mutant_count; i++)
   {
     mutant_record_t* r = &compile->mutate.mutants[i];
     if(r->line == 2 && strcmp(r->category, "rvr") == 0)
-    {
-      if(strcmp(r->replacement, "0") == 0) has_0 = true;
-      if(strcmp(r->replacement, "1") == 0) has_1 = true;
-    }
+      rvr_only.insert(r->replacement);
   }
-  ASSERT_TRUE(has_0)
-    << "return->0 should survive (body is 1, 0 differs)";
-  ASSERT_FALSE(has_1)
-    << "return->1 should be suppressed via shadow (body is 1 even with CR)";
-}
+  ASSERT_FALSE(rvr_only.empty()) << "expected RVR records on line 2";
 
-TEST_F(GenMutateCodegenTest, RvrCrIndependenceBool)
-{
-  // Bool literals are not CR targets, so `true` remains a constant even
-  // with CR. Verify the equivalent replacement is still filtered.
-  const char* src =
-    "primitive Val\n"                                        // 1
-    "  fun g(): Bool => true\n"                              // 2
-    "\n"                                                     // 3
-    "actor Main\n"                                           // 4
-    "  new create(env: Env) =>\n"                            // 5
-    "    Val.g()\n";                                         // 6
-
-  opt.mutate = true;
+  // RVR+CR build.
   opt.mutate_operators = MUTATE_OP_RVR | MUTATE_OP_CR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_TRUE(has_mutant("rvr", "return", "false"))
-    << "return->false should survive (body is true, false differs)";
-  ASSERT_FALSE(has_mutant("rvr", "return", "true"))
-    << "return->true should be suppressed (body is true)";
+  ASSERT_GT(count_category_at_file("", 2, "cr"), 0u)
+    << "CR must instrument the operator on line 2";
+
+  std::set<std::string> rvr_with_cr;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 2 && strcmp(r->category, "rvr") == 0)
+      rvr_with_cr.insert(r->replacement);
+  }
+
+  ASSERT_EQ(rvr_only, rvr_with_cr)
+    << "RVR record set must be the same with and without CR";
 }
