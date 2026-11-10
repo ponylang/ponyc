@@ -53,3 +53,7 @@ let a: U128 = 1 << 0x1_0000_0000_0000_0005
 
 When emitting LLVM IR with `-r=ir`, ponyc wrote both the program's module and builtin's module to the same `.main.ll` file. Builtin was written second, so the file contained only builtin's definitions — the program's IR was lost. Each module is now written to a distinct file: `<name>.main.ll` for the program and `<name>.builtin.ll` for builtin.
 
+## Fix user package named `main` colliding with program module at link
+
+A program with a sub-package in a directory named `main` (or `Main`, `MAIN`, or any other casing) failed to link. The compiler assigned duplicate `.bc` filenames to the user package and the program's own module, producing a linker error. The compiler now detects the collision and disambiguates the user package's filename.
+
