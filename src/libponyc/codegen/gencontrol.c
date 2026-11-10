@@ -692,8 +692,10 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 
     if(c->opt->mutate)
     {
-      ast_t* result = ast_childidx(c->frame->reify->ast, 4);
-      ast_t* r_result = deferred_reify(c->frame->reify, result, c->opt);
+      AST_GET_CHILDREN(c->frame->reify->ast,
+        r_cap, r_id, r_typeparams, r_params, r_result_node);
+      ast_t* r_result = deferred_reify(c->frame->reify, r_result_node,
+        c->opt);
       ret = mutate_rvr(c, ast, ret, r_result, type);
       ast_free_unattached(r_result);
     }

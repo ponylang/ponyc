@@ -4919,6 +4919,69 @@ TEST_F(GenMutateCodegenTest, RvrConstantIntegerDropsEquivalent)
     << "return->0 should be suppressed (equivalent to constant 0)";
 }
 
+TEST_F(GenMutateCodegenTest, RvrConstantF64DropsEquivalent)
+{
+  // `fun f(): F64 => 1.0` keeps return→0.0 and drops return→1.0.
+  const char* src =
+    "primitive Val\n"                                        // 1
+    "  fun f(): F64 => 1.0\n"                                // 2
+    "\n"                                                     // 3
+    "actor Main\n"                                           // 4
+    "  new create(env: Env) =>\n"                            // 5
+    "    Val.f()\n";                                         // 6
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("rvr", "return", "0.0"))
+    << "return->0.0 should survive (differs from 1.0)";
+  ASSERT_FALSE(has_mutant("rvr", "return", "1.0"))
+    << "return->1.0 should be suppressed (equivalent to 1.0)";
+}
+
+TEST_F(GenMutateCodegenTest, RvrNegativeZeroF64KeepsBothReplacements)
+{
+  // -0.0 and +0.0 are distinct bit patterns. Both replacements (0.0
+  // and 1.0) differ from -0.0 and must survive.
+  const char* src =
+    "primitive Val\n"                                        // 1
+    "  fun f(): F64 => -0.0\n"                               // 2
+    "\n"                                                     // 3
+    "actor Main\n"                                           // 4
+    "  new create(env: Env) =>\n"                            // 5
+    "    Val.f()\n";                                         // 6
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("rvr", "return", "0.0"))
+    << "return->0.0 should survive (different bit pattern from -0.0)";
+  ASSERT_TRUE(has_mutant("rvr", "return", "1.0"))
+    << "return->1.0 should survive (differs from -0.0)";
+}
+
+TEST_F(GenMutateCodegenTest, RvrConstantF32DropsEquivalent)
+{
+  const char* src =
+    "primitive Val\n"                                        // 1
+    "  fun f(): F32 => 1.0\n"                                // 2
+    "\n"                                                     // 3
+    "actor Main\n"                                           // 4
+    "  new create(env: Env) =>\n"                            // 5
+    "    Val.f()\n";                                         // 6
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("rvr", "return", "0.0"))
+    << "return->0.0 should survive (differs from 1.0)";
+  ASSERT_FALSE(has_mutant("rvr", "return", "1.0"))
+    << "return->1.0 should be suppressed (equivalent to 1.0)";
+}
+
 TEST_F(GenMutateCodegenTest, RvrSuppressesNoneReturnValue)
 {
   // When the return value's type is exactly None, the only pointer

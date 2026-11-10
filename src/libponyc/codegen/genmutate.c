@@ -1358,8 +1358,7 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
 
       if(kind == LLVMPointerTypeKind)
       {
-        if((body_type != NULL) && is_none(body_type) &&
-          (strcmp(labels[i], "None") == 0))
+        if((body_type != NULL) && is_none(body_type))
           equiv = true;
       }
       else if(cmp_value != NULL)
@@ -1370,7 +1369,7 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
           {
             LLVMValueRef icmp = LLVMBuildICmp(c->builder, LLVMIntEQ,
               cmp_value, defaults[i], "");
-            equiv = LLVMIsConstant(icmp) &&
+            equiv = (LLVMIsAConstantInt(icmp) != NULL) &&
               (LLVMConstIntGetZExtValue(icmp) != 0);
             if(!LLVMIsConstant(icmp))
               LLVMInstructionEraseFromParent(icmp);
@@ -1381,12 +1380,23 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
           case LLVMFloatTypeKind:
           case LLVMDoubleTypeKind:
           {
-            LLVMValueRef fcmp = LLVMBuildFCmp(c->builder, LLVMRealOEQ,
-              cmp_value, defaults[i], "");
-            equiv = LLVMIsConstant(fcmp) &&
-              (LLVMConstIntGetZExtValue(fcmp) != 0);
-            if(!LLVMIsConstant(fcmp))
-              LLVMInstructionEraseFromParent(fcmp);
+            unsigned bits = (kind == LLVMHalfTypeKind) ? 16 :
+              (kind == LLVMFloatTypeKind) ? 32 : 64;
+            LLVMTypeRef int_type = LLVMIntTypeInContext(c->context, bits);
+            LLVMValueRef cmp_bits = LLVMBuildBitCast(c->builder,
+              cmp_value, int_type, "");
+            LLVMValueRef def_bits = LLVMBuildBitCast(c->builder,
+              defaults[i], int_type, "");
+            LLVMValueRef icmp = LLVMBuildICmp(c->builder, LLVMIntEQ,
+              cmp_bits, def_bits, "");
+            equiv = (LLVMIsAConstantInt(icmp) != NULL) &&
+              (LLVMConstIntGetZExtValue(icmp) != 0);
+            if(!LLVMIsConstant(icmp))
+              LLVMInstructionEraseFromParent(icmp);
+            if(!LLVMIsConstant(cmp_bits))
+              LLVMInstructionEraseFromParent(cmp_bits);
+            if(!LLVMIsConstant(def_bits))
+              LLVMInstructionEraseFromParent(def_bits);
             break;
           }
 
