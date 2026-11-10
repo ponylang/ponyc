@@ -1886,6 +1886,7 @@ LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right, bool safe)
   {
     ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
     bool sign = is_signed(type);
+    bool is_bool_eq = is_bool(type);
     ast_free_unattached(type);
 
     LLVMValueRef l_value = gen_expr(c, left);
@@ -1894,16 +1895,21 @@ LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right, bool safe)
     if((l_value == NULL) || (r_value == NULL))
       return NULL;
 
-    mutate_cmp_variant_t variants[] = {
+    mutate_cmp_variant_t bool_variants[] = {
+      {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
+    };
+    mutate_cmp_variant_t all_variants[] = {
       {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"},
       {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
       {LLVMRealOLE, LLVMIntSLE, LLVMIntULE, "le"},
       {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
       {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"}
     };
+    mutate_cmp_variant_t* variants = is_bool_eq ? bool_variants : all_variants;
+    size_t count = is_bool_eq ? 1 : 5;
     LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
       sign, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ,
-      "eq", "ror", safe, variants, 5);
+      "eq", "ror", safe, variants, count);
 
     result = mutate_cr_cmp(c, mutate_ast, left, right,
       l_value, r_value, result, sign,
@@ -1931,6 +1937,7 @@ LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value,
   ast_t* mutate_ast = c->frame->mutate_ast;
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
+  bool is_bool_eq = is_bool(type);
   ast_free_unattached(type);
   LLVMValueRef l_value = gen_expr(c, left);
 
@@ -1938,16 +1945,21 @@ LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value,
       && (mutate_ast != NULL)
       && mutate_site_enabled(c, "ror", mutate_ast))
   {
-    mutate_cmp_variant_t variants[] = {
+    mutate_cmp_variant_t bool_variants[] = {
+      {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
+    };
+    mutate_cmp_variant_t all_variants[] = {
       {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"},
       {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
       {LLVMRealOLE, LLVMIntSLE, LLVMIntULE, "le"},
       {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
       {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"}
     };
+    mutate_cmp_variant_t* variants = is_bool_eq ? bool_variants : all_variants;
+    size_t count = is_bool_eq ? 1 : 5;
     LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
       sign, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ,
-      "eq", "ror", safe, variants, 5);
+      "eq", "ror", safe, variants, count);
 
     result = mutate_cr_cmp(c, mutate_ast, left, NULL,
       l_value, r_value, result, sign,
@@ -2001,6 +2013,7 @@ LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right, bool safe)
   {
     ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
     bool sign = is_signed(type);
+    bool is_bool_ne = is_bool(type);
     ast_free_unattached(type);
 
     LLVMValueRef l_value = gen_expr(c, left);
@@ -2009,16 +2022,21 @@ LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right, bool safe)
     if((l_value == NULL) || (r_value == NULL))
       return NULL;
 
-    mutate_cmp_variant_t variants[] = {
+    mutate_cmp_variant_t bool_variants[] = {
+      {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"}
+    };
+    mutate_cmp_variant_t all_variants[] = {
       {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"},
       {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
       {LLVMRealOLE, LLVMIntSLE, LLVMIntULE, "le"},
       {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
       {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"}
     };
+    mutate_cmp_variant_t* variants = is_bool_ne ? bool_variants : all_variants;
+    size_t count = is_bool_ne ? 1 : 5;
     LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
       sign, LLVMRealONE, LLVMIntNE, LLVMIntNE,
-      "ne", "ror", safe, variants, 5);
+      "ne", "ror", safe, variants, count);
 
     result = mutate_cr_cmp(c, mutate_ast, left, right,
       l_value, r_value, result, sign,

@@ -350,6 +350,27 @@ protected:
     return false;
   }
 
+  bool has_mutant_at_line(const char* file, size_t line,
+    const char* category, const char* original, const char* replacement)
+  {
+    size_t file_len = strlen(file);
+    for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+    {
+      mutant_record_t* r = &compile->mutate.mutants[i];
+      size_t rlen = strlen(r->file);
+      bool file_ok = (file_len == 0)
+        ? (rlen == 0)
+        : ((rlen >= file_len)
+           && (strcmp(r->file + rlen - file_len, file) == 0));
+      if(file_ok && r->line == line &&
+        strcmp(r->category, category) == 0 &&
+        strcmp(r->original, original) == 0 &&
+        strcmp(r->replacement, replacement) == 0)
+        return true;
+    }
+    return false;
+  }
+
   size_t count_category_at(size_t line, const char* category)
   {
     size_t count = 0;
@@ -2815,6 +2836,61 @@ TEST_F(GenMutateCodegenTest, Rule2VariableCmpHasRor)
   DO(test_compile(src, "ir"));
 
   ASSERT_GT(count_category_at(4, "ror"), 0u);
+}
+
+
+// Bool == gets only eq->ne; Bool != gets only ne->eq; Bool match pattern
+// gets only eq->ne. Numeric == still gets all five replacements.
+TEST_F(GenMutateCodegenTest, BoolRorSwapOnly)
+{
+  const char* src =
+    "actor Main\n"                                       // 1
+    "  new create(env: Env) =>\n"                        // 2
+    "    let a: Bool = true\n"                           // 3
+    "    let b: Bool = false\n"                          // 4
+    "    let eq_res = a == b\n"                          // 5
+    "    let ne_res = a != b\n"                          // 6
+    "    let m = match a\n"                              // 7
+    "    | true => U64(1)\n"                             // 8
+    "    | false => U64(0)\n"                            // 9
+    "    end\n"                                          // 10
+    "    let x: U64 = 10\n"                              // 11
+    "    let num_eq = x == U64(5)\n";                    // 12
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_ROR;
+  DO(test_compile(src, "ir"));
+
+  // Bool ==: exactly 1 ROR record (eq->ne), no ordering variants
+  ASSERT_EQ(count_category_at_file("", 5, "ror"), 1u)
+    << "Bool == should have exactly 1 ROR record";
+  ASSERT_TRUE(has_mutant_at_line("", 5, "ror", "eq", "ne"))
+    << "Bool == must have eq->ne";
+  ASSERT_FALSE(has_mutant_at_line("", 5, "ror", "eq", "lt"))
+    << "Bool == must not have eq->lt";
+
+  // Bool !=: exactly 1 ROR record (ne->eq), no ordering variants
+  ASSERT_EQ(count_category_at_file("", 6, "ror"), 1u)
+    << "Bool != should have exactly 1 ROR record";
+  ASSERT_TRUE(has_mutant_at_line("", 6, "ror", "ne", "eq"))
+    << "Bool != must have ne->eq";
+  ASSERT_FALSE(has_mutant_at_line("", 6, "ror", "ne", "lt"))
+    << "Bool != must not have ne->lt";
+
+  // Bool match pattern: exactly 1 ROR record (eq->ne) per case
+  ASSERT_EQ(count_category_at_file("", 8, "ror"), 1u)
+    << "Bool match | true should have exactly 1 ROR record";
+  ASSERT_EQ(count_category_at_file("", 9, "ror"), 1u)
+    << "Bool match | false should have exactly 1 ROR record";
+
+  // Numeric ==: still gets all 5 replacements
+  ASSERT_EQ(count_category_at_file("", 12, "ror"), 5u)
+    << "Numeric == should have all 5 ROR records";
+  ASSERT_TRUE(has_mutant_at_line("", 12, "ror", "eq", "ne"));
+  ASSERT_TRUE(has_mutant_at_line("", 12, "ror", "eq", "lt"));
+  ASSERT_TRUE(has_mutant_at_line("", 12, "ror", "eq", "le"));
+  ASSERT_TRUE(has_mutant_at_line("", 12, "ror", "eq", "ge"));
+  ASSERT_TRUE(has_mutant_at_line("", 12, "ror", "eq", "gt"));
 }
 
 
