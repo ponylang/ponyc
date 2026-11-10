@@ -163,6 +163,10 @@ if(NOT PONY_CROSS_LIBPONYRT)
         if(PONY_SSL_FLAG)
             message(STATUS "SSL for stdlib net: ${PONY_SSL_FLAG} (${OPENSSL_VERSION})")
         endif()
+        # Also record the flag in CMakeCache.txt, for scripts that compile
+        # stdlib packages outside ctest (.ci-scripts/i386-stdlib-perpkg.sh).
+        set(PONY_SSL_FLAG "${PONY_SSL_FLAG}" CACHE INTERNAL
+            "SSL -D flag for compiling the stdlib net package")
         # Directory containing the SSL/crypto static libraries. Tool binaries
         # that use the net package (pony-dep) pass this as --path so ponyc's
         # linker can find ssl.lib/crypto.lib (or libssl.a/libcrypto.a).

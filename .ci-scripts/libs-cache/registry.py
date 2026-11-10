@@ -50,6 +50,10 @@ ARCHIVE_TYPE = 'application/vnd.ponylang.libs-cache.archive.v1.tar+gzip'
 # `-builder` suffix.
 IMAGE_RE = re.compile(r'^ghcr\.io/ponylang/ponyc-ci-(.+):(\d{8})$')
 
+ARCH_HELP = ('architecture to name the package for, instead of this machine\'s '
+             '(for host-side steps acting on a package that a VM of another '
+             'architecture builds)')
+
 # Paths (relative to the repo root) that make up the cached artifact. These are
 # exactly what the old `actions/cache` step stored.
 CACHED_PATHS = [
@@ -423,8 +427,10 @@ def copy(src_package, dst_package, tag):
 
 
 def build_parser(description):
-    """The shared CLI: package-name/exists/pull/push, with --image|--platform and
-    --tag."""
+    """The shared CLI: package-name/exists/pull/push, with --image|--platform
+    and --tag. package-name and exists take --arch, to name another machine's
+    package; pull and push move this machine's own build, so they name this
+    machine's arch."""
     parser = argparse.ArgumentParser(description=description)
     sub = parser.add_subparsers(dest='command', required=True)
     for name in ('package-name', 'exists', 'pull', 'push'):
@@ -432,6 +438,10 @@ def build_parser(description):
         target = p.add_mutually_exclusive_group(required=True)
         target.add_argument('--image', help='builder image reference')
         target.add_argument('--platform', help='literal platform label')
+        if name in ('package-name', 'exists'):
+            p.add_argument('--arch', help=ARCH_HELP)
+        else:
+            p.set_defaults(arch=None)
         if name != 'package-name':
             p.add_argument('--tag', required=True,
                            help='hashFiles content hash')

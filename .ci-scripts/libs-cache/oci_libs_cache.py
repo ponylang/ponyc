@@ -23,6 +23,10 @@ Package naming (the full GHCR package name is assembled in one place,
     package). The alpine and ubuntu26.04 builder images are multi-arch: the same
     image reference is built on both x86-64 and arm64 runners, so the arch must be
     in the package name or the two arches would clobber each other's artifact.
+    `package-name` and `exists` take `--arch` to name a different arch, for
+    host-side checks of a package that a VM of another arch builds. `pull` and
+    `push` always use this machine's arch, so a host can't move its own build
+    under another arch's name.
 
 The tag is the `hashFiles(...)` content hash. `package:tag` is keyed on the same
 inputs as the old `actions/cache` key: a branch that changes any LLVM-determining
@@ -31,7 +35,9 @@ artifact can never be served -- the only outcomes are an exact hit or a miss.
 
 Usage:
     oci_libs_cache.py package-name (--image <ref> | --platform <label>)
+                                   [--arch <arch>]
     oci_libs_cache.py exists --tag <hash> (--image <ref> | --platform <label>)
+                             [--arch <arch>]
     oci_libs_cache.py pull --tag <hash> (--image <ref> | --platform <label>)
     oci_libs_cache.py push --tag <hash> (--image <ref> | --platform <label>)
 
@@ -45,7 +51,6 @@ GITHUB_TOKEN and needs `packages: write`.
 Stdlib only so no pip install is required on any CI runner.
 """
 
-import platform
 import sys
 
 import cache_arch
@@ -55,14 +60,16 @@ from common import die
 NAMESPACE = 'ponyc-libs-cache'
 
 
-def cache_package(platform_id):
+def cache_package(platform_id, arch_override=None):
     """Assemble the full GHCR package name from a platform identity.
+
+    `arch_override` is an `--arch` value; None names this machine's arch.
 
     The one place the namespace and architecture are attached, so the warmer and
     every consumer always agree on the name for a given platform on a given arch.
     """
     try:
-        arch = cache_arch.canonical(platform.machine())
+        arch = cache_arch.package_arch(arch_override)
     except ValueError as e:
         die(str(e))
     return f'{NAMESPACE}/{platform_id}-{arch}'
@@ -73,7 +80,7 @@ def resolve_package(args):
         platform_id = registry.derive_platform(args.image)
     else:
         platform_id = args.platform
-    return cache_package(platform_id)
+    return cache_package(platform_id, args.arch)
 
 
 def main(argv):

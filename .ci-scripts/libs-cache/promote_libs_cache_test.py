@@ -15,6 +15,7 @@ is the thin entry that resolves the branch (src) and main (dst) names and calls
 """
 import json
 import os
+import platform
 import sys
 
 import promote_libs_cache as promote
@@ -188,9 +189,34 @@ def test_entry_resolves_branch_src_and_main_dst():
           captured['dst'][len('ponyc-libs-cache/'):])
 
 
+def test_entry_arch_override():
+    # --arch names both packages for that arch, not this machine's.
+    captured = {}
+
+    def fake_copy(src, dst, tag):
+        captured['src'] = src
+        captured['dst'] = dst
+
+    saved = registry.copy
+    saved_machine = platform.machine
+    registry.copy = fake_copy
+    # Fake an x86_64 machine so an i686 name can only come from --arch.
+    platform.machine = lambda: 'x86_64'
+    try:
+        promote.main(['promote_libs_cache.py', '--platform', 'mylabel',
+                      '--arch', 'i686', '--tag', 'cafef00d'])
+    finally:
+        registry.copy = saved
+        platform.machine = saved_machine
+
+    check('arch src', captured['src'], 'ponyc-branch-libs-cache/mylabel-i686')
+    check('arch dst', captured['dst'], 'ponyc-libs-cache/mylabel-i686')
+
+
 TESTS = [test_copy_promotes_with_fresh_consistent_manifest,
          test_copy_aborts_on_archive_digest_mismatch,
-         test_entry_resolves_branch_src_and_main_dst]
+         test_entry_resolves_branch_src_and_main_dst,
+         test_entry_arch_override]
 
 
 def main():

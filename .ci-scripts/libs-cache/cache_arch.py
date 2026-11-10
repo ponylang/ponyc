@@ -16,6 +16,8 @@ single definition rather than two copies to keep in sync.
 Stdlib only so no pip install is required on any CI runner.
 """
 
+import platform
+
 # The known equivalence classes. An ISA not listed here is a hard error
 # (`canonical` raises) rather than a silent passthrough, so a new platform can
 # never quietly create a non-canonical package name -- add it here on purpose.
@@ -30,13 +32,26 @@ ARCH_ALIASES = {
 
 
 def canonical(machine):
-    """Map a `platform.machine()` value to one canonical spelling per ISA.
+    """Map a `platform.machine()` value, or an `--arch` value, to one canonical
+    spelling per ISA.
 
     Raises ValueError on an unrecognized architecture; callers convert that to
     their own `die` so the failure carries the script's usual formatting.
     """
     arch = ARCH_ALIASES.get(machine.lower())
     if arch is None:
-        raise ValueError(f"Unrecognized architecture '{machine}'. Add it to "
-                         "ARCH_ALIASES in cache_arch.py.")
+        raise ValueError(f"Unrecognized architecture '{machine}'. If it came "
+                         "from --arch, check the spelling; if it is a new "
+                         "architecture, add it to ARCH_ALIASES in "
+                         "cache_arch.py.")
     return arch
+
+
+def package_arch(override=None):
+    """The canonical arch for a package name: `override` (an `--arch` value)
+    when one is given, otherwise this machine's.
+
+    Raises ValueError like `canonical`. An empty override is unrecognized, not a
+    request for this machine's arch.
+    """
+    return canonical(override if override is not None else platform.machine())
