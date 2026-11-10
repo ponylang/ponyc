@@ -1,4 +1,5 @@
 #include "genobj.h"
+#include "../pkg/package.h"
 
 static bool write_ir(compile_t* c, LLVMModuleRef module, const char* file_o)
 {
@@ -26,9 +27,15 @@ const char* genobj(compile_t* c)
     for(size_t i = 0; i < c->per_module_count; i++)
     {
       const char* mod_sym = c->per_module_states[i].module_symbol;
+      const char* suffix_name;
+      if(mod_sym != NULL)
+        suffix_name = mod_sym;
+      else if(i == 0)
+        suffix_name = "main";
+      else
+        suffix_name = module_filename(c->per_module_states[i].pony_module);
       char suffix[256];
-      snprintf(suffix, sizeof(suffix), ".%s.ll",
-        (mod_sym != NULL) ? mod_sym : "main");
+      snprintf(suffix, sizeof(suffix), ".%s.ll", suffix_name);
       const char* file_o = suffix_filename(c, c->opt->output, "",
         c->filename, suffix);
 
