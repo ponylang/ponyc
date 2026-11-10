@@ -140,10 +140,12 @@ LLVMValueRef mutate_uoi_insert(compile_t* c, ast_t* ast,
   LLVMValueRef result, LLVMValueRef l_value, LLVMValueRef r_value);
 
 // Emit return-value-replacement mutation. Returns original_value unchanged
-// if the type has no known defaults. pony_type is the Pony-level return
-// type (needed to detect None in unions).
+// if the type has no known defaults. return_type is the function's declared
+// return type (determines which replacements to offer). body_type is the
+// Pony type of the expression being returned (used to suppress
+// constant-equivalent replacements for None-typed expressions).
 LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
-  LLVMValueRef original_value, ast_t* pony_type);
+  LLVMValueRef original_value, ast_t* return_type, ast_t* body_type);
 
 // Begin a void-call-removal mutation. Returns true if a mutation was
 // emitted; the caller emits the call, then calls mutate_vcr_end.

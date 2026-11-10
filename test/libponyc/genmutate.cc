@@ -4771,32 +4771,48 @@ TEST_F(GenMutateCodegenTest, RvrSuppressesSynthesizedPrimitiveEq)
     << "expected no RVR records (synthesized eq/ne should be suppressed)";
 }
 
-TEST_F(GenMutateCodegenTest, RvrSuppressesConstantBody)
+TEST_F(GenMutateCodegenTest, RvrConstantBodyDropsEquivalent)
 {
-  // A function whose body is a single literal produces one equivalent
-  // and one trivially-killed RVR mutant — both are noise.
+  // `fun g(): Bool => true` keeps return→false (differs from the
+  // constant) and drops return→true (equivalent to the constant).
   const char* src =
     "primitive Val\n"                                        // 1
-    "  fun apply(): U64 => 42\n"                             // 2
+    "  fun g(): Bool => true\n"                              // 2
     "\n"                                                     // 3
     "actor Main\n"                                           // 4
     "  new create(env: Env) =>\n"                            // 5
-    "    Val()\n";                                           // 6
+    "    Val.g()\n";                                         // 6
 
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_RVR;
   DO(test_compile(src, "ir"));
 
-  // The constant body (42) should produce no RVR records.
-  size_t rvr_total = 0;
-  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
-  {
-    mutant_record_t* r = &compile->mutate.mutants[i];
-    if(strcmp(r->category, "rvr") == 0)
-      rvr_total++;
-  }
-  ASSERT_EQ(rvr_total, 0u)
-    << "expected no RVR records (constant body should be suppressed)";
+  ASSERT_TRUE(has_mutant("rvr", "return", "false"))
+    << "return->false should survive (differs from constant true)";
+  ASSERT_FALSE(has_mutant("rvr", "return", "true"))
+    << "return->true should be suppressed (equivalent to constant true)";
+}
+
+TEST_F(GenMutateCodegenTest, RvrConstantIntegerDropsEquivalent)
+{
+  // `fun f(): U64 => 0` keeps return→1 (differs) and drops return→0
+  // (equivalent to the constant body).
+  const char* src =
+    "primitive Val\n"                                        // 1
+    "  fun f(): U64 => 0\n"                                  // 2
+    "\n"                                                     // 3
+    "actor Main\n"                                           // 4
+    "  new create(env: Env) =>\n"                            // 5
+    "    Val.f()\n";                                         // 6
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("rvr", "return", "1"))
+    << "return->1 should survive (differs from constant 0)";
+  ASSERT_FALSE(has_mutant("rvr", "return", "0"))
+    << "return->0 should be suppressed (equivalent to constant 0)";
 }
 
 TEST_F(GenMutateCodegenTest, RvrSuppressesNoneReturnValue)
@@ -4853,4 +4869,97 @@ TEST_F(GenMutateCodegenTest, RvrNotSuppressedForNonConstant)
   }
   ASSERT_GT(rvr_total, 0u)
     << "expected RVR records for non-constant function body";
+}
+
+TEST_F(GenMutateCodegenTest, RvrExplicitReturnDropsEquivalent)
+{
+  // An explicit `return true` on a dedicated line drops return→true
+  // (equivalent) and keeps return→false. The body's own implicit
+  // return of `false` lands on a different line, so line-filtering
+  // isolates the explicit return site.
+  const char* src =
+    "class Obj\n"                                            // 1
+    "  fun check(n: U64): Bool =>\n"                         // 2
+    "    if n > U64(0) then\n"                               // 3
+    "      return true\n"                                    // 4
+    "    end\n"                                              // 5
+    "    false\n"                                            // 6
+    "\n"                                                     // 7
+    "actor Main\n"                                           // 8
+    "  new create(env: Env) =>\n"                            // 9
+    "    Obj.check(U64(1))\n";                               // 10
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  // The explicit `return true` on line 4 should have return→false
+  // but not return→true (equivalent to the constant).
+  bool has_false_on_4 = false;
+  bool has_true_on_4 = false;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(strcmp(r->category, "rvr") == 0 && r->line == 4)
+    {
+      if(strcmp(r->replacement, "false") == 0)
+        has_false_on_4 = true;
+      if(strcmp(r->replacement, "true") == 0)
+        has_true_on_4 = true;
+    }
+  }
+  ASSERT_TRUE(has_false_on_4)
+    << "return->false should survive for explicit return true";
+  ASSERT_FALSE(has_true_on_4)
+    << "return->true should be suppressed for explicit return true";
+}
+
+TEST_F(GenMutateCodegenTest, RvrNoneFunctionNoMutants)
+{
+  // A function declared `: None` should get no RVR mutants at all,
+  // regardless of the body expression's type.
+  const char* src =
+    "class Obj\n"                                            // 1
+    "  var _x: U64 = 0\n"                                   // 2
+    "  fun ref work(): None =>\n"                            // 3
+    "    _x = _x + 1\n"                                     // 4
+    "\n"                                                     // 5
+    "actor Main\n"                                           // 6
+    "  new create(env: Env) =>\n"                            // 7
+    "    Obj.work()\n";                                      // 8
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  size_t rvr_on_work = 0;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(strcmp(r->category, "rvr") == 0 && r->line == 4)
+      rvr_on_work++;
+  }
+  ASSERT_EQ(rvr_on_work, 0u)
+    << "a :None function should produce no RVR records";
+}
+
+TEST_F(GenMutateCodegenTest, RvrUnionMaybeGetsNoneReplacement)
+{
+  // `fun maybe(): (String | None) => "hello"` should get a None
+  // replacement — the declared return type admits None even though
+  // the body type is String.
+  const char* src =
+    "class Obj\n"                                            // 1
+    "  fun maybe(): (String | None) => \"hello\"\n"          // 2
+    "\n"                                                     // 3
+    "actor Main\n"                                           // 4
+    "  new create(env: Env) =>\n"                            // 5
+    "    Obj.maybe()\n";                                     // 6
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_TRUE(has_mutant("rvr", "return", "None"))
+    << "None replacement should be offered (declared type admits None)";
 }

@@ -612,23 +612,8 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
             }
           }
 
-          // Rule 3: constant-body return. A body whose single expression
-          // is a compile-time constant produces one equivalent and one
-          // trivially-killed RVR mutant — both are noise.
           if(!suppress_rvr)
-          {
-            ast_t* body_expr = ast_child(body);
-            if(body_expr != NULL && ast_sibling(body_expr) == NULL)
-            {
-              token_id bid = ast_id(body_expr);
-              if(bid == TK_INT || bid == TK_FLOAT ||
-                bid == TK_TRUE || bid == TK_FALSE)
-                suppress_rvr = true;
-            }
-          }
-
-          if(!suppress_rvr)
-            ret = mutate_rvr(c, body, ret, body_type);
+            ret = mutate_rvr(c, body, ret, r_result, body_type);
         }
 
         ast_free_unattached(body_type);

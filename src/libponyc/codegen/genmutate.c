@@ -1276,14 +1276,14 @@ static bool type_contains_none(ast_t* type)
 }
 
 LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
-  LLVMValueRef original_value, ast_t* pony_type)
+  LLVMValueRef original_value, ast_t* return_type, ast_t* body_type)
 {
   if(!mutate_site_enabled(c, "rvr", ast))
     return original_value;
 
-  // Rule 2: when the value's type is exactly None, the only pointer
-  // replacement is None→None — an equivalent mutant.
-  if(is_none(pony_type))
+  // Rule 2: when the declared return type is exactly None, the only
+  // pointer replacement is None→None — an equivalent mutant.
+  if(is_none(return_type))
     return original_value;
 
   LLVMTypeRef val_type = LLVMTypeOf(original_value);
@@ -1332,7 +1332,7 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
       break;
 
     case LLVMPointerTypeKind:
-      if(type_contains_none(pony_type) && (c->none_instance != NULL))
+      if(type_contains_none(return_type) && (c->none_instance != NULL))
       {
         LLVMValueRef none_val = codegen_resolve_global(c, c->none_instance);
         defaults[count] = LLVMBuildBitCast(c->builder, none_val,
@@ -1344,6 +1344,59 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
 
     default:
       return original_value;
+  }
+
+  // Rule 3: skip any replacement whose value equals the original
+  // (equivalent mutant). Keep replacements that differ.
+  // For scalars: compare LLVM constant values.
+  // For pointers: when the body's type is exactly None, a None
+  // replacement is equivalent regardless of the LLVM value form.
+  if(count > 0)
+  {
+    size_t dst = 0;
+    for(size_t i = 0; i < count; i++)
+    {
+      bool equiv = false;
+
+      if(kind == LLVMPointerTypeKind)
+      {
+        if((body_type != NULL) && is_none(body_type) &&
+          (strcmp(labels[i], "None") == 0))
+          equiv = true;
+      }
+      else if(LLVMIsConstant(original_value))
+      {
+        switch(kind)
+        {
+          case LLVMIntegerTypeKind:
+            equiv = (LLVMConstIntGetZExtValue(original_value) ==
+              LLVMConstIntGetZExtValue(defaults[i]));
+            break;
+
+          case LLVMHalfTypeKind:
+          case LLVMFloatTypeKind:
+          case LLVMDoubleTypeKind:
+          {
+            LLVMBool lossy1, lossy2;
+            double orig_d = LLVMConstRealGetDouble(original_value, &lossy1);
+            double repl_d = LLVMConstRealGetDouble(defaults[i], &lossy2);
+            equiv = (!lossy1 && !lossy2 && (orig_d == repl_d));
+            break;
+          }
+
+          default:
+            break;
+        }
+      }
+
+      if(!equiv)
+      {
+        defaults[dst] = defaults[i];
+        labels[dst] = labels[i];
+        dst++;
+      }
+    }
+    count = dst;
   }
 
   if(count == 0)
