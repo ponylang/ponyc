@@ -420,8 +420,9 @@ class \nodoc\ _EqHashTest is UnitTest
       FilePath(FileAuth(h.env.root), source_dir),
       [pony_path] where limit = PassFinaliser)
     | let p: Program =>
-      for mod in p.modules() do
-        for f in mod.files() do
+      try
+        let pkg = p.module() as Module
+        for f in pkg.files() do
           let file_node: AST box = f.ast
           file_node.visit(
             object is ASTVisitor
@@ -442,9 +443,6 @@ class \nodoc\ _EqHashTest is UnitTest
             end
           )
         end
-      end
-      try
-        let pkg = p.module() as Module
         let main_pony_path =
           Path.join(source_dir, "main.pony")
         let main_file =
