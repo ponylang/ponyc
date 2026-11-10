@@ -870,13 +870,7 @@ static bool guard_match(compile_t* c, ast_t* guard,
   if(ast_id(guard) == TK_NONE)
     return true;
 
-  bool saved_mutate = c->opt->mutate;
-  if(next_block == NULL)
-    c->opt->mutate = false;
-
   LLVMValueRef value = gen_expr(c, guard);
-
-  c->opt->mutate = saved_mutate;
 
   if(value == NULL)
     return false;
