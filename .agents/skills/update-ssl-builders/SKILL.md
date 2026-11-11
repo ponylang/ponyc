@@ -1,6 +1,6 @@
 ---
 name: update-ssl-builders
-description: Twice-yearly workflow for bumping ponyc CI SSL builder images (OpenSSL, LibreSSL) to their latest series releases. Invoked via /update-ssl-builders.
+description: Twice-yearly workflow for bumping ponyc CI SSL builder images (OpenSSL, LibreSSL) to their latest series releases. Invoke with /update-ssl-builders in Claude Code or $update-ssl-builders in Codex.
 disable-model-invocation: false
 ---
 
