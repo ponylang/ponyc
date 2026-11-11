@@ -295,7 +295,7 @@ fi
 
 If ssh never comes up, diagnose in this order:
 
-- **Is the process alive?** `pgrep -af "[q]emu-system-i386 -name i386-alpine-$SSH_PORT "`.
+- **Is the process alive?** `SSH_PORT=2232; pgrep -af "[q]emu-system-i386 -name i386-alpine-$SSH_PORT "`.
   If it's gone, QEMU exited during boot; read `$VMDIR/console.log` for why.
 - **Read the boot.** `$VMDIR/console.log` has the guest's serial console from the start
   of this boot. It shows whether the kernel started, whether DHCP worked, and whether the

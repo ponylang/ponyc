@@ -54,9 +54,9 @@ build lives on a dedicated data disk. These matter:
   there — mirroring the DragonFly job. The disklabel setup is **one-time and not
   idempotent** (`newfs` reformats), so run Step 5 exactly once.
 - **The `/build` mount is not persisted across reboot.** `disklabel`/`newfs`/`mount` are
-  manual one-time steps with no `/etc/fstab` entry; after a guest reboot, remount
-  `/dev/sd1a` at `/build`. `/etc/login.conf` and `/etc/doas.conf` are on the root disk and
-  **do** persist.
+  manual one-time steps with no `/etc/fstab` entry; after a guest reboot, `fsck` and
+  remount `/dev/sd1a` at `/build` (see Lifecycle). `/etc/login.conf` and `/etc/doas.conf`
+  are on the root disk and **do** persist.
 - **Raise the `datasize` limit.** OpenBSD caps a process's data segment in
   `/etc/login.conf` (1536M on the stock 7.9 image); the LLVM build needs more, so Step 6
   raises `datasize-max`/`-cur` to at least 8192M. Without it the libs build dies with
@@ -193,7 +193,7 @@ qemu-system-x86_64 \
   -drive file=openbsd.qcow2,format=qcow2,if=virtio \
   -drive file=openbsd-data.qcow2,format=qcow2,if=virtio \
   -drive file=seed.iso,media=cdrom \
-  -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+  -netdev user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22 \
   -device virtio-net-pci,netdev=net0 \
   -display none -pidfile openbsd.pid -daemonize
 ```
@@ -202,12 +202,15 @@ qemu-system-x86_64 \
 never silently falls back to slow TCG; CI uses bare `accel=kvm` because it always runs on
 Linux. `-smp`/`-m` are speed knobs; CI uses 4 CPUs / 12G. The build is capped by the 8192M
 `datasize` limit per process, not by total RAM. `hostfwd 2222->22` is the ssh port — to run
-two OpenBSD VMs at once, give each its own `$VMDIR` and a distinct hostfwd port, and pass
-that port to every ssh/scp/rsync `-p`. The seed is attached as a **cdrom** — that is how
+two OpenBSD VMs at once, give each its own `$VMDIR` and a distinct hostfwd port (keep the
+`127.0.0.1` so the port isn't open on every interface), and pass that port to every
+ssh/scp/rsync `-p`. The seed is attached as a **cdrom** — that is how
 OpenBSD's cloud-init finds the cidata volume; do not copy FreeBSD's raw-virtio-disk seed
 form here. This boot command is adapted from `.ci-scripts/bsd/openbsd-provision.bash`: it
 adds `-pidfile`/`-smp 8`, drops the CI host-bootstrap, and like CI uses no rng or monitor
-device.)
+device. The `pgrep -f`/`pkill -f` commands in Step 4 and Lifecycle spell the pattern
+`[q]emu-system-x86_64`, so they can't match the shell running them, whose own command line
+contains the pattern text.)
 
 ### 4. Wait for ssh (first boot runs cloud-init)
 
@@ -225,12 +228,13 @@ done
 If ssh never comes up, this VM has no VGA console to look at (it booted headless), so
 diagnose in this order:
 
-- **Is the process alive?** `pgrep -af "qemu-system-x86_64 -name openbsd-${OPENBSD_VERSION}"`.
+- **Is the process alive?** `OPENBSD_VERSION=7.9; pgrep -af "[q]emu-system-x86_64 -name openbsd-${OPENBSD_VERSION}"`.
   If it's gone, the boot died early (usually a bad/incomplete image from Step 1) — re-check
   the Step 1 download and re-boot.
 - **Watch the boot.** The image logs to the serial console, so re-boot with a serial log
-  added — `kill "$(cat openbsd.pid)"`, then re-run the Step 3 boot command with
-  `-serial file:$VMDIR/console.log` appended — and read `console.log` to see how far it got.
+  added — `kill "$(cat ~/vms/openbsd-7.9/openbsd.pid)"`, then re-run the Step 3 boot command
+  with `-serial file:$VMDIR/console.log` appended — and read `console.log` to see how far it
+  got.
 - **ssh actively *refuses* the key (vs. just timing out)?** That means cloud-init never
   applied the seed. Confirm `seed.iso` is attached as a **cdrom** drive in the boot command
   (Step 3) and was built in Step 2, then re-boot.
@@ -368,19 +372,22 @@ CI-matching issue.
 
 ```sh
 VMDIR=~/vms/openbsd-7.9; OPENBSD_VERSION=7.9; cd "$VMDIR"
-pgrep -af "qemu-system-x86_64 -name openbsd-${OPENBSD_VERSION}"        # status
+pgrep -af "[q]emu-system-x86_64 -name openbsd-${OPENBSD_VERSION}"        # status
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i vm_key -p 2222 openbsd@localhost   # interactive shell
-# stop: kill the process. Disks persist for next time. The pgrep/pkill are scoped to this
-# version so a second OpenBSD VM isn't matched; the pidfile path is per-$VMDIR anyway.
-kill "$(cat openbsd.pid)" 2>/dev/null || pkill -f "qemu-system-x86_64 -name openbsd-${OPENBSD_VERSION}"
+# stop: kill the process. Disks persist for next time. The pgrep/pkill match only this
+# version's VM name, so a VM of another version is left alone; the kill reads this
+# $VMDIR's pidfile, so it stops only this VM.
+kill "$(cat openbsd.pid)" 2>/dev/null || pkill -f "[q]emu-system-x86_64 -name openbsd-${OPENBSD_VERSION}"
 ```
 
 To restart later, re-run the step-3 boot command (the disks and installed deps persist; you
 do not redo setup). On a reboot, ssh-as-`openbsd` works immediately and `doas` still works
 (`/etc/doas.conf` persisted), and the raised `datasize` limit is still in `/etc/login.conf`
 — but the `/build` data disk is **not** auto-mounted (there is no `/etc/fstab` entry), so
-remount it before building: `doas mount /dev/sd1a /build`. The source under `/build/ponyc`
-is preserved on the data disk across the remount. For a long-lived VM, add the mount to
+remount it before building: `doas fsck -y /dev/sd1a && doas mount /dev/sd1a /build`.
+Stopping the VM by killing QEMU leaves the filesystem unclean, and `mount` fails on an
+unclean filesystem until `fsck` has repaired it. The source under `/build/ponyc` is
+preserved on the data disk across the remount. For a long-lived VM, add the mount to
 `/etc/fstab` so it survives reboots.
 
 ## How this relates to CI (don't re-add the CI-only steps)

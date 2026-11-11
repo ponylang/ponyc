@@ -22,7 +22,7 @@ where needed, the `SSH` command) at its top, because an agent runs each block as
 shell — environment variables and the working directory do NOT carry from one block to
 the next. Do not "optimize" by setting them once and dropping them from later blocks: an
 empty `$SSH` would make a `$SSH /bin/sh <<'EOF' ... EOF` heredoc run **on your host**
-(silently, exit 0) — and Step 7 contains `rm -rf /usr/local`. Keep every block whole.
+(silently, exit 0) — and Step 8 contains `rm -rf /usr/local`. Keep every block whole.
 Pick your `VMDIR`/`DFLY_VER` once and use the same values in every block.
 
 ## Gotchas that will bite you (read first)
@@ -165,7 +165,6 @@ if pgrep -x sshd >/dev/null 2>&1; then
 fi
 dhclient vtnet0
 echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
-echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config
 mkdir -p /root/.ssh && chmod 700 /root/.ssh
 cp /mnt/authorized_keys /root/.ssh/authorized_keys
 chmod 600 /root/.ssh/authorized_keys
@@ -180,7 +179,7 @@ qemu-system-x86_64 \
   -drive file=dfly.qcow2,format=qcow2,if=virtio \
   -drive file=dfly-data.qcow2,format=qcow2,if=virtio \
   -drive file=seed.iso,media=cdrom \
-  -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+  -netdev user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22 \
   -device virtio-net-pci,netdev=net0 \
   -object rng-random,id=rng0,filename=/dev/urandom \
   -device virtio-rng-pci,rng=rng0 \
@@ -191,7 +190,9 @@ qemu-system-x86_64 \
 
 (`accel=kvm:hvf` picks KVM on Linux or HVF on macOS and errors if neither is available —
 it never silently falls back to slow TCG. `-smp`/`-m` are speed knobs; CI uses 4 CPUs /
-12G. `hostfwd 2222->22` is the ssh port.)
+12G. `hostfwd 2222->22` is the ssh port. The `pgrep -f`/`pkill -f` commands in Lifecycle
+spell the pattern `[q]emu-system-x86_64`, so they can't match the shell running them, whose
+own command line contains the pattern text.)
 
 ### 5. Run the console setup script
 
@@ -379,18 +380,33 @@ CI-matching issue.
 ## Lifecycle
 
 ```sh
-VMDIR=~/vms/dragonfly-6.4.2; cd "$VMDIR"
-pgrep -af "qemu-system-x86_64 -name dragonfly"        # status
+VMDIR=~/vms/dragonfly-6.4.2; DFLY_VER=6.4.2; cd "$VMDIR"
+pgrep -af "[q]emu-system-x86_64 -name dragonfly-${DFLY_VER}"        # status
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i vm_key -p 2222 root@localhost   # interactive shell
 # stop: DragonFly's default install has no ACPI shutdown handler, so system_powerdown
 # usually does nothing — kill the process instead. Disks persist for next time.
-kill "$(cat dfly.pid)" 2>/dev/null || pkill -f "qemu-system-x86_64 -name dragonfly"
+kill "$(cat dfly.pid)" 2>/dev/null || pkill -f "[q]emu-system-x86_64 -name dragonfly-${DFLY_VER}"
 ```
 
-To restart later, re-run Steps 4–7 (the disks and installed deps persist; the key and ISO
-creation are idempotent, and Steps 5–7 re-establish sshd and the `/build` mount, which
-are not persisted across a guest reboot). For a long-lived VM, make `sshd_enable`
-permanent in `/etc/rc.conf` and add the `/build` mount to `/etc/fstab`.
+To restart later, re-run Steps 4–6, then the block below. The disks and installed deps
+persist, and the key and ISO creation are idempotent. Nothing starts sshd at boot, so Step 5
+starts it again; Step 6 checks that ssh is up. Do not re-run Step 7: its `newfs` erases
+`/build`. The `/build` mount does not survive a reboot either, and stopping the VM by
+killing QEMU leaves the filesystem unclean, so `mount` fails on it until `fsck` has repaired
+it:
+
+```sh
+VMDIR=~/vms/dragonfly-6.4.2
+SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i $VMDIR/vm_key -p 2222 root@localhost"
+$SSH /bin/sh <<'EOF'
+set -e
+fsck -y /dev/vbd1
+mount /dev/vbd1 /build
+EOF
+```
+
+For a long-lived VM, make `sshd_enable` permanent in `/etc/rc.conf` and add the `/build`
+mount to `/etc/fstab`.
 
 ## How this relates to CI (don't re-add the CI-only steps)
 
