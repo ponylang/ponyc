@@ -124,3 +124,7 @@ Passing a large index to `Array.copy_from` or `Array.copy_to` could write past t
 
 On x86-64, passing `--features=-sse`, `-sse2`, `-64bit`, or `-64bit-mode` could crash the compiler or fail during linking. ponyc now keeps these required features enabled, even when `--features` requests disabling them. This follows the existing behavior for `cx16` on x86-64 and `sse2` on 32-bit x86.
 
+## Fix integer overflow in Array.concat and Array.append bounds arithmetic
+
+Passing a large `len` to `Array.concat` could write past the end of the array's allocation. `Array.append` had the same vulnerability when the array was already large.
+
