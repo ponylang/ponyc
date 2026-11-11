@@ -235,7 +235,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u16_bytes = U16(0).bytewidth()
     if (offset + u16_bytes) <= _size then
-      _ptr._offset(offset)._convert[U16]()._apply(0)
+      _ptr._offset(offset)._convert[U16]()._apply_unaligned(0)
     else
       error
     end
@@ -246,7 +246,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u32_bytes = U32(0).bytewidth()
     if (offset + u32_bytes) <= _size then
-      _ptr._offset(offset)._convert[U32]()._apply(0)
+      _ptr._offset(offset)._convert[U32]()._apply_unaligned(0)
     else
       error
     end
@@ -257,7 +257,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u64_bytes = U64(0).bytewidth()
     if (offset + u64_bytes) <= _size then
-      _ptr._offset(offset)._convert[U64]()._apply(0)
+      _ptr._offset(offset)._convert[U64]()._apply_unaligned(0)
     else
       error
     end
@@ -268,7 +268,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u128_bytes = U128(0).bytewidth()
     if (offset + u128_bytes) <= _size then
-      _ptr._offset(offset)._convert[U128]()._apply(0)
+      _ptr._offset(offset)._convert[U128]()._apply_unaligned(0)
     else
       error
     end
@@ -299,7 +299,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u16_bytes = U16(0).bytewidth()
     if (offset + u16_bytes) <= _size then
-      _ptr._offset(offset)._convert[U16]()._update(0, value)
+      _ptr._offset(offset)._convert[U16]()._update_unaligned(0, value)
     else
       error
     end
@@ -310,7 +310,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u32_bytes = U32(0).bytewidth()
     if (offset + u32_bytes) <= _size then
-      _ptr._offset(offset)._convert[U32]()._update(0, value)
+      _ptr._offset(offset)._convert[U32]()._update_unaligned(0, value)
     else
       error
     end
@@ -321,7 +321,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u64_bytes = U64(0).bytewidth()
     if (offset + u64_bytes) <= _size then
-      _ptr._offset(offset)._convert[U64]()._update(0, value)
+      _ptr._offset(offset)._convert[U64]()._update_unaligned(0, value)
     else
       error
     end
@@ -332,7 +332,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u128_bytes = U128(0).bytewidth()
     if (offset + u128_bytes) <= _size then
-      _ptr._offset(offset)._convert[U128]()._update(0, value)
+      _ptr._offset(offset)._convert[U128]()._update_unaligned(0, value)
     else
       error
     end
@@ -602,7 +602,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u16_bytes = U16(0).bytewidth()
     reserve(_size + u16_bytes)
-    _ptr._offset(_size)._convert[U16]()._update(0, value)
+    _ptr._offset(_size)._convert[U16]()._update_unaligned(0, value)
     _size = _size + u16_bytes
 
   fun ref push_u32[B: (A & Real[B] val & U8) = A](value: U32) =>
@@ -611,7 +611,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u32_bytes = U32(0).bytewidth()
     reserve(_size + u32_bytes)
-    _ptr._offset(_size)._convert[U32]()._update(0, value)
+    _ptr._offset(_size)._convert[U32]()._update_unaligned(0, value)
     _size = _size + u32_bytes
 
   fun ref push_u64[B: (A & Real[B] val & U8) = A](value: U64) =>
@@ -620,7 +620,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u64_bytes = U64(0).bytewidth()
     reserve(_size + u64_bytes)
-    _ptr._offset(_size)._convert[U64]()._update(0, value)
+    _ptr._offset(_size)._convert[U64]()._update_unaligned(0, value)
     _size = _size + u64_bytes
 
   fun ref push_u128[B: (A & Real[B] val & U8) = A](value: U128) =>
@@ -629,7 +629,7 @@ class Array[A] is ResizableSeq[A]
     """
     let u128_bytes = U128(0).bytewidth()
     reserve(_size + u128_bytes)
-    _ptr._offset(_size)._convert[U128]()._update(0, value)
+    _ptr._offset(_size)._convert[U128]()._update_unaligned(0, value)
     _size = _size + u128_bytes
 
   fun ref push(value: A) =>

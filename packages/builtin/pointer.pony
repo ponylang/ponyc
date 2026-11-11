@@ -40,9 +40,22 @@ struct Pointer[A]
     """
     compile_intrinsic
 
+  fun _apply_unaligned(i: USize): this->A =>
+    """
+    Retrieve index i without assuming the pointer is aligned for type A.
+    """
+    compile_intrinsic
+
   fun ref _update(i: USize, value: A!): A^ =>
     """
     Set index i and return the previous value.
+    """
+    compile_intrinsic
+
+  fun ref _update_unaligned(i: USize, value: A!): A^ =>
+    """
+    Set index i and return the previous value
+    without assuming the pointer is aligned for type A.
     """
     compile_intrinsic
 

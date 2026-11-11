@@ -207,6 +207,32 @@ static void pointer_apply(compile_t* c, void* data, token_id cap)
   codegen_finishfun(c);
 }
 
+static void pointer_apply_unaligned(compile_t* c, void* data, token_id cap)
+{
+  reach_type_t* t = ((reach_type_t**)data)[0];
+  reach_type_t* t_elem = ((reach_type_t**)data)[1];
+  compile_type_t* c_t_elem = (compile_type_t*)t_elem->c_type;
+
+  FIND_METHOD("_apply_unaligned", cap);
+
+  LLVMTypeRef params[2];
+  params[0] = c_t->use_type;
+  params[1] = c->intptr;
+  start_function(c, t, m, c_t_elem->use_type, params, 2);
+
+  LLVMValueRef ptr = LLVMGetParam(c_m->func, 0);
+  LLVMValueRef index = LLVMGetParam(c_m->func, 1);
+
+  LLVMValueRef loc = LLVMBuildInBoundsGEP2(c->builder, c_t_elem->mem_type, ptr,
+    &index, 1, "");
+  LLVMValueRef result = LLVMBuildAlignedLoad(c->builder, c_t_elem->mem_type,
+    loc, 1, "");
+
+  result = gen_assign_cast(c, c_t_elem->use_type, result, t_elem->ast_cap);
+  genfun_build_ret(c, result);
+  codegen_finishfun(c);
+}
+
 static void pointer_update(compile_t* c, reach_type_t* t,
   reach_type_t* t_elem)
 {
@@ -230,6 +256,36 @@ static void pointer_update(compile_t* c, reach_type_t* t,
   LLVMValueRef value = LLVMGetParam(c_m->func, 2);
   value = gen_assign_cast(c, c_t_elem->mem_type, value, t_elem->ast_cap);
   LLVMBuildStore(c->builder, value, loc);
+
+  result = gen_assign_cast(c, c_t_elem->use_type, result, t_elem->ast_cap);
+  genfun_build_ret(c, result);
+  codegen_finishfun(c);
+}
+
+static void pointer_update_unaligned(compile_t* c, reach_type_t* t,
+  reach_type_t* t_elem)
+{
+  compile_type_t* c_t_elem = (compile_type_t*)t_elem->c_type;
+
+  FIND_METHOD("_update_unaligned", TK_NONE);
+
+  LLVMTypeRef params[3];
+  params[0] = c_t->use_type;
+  params[1] = c->intptr;
+  params[2] = c_t_elem->use_type;
+  start_function(c, t, m, c_t_elem->use_type, params, 3);
+
+  LLVMValueRef ptr = LLVMGetParam(c_m->func, 0);
+  LLVMValueRef index = LLVMGetParam(c_m->func, 1);
+
+  LLVMValueRef loc = LLVMBuildInBoundsGEP2(c->builder, c_t_elem->mem_type, ptr,
+    &index, 1, "");
+  LLVMValueRef result = LLVMBuildAlignedLoad(c->builder, c_t_elem->mem_type,
+    loc, 1, "");
+
+  LLVMValueRef value = LLVMGetParam(c_m->func, 2);
+  value = gen_assign_cast(c, c_t_elem->mem_type, value, t_elem->ast_cap);
+  LLVMBuildAlignedStore(c->builder, value, loc, 1);
 
   result = gen_assign_cast(c, c_t_elem->use_type, result, t_elem->ast_cap);
   genfun_build_ret(c, result);
@@ -463,7 +519,9 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
   pointer_unsafe(c, t);
   GENERIC_FUNCTION("_convert", pointer_convert);
   BOX_FUNCTION(pointer_apply, box_args);
+  BOX_FUNCTION(pointer_apply_unaligned, box_args);
   pointer_update(c, t, t_elem);
+  pointer_update_unaligned(c, t, t_elem);
   BOX_FUNCTION(pointer_offset, c_box_args);
   pointer_element_size(c, t, c_t_elem);
   pointer_min_alloc(c, t, c_t_elem);
