@@ -77,6 +77,7 @@ add_library(libponyc STATIC
     pkg/platformfuns.c
     pkg/program.cc
     pkg/use.c
+    platform/nixenv.c
     platform/paths.c
     platform/vcvars.c
     plugin/plugin.c

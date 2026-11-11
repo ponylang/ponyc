@@ -24,7 +24,7 @@ jobs:
   #   Stage 2 - platforms releases/nightlies pull: x86_64-linux-release,
   #             arm64-linux, x86_64-macos, arm64-windows
   #   Stage 3 - everything else: x86_64-linux-other (fedora + cross), freebsd,
-  #             openbsd, dragonflybsd, i386-linux
+  #             openbsd, dragonflybsd, i386-linux, nixos-linux
   #
   # Each later stage gates (`needs:`) on the prior stage's FAST jobs only - Linux
   # and macOS - and deliberately NOT on Windows, whose builds are slow: a Windows
@@ -33,15 +33,16 @@ jobs:
   # cancel the later stages. The jobs below are not grouped by stage in file
   # order; each job's `needs:` and comment state its stage.
   #
-  # Stage 3's six builds - the two x86_64-linux-other matrix legs, the
-  # three BSD VMs, and the i386 VM - are each 2-3h, so the stage is
-  # capped at AT MOST 2 running at once to bound runner-pool use. Three things
-  # together enforce that, and removing any one re-opens the stage to more
-  # than 2: freebsd/openbsd/i386-linux `needs:` x86_64-linux-other, so they
-  # never run alongside its two container legs; i386-linux additionally
-  # `needs:` openbsd, so the four VM jobs run 2 at a time; and dragonflybsd
-  # additionally `needs:` freebsd, for the same reason. x86_64-linux-other's
-  # `max-parallel: 2` keeps its legs at 2 if more are added.
+  # Stage 3's seven builds - the two x86_64-linux-other matrix legs, the
+  # three BSD VMs, the i386 VM, and the NixOS container - are each 2-3h, so
+  # the stage is capped at AT MOST 2 running at once to bound runner-pool
+  # use. Three things together enforce that, and removing any one re-opens
+  # the stage to more than 2: freebsd/openbsd/i386-linux/nixos-linux `needs:`
+  # x86_64-linux-other, so they never run alongside its two container legs;
+  # i386-linux additionally `needs:` openbsd, so the four VM jobs run 2 at a
+  # time; and dragonflybsd additionally `needs:` freebsd, for the same
+  # reason. x86_64-linux-other's `max-parallel: 2` keeps its legs at 2 if
+  # more are added.
 
   # Stage 1 (PR). No gate; starts immediately.
   x86_64-linux-pr:
@@ -521,6 +522,76 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # Stage 3. NixOS in a Docker container. Gates on x86_64-linux-other like the
+  # BSDs to stay within the stage-3 "at most 2 at once" cap.
+  nixos-linux:
+    needs: [x86_64-linux-other]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    name: x86-64 NixOS
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Check libs cache
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: |
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
+          python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform nixos-nix --tag "$LIBS_TAG" && main_rc=0 || main_rc=$?
+          if [ "$main_rc" -eq 0 ]; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          elif [ "$main_rc" -eq "$miss" ]; then
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
+            exit "$main_rc"
+          fi
+      - name: Promote branch libs if present
+        id: promote
+        if: steps.check.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: |
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
+          python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform nixos-nix --tag "$LIBS_TAG" && branch_rc=0 || branch_rc=$?
+          if [ "$branch_rc" -eq 0 ]; then
+            if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform nixos-nix --tag "$LIBS_TAG"; then
+              echo "promoted=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "promoted=false" >> "$GITHUB_OUTPUT"
+            fi
+          elif [ "$branch_rc" -eq "$miss" ]; then
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Branch libs cache check failed (exit $branch_rc); falling through to container build."
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Start Nix container
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        run: |
+          docker run -d --name ponyc-nix \
+            -v "$GITHUB_WORKSPACE:/src:ro" \
+            nixos/nix \
+            sleep infinity
+          docker exec ponyc-nix sh -c '
+            cp -a /src /work
+            git config --global --add safe.directory /work
+            git config --global --add safe.directory /work/lib/llvm/src
+          '
+      - name: Build and push libs
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: bash .ci-scripts/nix/nix-libs-cache.bash build-push-main
+      - name: Stop Nix container
+        if: always()
+        run: |
+          docker rm -f ponyc-nix || true
+
   # Keep storage bounded: keep the 2 newest versions of each ponyc-libs-cache/*
   # package, delete older ones. Only the warmer pushes (on every main commit), so
   # the newest version is always the current main hash and is never pruned. Uses
@@ -544,6 +615,7 @@ jobs:
       - freebsd
       - openbsd
       - dragonflybsd
+      - nixos-linux
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2

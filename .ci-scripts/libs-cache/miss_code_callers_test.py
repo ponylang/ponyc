@@ -30,10 +30,11 @@ MISS_LINE = ("miss=$(cd .ci-scripts/libs-cache && python3 -c "
              "'from common import EXIT_MISS; print(EXIT_MISS)')")
 
 # Workflows known to compare against "$miss", and how many compares each has:
-# four platforms (i386, FreeBSD, OpenBSD, DragonFly), main and branch cache.
+# five platforms (i386, FreeBSD, OpenBSD, DragonFly, NixOS), main and branch
+# cache.
 KNOWN_CALLERS = {
-    'ponyc-tier3.yml': 8,
-    'update-lib-cache.yml': 8,
+    'ponyc-tier3.yml': 10,
+    'update-lib-cache.yml': 10,
 }
 
 RC_COMPARE = re.compile(r'"\$\w*rc" -(?:eq|ne) ("\$miss"|\d+)')
