@@ -4917,6 +4917,38 @@ TEST_F(GenMutateCodegenTest, RvrKeepsHandWrittenPrimitiveEq)
     << "hand-written primitive eq must keep RVR records";
 }
 
+TEST_F(GenMutateCodegenTest, RvrKeepsInheritedTraitDefaultEq)
+{
+  // A primitive that inherits eq from a trait default (Equatable's
+  // `this is that`) is user code via the trait — RVR must keep it.
+  const char* src =
+    "type Colour is (Red | Blue)\n"                           // 1
+    "primitive Red is Equatable[Colour]\n"                    // 2
+    "primitive Blue is Equatable[Colour]\n"                   // 3
+    "\n"                                                      // 4
+    "actor Main\n"                                            // 5
+    "  new create(env: Env) =>\n"                             // 6
+    "    if Red == Red then None end\n";                      // 7
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  size_t rvr_total = 0;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(strcmp(r->category, "rvr") == 0)
+    {
+      std::string f(r->file);
+      if(f.empty())
+        rvr_total++;
+    }
+  }
+  ASSERT_GT(rvr_total, 0u)
+    << "inherited trait-default eq must keep RVR records";
+}
+
 TEST_F(GenMutateCodegenTest, RvrConstantBodyDropsEquivalent)
 {
   // `fun g(): Bool => true` keeps return→false (differs from the
@@ -5043,8 +5075,8 @@ TEST_F(GenMutateCodegenTest, RvrSuppressesNoneReturnValue)
   opt.mutate_operators = MUTATE_OP_RVR;
   DO(test_compile(src, "ir"));
 
-  // apply (body is None): None replacement dropped, but non-None
-  // replacements should remain if the declared type admits them.
+  // apply (body is None): the only replacement is None, which is
+  // equivalent to the body and gets dropped, leaving zero records.
   unsigned apply_rvr = count_category_at_file("", 2, "rvr");
   ASSERT_EQ(apply_rvr, 0u)
     << "apply with None body should have no RVR (only replacement is None)";
@@ -5361,4 +5393,54 @@ TEST_F(GenMutateCodegenTest, RvrCrIndependenceU64)
 
   ASSERT_EQ(rvr_only, rvr_with_cr)
     << "RVR record set must be the same with and without CR";
+}
+
+TEST_F(GenMutateCodegenTest, RvrCrIndependenceExplicitReturn)
+{
+  // Explicit `return 0 + 1` goes through gencontrol.c's gen_return.
+  // CR wraps the add in a phi there too. The RVR record set must
+  // match between RVR-only and RVR+CR builds.
+  const char* src =
+    "class Obj\n"                                             // 1
+    "  fun f(flag: Bool): U64 =>\n"                           // 2
+    "    if flag then\n"                                      // 3
+    "      return 0 + 1\n"                                    // 4
+    "    end\n"                                               // 5
+    "    U64(99)\n"                                           // 6
+    "\n"                                                      // 7
+    "actor Main\n"                                            // 8
+    "  new create(env: Env) =>\n"                             // 9
+    "    Obj.f(true)\n";                                      // 10
+
+  // RVR-only build.
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  std::set<std::string> rvr_only;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "rvr") == 0)
+      rvr_only.insert(r->replacement);
+  }
+  ASSERT_FALSE(rvr_only.empty()) << "expected RVR records on line 4";
+
+  // RVR+CR build.
+  opt.mutate_operators = MUTATE_OP_RVR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  ASSERT_GT(count_category_at_file("", 4, "cr"), 0u)
+    << "CR must instrument the operator on line 4";
+
+  std::set<std::string> rvr_with_cr;
+  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+  {
+    mutant_record_t* r = &compile->mutate.mutants[i];
+    if(r->line == 4 && strcmp(r->category, "rvr") == 0)
+      rvr_with_cr.insert(r->replacement);
+  }
+
+  ASSERT_EQ(rvr_only, rvr_with_cr)
+    << "RVR record set must be the same with and without CR (explicit return)";
 }
