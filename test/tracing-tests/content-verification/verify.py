@@ -74,7 +74,8 @@ def main():
     # Per-thread monotonicity: ab* steal* ab*
     # State machine: AB1 → STEAL → AB2.  Any steal after AB2 is a violation.
     for tid in sorted(by_tid):
-        evs = sorted(by_tid[tid])
+        # Equal microsecond timestamps must retain per-thread emission order.
+        evs = sorted(by_tid[tid], key=lambda ev: ev[0])
         state = "AB1"
         for ts, kind in evs:
             if state == "AB1":
