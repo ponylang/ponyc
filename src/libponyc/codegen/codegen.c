@@ -1059,7 +1059,17 @@ bool codegen_pass_init(pass_opt_t* opt)
   // causes LLVM to lower the 128-bit CAS to a libcall that doesn't exist on
   // macOS.
   if(target_is_x86(opt->triple) && !target_is_ilp32(opt->triple))
+  {
     append_feature(opt, "+cx16");
+
+    // The x86-64 ABI uses SSE registers for floating-point returns. SSE2
+    // also enables SSE; both are needed for F32 and F64 returns.
+    append_feature(opt, "+sse2");
+
+    // A 64-bit target needs both 64-bit instructions and 64-bit mode.
+    append_feature(opt, "+64bit");
+    append_feature(opt, "+64bit-mode");
+  }
 
   // On 32-bit x86, LLVM lowers floating-point arithmetic to x87 when SSE2 is
   // absent. x87 holds intermediates in 80-bit extended-precision registers
