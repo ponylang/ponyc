@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if !defined(PLATFORM_IS_WINDOWS)
+#include <sys/time.h>
+#endif
+
 PONY_EXTERN_C_BEGIN
 
 typedef struct
@@ -226,5 +230,65 @@ PONY_API char* ponyint_formattime(date_t* date, const char* fmt)
 
   return buffer;
 }
+
+PONY_API int64_t ponyint_cpu_time()
+{
+  return (int64_t)time(NULL);
+}
+
+#if !defined(PLATFORM_IS_WINDOWS)
+
+PONY_API bool ponyint_clock_gettime(uint32_t clock_id, int64_t* sec,
+  int64_t* nsec)
+{
+  struct timespec ts;
+
+  if(clock_gettime((clockid_t)clock_id, &ts) != 0)
+    return false;
+
+  *sec = (int64_t)ts.tv_sec;
+  *nsec = (int64_t)ts.tv_nsec;
+  return true;
+}
+
+PONY_API int32_t ponyint_utimes(const char* path, int64_t atime_sec,
+  int64_t atime_usec, int64_t mtime_sec, int64_t mtime_usec)
+{
+  struct timeval tv[2];
+  tv[0].tv_sec = (time_t)atime_sec;
+  tv[0].tv_usec = (suseconds_t)atime_usec;
+  tv[1].tv_sec = (time_t)mtime_sec;
+  tv[1].tv_usec = (suseconds_t)mtime_usec;
+  return utimes(path, tv);
+}
+
+PONY_API int32_t ponyint_futimes(int32_t fd, int64_t atime_sec,
+  int64_t atime_usec, int64_t mtime_sec, int64_t mtime_usec)
+{
+  struct timeval tv[2];
+  tv[0].tv_sec = (time_t)atime_sec;
+  tv[0].tv_usec = (suseconds_t)atime_usec;
+  tv[1].tv_sec = (time_t)mtime_sec;
+  tv[1].tv_usec = (suseconds_t)mtime_usec;
+  return futimes(fd, tv);
+}
+
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
+
+PONY_API int32_t ponyint_futimesat(int32_t fd, const char* path,
+  int64_t atime_sec, int64_t atime_usec, int64_t mtime_sec,
+  int64_t mtime_usec)
+{
+  struct timeval tv[2];
+  tv[0].tv_sec = (time_t)atime_sec;
+  tv[0].tv_usec = (suseconds_t)atime_usec;
+  tv[1].tv_sec = (time_t)mtime_sec;
+  tv[1].tv_usec = (suseconds_t)mtime_usec;
+  return futimesat(fd, path, tv);
+}
+
+#endif
+
+#endif
 
 PONY_EXTERN_C_END

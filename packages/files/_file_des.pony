@@ -61,10 +61,12 @@ primitive _FileDes
     ifdef windows then
       path.set_time(atime, mtime)
     else
-      var tv: (ILong, ILong, ILong, ILong) =
-        ( atime._1.ilong(), atime._2.ilong() / 1000,
-          mtime._1.ilong(), mtime._2.ilong() / 1000 )
-      @futimes(fd, addressof tv) == 0
+      @ponyint_futimes(
+        fd,
+        atime._1,
+        atime._2 / 1000,
+        mtime._1,
+        mtime._2 / 1000) == 0
     end
 
   fun set_rights(fd: I32, path: FilePath, writeable: Bool = true) ? =>
