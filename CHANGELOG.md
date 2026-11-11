@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Report an error for malformed `--features` and invalid `--cpu` values ([PR #6475](https://github.com/ponylang/ponyc/pull/6475))
 - Fix integer overflow in Array.copy_from and Array.copy_to bounds arithmetic ([PR #6481](https://github.com/ponylang/ponyc/pull/6481))
 - Fix crashes when disabling required x86-64 CPU features ([PR #6482](https://github.com/ponylang/ponyc/pull/6482))
+- Fix integer overflow in Array.concat and Array.append bounds arithmetic ([PR #6484](https://github.com/ponylang/ponyc/pull/6484))
 
 ### Added
 
