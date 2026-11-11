@@ -143,12 +143,8 @@ rm /build/dfly-include.tar
 EOF
 
 # Install packages (now goes to /build disk via symlink)
-ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 root@localhost /bin/sh <<'EOF'
-set -e
-pkg install -y cmake gmake git python3 cxx_atomics rsync gcc13 ca_root_nss
-pkg clean -ay
-git config --global --add safe.directory /build/ponyc
-EOF
+ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 root@localhost /bin/sh \
+  < .ci-scripts/bsd/dragonfly-install-deps.sh
 echo "::endgroup::"
 
 echo "::group::Copy source to VM"

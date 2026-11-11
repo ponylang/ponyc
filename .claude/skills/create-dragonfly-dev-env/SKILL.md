@@ -210,8 +210,9 @@ directory) and run it there. Set `DFLY_ARTIFACTS_DIR` to the VM directory so the
 can write screendumps for the VGA fallback and diagnostics:
 
 ```sh
+repo_root=$(git rev-parse --show-toplevel)
 VMDIR=~/vms/dragonfly-6.4.2; cd "$VMDIR"
-cp "$(git rev-parse --show-toplevel)/.ci-scripts/bsd/dfly_configure_vm.py" "$VMDIR/"
+cp "$repo_root/.ci-scripts/bsd/dfly_configure_vm.py" "$VMDIR/"
 export DFLY_ARTIFACTS_DIR="$VMDIR"
 python3 dfly_configure_vm.py
 ```
@@ -291,6 +292,8 @@ EOF
 
 `gcc13` alone is ~418M, so package installs must land on `/build`.
 
+The shared dependency script upgrades installed packages before installing the build tools, so library versions match the repository binaries. CI uses the same script.
+
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2
 SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i $VMDIR/vm_key -p 2222 root@localhost"
@@ -309,12 +312,7 @@ ln -s /build/include /usr/include
 rm /build/dfly-include.tar
 EOF
 
-$SSH /bin/sh <<'EOF'
-set -e
-pkg install -y cmake gmake git python3 cxx_atomics rsync gcc13 ca_root_nss
-pkg clean -ay
-git config --global --add safe.directory /build/ponyc
-EOF
+$SSH /bin/sh < "$(git rev-parse --show-toplevel)/.ci-scripts/bsd/dragonfly-install-deps.sh"
 ```
 
 ### 9. Rsync the ponyc checkout in (exclude the host `build/`)
