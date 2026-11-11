@@ -657,15 +657,23 @@ static ast_t* expand_type_alternatives(ast_t* type, size_t max_alternatives)
 
 // If type is a tuple containing union elements, expand it into an equivalent
 // union of tuples. Returns the expanded union, or NULL if no expansion is
-// needed or the expansion would be too large.
-static ast_t* expand_tuple_unions(ast_t* type)
+// needed. Sets *exceeded to true when the expansion exceeds the cap.
+static ast_t* expand_tuple_unions(ast_t* type, bool* exceeded)
 {
+  *exceeded = false;
+
   if(ast_id(type) != TK_TUPLETYPE)
     return NULL;
 
   ast_t* expanded = expand_type_alternatives(type, 256);
 
-  if((expanded == NULL) || (ast_childcount(expanded) <= 1))
+  if(expanded == NULL)
+  {
+    *exceeded = true;
+    return NULL;
+  }
+
+  if(ast_childcount(expanded) <= 1)
   {
     ast_free_unattached(expanded);
     return NULL;
@@ -693,7 +701,19 @@ static bool is_x_sub_union(ast_t* sub, ast_t* super, check_cap_t check_cap,
   // (cross-product) and check if every alternative is covered.
   if(ast_id(sub) == TK_TUPLETYPE)
   {
-    ast_t* expanded = expand_tuple_unions(sub);
+    bool exceeded = false;
+    ast_t* expanded = expand_tuple_unions(sub, &exceeded);
+
+    if(exceeded)
+    {
+      if(errorf != NULL)
+      {
+        ast_error(opt->check.errors, sub,
+          "tuple-of-unions subtype check exceeded the 256-alternative limit; "
+          "restructure your types to reduce the number of alternatives");
+      }
+      return false;
+    }
 
     if(expanded != NULL)
     {

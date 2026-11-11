@@ -1751,3 +1751,69 @@ TEST_F(SubTypeTest, MutuallyRecursiveInterfacesCompile)
 
   TEST_COMPILE(src);
 }
+
+
+TEST_F(SubTypeTest, TupleUnionExpansionAtLimit)
+{
+  // 4 classes x 4 tuple positions = 4^4 = 256 alternatives, exactly at the
+  // cap. The expansion should succeed — the only error is the type mismatch,
+  // not the limit error.
+  const char* src =
+    "class C1\n"
+    "class C2\n"
+    "class C3\n"
+    "class C4\n"
+
+    "type Big is\n"
+    "  ( (C1 | C2 | C3 | C4)\n"
+    "  , (C1 | C2 | C3 | C4)\n"
+    "  , (C1 | C2 | C3 | C4)\n"
+    "  , (C1 | C2 | C3 | C4) )\n"
+
+    "type Target is\n"
+    "  ( (C1, C1, C1, C1)\n"
+    "  | (C2, C2, C2, C2) )\n"
+
+    "primitive P\n"
+    "  fun apply(x: Big): Target =>\n"
+    "    x";
+
+  const char* errs[] = {
+    "function body isn't the result type",
+    NULL};
+  DO(test_expected_errors(src, "expr", errs));
+}
+
+
+TEST_F(SubTypeTest, TupleUnionExpansionExceedsLimit)
+{
+  // 4 classes x 5 tuple positions = 4^5 = 1024 alternatives, exceeding the
+  // 256-alternative cap. The compiler should report an error rather than
+  // silently falling back.
+  const char* src =
+    "class C1\n"
+    "class C2\n"
+    "class C3\n"
+    "class C4\n"
+
+    "type Big is\n"
+    "  ( (C1 | C2 | C3 | C4)\n"
+    "  , (C1 | C2 | C3 | C4)\n"
+    "  , (C1 | C2 | C3 | C4)\n"
+    "  , (C1 | C2 | C3 | C4)\n"
+    "  , (C1 | C2 | C3 | C4) )\n"
+
+    "type Target is\n"
+    "  ( (C1, C1, C1, C1, C1)\n"
+    "  | (C2, C2, C2, C2, C2) )\n"
+
+    "primitive P\n"
+    "  fun apply(x: Big): Target =>\n"
+    "    x";
+
+  const char* errs[] = {
+    "tuple-of-unions subtype check exceeded the 256-alternative limit",
+    "function body isn't the result type",
+    NULL};
+  DO(test_expected_errors(src, "expr", errs));
+}
