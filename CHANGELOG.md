@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix misaligned loads and stores in Array[U8] multi-byte accessors ([PR #6464](https://github.com/ponylang/ponyc/pull/6464))
 - Fix integer overflow in Array[U8] multi-byte bounds checks ([PR #6472](https://github.com/ponylang/ponyc/pull/6472))
 - Report an error for malformed `--features` and invalid `--cpu` values ([PR #6475](https://github.com/ponylang/ponyc/pull/6475))
+- Fix integer overflow in Array.copy_from and Array.copy_to bounds arithmetic ([PR #6481](https://github.com/ponylang/ponyc/pull/6481))
 
 ### Added
 
