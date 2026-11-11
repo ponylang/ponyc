@@ -10,14 +10,15 @@ use @ponyint_at_removedir[I32]()
 use @openat[I32](fd: I32, path: Pointer[U8] tag, flags: I32, ...)
   if linux or bsd
 use @unlinkat[I32](fd: I32, target: Pointer[U8] tag, flags: I32)
-use @futimes[I32](fildes: I32, tv: Pointer[(ILong, ILong, ILong, ILong)])
-  if not windows
+use @ponyint_futimes[I32](fd: I32, atime_sec: I64, atime_usec: I64,
+  mtime_sec: I64, mtime_usec: I64) if not windows
 use @renameat[I32](fd: I32, from: Pointer[U8] tag, tofd: I32,
   to_path: Pointer[U8] tag) if linux or bsd
 use @symlinkat[I32](source: Pointer[U8] tag, fd: I32,
   dst: Pointer[U8] tag) if linux or bsd
-use @futimesat[I32](fd: I32, path: Pointer[U8] tag,
-  timeval: Pointer[(ILong, ILong, ILong, ILong)]) if linux or bsd
+use @ponyint_futimesat[I32](fd: I32, path: Pointer[U8] tag,
+  atime_sec: I64, atime_usec: I64, mtime_sec: I64, mtime_usec: I64)
+  if linux or bsd
 use @fchownat[I32](fd: I32, path: Pointer[U8] tag, uid: U32, gid: U32,
   flags: I32) if linux or bsd
 use @fchmodat[I32](fd: I32, path: Pointer[U8] tag, mode: U32,
@@ -426,11 +427,13 @@ class Directory
       let path' = FilePath.from(path, target, path.caps)?
 
       ifdef linux or bsd then
-        var tv: (ILong, ILong, ILong, ILong) =
-          ( atime._1.ilong(), atime._2.ilong() / 1000,
-            mtime._1.ilong(), mtime._2.ilong() / 1000 )
-
-        0 == @futimesat(_fd, target.cstring(), addressof tv)
+        0 == @ponyint_futimesat(
+          _fd,
+          target.cstring(),
+          atime._1,
+          atime._2 / 1000,
+          mtime._1,
+          mtime._2 / 1000)
       else
         path'.set_time(atime, mtime)
       end

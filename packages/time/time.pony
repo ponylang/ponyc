@@ -10,11 +10,9 @@ use @"internal.x86.cpuid"[(I32, I32, I32, I32)](eax: I32)
 use @"internal.x86.rdtscp"[U64](aux: Pointer[I32])
 use @"llvm.x86.rdtsc"[U64]()
 use @"llvm.readcyclecounter"[U64]()
-use @time[I64](tloc: Pointer[None])
-use @clock_gettime[I32](clock: U32, ts: Pointer[(I64, I64)])
-  if lp64 and (linux or bsd)
-use @clock_gettime[I32](clock: U32, ts: Pointer[(I32, I32)])
-  if ilp32 and (linux or bsd)
+use @ponyint_cpu_time[I64]()
+use @ponyint_clock_gettime[Bool](clock: U32, sec: Pointer[I64],
+  nsec: Pointer[I64]) if linux or bsd
 use @clock_gettime_nsec_np[U64](clock: U32) if osx
 use @gettimeofday[I32](tp: Pointer[(I64, I64)], tzp: Pointer[None])
   if osx
@@ -84,7 +82,7 @@ primitive Time
     """
     The wall-clock adjusted system time.
     """
-    @time(USize(0))
+    @ponyint_cpu_time()
 
   fun millis(): U64 =>
     """
@@ -170,14 +168,11 @@ primitive Time
     """
     Return a clock time on linux and bsd.
     """
-    ifdef lp64 and (linux or bsd) then
-      var ts: (I64, I64) = (0, 0)
-      @clock_gettime(clock(), addressof ts)
-      ts
-    elseif ilp32 and (linux or bsd) then
-      var ts: (I32, I32) = (0, 0)
-      @clock_gettime(clock(), addressof ts)
-      (ts._1.i64(), ts._2.i64())
+    ifdef linux or bsd then
+      var sec: I64 = 0
+      var nsec: I64 = 0
+      @ponyint_clock_gettime(clock(), addressof sec, addressof nsec)
+      (sec, nsec)
     else
       compile_error "no clock_gettime"
     end

@@ -18,8 +18,8 @@ use @chmod[I32](path: Pointer[U8] tag, mode: U32)
   if not windows
 use @chown[I32](path: Pointer[U8] tag, uid: U32, gid: U32)
   if not windows
-use @utimes[I32](path: Pointer[U8] tag,
-  tv: Pointer[(ILong, ILong, ILong, ILong)]) if not windows
+use @ponyint_utimes[I32](path: Pointer[U8] tag, atime_sec: I64,
+  atime_usec: I64, mtime_sec: I64, mtime_usec: I64) if not windows
 use @_utime64[I32](path: Pointer[U8] tag, times: Pointer[(I64, I64)])
   if windows
 use @LookupPrivilegeValueA[U8](system_name: Pointer[None] tag,
@@ -444,11 +444,12 @@ class val FilePath
       var tv: (I64, I64) = (atime._1, mtime._1)
       0 == @_utime64(path.cstring(), addressof tv)
     else
-      var tv: (ILong, ILong, ILong, ILong) =
-        ( atime._1.ilong(), atime._2.ilong() / 1000,
-          mtime._1.ilong(), mtime._2.ilong() / 1000 )
-
-      0 == @utimes(path.cstring(), addressof tv)
+      0 == @ponyint_utimes(
+        path.cstring(),
+        atime._1,
+        atime._2 / 1000,
+        mtime._1,
+        mtime._2 / 1000)
     end
 
 struct ref _TokenPrivileges
