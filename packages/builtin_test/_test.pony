@@ -33,6 +33,7 @@ actor \nodoc\ Main is TestList
     test(_TestArrayFind)
     test(_TestArrayFromCPointer)
     test(_TestArrayCopyTo)
+    test(_TestArrayMultiByteOverflowBounds)
     test(_TestArrayInsert)
     test(_TestArrayReserveMinAlloc)
     test(_TestArraySlice)
@@ -2367,6 +2368,76 @@ class \nodoc\ iso _TestArrayCopyTo is UnitTest
     let dest12: Array[U8] = [4; 5; 6]
     src12.copy_to(dest12, 0, 100, 1)
     h.assert_array_eq[U8]([4; 5; 6], dest12)
+
+class \nodoc\ iso _TestArrayMultiByteOverflowBounds is UnitTest
+  fun name(): String => "builtin/Array.multibyte_overflow_bounds"
+
+  fun apply(h: TestHelper) ? =>
+    let arr: Array[U8] = [0; 1; 2; 3; 4; 5; 6; 7
+      8; 9; 10; 11; 12; 13; 14; 15]
+    let extreme = USize.max_value() - 1
+
+    // Valid boundary reads succeed
+    arr.read_u16(14)?
+    arr.read_u32(12)?
+    arr.read_u64(8)?
+    arr.read_u128(0)?
+
+    // One past boundary raises error
+    h.assert_error({()(arr) ? => arr.read_u16(15)? })
+    h.assert_error({()(arr) ? => arr.read_u32(13)? })
+    h.assert_error({()(arr) ? => arr.read_u64(9)? })
+    h.assert_error({()(arr) ? => arr.read_u128(1)? })
+
+    // Extreme offset that would wrap the old addition-based check
+    h.assert_error({()(arr) ? => arr.read_u16(extreme)? })
+    h.assert_error({()(arr) ? => arr.read_u32(extreme)? })
+    h.assert_error({()(arr) ? => arr.read_u64(extreme)? })
+    h.assert_error({()(arr) ? => arr.read_u128(extreme)? })
+
+    // Valid boundary updates succeed
+    var marr: Array[U8] = [0; 1; 2; 3; 4; 5; 6; 7
+      8; 9; 10; 11; 12; 13; 14; 15]
+    marr.update_u16(14, 0)?
+    marr.update_u32(12, 0)?
+    marr.update_u64(8, 0)?
+    marr.update_u128(0, 0)?
+
+    // One past boundary raises error
+    h.assert_error({()? =>
+      let a: Array[U8] = [as U8: 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0]
+      a.update_u16(15, 0)?
+    })
+    h.assert_error({()? =>
+      let a: Array[U8] = [as U8: 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0]
+      a.update_u32(13, 0)?
+    })
+    h.assert_error({()? =>
+      let a: Array[U8] = [as U8: 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0]
+      a.update_u64(9, 0)?
+    })
+    h.assert_error({()? =>
+      let a: Array[U8] = [as U8: 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0]
+      a.update_u128(1, 0)?
+    })
+
+    // Extreme offset that would wrap the old addition-based check
+    h.assert_error({()? =>
+      let a: Array[U8] = [as U8: 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0]
+      a.update_u16(USize.max_value() - 1, 0)?
+    })
+    h.assert_error({()? =>
+      let a: Array[U8] = [as U8: 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0]
+      a.update_u32(USize.max_value() - 1, 0)?
+    })
+    h.assert_error({()? =>
+      let a: Array[U8] = [as U8: 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0]
+      a.update_u64(USize.max_value() - 1, 0)?
+    })
+    h.assert_error({()? =>
+      let a: Array[U8] = [as U8: 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0]
+      a.update_u128(USize.max_value() - 1, 0)?
+    })
 
 class \nodoc\ iso _TestMath128 is UnitTest
   """
