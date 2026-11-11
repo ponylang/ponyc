@@ -32,7 +32,9 @@ actor \nodoc\ Main is TestList
     test(_TestArrayConcat)
     test(_TestArrayFind)
     test(_TestArrayFromCPointer)
+    test(_TestArrayCopyFrom)
     test(_TestArrayCopyTo)
+    test(_TestArrayCopyOverflowBounds)
     test(_TestArrayMultiByteOverflowBounds)
     test(_TestArrayInsert)
     test(_TestArrayReserveMinAlloc)
@@ -2288,6 +2290,60 @@ class \nodoc\ iso _TestArrayFromCPointer is UnitTest
     let arr = Array[U8].from_cpointer(Pointer[U8], 1, 1)
     h.assert_eq[USize](0, arr.size())
 
+class \nodoc\ iso _TestArrayCopyFrom is UnitTest
+  fun name(): String => "builtin/Array.copy_from"
+
+  fun apply(h: TestHelper) =>
+    // Copy entire source into empty destination
+    let src1: Array[U8] = [1; 2; 3; 4; 5]
+    let dst1: Array[U8] = []
+    dst1.copy_from(src1, 0, 0, 5)
+    h.assert_array_eq[U8]([1; 2; 3; 4; 5], dst1)
+
+    // Copy from a nonzero source offset
+    let src2: Array[U8] = [1; 2; 3; 4; 5]
+    let dst2: Array[U8] = []
+    dst2.copy_from(src2, 2, 0, 3)
+    h.assert_array_eq[U8]([3; 4; 5], dst2)
+
+    // Copy into the middle of destination, growing it
+    let src3: Array[U8] = [10; 20; 30]
+    let dst3: Array[U8] = [1; 2; 3]
+    dst3.copy_from(src3, 0, 1, 2)
+    h.assert_array_eq[U8]([1; 10; 20], dst3)
+
+    // len exceeds available source bytes — clamps to what's available
+    let src4: Array[U8] = [1; 2; 3]
+    let dst4: Array[U8] = []
+    dst4.copy_from(src4, 1, 0, 100)
+    h.assert_array_eq[U8]([2; 3], dst4)
+
+    // src_idx out of bounds — no-op
+    let src5: Array[U8] = [1; 2; 3]
+    let dst5: Array[U8] = [9; 8; 7]
+    dst5.copy_from(src5, 10, 0, 1)
+    h.assert_array_eq[U8]([9; 8; 7], dst5)
+
+    // len is zero — no-op
+    let src6: Array[U8] = [1; 2; 3]
+    let dst6: Array[U8] = [9; 8; 7]
+    dst6.copy_from(src6, 0, 0, 0)
+    h.assert_array_eq[U8]([9; 8; 7], dst6)
+
+    // Copy past end of destination — grows it
+    let src7: Array[U8] = [42]
+    let dst7: Array[U8] = [1; 2; 3]
+    dst7.copy_from(src7, 0, 5, 1)
+    h.assert_eq[USize](6, dst7.size())
+    h.assert_eq[U8](1, try dst7(0)? else 0 end)
+    h.assert_eq[U8](42, try dst7(5)? else 0 end)
+
+    // Empty source — no-op
+    let src8: Array[U8] = []
+    let dst8: Array[U8] = [1; 2; 3]
+    dst8.copy_from(src8, 0, 0, 5)
+    h.assert_array_eq[U8]([1; 2; 3], dst8)
+
 class \nodoc\ iso _TestArrayCopyTo is UnitTest
   fun name(): String =>
       "builtin/Array.copy_to"
@@ -2368,6 +2424,54 @@ class \nodoc\ iso _TestArrayCopyTo is UnitTest
     let dest12: Array[U8] = [4; 5; 6]
     src12.copy_to(dest12, 0, 100, 1)
     h.assert_array_eq[U8]([4; 5; 6], dest12)
+
+    // len is zero — no-op
+    let src13: Array[U8] = [1; 2; 3]
+    let dest13: Array[U8] = [4; 5; 6]
+    src13.copy_to(dest13, 0, 0, 0)
+    h.assert_array_eq[U8]([4; 5; 6], dest13)
+
+class \nodoc\ iso _TestArrayCopyOverflowBounds is UnitTest
+  fun name(): String => "builtin/Array.copy_overflow_bounds"
+
+  fun apply(h: TestHelper) =>
+    let extreme = USize.max_value() - 1
+
+    // copy_from: dst_idx that would wrap dst_idx + len to a small value
+    let cf_src1: Array[U8] = [1; 2; 3]
+    let cf_dst1: Array[U8] = [9; 8; 7]
+    cf_dst1.copy_from(cf_src1, 0, extreme, 3)
+    h.assert_array_eq[U8]([9; 8; 7], cf_dst1)
+
+    // copy_from: dst_idx = USize.max_value(), len = 1
+    let cf_src2: Array[U8] = [1]
+    let cf_dst2: Array[U8] = [9; 8; 7]
+    cf_dst2.copy_from(cf_src2, 0, USize.max_value(), 1)
+    h.assert_array_eq[U8]([9; 8; 7], cf_dst2)
+
+    // copy_from: src_idx + len would exceed source size
+    let cf_src3: Array[U8] = [1; 2; 3]
+    let cf_dst3: Array[U8] = []
+    cf_dst3.copy_from(cf_src3, 2, 0, 100)
+    h.assert_array_eq[U8]([3], cf_dst3)
+
+    // copy_from: extreme src_idx
+    let cf_src4: Array[U8] = [1; 2; 3]
+    let cf_dst4: Array[U8] = [9; 8; 7]
+    cf_dst4.copy_from(cf_src4, extreme, 0, 1)
+    h.assert_array_eq[U8]([9; 8; 7], cf_dst4)
+
+    // copy_to: append one element at dst boundary
+    let ct_src1: Array[U8] = [1; 2; 3]
+    let ct_dst1: Array[U8] = [9; 8; 7]
+    ct_src1.copy_to(ct_dst1, 0, 3, 1)
+    h.assert_array_eq[U8]([9; 8; 7; 1], ct_dst1)
+
+    // copy_to: dst_idx past dst size — no-op
+    let ct_src2: Array[U8] = [1; 2; 3]
+    let ct_dst2: Array[U8] = [9; 8; 7]
+    ct_src2.copy_to(ct_dst2, 0, 100, 1)
+    h.assert_array_eq[U8]([9; 8; 7], ct_dst2)
 
 class \nodoc\ iso _TestArrayMultiByteOverflowBounds is UnitTest
   fun name(): String => "builtin/Array.multibyte_overflow_bounds"
