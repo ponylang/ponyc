@@ -46,7 +46,7 @@ build lives on a dedicated data disk. These matter:
   `/etc/doas.conf`. Keep its `0600 root:wheel` permissions exactly — `doas` refuses to run
   with a group- or world-writable config.
 - **Cloud-init means no console driving.** Unlike the DragonFly skill there is no QEMU
-  `sendkey`/screendump/monitor dance — just boot and wait for ssh. But the **first** boot
+  serial-console/sendkey/monitor dance — just boot and wait for ssh. But the **first** boot
   runs cloud-init (user + key + `doas.conf`), so ssh is not instant; poll for it (Step 4).
 - **Build on the `/build` data disk, not `/home`.** OpenBSD's default disklabel confines
   writable space to `/home` (~10.8G), which the LLVM 22 build overflows. A second qcow2 is
@@ -206,8 +206,8 @@ two OpenBSD VMs at once, give each its own `$VMDIR` and a distinct hostfwd port 
 `127.0.0.1` so the port isn't open on every interface), and pass that port to every
 ssh/scp/rsync `-p`. The seed is attached as a **cdrom** — that is how
 OpenBSD's cloud-init finds the cidata volume; do not copy FreeBSD's raw-virtio-disk seed
-form here. This boot command is adapted from `.ci-scripts/bsd/openbsd-provision.bash`: it
-adds `-pidfile`/`-smp 8`, drops the CI host-bootstrap, and like CI uses no rng or monitor
+form here. This boot command is adapted from `.ci-scripts/bsd/openbsd-provision.bash` — see
+"How this relates to CI" for every difference; like CI it uses no rng or monitor
 device. The `pgrep -f`/`pkill -f` commands in Step 4 and Lifecycle spell the pattern
 `[q]emu-system-x86_64`, so they can't match the shell running them, whose own command line
 contains the pattern text.)
@@ -274,7 +274,8 @@ see Gotchas). Then raise the per-process `datasize` ceiling for the `openbsd` us
 treat this as intent, not a fixed substitution. OpenBSD's `/etc/login.conf` caps each
 process's data segment in the `default` login class (the class the `openbsd` user falls
 under), and the LLVM build needs roughly 4 GB, so both `datasize-cur` and `datasize-max`
-must end up at least `8192M` (what CI sets). On the stock OpenBSD 7.9 image both default to
+must end up at least `8192M` (CI sets `infinity`; `8192M` is a tighter bound that still
+has ample headroom). On the stock OpenBSD 7.9 image both default to
 `1536M`, so the two `sed`s below do it. But the goal is the `8192M` ceiling, not the literal
 `1536M`: if a future image ships a different default the `sed`s match nothing, so read the
 current values (the trailing `grep` prints them) and, if either is below `8192M`, raise it
@@ -403,8 +404,12 @@ safe:
   warning: a persistent VM reused on `localhost:2222` collides with the stale `known_hosts`
   entry from a prior VM. CI's ephemeral runners never reuse the port, so
   `openbsd-provision.bash` doesn't bother.
-- `-smp 8` / `-m 12G` for build speed (CI uses 4 / 12G), and a `-pidfile` for the lifecycle
-  commands.
+- `-cpu host` for native speed (CI pins `-cpu Skylake-Server-v4` for reproducibility).
+- `-smp 8` / `-m 12G` for build speed (CI uses 4 / 12G).
+- `-name`/`-pidfile` for the lifecycle `pgrep`/`pkill`/`kill` commands (CI's ephemeral
+  runner doesn't need them).
+- `datasize` raised to `8192M` (CI sets `infinity`; the tighter bound avoids masking a
+  runaway allocation).
 - `rsync --exclude='/build'` to skip the host's build artifacts (CI's fresh checkout has
   none).
 - No GHCR libs cache (that's token-gated CI plumbing) — you just run `cmake -P lib/build-libs.cmake` once.
@@ -413,5 +418,6 @@ The FreeBSD and DragonFly CI VMs follow the same shape
 (`.ci-scripts/bsd/{freebsd,dragonfly}-provision.bash`) and each has its own skill:
 `create-freebsd-dev-env` (also cloud-init, but base libc++, an `expect`/`su` root
 bootstrap, and the source under `/home/freebsd` rather than a `/build` disk) and
-`create-dragonfly-dev-env` (gcc-only, and it drives a VGA console). This skill is
+`create-dragonfly-dev-env` (gcc-only, and it drives a serial console with VGA-sendkey
+fallback). This skill is
 OpenBSD-only; load a sibling if you need one of those.
