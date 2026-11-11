@@ -65,3 +65,7 @@ musl defines `time_t` as 64-bit on all architectures, but the plain C symbol nam
 
 Time values now use the full 64-bit range on 32-bit musl. On glibc 32-bit systems, `time_t` is still 32 bits at the C level, so the Y2038 limit remains there — that is a glibc constraint, not a Pony one.
 
+## Fix floating-point arithmetic giving wrong results on 32-bit x86 without SSE2
+
+On 32-bit x86 targets whose CPU lacked SSE2, floating-point arithmetic could produce incorrect results that violated IEEE 754. ponyc now unconditionally enables SSE2 for all 32-bit x86 targets.
+
