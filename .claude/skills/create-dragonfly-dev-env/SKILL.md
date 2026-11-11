@@ -36,11 +36,13 @@ several steps:
   a here-string MUST go through an explicit `/bin/sh`:
   `ssh ... root@localhost /bin/sh <<'EOF' ... EOF`. A bare
   `ssh ... root@localhost 'cmd with $(...)'` fails with `Illegal variable name.`
-- **Boot timing is handled by the script.** `dfly_configure_vm.py` takes periodic VGA
-  screendumps and waits for the screen to stabilize before attempting login. It then types
-  three short commands via sendkey (login, mount the seed ISO, run the setup script) and
-  verifies SSH becomes reachable. If something goes wrong, check the diagnostic screendump
-  the script saves, or use the manual screendump helper (Step 5) to see the VM state.
+- **Boot timing is handled by the script.** `dfly_configure_vm.py` intercepts the
+  bootloader via VGA sendkey to redirect the console to serial, then drives login, mount,
+  and setup over the serial socket. If serial output never appears it falls back to the
+  legacy VGA sendkey path (screendump-based boot detection, then blind-typing the same
+  three commands). Either way, it verifies SSH becomes reachable. If something goes wrong,
+  the serial path's transcript is in the script's stdout; on the VGA fallback, check the
+  diagnostic screendump the script saves, or use the manual screendump helper (Step 5).
 - **A daemonized QEMU `chdir`s to `/`.** The monitor `screendump` (and any relative path
   the daemon writes) needs an **absolute** path, or it fails `Permission denied`.
 - **No `sudo` needed (and often unavailable).** CI loop-mounts the ISO with `sudo` to get
@@ -48,9 +50,9 @@ several steps:
 - **Detach long in-VM builds.** The libs build (LLVM) takes hours; run it
   `nohup … > /build/x.log 2>&1 &` and poll the log, so an ssh drop doesn't kill it.
 - **Reuse the CI console script verbatim.** `.ci-scripts/bsd/dfly_configure_vm.py`
-  types login + mount + setup via QEMU sendkey, then verifies SSH is reachable. The setup
-  script lives on the seed ISO created in Step 4. Copy the Python script, don't reimplement
-  the bootstrap or setup.
+  drives login + mount + setup over the serial console (falling back to VGA sendkey), then
+  verifies SSH is reachable. The setup script lives on the seed ISO created in Step 4.
+  Copy the Python script, don't reimplement the bootstrap or setup.
 
 ## Step 0 — verify prerequisites (do NOT assume they're installed)
 
@@ -196,14 +198,16 @@ own command line contains the pattern text.)
 
 ### 5. Run the console setup script
 
-The CI console script takes periodic VGA screendumps to detect when boot finishes, then
-types three short commands via sendkey (login as root, mount the seed ISO, run the setup
-script). It verifies SSH becomes reachable after each attempt, retrying if needed.
+The CI console script intercepts the bootloader via VGA sendkey to redirect the console
+to serial, then drives login, seed-ISO mount, and setup over the serial socket. If the
+serial path doesn't succeed it falls back to VGA sendkey (screendump-based boot
+detection, then blind-typing the same three commands). Either way, it verifies SSH
+becomes reachable, retrying if needed.
 
 The script lives in the repo at `.ci-scripts/bsd/dfly_configure_vm.py`. Copy it into
-`$VMDIR` (it connects to `dfly-monitor.sock` in its working directory) and run it there.
-Set `DFLY_ARTIFACTS_DIR` to the VM directory so the script can write screendumps for boot
-detection and diagnostics:
+`$VMDIR` (it connects to `dfly-monitor.sock` and `dfly-serial.sock` in its working
+directory) and run it there. Set `DFLY_ARTIFACTS_DIR` to the VM directory so the script
+can write screendumps for the VGA fallback and diagnostics:
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2; cd "$VMDIR"
@@ -422,9 +426,14 @@ unchanged**. The local setup deliberately differs from CI, and each difference i
   warning: a persistent VM reused on `localhost:2222` collides with the stale
   `known_hosts` entry from a prior VM. CI's ephemeral runners never reuse the port, so
   `dragonfly-provision.bash` doesn't bother.
+- `-cpu host` for native speed (CI pins `-cpu Skylake-Server-v4` for reproducibility).
 - `-smp 8` for build speed (CI uses 4).
-- Both use the seed ISO + sendkey approach with screendump-based boot detection; locally
+- `-name`/`-pidfile` for the lifecycle `pgrep`/`pkill`/`kill` commands (CI's ephemeral
+  runner doesn't need them).
+- Both use the seed ISO + serial-console approach (VGA sendkey as fallback); locally
   you can also use the manual screendump helper for ad-hoc debugging.
+- `rsync --exclude='/build'` to skip the host's build artifacts (CI's fresh checkout has
+  none).
 - No GHCR libs cache (that's token-gated CI plumbing) — you just run `cmake -P lib/build-libs.cmake` once.
 
 The FreeBSD and OpenBSD CI VMs follow the same shape

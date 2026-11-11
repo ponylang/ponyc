@@ -29,7 +29,7 @@ host** (silently) instead of in the VM. Keep every block whole. Pick your `VMDIR
 ## Gotchas that will bite you (read first)
 
 FreeBSD is much simpler to bring up than DragonFly (cloud-init injects the ssh key, so
-there is no VGA-console automation), but these still matter:
+there is no console automation), but these still matter:
 
 - **Per-block fresh shells.** See above: re-establish `VMDIR`/`FREEBSD_VERSION`/`SSH` in
   every block; never let `$SSH` be empty in front of a `/bin/sh` heredoc.
@@ -39,7 +39,7 @@ there is no VGA-console automation), but these still matter:
   `expect`/`su` bootstrap below installs the packages and configures passwordless `doas`,
   after which the rare root operation goes through `doas`.
 - **Cloud-init means no console driving.** Unlike the DragonFly skill there is no QEMU
-  `sendkey`/screendump/monitor dance — just boot and wait for ssh. But the **first** boot
+  serial-console/sendkey/monitor dance — just boot and wait for ssh. But the **first** boot
   runs `nuageinit` (key install) and `growfs` (root-fs auto-resize), so ssh is not
   instant; poll for it (Step 4).
 - **The root fs auto-grows; there is no growfs command to run.** `qemu-img resize ... 60G`
@@ -176,8 +176,8 @@ plus another version you want to compare against), give each its own `$VMDIR` an
 distinct hostfwd port (keep the `127.0.0.1` so the port isn't open on every interface),
 and pass that port to every ssh/scp/rsync `-p`. The seed drive stays attached — `nuageinit`
 skips it on later boots once the instance-id is seen. This boot command is adapted from
-`.ci-scripts/bsd/freebsd-provision.bash`: it adds `-pidfile`/`-smp 8` and drops the CI
-host-bootstrap; CI has no rng or monitor device for FreeBSD and neither does this. The
+`.ci-scripts/bsd/freebsd-provision.bash` — see "How this relates to CI" for every
+difference; CI has no rng or monitor device for FreeBSD and neither does this. The
 `pgrep -f`/`pkill -f` commands in Step 4 and Lifecycle spell the pattern
 `[q]emu-system-x86_64`, so they can't match the shell running them, whose own command line
 contains the pattern text.)
@@ -230,7 +230,7 @@ expect {
   "#" {}
   timeout { puts "Timeout waiting for root shell"; exit 1 }
 }
-send "pkg install -y cmake gmake libunwind git python3 rsync doas\r"
+send "pkg install -y cmake gmake libunwind git python3 rsync doas valgrind\r"
 expect {
   "#" {}
   timeout { puts "Timeout during pkg install"; exit 1 }
@@ -343,12 +343,18 @@ difference is safe:
   warning: a persistent VM reused on `localhost:2222` collides with the stale
   `known_hosts` entry from a prior VM. CI's ephemeral runners never reuse the port, so
   `freebsd-provision.bash` doesn't bother.
-- `-smp 8` for build speed (CI uses 4), and a `-pidfile` for the lifecycle commands.
+- `-cpu host` for native speed (CI pins `-cpu Skylake-Server-v4` for reproducibility).
+- `-smp 8` for build speed (CI uses 4).
+- `-name`/`-pidfile` for the lifecycle `pgrep`/`pkill`/`kill` commands (CI's ephemeral
+  runner doesn't need them).
+- `rsync --exclude='/build'` to skip the host's build artifacts (CI's fresh checkout has
+  none).
 - No GHCR libs cache (that's token-gated CI plumbing) — you just run `cmake -P lib/build-libs.cmake` once.
 
 The DragonFly and OpenBSD CI VMs follow the same shape
 (`.ci-scripts/bsd/{dragonfly,openbsd}-provision.bash`) and each has its own skill:
-`create-dragonfly-dev-env` (gcc-only, and it drives a VGA console) and
+`create-dragonfly-dev-env` (gcc-only, and it drives a serial console with VGA-sendkey
+fallback) and
 `create-openbsd-dev-env` (also cloud-init, but with static-PIE static-link checks, a raised
 `datasize` limit, and the source under a `/build` disk). This skill is FreeBSD-only; load a
 sibling if you need one of those.
