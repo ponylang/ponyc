@@ -26,6 +26,10 @@
 #include <llvm/IR/IntrinsicInst.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Module.h>
+#include <llvm/MC/MCSubtargetInfo.h>
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/TargetParser/Triple.h>
+#include <memory>
 
 #include "llvm_config_end.h"
 
@@ -413,6 +417,117 @@ TEST(CodegenPassInitTest, I686Sse2OverridesExplicitRemoval)
   EXPECT_GT(plus, minus);
   codegen_pass_cleanup(&opt);
   pass_opt_done(&opt);
+}
+
+// Reports whether LLVM, given the triple, CPU, and features that
+// codegen_pass_init produced, ends up with cx16 enabled. The features are
+// parsed by LLVM's MCSubtargetInfo, so a string holding both -cx16 and +cx16
+// resolves the same way it does in codegen.
+static void cx16_enabled(const pass_opt_t& opt, bool* enabled)
+{
+  llvm::Triple triple(opt.triple);
+  std::string error;
+  const llvm::Target* target = llvm::TargetRegistry::lookupTarget(triple,
+    error);
+  ASSERT_NE(target, nullptr) << error;
+  std::unique_ptr<llvm::MCSubtargetInfo> sti(
+    target->createMCSubtargetInfo(triple, opt.cpu, opt.features));
+  ASSERT_NE(sti, nullptr) << "no MCSubtargetInfo for " << opt.triple;
+  *enabled = sti->checkFeatures("+cx16");
+}
+
+// The runtime's 128-bit atomics need cx16 on x86-64, so it must end up enabled
+// whatever the user passed with --features, and the user's own entries must
+// be kept.
+TEST(CodegenPassInitTest, X86_64Cx16EnabledForAnyUserFeatures)
+{
+  const char* triples[] = {
+    "x86_64-unknown-linux-gnu",
+    "x86_64-apple-macosx",
+    "x86_64-pc-windows-msvc",
+  };
+  // "x86-64" names a CPU whose own feature set doesn't include cx16.
+  const char* cpus[] = { NULL, "x86-64" };
+  const char* features[] = {
+    NULL,
+    "-cx16",
+    "+cx16",
+    "+cx16,-cx16",
+    "-cx16,-cx16",
+    "+sse4.2,-cx16,+avx",
+  };
+
+  for(const char* t : triples)
+  {
+    for(const char* c : cpus)
+    {
+      for(const char* f : features)
+      {
+        SCOPED_TRACE(std::string("triple=") + t + " cpu="
+          + (c == NULL ? "(none)" : c) + " features="
+          + (f == NULL ? "(none)" : f));
+        pass_opt_t opt;
+        pass_opt_init(&opt);
+        opt.argv0 = test_argv0;
+        opt.triple = const_cast<char*>(t);
+        opt.cpu = const_cast<char*>(c);
+        opt.features = const_cast<char*>(f);
+        ASSERT_TRUE(codegen_pass_init(&opt));
+
+        if(f != NULL)
+          EXPECT_EQ(strncmp(opt.features, f, strlen(f)), 0)
+            << "user features not kept: " << opt.features;
+
+        bool enabled = false;
+        cx16_enabled(opt, &enabled);
+        EXPECT_TRUE(enabled) << "features: " << opt.features;
+
+        codegen_pass_cleanup(&opt);
+        pass_opt_done(&opt);
+      }
+    }
+  }
+}
+
+#if defined(__x86_64__) || defined(_M_X64)
+// A native build with no --triple or --cpu takes the host's triple and CPU, a
+// different path from the explicit-triple builds above.
+TEST(CodegenPassInitTest, X86_64HostCx16OverridesExplicitRemoval)
+{
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  opt.argv0 = test_argv0;
+  opt.features = const_cast<char*>("-cx16");
+  ASSERT_TRUE(codegen_pass_init(&opt));
+  bool enabled = false;
+  cx16_enabled(opt, &enabled);
+  EXPECT_TRUE(enabled) << "features: " << opt.features;
+  codegen_pass_cleanup(&opt);
+  pass_opt_done(&opt);
+}
+#endif
+
+// cx16 is an x86-64 feature; 32-bit x86 and other architectures don't get it.
+TEST(CodegenPassInitTest, NonX86_64TriplesGetNoCx16)
+{
+  const char* triples[] = {
+    "i686-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+  };
+
+  for(const char* t : triples)
+  {
+    SCOPED_TRACE(std::string("triple=") + t);
+    pass_opt_t opt;
+    pass_opt_init(&opt);
+    opt.argv0 = test_argv0;
+    opt.triple = const_cast<char*>(t);
+    ASSERT_TRUE(codegen_pass_init(&opt));
+    EXPECT_EQ(strstr(opt.features, "cx16"), nullptr)
+      << "features: " << opt.features;
+    codegen_pass_cleanup(&opt);
+    pass_opt_done(&opt);
+  }
 }
 
 
