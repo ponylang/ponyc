@@ -69,7 +69,6 @@ if pgrep -x sshd >/dev/null 2>&1; then
 fi
 dhclient vtnet0
 echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
-echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config
 mkdir -p /root/.ssh && chmod 700 /root/.ssh
 cp /mnt/authorized_keys /root/.ssh/authorized_keys
 chmod 600 /root/.ssh/authorized_keys
@@ -90,7 +89,7 @@ qemu-system-x86_64 \
   -drive file="$VM_ARTIFACTS/dfly.qcow2",format=qcow2,if=virtio \
   -drive file="$VM_ARTIFACTS/dfly-data.qcow2",format=qcow2,if=virtio \
   -drive file="$VM_ARTIFACTS/seed.iso",media=cdrom \
-  -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+  -netdev user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22 \
   -device virtio-net-pci,netdev=net0 \
   -object rng-random,id=rng0,filename=/dev/urandom \
   -device virtio-rng-pci,rng=rng0 \

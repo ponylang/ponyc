@@ -202,8 +202,9 @@ for the restore and build/push steps, rather than each job embedding
 its own inline `ssh` remote-exec. Each script holds its platform's ssh options, VM
 user, repo directory, build environment, compiler flags, and build-tree cleanup.
 The `<operation>` — one of `restore`, `build-push-branch`, `build-push-main` —
-selects the branch-cache restore, the branch-cache build and push (tier3, off
-main), or the main-cache build and push (the warmer).
+selects the libs-cache restore (main first, then the branch cache), the
+branch-cache build and push (tier3, off main), or the main-cache build and push
+(the warmer).
 
 Both sets of scripts are file-based, so Super-Linter's shellcheck covers them,
 which it could not do for the embedded `run:` blocks they replaced.

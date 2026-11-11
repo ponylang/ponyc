@@ -9,7 +9,7 @@
 # Run from the checkout root (where the provision step left vm_key).
 #
 # Usage: dragonfly-libs-cache.bash <operation>
-#   restore            pull the branch cache into the VM (tier3, on a cache hit)
+#   restore            pull the libs cache into the VM (tier3, on a cache hit)
 #   build-push-branch  build LLVM in the VM, push the branch cache (tier3, on a miss)
 #   build-push-main    build LLVM in the VM, push the main cache (the warmer)
 #
@@ -55,8 +55,8 @@ esac
 
 # The delimiter is unquoted on purpose: the values below must expand on the
 # runner, since they are not set inside the VM. The single quotes around each
-# value protect it in the VM's shell, and the token travels on stdin, never in
-# the VM's process arguments. DragonFly's root login shell is csh, so pipe an
+# value protect it in the VM's shell. Sending the script on stdin keeps the
+# token off the runner's ssh command line. DragonFly's root login shell is csh, so pipe an
 # explicit /bin/sh; the exported CC/CXX plus gcc13's runtime libs and CA bundle
 # are what the libs build and the push scripts run under.
 # shellcheck disable=SC2087

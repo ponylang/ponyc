@@ -69,7 +69,7 @@ qemu-system-x86_64 \
   -m 12G \
   -drive file="$VM_ARTIFACTS/freebsd.qcow2",format=qcow2,if=virtio \
   -drive file="$VM_ARTIFACTS/seed.img",format=raw,if=virtio \
-  -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+  -netdev user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22 \
   -device virtio-net-pci,netdev=net0 \
   -display none \
   -daemonize

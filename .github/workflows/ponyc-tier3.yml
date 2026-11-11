@@ -429,6 +429,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ inputs.ref }}
         run: |
           # The libs live in the VM but the .libs-cache-miss marker and its gate
           # live on the host, so the decision has to happen here, before the VM
@@ -439,7 +441,7 @@ jobs:
           if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
             echo "Libs present in the main GHCR cache."
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.ref }}" != "main" ]; then
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REF" != "main" ]; then
             if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
               echo "Libs present in the branch GHCR cache."
               echo "hit=true" >> "$GITHUB_OUTPUT"
@@ -551,6 +553,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ inputs.ref }}
         run: |
           # The libs live in the VM but the .libs-cache-miss marker and its gate
           # live on the host, so the decision has to happen here, before the VM
@@ -561,7 +565,7 @@ jobs:
           if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
             echo "Libs present in the main GHCR cache."
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.ref }}" != "main" ]; then
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REF" != "main" ]; then
             if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
               echo "Libs present in the branch GHCR cache."
               echo "hit=true" >> "$GITHUB_OUTPUT"
@@ -665,6 +669,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ inputs.ref }}
         run: |
           # The libs live in the VM but the .libs-cache-miss marker and its gate
           # live on the host, so the decision has to happen here, before the VM
@@ -675,7 +681,7 @@ jobs:
           if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
             echo "Libs present in the main GHCR cache."
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.ref }}" != "main" ]; then
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REF" != "main" ]; then
             if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
               echo "Libs present in the branch GHCR cache."
               echo "hit=true" >> "$GITHUB_OUTPUT"
