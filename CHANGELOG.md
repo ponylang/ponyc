@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `ponyc -r=ir` writing builtin's IR over the program's IR ([PR #6432](https://github.com/ponylang/ponyc/pull/6432))
 - Fix user package named `main` colliding with program module at link ([PR #6434](https://github.com/ponylang/ponyc/pull/6434))
 - Fix time functions truncating to 32 bits on 32-bit musl Linux ([PR #6444](https://github.com/ponylang/ponyc/pull/6444))
+- Fix floating-point arithmetic giving wrong results on 32-bit x86 without SSE2 ([PR #6454](https://github.com/ponylang/ponyc/pull/6454))
 
 ### Added
 
