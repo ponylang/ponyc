@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix time functions truncating to 32 bits on 32-bit musl Linux ([PR #6444](https://github.com/ponylang/ponyc/pull/6444))
 - Fix floating-point arithmetic giving wrong results on 32-bit x86 without SSE2 ([PR #6454](https://github.com/ponylang/ponyc/pull/6454))
 - Fix link failure on x86-64 when passing `--features=-cx16` ([PR #6461](https://github.com/ponylang/ponyc/pull/6461))
+- Fix misaligned loads and stores in Array[U8] multi-byte accessors ([PR #6464](https://github.com/ponylang/ponyc/pull/6464))
 
 ### Added
 
