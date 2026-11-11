@@ -689,6 +689,9 @@ class Array[A] is ResizableSeq[A]
     end
 
     let copy_len = len.min(seq.size() - offset)
+    if _size > (USize.max_value() - copy_len) then
+      return
+    end
     reserve(_size + copy_len)
 
     var n = USize(0)
@@ -730,6 +733,9 @@ class Array[A] is ResizableSeq[A]
     // iterator actually has that many elements available. Reserving ahead
     // of time lets us take a fast path of direct pointer access.
     if len != -1 then
+      if _size > (USize.max_value() - len) then
+        return
+      end
       reserve(_size + len)
 
       try
