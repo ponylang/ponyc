@@ -6,10 +6,11 @@
 #include "util.h"
 
 #include <codegen/genexe.h>
+#include <codegen/gencshim.h>
+#include <codegen/genopt.h>
 #include <ast/error.h>
 
 #ifdef PLATFORM_IS_LINUX
-#include <codegen/genopt.h>
 #include <llvm-c/Core.h>
 #include <string>
 #include <vector>
@@ -415,11 +416,7 @@ TEST(CodegenPassInitTest, I686Sse2OverridesExplicitRemoval)
   pass_opt_done(&opt);
 }
 
-// Reports whether LLVM, given the triple, CPU, and features that
-// codegen_pass_init produced, ends up with cx16 enabled. The features are
-// parsed by LLVM's MCSubtargetInfo, so a string holding both -cx16 and +cx16
-// resolves the same way it does in codegen.
-static void cx16_enabled(const pass_opt_t& opt, bool* enabled)
+static void check_x86_64_required_features(const pass_opt_t& opt)
 {
   llvm::Triple triple(opt.triple);
   std::string error;
@@ -429,28 +426,37 @@ static void cx16_enabled(const pass_opt_t& opt, bool* enabled)
   std::unique_ptr<llvm::MCSubtargetInfo> sti(
     target->createMCSubtargetInfo(triple, opt.cpu, opt.features));
   ASSERT_NE(sti, nullptr) << "no MCSubtargetInfo for " << opt.triple;
-  *enabled = sti->checkFeatures("+cx16");
+  EXPECT_TRUE(sti->checkFeatures("+cx16")) << opt.features;
+  EXPECT_TRUE(sti->checkFeatures("+sse")) << opt.features;
+  EXPECT_TRUE(sti->checkFeatures("+sse2")) << opt.features;
+  EXPECT_TRUE(sti->checkFeatures("+64bit")) << opt.features;
+  EXPECT_TRUE(sti->checkFeatures("+64bit-mode")) << opt.features;
 }
 
-// The runtime's 128-bit atomics need cx16 on x86-64, so it must end up enabled
-// whatever the user passed with --features, and the user's own entries must
-// be kept.
-TEST(CodegenPassInitTest, X86_64Cx16EnabledForAnyUserFeatures)
+TEST(CodegenPassInitTest, X86_64RequiredFeaturesOverrideUserRemoval)
 {
   const char* triples[] = {
     "x86_64-unknown-linux-gnu",
     "x86_64-apple-macosx",
     "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnux32",
   };
   // "x86-64" names a CPU whose own feature set doesn't include cx16.
   const char* cpus[] = { NULL, "x86-64" };
   const char* features[] = {
     NULL,
+    "",
     "-cx16",
     "+cx16",
     "+cx16,-cx16",
     "-cx16,-cx16",
     "+sse4.2,-cx16,+avx",
+    "-sse",
+    "-sse2",
+    "-64bit",
+    "-64bit-mode",
+    "-sse,-sse2,-64bit,-64bit-mode,-cx16",
+    "+sse2,-sse2,+64bit,-64bit,+64bit-mode,-64bit-mode",
   };
 
   for(const char* t : triples)
@@ -474,9 +480,7 @@ TEST(CodegenPassInitTest, X86_64Cx16EnabledForAnyUserFeatures)
           EXPECT_EQ(strncmp(opt.features, f, strlen(f)), 0)
             << "user features not kept: " << opt.features;
 
-        bool enabled = false;
-        cx16_enabled(opt, &enabled);
-        EXPECT_TRUE(enabled) << "features: " << opt.features;
+        check_x86_64_required_features(opt);
 
         codegen_pass_cleanup(&opt);
         pass_opt_done(&opt);
@@ -488,23 +492,21 @@ TEST(CodegenPassInitTest, X86_64Cx16EnabledForAnyUserFeatures)
 #if defined(__x86_64__) || defined(_M_X64)
 // A native build with no --triple or --cpu takes the host's triple and CPU, a
 // different path from the explicit-triple builds above.
-TEST(CodegenPassInitTest, X86_64HostCx16OverridesExplicitRemoval)
+TEST(CodegenPassInitTest, X86_64HostRequiredFeaturesOverrideUserRemoval)
 {
   pass_opt_t opt;
   pass_opt_init(&opt);
   opt.argv0 = test_argv0;
-  opt.features = const_cast<char*>("-cx16");
+  opt.features = const_cast<char*>(
+    "-sse,-sse2,-64bit,-64bit-mode,-cx16");
   ASSERT_TRUE(codegen_pass_init(&opt));
-  bool enabled = false;
-  cx16_enabled(opt, &enabled);
-  EXPECT_TRUE(enabled) << "features: " << opt.features;
+  check_x86_64_required_features(opt);
   codegen_pass_cleanup(&opt);
   pass_opt_done(&opt);
 }
 #endif
 
-// cx16 is an x86-64 feature; 32-bit x86 and other architectures don't get it.
-TEST(CodegenPassInitTest, NonX86_64TriplesGetNoCx16)
+TEST(CodegenPassInitTest, NonX86_64TriplesGetNo64BitRequirements)
 {
   const char* triples[] = {
     "i686-unknown-linux-gnu",
@@ -521,9 +523,76 @@ TEST(CodegenPassInitTest, NonX86_64TriplesGetNoCx16)
     ASSERT_TRUE(codegen_pass_init(&opt));
     EXPECT_EQ(strstr(opt.features, "cx16"), nullptr)
       << "features: " << opt.features;
+    EXPECT_EQ(strstr(opt.features, "64bit"), nullptr)
+      << "features: " << opt.features;
+    if(!target_is_x86(opt.triple))
+      EXPECT_STREQ(opt.features, "");
     codegen_pass_cleanup(&opt);
     pass_opt_done(&opt);
   }
+}
+
+TEST(CodegenPassInitTest, X86_64OptionalFeaturesRemainConfigurable)
+{
+  const char* features[] = { "+avx2,-avx2", "-avx2,+avx2" };
+
+  for(size_t i = 0; i < 2; i++)
+  {
+    SCOPED_TRACE(features[i]);
+    std::string input = std::string(
+      "-sse,-sse2,-64bit,-64bit-mode,-cx16,") + features[i];
+    pass_opt_t opt;
+    pass_opt_init(&opt);
+    opt.argv0 = test_argv0;
+    opt.triple = const_cast<char*>("x86_64-unknown-linux-gnu");
+    opt.cpu = const_cast<char*>("x86-64");
+    opt.features = const_cast<char*>(input.c_str());
+    ASSERT_TRUE(codegen_pass_init(&opt));
+    check_x86_64_required_features(opt);
+
+    llvm::Triple triple(opt.triple);
+    std::string error;
+    const llvm::Target* target = llvm::TargetRegistry::lookupTarget(triple,
+      error);
+    ASSERT_NE(target, nullptr) << error;
+    std::unique_ptr<llvm::MCSubtargetInfo> sti(
+      target->createMCSubtargetInfo(triple, opt.cpu, opt.features));
+    ASSERT_NE(sti, nullptr);
+    EXPECT_EQ(sti->checkFeatures("+avx2"), i == 1) << opt.features;
+
+    codegen_pass_cleanup(&opt);
+    pass_opt_done(&opt);
+  }
+}
+
+TEST(CodegenPassInitTest, CShimPreservesRequiredFeatureOrder)
+{
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  opt.argv0 = test_argv0;
+  opt.triple = const_cast<char*>("x86_64-unknown-linux-gnu");
+  opt.features = const_cast<char*>(
+    "-sse,-sse2,-64bit,-64bit-mode,-cx16");
+  ASSERT_TRUE(codegen_pass_init(&opt));
+  check_x86_64_required_features(opt);
+
+  std::vector<const char*> args;
+  cshim_target_args(&opt, args);
+  std::string features;
+  for(size_t i = 0; i < args.size(); i++)
+  {
+    if(strcmp(args[i], "-target-feature") == 0)
+    {
+      ASSERT_LT(i + 1, args.size());
+      if(!features.empty())
+        features += ',';
+      features += args[++i];
+    }
+  }
+  EXPECT_EQ(features, opt.features);
+
+  codegen_pass_cleanup(&opt);
+  pass_opt_done(&opt);
 }
 
 struct pass_init_result_t
