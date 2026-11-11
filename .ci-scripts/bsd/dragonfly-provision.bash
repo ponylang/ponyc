@@ -25,7 +25,18 @@ echo "::endgroup::"
 
 echo "::group::Install QEMU"
 sudo apt-get update -q
-sudo apt-get install -y -q qemu-utils qemu-system-x86 genisoimage
+for attempt in 1 2 3; do
+  if sudo apt-get install -y -q qemu-utils qemu-system-x86 genisoimage; then
+    break
+  fi
+  if [ "$attempt" -eq 3 ]; then
+    echo "apt-get install failed after 3 attempts"
+    exit 1
+  fi
+  echo "apt-get install failed (attempt $attempt/3), retrying after apt-get update..."
+  sleep 10
+  sudo apt-get update -q
+done
 sudo chmod 666 /dev/kvm
 echo "::endgroup::"
 
