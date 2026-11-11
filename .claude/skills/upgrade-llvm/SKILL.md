@@ -160,9 +160,9 @@ release on Linux, macOS, and Windows, and separately builds and runs
 `pony-compiler-tests`. A failure that only shows up in one config, or on one
 platform, will not appear here.
 
-To reproduce a tier-3 BSD failure, the `create-dragonfly-dev-env`,
-`create-freebsd-dev-env`, and `create-openbsd-dev-env` skills stand up a local
-VM matching that CI job.
+To reproduce a tier-3 BSD or i386 failure, the `create-dragonfly-dev-env`,
+`create-freebsd-dev-env`, `create-openbsd-dev-env`, and `create-i386-dev-env`
+skills stand up a local VM matching that CI job.
 
 ### 8. Add a release note
 
