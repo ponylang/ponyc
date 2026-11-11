@@ -22,11 +22,14 @@ ERROR = '\033[31m'
 INFO = '\033[34m'
 
 # Exit codes for the cache primitives (exists, pull, push). Callers that shell
-# out to these scripts branch on the exit code to distinguish a definite cache
-# miss (the artifact is not present) from an error (auth failure, network error,
-# 5xx, bad input, etc.). Argparse uses exit 2 for usage errors, so the error
-# code must avoid that.
-EXIT_MISS = 1
+# out to these scripts read 0 as present, EXIT_MISS as a definite cache miss
+# (the artifact is not present), and any other code as an error. EXIT_MISS must
+# be a code the interpreter and the shell never produce on their own: Python
+# exits 1 on an uncaught exception and 2 on a usage error or a script it can't
+# open, and a failing shell command can exit 1, so a crash on either would
+# otherwise read as a miss. `die` exits EXIT_ERROR for the errors the scripts
+# detect themselves.
+EXIT_MISS = 4
 EXIT_ERROR = 3
 
 # Paths to the cache entry scripts, shared so the orchestrators

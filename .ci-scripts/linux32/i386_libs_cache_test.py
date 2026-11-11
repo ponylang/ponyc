@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Self-contained tests for i386-libs-cache.bash's host-side exit codes.
 
-Callers read exit 1 as a definite cache miss and exit 3 as an error, so the
-script's own failures must exit 3 and the cache scripts' 0/1/3 must pass
-through unchanged. Each case runs a copy of the script in a temporary directory
-with a stub `python3` first on PATH.
+Callers read exit 0 as present, EXIT_MISS as a definite cache miss, and any
+other code as an error. The script's own failures exit 3 (EXIT_ERROR), and the
+cache scripts' exit codes must pass through unchanged. Each case runs a copy of
+the script in a temporary directory with a stub `python3` first on PATH.
 
 Run: python3 .ci-scripts/linux32/i386_libs_cache_test.py
 Exits 0 if every check passes, 1 otherwise.
@@ -16,10 +16,15 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'libs-cache'))
+from common import EXIT_ERROR, EXIT_MISS  # noqa: E402
 SCRIPT = os.path.join(HERE, 'i386-libs-cache.bash')
 ENV_FILE = os.path.join(HERE, 'i386-alpine.env')
 
 FAILURES = []
+
+# The exit code of a Python script that dies on an uncaught exception.
+PYTHON_CRASH = 1
 
 STUB = """#!/bin/sh
 printf '%s\\n' "$*" >> "$STUB_LOG"
@@ -69,14 +74,14 @@ HOST_OPS = ('exists-main', 'exists-branch', 'promote')
 
 
 def test_own_errors_exit_3():
-    check("no operation", run([])[0], 3)
-    check("unknown operation", run(['bogus'])[0], 3)
+    check("no operation", run([])[0], EXIT_ERROR)
+    check("unknown operation", run(['bogus'])[0], EXIT_ERROR)
     for op in HOST_OPS:
-        check(f"{op}, no env file", run([op], env_file=None)[0], 3)
+        check(f"{op}, no env file", run([op], env_file=None)[0], EXIT_ERROR)
         check(f"{op}, env file without ALPINE_BRANCH",
-              run([op], env_file='ALPINE_RELEASE=3.24.4\n')[0], 3)
-        check(f"{op}, LIBS_TAG unset", run([op], libs_tag=None)[0], 3)
-        check(f"{op}, LIBS_TAG empty", run([op], libs_tag='')[0], 3)
+              run([op], env_file='ALPINE_RELEASE=3.24.4\n')[0], EXIT_ERROR)
+        check(f"{op}, LIBS_TAG unset", run([op], libs_tag=None)[0], EXIT_ERROR)
+        check(f"{op}, LIBS_TAG empty", run([op], libs_tag='')[0], EXIT_ERROR)
 
 
 def test_own_errors_skip_the_cache_script():
@@ -87,7 +92,7 @@ def test_own_errors_skip_the_cache_script():
 
 def test_cache_exit_codes_pass_through():
     for op in HOST_OPS:
-        for rc in (0, 1, 3):
+        for rc in (0, EXIT_MISS, EXIT_ERROR, PYTHON_CRASH):
             check(f"{op}, cache script exits {rc}",
                   run([op], stub_rc=rc)[0], rc)
 

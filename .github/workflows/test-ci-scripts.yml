@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - '.ci-scripts/**'
-      - '.github/workflows/test-ci-scripts.yml'
+      - '.github/workflows/**'
 
 concurrency:
   group: test-ci-scripts-${{ github.ref }}

@@ -5,13 +5,15 @@
 # push it, and check the VM's CPU and toolchain. Run from the checkout root.
 #
 # Usage: i386-libs-cache.bash <operation>
-#   Host-side, before or without the VM. exists-main and exists-branch exit 0
-#   if present, 1 on a miss, 3 on an error; promote exits 0 or 3. A missing or
-#   unknown operation, an unreadable i386-alpine.env, and a missing LIBS_TAG
-#   also exit 3, so none of them reads as a miss:
+#   Host-side, before or without the VM:
 #     exists-main        is the libs package in the main cache?
 #     exists-branch      is it in the branch cache?
 #     promote            copy it from the branch cache into the main cache
+#   exists-main and exists-branch exit 0 if present, EXIT_MISS (from
+#   ../libs-cache/common.py) on a miss, and any other code on an error. promote
+#   has no miss code: it exits 0 on success and nonzero on any failure. A
+#   missing or unknown operation, an unreadable i386-alpine.env, and a missing
+#   LIBS_TAG exit 3.
 #   In the VM booted by i386-provision.bash (`ssh ponyc-i386-vm`):
 #     restore            pull the libs (main cache, then branch cache) into the VM
 #     build-push-branch  build LLVM in the VM, push the branch cache
@@ -65,7 +67,6 @@ case \"\$llvm_triple\" in
   *) echo \"LLVM's default triple is '\$llvm_triple', not 32-bit x86\" >&2; exit 1 ;;
 esac"
 
-# A missing LIBS_TAG is an error, not a miss, so exit 3 rather than the shell's 1.
 require_libs_tag() {
   if [ -z "${LIBS_TAG:-}" ]; then
     echo "set LIBS_TAG" >&2
