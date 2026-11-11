@@ -6,6 +6,7 @@
 #include "util.h"
 
 #include <codegen/genexe.h>
+#include <ast/error.h>
 
 #ifdef PLATFORM_IS_LINUX
 #include <codegen/genopt.h>
@@ -523,6 +524,179 @@ TEST(CodegenPassInitTest, NonX86_64TriplesGetNoCx16)
     codegen_pass_cleanup(&opt);
     pass_opt_done(&opt);
   }
+}
+
+struct pass_init_result_t
+{
+  bool accepted;
+  std::vector<std::string> errors;
+  std::string llvm_output;
+};
+
+// Runs codegen_pass_init with the given --triple, --cpu and --features values
+// (NULL for an option not given). llvm_output is what was written to stderr
+// during the call; ponyc's own errors are collected, not printed, so any
+// output there comes from LLVM.
+static pass_init_result_t pass_init_with(const char* triple, const char* cpu,
+  const char* features)
+{
+  pass_init_result_t result;
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  opt.argv0 = test_argv0;
+  opt.triple = const_cast<char*>(triple);
+  opt.cpu = const_cast<char*>(cpu);
+  opt.features = const_cast<char*>(features);
+  testing::internal::CaptureStderr();
+  result.accepted = codegen_pass_init(&opt);
+  result.llvm_output = testing::internal::GetCapturedStderr();
+  for(errormsg_t* e = errors_get_first(opt.check.errors); e != NULL;
+    e = e->next)
+    result.errors.push_back(e->msg);
+  codegen_pass_cleanup(&opt);
+  pass_opt_done(&opt);
+  return result;
+}
+
+TEST(CodegenPassInitTest, FeaturesWithEmptyEntryRejected)
+{
+  const char* features[] = {
+    "+sse4.2,",
+    ",+sse4.2",
+    "+sse4.2,,+avx",
+    ",",
+  };
+
+  for(const char* f : features)
+  {
+    SCOPED_TRACE(std::string("features=") + f);
+    pass_init_result_t r =
+      pass_init_with("x86_64-unknown-linux-gnu", NULL, f);
+    EXPECT_FALSE(r.accepted);
+    std::vector<std::string> expected = {
+      std::string("invalid --features value \"") + f
+        + "\": empty feature entry"
+    };
+    EXPECT_EQ(r.errors, expected);
+  }
+}
+
+TEST(CodegenPassInitTest, FeaturesWithoutSignRejected)
+{
+  const char* cases[][2] = {
+    { "cx16", "cx16" },
+    { "+sse4.2, +avx", " +avx" },
+    { "+sse4.2,avx", "avx" },
+  };
+
+  for(auto& c : cases)
+  {
+    SCOPED_TRACE(std::string("features=") + c[0]);
+    pass_init_result_t r =
+      pass_init_with("x86_64-unknown-linux-gnu", NULL, c[0]);
+    EXPECT_FALSE(r.accepted);
+    std::vector<std::string> expected = {
+      std::string("invalid --features value \"") + c[0] + "\": feature \""
+        + c[1] + "\" must start with '+' or '-'"
+    };
+    EXPECT_EQ(r.errors, expected);
+  }
+}
+
+TEST(CodegenPassInitTest, WellFormedFeaturesAccepted)
+{
+  // LLVM ignores an unknown feature name with a warning, so only the format
+  // is checked.
+  const char* features[] = {
+    "",
+    "+sse4.2",
+    "+sse4.2,-avx",
+    "+notafeature",
+  };
+
+  for(const char* f : features)
+  {
+    SCOPED_TRACE(std::string("features=") + f);
+    pass_init_result_t r =
+      pass_init_with("x86_64-unknown-linux-gnu", NULL, f);
+    EXPECT_TRUE(r.accepted);
+    EXPECT_TRUE(r.errors.empty());
+  }
+}
+
+TEST(CodegenPassInitTest, InvalidCpuRejected)
+{
+  const char* cases[][2] = {
+    { "x86_64-unknown-linux-gnu", "bogus" },
+    { "x86_64-unknown-linux-gnu", "athlon-xp" },
+    { "x86_64-unknown-linux-gnu", "generic" },
+    { "x86_64-unknown-linux-gnu", "help" },
+    { "i686-unknown-linux-gnu", "bogus" },
+    { "aarch64-unknown-linux-gnu", "bogus" },
+    { "aarch64-unknown-linux-gnu", "help" },
+    { "riscv64-unknown-linux-gnu", "bogus" },
+    { "riscv64-unknown-linux-gnu", "generic-rv32" },
+    { "riscv64-unknown-linux-gnu", "rocket" },
+    { "riscv32-unknown-linux-gnu", "generic-rv64" },
+  };
+
+  for(auto& c : cases)
+  {
+    SCOPED_TRACE(std::string("triple=") + c[0] + " cpu=" + c[1]);
+    pass_init_result_t r = pass_init_with(c[0], c[1], NULL);
+    EXPECT_FALSE(r.accepted);
+    std::vector<std::string> expected = {
+      std::string("invalid --cpu value \"") + c[1]
+        + "\": not a recognized processor for target " + c[0]
+    };
+    EXPECT_EQ(r.errors, expected);
+    EXPECT_EQ(r.llvm_output, "");
+  }
+}
+
+TEST(CodegenPassInitTest, ValidCpuAccepted)
+{
+  const char* cases[][2] = {
+    { "x86_64-unknown-linux-gnu", "" },
+    { "x86_64-unknown-linux-gnu", "x86-64" },
+    { "x86_64-unknown-linux-gnu", "znver3" },
+    { "i686-unknown-linux-gnu", "athlon-xp" },
+    { "aarch64-unknown-linux-gnu", "generic" },
+    { "arm64-apple-macosx", "apple-m1" },
+    { "riscv64-unknown-linux-gnu", "generic-rv64" },
+    { "riscv32-unknown-linux-gnu", "generic-rv32" },
+  };
+
+  for(auto& c : cases)
+  {
+    SCOPED_TRACE(std::string("triple=") + c[0] + " cpu=" + c[1]);
+    pass_init_result_t r = pass_init_with(c[0], c[1], NULL);
+    EXPECT_TRUE(r.accepted);
+    EXPECT_TRUE(r.errors.empty());
+  }
+}
+
+// A triple with no target is reported when the target machine is created.
+// Checking the CPU first would report the CPU instead of the triple.
+TEST(CodegenPassInitTest, UnknownTripleLeavesCpuUnchecked)
+{
+  pass_init_result_t r = pass_init_with("bogus-thing", "bogus", NULL);
+  EXPECT_TRUE(r.accepted);
+  EXPECT_TRUE(r.errors.empty());
+}
+
+TEST(CodegenPassInitTest, InvalidFeaturesAndCpuBothReported)
+{
+  pass_init_result_t r =
+    pass_init_with("x86_64-unknown-linux-gnu", "bogus", "cx16");
+  EXPECT_FALSE(r.accepted);
+  std::vector<std::string> expected = {
+    "invalid --features value \"cx16\": feature \"cx16\" must start with "
+      "'+' or '-'",
+    "invalid --cpu value \"bogus\": not a recognized processor for target "
+      "x86_64-unknown-linux-gnu"
+  };
+  EXPECT_EQ(r.errors, expected);
 }
 
 
