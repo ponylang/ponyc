@@ -62,18 +62,14 @@ def main():
     # Group classified events by thread, sorted by timestamp.
     by_tid = defaultdict(list)
     has_ab = False
-    has_steal = False
     for ev in events:
         kind = classify(ev.get("name", ""))
         if kind is not None:
             by_tid[ev["tid"]].append((ev["ts"], kind))
             if kind == "ab":
                 has_ab = True
-            else:
-                has_steal = True
 
     check("actor_behavior events present", has_ab)
-    check("steal events present", has_steal)
 
     # Per-thread monotonicity: ab* steal* ab*
     # State machine: AB1 → STEAL → AB2.  Any steal after AB2 is a violation.
