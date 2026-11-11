@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix link failure on x86-64 when passing `--features=-cx16` ([PR #6461](https://github.com/ponylang/ponyc/pull/6461))
 - Fix misaligned loads and stores in Array[U8] multi-byte accessors ([PR #6464](https://github.com/ponylang/ponyc/pull/6464))
 - Fix integer overflow in Array[U8] multi-byte bounds checks ([PR #6472](https://github.com/ponylang/ponyc/pull/6472))
+- Report an error for malformed `--features` and invalid `--cpu` values ([PR #6475](https://github.com/ponylang/ponyc/pull/6475))
 
 ### Added
 
