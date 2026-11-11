@@ -7,7 +7,8 @@ endif()
 
 execute_process(
     COMMAND "${COMPILER}" --mutate --mutate-operators=aor,uoi
-        --mutate-scope=_sum.pony --mutate-scope=_default.pony -b mutation-monomorphization
+        --mutate-scope=_sum.pony --mutate-scope=_default.pony
+        -b mutation-monomorphization
         --output "${OUTPUT}" "${TEST_SRC}"
     RESULT_VARIABLE _rc
     OUTPUT_VARIABLE _out
@@ -104,4 +105,5 @@ elseif(_out STREQUAL "5\n1")
 else()
     message(FATAL_ERROR "default mutant changed wrong copies: '${_out}'")
 endif()
-message(STATUS "PASS: shared selection, applicable coverage, independent defaults")
+message(STATUS
+    "PASS: shared selection, applicable coverage, independent defaults")

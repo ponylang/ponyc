@@ -92,8 +92,8 @@ LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
 LLVMValueRef mutate_sc_flip(compile_t* c, ast_t* ast, bool is_and,
   LLVMValueRef l_value);
 
-// Record the two BOR mutants (xor->and, xor->or) for a Bool xor site.
-// Records both mutant IDs and increments their coverage counters.
+// Record the two BOR mutants (xor->and, xor->or) for a Bool xor site and
+// emit their coverage increments at the current insertion point.
 void mutate_sc_xor_record(compile_t* c, ast_t* ast,
   int32_t* and_id_out, int32_t* or_id_out);
 

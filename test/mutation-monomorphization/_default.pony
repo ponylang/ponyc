@@ -4,4 +4,3 @@ trait \nodoc\ _Default
 
 primitive \nodoc\ _First is _Default
 primitive \nodoc\ _Second is _Default
-

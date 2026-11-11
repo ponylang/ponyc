@@ -1066,7 +1066,7 @@ else()
 
     add_test(NAME mutation-monomorphization
         COMMAND ${CMAKE_COMMAND}
-            -DCOMPILER=${PONY_OUTPUT_DIR}/ponyc${CMAKE_EXECUTABLE_SUFFIX}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
             -DOUTPUT=${PONY_OUTPUT_DIR}/mutation-monomorphization
             -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-monomorphization
             -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationMonomorphization.cmake)

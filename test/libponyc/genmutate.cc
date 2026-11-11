@@ -4360,7 +4360,6 @@ TEST_F(GenMutateCodegenTest, ShortCircuitCategoryIndependence)
     << "and-false then-arm has AOR under ALL";
 }
 
-// Bool xor has xor->and and xor->or replacements.
 TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCodegen)
 {
   const char* src =
@@ -4544,7 +4543,8 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCoverageTiming)
                 if(coverage_block != nullptr)
                   EXPECT_EQ(coverage_block, &bb);
                 coverage_block = &bb;
-                EXPECT_TRUE(covered.insert((int32_t)ci->getSExtValue()).second);
+                EXPECT_TRUE(covered.insert(
+                  (int32_t)ci->getSExtValue()).second);
               }
             }
           }
