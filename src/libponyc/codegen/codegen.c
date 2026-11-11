@@ -974,6 +974,24 @@ bool codegen_pass_init(pass_opt_t* opt)
     free(extended);
   }
 
+  // On 32-bit x86, LLVM lowers floating-point arithmetic to x87 when SSE2 is
+  // absent. x87 holds intermediates in 80-bit extended-precision registers
+  // without rounding to double or single precision between operations, so
+  // results can differ from IEEE 754. Appended last so it takes precedence
+  // over an earlier -sse2 in the string.
+  if(target_is_x86(opt->triple) && target_is_ilp32(opt->triple))
+  {
+    size_t len = strlen(opt->features);
+    const char* suffix = (len == 0) ? "+sse2" : ",+sse2";
+    size_t slen = strlen(suffix);
+    char* extended = (char*)malloc(len + slen + 1);
+    memcpy(extended, opt->features, len);
+    memcpy(extended + len, suffix, slen + 1);
+    LLVMDisposeMessage(opt->features);
+    opt->features = LLVMCreateMessage(extended);
+    free(extended);
+  }
+
   return true;
 }
 

@@ -85,9 +85,9 @@ if [ -n "${GITHUB_ENV:-}" ]; then
 fi
 
 echo "::group::Boot Alpine VM"
-# coreduo is a 32-bit CPU with SSE2. ponyc generates code for the host CPU's
-# features, and without SSE2 that code does F64 math on x87, whose wider
-# registers give results that differ from SSE2 machines. KVM otherwise reports
+# coreduo is a 32-bit CPU with SSE2. ponyc unconditionally enables SSE2 for
+# 32-bit x86 targets, so the VM needs SSE2 to execute the generated code. KVM
+# otherwise reports
 # the host's vendor, and LLVM names the same model differently on AMD, so the
 # vendor is fixed. One socket per vCPU: with a single multi-core socket this CPU
 # model makes the guest report every vCPU as a hyperthread of one core, and the

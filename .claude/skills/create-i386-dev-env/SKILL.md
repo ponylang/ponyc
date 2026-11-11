@@ -66,9 +66,8 @@ boots Alpine's netboot kernel and initramfs directly, and its root filesystem is
 - **The loopback interface is down after a netboot.** The runtime and stdlib tests bind
   to `127.0.0.1`, so Step 5 runs `ip link set lo up` each boot.
 - **CPU: `-cpu coreduo,vendor=GenuineIntel` and one socket per vCPU.** coreduo is a
-  32-bit CPU with SSE2. ponyc generates code for the host CPU's features, and without SSE2
-  that code does F64 math on x87, whose wider registers give results that differ from SSE2
-  machines (a `pentium3` CPU fails json tests this way). KVM otherwise reports the host's
+  32-bit CPU with SSE2. ponyc unconditionally enables SSE2 for 32-bit x86 targets, so
+  the VM needs SSE2 to execute the generated code. KVM otherwise reports the host's
   vendor, and LLVM names the same CPU model differently on AMD, so the vendor is fixed.
   `-smp N,sockets=N,cores=1,threads=1` gives each vCPU its own socket: with one multi-core
   socket, this CPU model makes the guest report every vCPU as a hyperthread of one core,
