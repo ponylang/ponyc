@@ -164,7 +164,7 @@ qemu-system-x86_64 \
   -machine pc,accel=kvm:hvf -cpu host -smp 8 -m 12G \
   -drive file=freebsd.qcow2,format=qcow2,if=virtio \
   -drive file=seed.img,format=raw,if=virtio \
-  -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+  -netdev user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22 \
   -device virtio-net-pci,netdev=net0 \
   -display none -pidfile freebsd.pid -daemonize
 ```
@@ -173,10 +173,14 @@ qemu-system-x86_64 \
 it never silently falls back to slow TCG. `-smp`/`-m` are speed knobs; CI uses 4 CPUs /
 12G. `hostfwd 2222->22` is the ssh port — to run two FreeBSD VMs at once (e.g. CI's 15.1
 plus another version you want to compare against), give each its own `$VMDIR` and a
-distinct hostfwd port, and pass that port to every ssh/scp/rsync `-p`. The seed drive stays attached — `nuageinit` skips it on
-later boots once the instance-id is seen. This boot command is adapted from
+distinct hostfwd port (keep the `127.0.0.1` so the port isn't open on every interface),
+and pass that port to every ssh/scp/rsync `-p`. The seed drive stays attached — `nuageinit`
+skips it on later boots once the instance-id is seen. This boot command is adapted from
 `.ci-scripts/bsd/freebsd-provision.bash`: it adds `-pidfile`/`-smp 8` and drops the CI
-host-bootstrap; CI has no rng or monitor device for FreeBSD and neither does this.)
+host-bootstrap; CI has no rng or monitor device for FreeBSD and neither does this. The
+`pgrep -f`/`pkill -f` commands in Step 4 and Lifecycle spell the pattern
+`[q]emu-system-x86_64`, so they can't match the shell running them, whose own command line
+contains the pattern text.)
 
 ### 4. Wait for ssh (first boot runs nuageinit + growfs)
 
@@ -194,12 +198,13 @@ done
 If ssh never comes up, this VM has no VGA console to look at (it booted headless), so
 diagnose in this order:
 
-- **Is the process alive?** `pgrep -af "qemu-system-x86_64 -name freebsd-${FREEBSD_VERSION}"`.
+- **Is the process alive?** `FREEBSD_VERSION=15.1; pgrep -af "[q]emu-system-x86_64 -name freebsd-${FREEBSD_VERSION}"`.
   If it's gone, the boot died early (usually a bad/incomplete image from Step 1) — re-check
   the Step 1 download/resize and re-boot.
 - **Watch the boot.** The image logs to the serial console, so re-boot with a serial log
-  added — `kill "$(cat freebsd.pid)"`, then re-run the Step 3 boot command with
-  `-serial file:$VMDIR/console.log` appended — and read `console.log` to see how far it got.
+  added — `kill "$(cat ~/vms/freebsd-15.1/freebsd.pid)"`, then re-run the Step 3 boot command
+  with `-serial file:$VMDIR/console.log` appended — and read `console.log` to see how far it
+  got.
 - **ssh actively *refuses* the key (vs. just timing out)?** That means `nuageinit` never
   installed it — the seed didn't apply. Confirm `seed.img` is attached as a drive in the
   boot command (Step 3) and was built in Step 2, then re-boot.
@@ -312,12 +317,12 @@ CI-matching issue.
 
 ```sh
 VMDIR=~/vms/freebsd-15.1; FREEBSD_VERSION=15.1; cd "$VMDIR"
-pgrep -af "qemu-system-x86_64 -name freebsd-${FREEBSD_VERSION}"        # status
+pgrep -af "[q]emu-system-x86_64 -name freebsd-${FREEBSD_VERSION}"        # status
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i vm_key -p 2222 freebsd@localhost   # interactive shell
 # stop: CI stops this VM by killing the process; do the same. Disks persist for next time.
 # The pgrep/pkill are scoped to this version so a second FreeBSD VM (e.g. another
 # version you're comparing against) isn't matched; the pidfile path is per-$VMDIR anyway.
-kill "$(cat freebsd.pid)" 2>/dev/null || pkill -f "qemu-system-x86_64 -name freebsd-${FREEBSD_VERSION}"
+kill "$(cat freebsd.pid)" 2>/dev/null || pkill -f "[q]emu-system-x86_64 -name freebsd-${FREEBSD_VERSION}"
 ```
 
 To restart later, re-run the step-3 boot command (the disk and installed deps persist; you
