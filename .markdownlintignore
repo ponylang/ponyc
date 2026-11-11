@@ -6,3 +6,4 @@ CODE_OF_CONDUCT.md
 .ci-scripts/**
 .claude/**
 **/AGENTS.md
+.agents/**

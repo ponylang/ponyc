@@ -290,12 +290,12 @@ PR_NUM=${PR_URL##*/}
 Block until all PR checks complete, then merge if they pass:
 
 ```bash
-gh pr checks "$PR_NUM" --watch --exit-status
+gh pr checks "$PR_NUM" --watch
 gh pr merge "$PR_NUM" --squash --delete-branch
 git checkout main && git pull
 ```
 
-`--watch --exit-status` blocks until checks finish and exits non-zero if any failed. If checks fail: **STOP**. Read the failure with `gh pr checks "$PR_NUM"` to see which check, drill into its logs, and surface to the human. Don't retry the merge.
+`--watch` blocks until checks finish and the command exits non-zero if any failed. If checks fail: **STOP**. Read the failure with `gh pr checks "$PR_NUM"` to see which check, drill into its logs, and surface to the human. Don't retry the merge.
 
 `--squash --delete-branch` matches the ponylang merge convention (repos under the ponylang and seantallen-org GitHub orgs only allow squash merges) and removes both the remote and local branch. The `git checkout main && git pull` afterward returns you to an up-to-date main.
 
