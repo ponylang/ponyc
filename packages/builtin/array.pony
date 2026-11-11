@@ -234,7 +234,7 @@ class Array[A] is ResizableSeq[A]
     Reads a U16 from offset. This is only allowed for an array of U8s.
     """
     let u16_bytes = U16(0).bytewidth()
-    if (offset + u16_bytes) <= _size then
+    if (u16_bytes <= _size) and (offset <= (_size - u16_bytes)) then
       _ptr._offset(offset)._convert[U16]()._apply_unaligned(0)
     else
       error
@@ -245,7 +245,7 @@ class Array[A] is ResizableSeq[A]
     Reads a U32 from offset. This is only allowed for an array of U8s.
     """
     let u32_bytes = U32(0).bytewidth()
-    if (offset + u32_bytes) <= _size then
+    if (u32_bytes <= _size) and (offset <= (_size - u32_bytes)) then
       _ptr._offset(offset)._convert[U32]()._apply_unaligned(0)
     else
       error
@@ -256,7 +256,7 @@ class Array[A] is ResizableSeq[A]
     Reads a U64 from offset. This is only allowed for an array of U8s.
     """
     let u64_bytes = U64(0).bytewidth()
-    if (offset + u64_bytes) <= _size then
+    if (u64_bytes <= _size) and (offset <= (_size - u64_bytes)) then
       _ptr._offset(offset)._convert[U64]()._apply_unaligned(0)
     else
       error
@@ -267,7 +267,7 @@ class Array[A] is ResizableSeq[A]
     Reads a U128 from offset. This is only allowed for an array of U8s.
     """
     let u128_bytes = U128(0).bytewidth()
-    if (offset + u128_bytes) <= _size then
+    if (u128_bytes <= _size) and (offset <= (_size - u128_bytes)) then
       _ptr._offset(offset)._convert[U128]()._apply_unaligned(0)
     else
       error
@@ -298,7 +298,7 @@ class Array[A] is ResizableSeq[A]
     Write a U16 at offset. This is only allowed for an array of U8s.
     """
     let u16_bytes = U16(0).bytewidth()
-    if (offset + u16_bytes) <= _size then
+    if (u16_bytes <= _size) and (offset <= (_size - u16_bytes)) then
       _ptr._offset(offset)._convert[U16]()._update_unaligned(0, value)
     else
       error
@@ -309,7 +309,7 @@ class Array[A] is ResizableSeq[A]
     Write a U32 at offset. This is only allowed for an array of U8s.
     """
     let u32_bytes = U32(0).bytewidth()
-    if (offset + u32_bytes) <= _size then
+    if (u32_bytes <= _size) and (offset <= (_size - u32_bytes)) then
       _ptr._offset(offset)._convert[U32]()._update_unaligned(0, value)
     else
       error
@@ -320,7 +320,7 @@ class Array[A] is ResizableSeq[A]
     Write a U64 at offset. This is only allowed for an array of U8s.
     """
     let u64_bytes = U64(0).bytewidth()
-    if (offset + u64_bytes) <= _size then
+    if (u64_bytes <= _size) and (offset <= (_size - u64_bytes)) then
       _ptr._offset(offset)._convert[U64]()._update_unaligned(0, value)
     else
       error
@@ -331,7 +331,7 @@ class Array[A] is ResizableSeq[A]
     Write a U128 at offset. This is only allowed for an array of U8s.
     """
     let u128_bytes = U128(0).bytewidth()
-    if (offset + u128_bytes) <= _size then
+    if (u128_bytes <= _size) and (offset <= (_size - u128_bytes)) then
       _ptr._offset(offset)._convert[U128]()._update_unaligned(0, value)
     else
       error
