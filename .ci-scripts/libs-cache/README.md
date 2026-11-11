@@ -76,6 +76,14 @@ essential twice over:
    so the two must canonicalize to the same name or the host could never see what
    the VM wrote.
 
+Normalization doesn't help when host and VM are different ISAs. The i386 VM
+reports `i686` while the x86_64 runner that checks for its package reports
+`x86_64`. `package-name`, `exists`, and `promote_libs_cache.py` take `--arch`;
+`pull` and `push` run in the VM and don't accept it. The host-side i386 steps go
+through `.ci-scripts/linux32/i386-libs-cache.bash` (`exists-main`,
+`exists-branch`, `promote`), which supplies the label, derived from
+`ALPINE_BRANCH` in `i386-alpine.env`, and `--arch i686`.
+
 Changing an ISA's canonical spelling — or any part of the package-name shape —
 renames the package. The old-named main-cache artifacts are then orphaned, and
 `prune` (which keeps N *per package*) never reclaims a package that stopped
@@ -110,15 +118,16 @@ of the most-used caches. So the build-outs run in three sequential stages:
    `x86_64-macos`, `arm64-windows`) — the rest of what `release.yml` and
    `nightlies.yml` pull.
 3. **Everything else** (`x86_64-linux-other`, which is fedora plus the cross
-   images; `freebsd`; `openbsd`; `dragonflybsd`) — tier2, tier3, and weekly-only
-   platforms.
+   image; `freebsd`; `openbsd`; `dragonflybsd`; `i386-linux`) — tier2, tier3,
+   and weekly-only platforms.
 
-Those last seven builds — the four `x86_64-linux-other` matrix legs and the three
-BSD VMs — each take two to three hours, so stage 3 is capped at two running at
-once: `x86_64-linux-other` carries `max-parallel: 2`, the BSD jobs `needs:`
-`x86_64-linux-other` so the VMs never overlap the container legs, and
-`dragonflybsd` also `needs:` `freebsd`. Removing any one of those re-opens the
-stage to more than two.
+Those last six builds — the two `x86_64-linux-other` matrix legs and the four
+VMs (three BSD, one i386 Linux) — each take two to three hours, so stage 3 is
+capped at two running at once: the VM jobs `needs:` `x86_64-linux-other` so the
+VMs never overlap the container legs, `dragonflybsd` also `needs:` `freebsd`,
+and `i386-linux` also `needs:` `openbsd`. Removing any one of those re-opens the
+stage to more than two. `x86_64-linux-other` also carries `max-parallel: 2`,
+which keeps its legs at two if more are added.
 
 Each later stage `needs:` only the prior stage's *fast* jobs, Linux and macOS,
 and never Windows — a Windows build kicks off in its stage but must never gate
@@ -180,7 +189,7 @@ and tier3's `Send alert on failure` are left as a plain `failure()` rather than
 gated on `schedule` like the stress one — an on-main skip never fails, so it
 stays silent, but a manual-run build or test failure still alerts.
 
-### Builder images and the BSD VMs
+### Builder images and the VMs
 
 The container-platform name is derived from the builder image reference by
 `IMAGE_RE` (via `derive_platform`) in `registry.py`. The contract is
@@ -188,26 +197,32 @@ The container-platform name is derived from the builder image reference by
 breaks that format fails the step loudly. Update `IMAGE_RE` if the naming
 convention changes.
 
-The BSD VMs have no builder image, so they use explicit per-version labels
-(`freebsd-15.1`, `openbsd-7.9`, `dragonfly-6.4.2`, and so on). The warmer boots
-those VMs to build and push; the `ponyc-tier3.yml` BSD jobs pull. Each threads
-`GITHUB_TOKEN` into the VM over ssh, like every other consumer.
+The VMs have no builder image, so they use explicit per-version labels
+(`freebsd-15.1`, `openbsd-7.9`, `dragonfly-6.4.2`, `alpine3.24`). The warmer
+boots those VMs to build and push; the `ponyc-tier3.yml` VM jobs pull. Each
+threads `GITHUB_TOKEN` into the VM over ssh, like every other consumer.
 
 VM provisioning is shared, not duplicated: both workflows call
-`.ci-scripts/bsd/{freebsd,openbsd,dragonfly}-provision.bash` from a single
-`Provision VM` step. Those scripts free disk, install QEMU, download the image,
-boot the VM, install dependencies, and rsync the checkout in. DragonFly's script
-shells out to `.ci-scripts/bsd/dfly_configure_vm.py`, the QEMU `sendkey` console
-automation, which reads the ssh public key from `PUB_KEY`. Change VM setup in the
-script, not in two copies of YAML. `freebsd-provision.bash` takes
-`FREEBSD_VERSION` and installs `doas` plus a `doas.conf` unconditionally — it
-is harmless to the warmer and simplifies any operation that needs root in the VM.
+`.ci-scripts/bsd/{freebsd,openbsd,dragonfly}-provision.bash` or
+`.ci-scripts/linux32/i386-provision.bash` from a single `Provision VM` step.
+Those scripts free disk, install QEMU, download the image (for i386, Alpine's
+netboot kernel and initramfs), boot the VM, install dependencies, and rsync the
+checkout in. DragonFly's script shells out to
+`.ci-scripts/bsd/dfly_configure_vm.py`, the QEMU `sendkey` console automation,
+which reads the ssh public key from `PUB_KEY`. Change VM setup in the script, not
+in two copies of YAML. `freebsd-provision.bash` takes `FREEBSD_VERSION` and
+installs `doas` plus a `doas.conf` unconditionally — it is harmless to the warmer
+and simplifies any operation that needs root in the VM.
 
 The in-VM libs handling is shared per platform the same way the provisioning is.
 Both workflows call `.ci-scripts/bsd/{freebsd,openbsd,dragonfly}-libs-cache.bash <operation>`
-for the restore and build/push steps, rather than each job embedding
-its own inline `ssh` remote-exec. Each script holds its platform's ssh options, VM
-user, repo directory, build environment, compiler flags, and build-tree cleanup.
+or `.ci-scripts/linux32/i386-libs-cache.bash <operation>` for the restore and
+build/push steps, rather than each job embedding its own inline `ssh`
+remote-exec. Each BSD script holds its platform's ssh options, VM user, repo
+directory, build environment, compiler flags, and build-tree cleanup; for i386
+the ssh options and VM user are in the `ponyc-i386-vm` host alias that
+`i386-provision.bash` writes, and `i386-libs-cache.bash` also has host-side
+operations and a `check-32bit` operation.
 The `<operation>` — one of `restore`, `build-push-branch`, `build-push-main` —
 selects the libs-cache restore (main first, then the branch cache), the
 branch-cache build and push (tier3, off main), or the main-cache build and push
@@ -243,7 +258,7 @@ that output. `Restore libs` (`hit == 'true'`) pulls with `--require-cache-hit
 --branch-cache` and does not build. `Build libs` (`hit == 'false'`) builds LLVM in
 the VM and pushes the branch cache with `branch_libs_cache.py push`, mirroring the
 warmer's in-VM build but writing the branch cache rather than main. So off main,
-tier3 does capture BSD builds to the branch cache, and a re-dispatch of the same
+tier3 does capture VM builds to the branch cache, and a re-dispatch of the same
 branch reuses them. This is why tier3 holds `packages: write`.
 
 ### Retention and clearing

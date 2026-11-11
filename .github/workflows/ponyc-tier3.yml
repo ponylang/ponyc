@@ -210,198 +210,200 @@ jobs:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: ghcr.io/ponylang/ponyc-ci-i386-unknown-linux-alpine3.24-builder:20261109
-            name: i386 Linux
-
-    name: ${{ matrix.name }}
+    # A QEMU VM booting Alpine's 32-bit kernel, not a --platform linux/386
+    # container. A container shares the runner's 64-bit kernel. That kernel
+    # reports x86_64, so the vendored LLVM defaults to an x86_64 target, and the
+    # 64-bit kernel gives a 32-bit process 4 GB of address space instead of a
+    # real i386 kernel's 3 GB.
+    name: i386 Linux
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
         with:
           ref: ${{ inputs.ref || github.sha }}
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Pull Docker image
-        run: docker pull --platform linux/386 ${{ matrix.image }}
-      - name: Restore libs
+          persist-credentials: false
+      - name: Check libs cache
+        id: check
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-          LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DJOBS=2 -P lib/build-libs.cmake') || '' }}
+          REF: ${{ inputs.ref }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
-            -e GITHUB_REPOSITORY \
-            -e GITHUB_ACTOR \
-            -e LIBS_IMAGE="${{ matrix.image }}" \
-            -e LIBS_TAG="$LIBS_TAG" \
-            -e LIBS_MODE="$LIBS_MODE" \
-            -e LIBS_BUILD="$LIBS_BUILD" \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD'
+          # The libs live in the VM but the .libs-cache-miss marker and its gate
+          # live on the host, so the decision has to happen here, before the VM
+          # boots. Off main (a manual dispatch of a branch): build LLVM in the VM if
+          # it isn't cached (hit=false; the "Build libs" step pushes it). On main (a
+          # scheduled run, or a dispatch left on main): if it isn't cached, write
+          # the marker and skip -- we don't build LLVM on main.
+          if bash .ci-scripts/linux32/i386-libs-cache.bash exists-main; then
+            echo "Libs present in the main GHCR cache."
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$REF" != "main" ]; then
+            if bash .ci-scripts/linux32/i386-libs-cache.bash exists-branch; then
+              echo "Libs present in the branch GHCR cache."
+              echo "hit=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Off-main manual run, cache miss; the VM will build LLVM."
+              echo "hit=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            touch .libs-cache-miss
+            echo "::notice::i386 libs cache miss (tag $LIBS_TAG) on a main run; skipping this tier-3 run. The warmer refills it on the next push to main."
+          fi
+      - name: Provision VM
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: bash .ci-scripts/linux32/i386-provision.bash
+      - name: Restore libs
+        if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: bash .ci-scripts/linux32/i386-libs-cache.bash restore
+      - name: Build libs
+        if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        # Push to the branch cache so a re-dispatch of the branch reuses the build.
+        run: bash .ci-scripts/linux32/i386-libs-cache.bash build-push-branch
+      - name: Check 32-bit environment
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: bash .ci-scripts/linux32/i386-libs-cache.bash check-32bit
       - name: Build Debug Runtime
+        id: build-debug
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            sh -c "cmake --preset debug && cmake --build --preset debug && cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests"
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          cmake --preset debug
+          cmake --build --preset debug
+          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          EOF
+      - name: Check ponyc builds i386 programs
+        if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
+        run: |
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          mkdir -p /tmp/hello
+          printf 'actor Main\n  new create(env: Env) =>\n    env.out.print("hello from i386")\n' > /tmp/hello/main.pony
+          PONYPATH="$PWD/packages" ./build/debug/ponyc -o /tmp/hello /tmp/hello
+          # ELF header: class 1 is 32-bit, machine 3 is i386.
+          test "$(od -An -tx1 -j4 -N1 /tmp/hello/hello | tr -d ' ')" = 01
+          test "$(od -An -tx1 -j18 -N2 /tmp/hello/hello | tr -d ' ')" = 0300
+          # LLVM's default triple says gnu; the program only runs if ponyc
+          # linked it against musl's loader.
+          /tmp/hello/hello
+          EOF
       - name: Test with Debug Runtime (debug codegen)
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
-            -e PONY_DEBUG=1 \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            ctest --preset debug -L ci-core -E "^stdlib$"
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          PONY_DEBUG=1 ctest --preset debug -L ci-core -E "^stdlib$"
+          EOF
       - name: Per-package stdlib (debug codegen)
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
-            -e PONY_DEBUG=1 \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            sh .ci-scripts/i386-stdlib-perpkg.sh debug
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          PONY_DEBUG=1 sh .ci-scripts/i386-stdlib-perpkg.sh debug
+          EOF
       - name: Test with Debug Runtime (release codegen)
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            ctest --preset debug -R "^full-programs$"
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          ctest --preset debug -R "^full-programs$"
+          EOF
       - name: Per-package stdlib (release codegen)
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            sh .ci-scripts/i386-stdlib-perpkg.sh debug
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          sh .ci-scripts/i386-stdlib-perpkg.sh debug
+          EOF
       - name: Build Release Runtime
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        id: build-release
+        # Runs even if a debug test step failed, so one failure doesn't hide the
+        # rest of the job's results.
+        if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            sh -c "cmake --preset release && cmake --build --preset release"
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          cmake --preset release
+          cmake --build --preset release
+          EOF
       - name: Test with Release Runtime (debug codegen)
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ !cancelled() && steps.build-release.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
-            -e PONY_DEBUG=1 \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            ctest --preset release -L ci-core -E "^stdlib$"
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          PONY_DEBUG=1 ctest --preset release -L ci-core -E "^stdlib$"
+          EOF
       - name: Per-package stdlib (release runtime, debug codegen)
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ !cancelled() && steps.build-release.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
-            -e PONY_DEBUG=1 \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            sh .ci-scripts/i386-stdlib-perpkg.sh release
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          PONY_DEBUG=1 sh .ci-scripts/i386-stdlib-perpkg.sh release
+          EOF
       - name: Test with Release Runtime (release codegen)
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ !cancelled() && steps.build-release.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            ctest --preset release -R "^full-programs$"
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          ctest --preset release -R "^full-programs$"
+          EOF
       - name: Per-package stdlib (release runtime, release codegen)
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ !cancelled() && steps.build-release.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            sh .ci-scripts/i386-stdlib-perpkg.sh release
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          sh .ci-scripts/i386-stdlib-perpkg.sh release
+          EOF
       - name: Test pony-doc
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            ctest --preset debug -R pony-doc-tests
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          ctest --preset debug -R pony-doc-tests
+          EOF
       - name: Test pony-lint
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            ctest --preset debug -R pony-lint-tests
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          ctest --preset debug -R pony-lint-tests
+          EOF
       - name: Test pony-lsp
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            ctest --preset debug -R pony-lsp-tests
+          ssh ponyc-i386-vm <<'EOF'
+          set -e
+          cd /build/ponyc
+          ctest --preset debug -R pony-lsp-tests
+          EOF
+      - name: Show VM console
+        # Guest kernel messages (OOM kills, panics) land here, not in the ssh steps.
+        if: ${{ failure() && env.VM_CONSOLE != '' }}
+        run: cat "$VM_CONSOLE"
+      - name: Shutdown VM
+        if: ${{ always() && hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          pkill -f qemu-system-i386 || true
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

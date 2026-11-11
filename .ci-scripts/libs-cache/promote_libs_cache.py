@@ -20,7 +20,8 @@ promote is safe to call defensively. A promote failure is non-fatal to the warme
 it falls through to a normal build.
 
 Stdlib only. Usage:
-    promote_libs_cache.py (--image <ref> | --platform <label>) --tag <hash>
+    promote_libs_cache.py (--image <ref> | --platform <label>) [--arch <arch>]
+                          --tag <hash>
 """
 
 import argparse
@@ -36,6 +37,7 @@ def main(argv):
     sel = parser.add_mutually_exclusive_group(required=True)
     sel.add_argument('--image', help='builder image reference')
     sel.add_argument('--platform', help='literal platform label')
+    parser.add_argument('--arch', help=registry.ARCH_HELP)
     parser.add_argument('--tag', required=True, help='hashFiles content hash')
     args = parser.parse_args(argv[1:])
 

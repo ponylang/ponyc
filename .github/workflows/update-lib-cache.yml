@@ -24,7 +24,7 @@ jobs:
   #   Stage 2 - platforms releases/nightlies pull: x86_64-linux-release,
   #             arm64-linux, x86_64-macos, arm64-windows
   #   Stage 3 - everything else: x86_64-linux-other (fedora + cross), freebsd,
-  #             openbsd, dragonflybsd
+  #             openbsd, dragonflybsd, i386-linux
   #
   # Each later stage gates (`needs:`) on the prior stage's FAST jobs only - Linux
   # and macOS - and deliberately NOT on Windows, whose builds are slow: a Windows
@@ -34,14 +34,14 @@ jobs:
   # order; each job's `needs:` and comment state its stage.
   #
   # Stage 3's six builds - the two x86_64-linux-other matrix legs, the
-  # three BSD VMs, and the i386 container - are each 2-3h, so the stage is
-  # capped at AT MOST 2 running at once to bound runner-pool use. Four things
+  # three BSD VMs, and the i386 VM - are each 2-3h, so the stage is
+  # capped at AT MOST 2 running at once to bound runner-pool use. Three things
   # together enforce that, and removing any one re-opens the stage to more
-  # than 2: x86_64-linux-other carries `max-parallel: 2` for its two legs;
-  # freebsd/openbsd/i386-linux `needs:` x86_64-linux-other, so they never
-  # run alongside the container legs; i386-linux additionally `needs:`
-  # openbsd, so the four non-container jobs run 2 at a time; and
-  # dragonflybsd additionally `needs:` freebsd, for the same reason.
+  # than 2: freebsd/openbsd/i386-linux `needs:` x86_64-linux-other, so they
+  # never run alongside its two container legs; i386-linux additionally
+  # `needs:` openbsd, so the four VM jobs run 2 at a time; and dragonflybsd
+  # additionally `needs:` freebsd, for the same reason. x86_64-linux-other's
+  # `max-parallel: 2` keeps its legs at 2 if more are added.
 
   # Stage 1 (PR). No gate; starts immediately.
   x86_64-linux-pr:
@@ -97,9 +97,9 @@ jobs:
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
 
   # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
-  # arm64-windows (slow). `max-parallel: 2` caps these four legs at 2; the BSD
-  # jobs then wait on this job, so stage 3 runs at most 2 builds at once (see
-  # the stage-3 cap note in the top comment).
+  # arm64-windows (slow). `max-parallel: 2` keeps at most 2 of these legs
+  # running; the VM jobs then wait on this job, so stage 3 runs at most 2 builds
+  # at once (see the stage-3 cap note in the top comment).
   x86_64-linux-other:
     needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
     if: ${{ !cancelled() }}
@@ -127,10 +127,9 @@ jobs:
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
 
-  # Stage 3 (i386). Separate from x86_64-linux-other because the i386 container
-  # needs --platform linux/386, which the container: directive doesn't support.
-  # Gates on x86_64-linux-other (like the BSD VMs) and on openbsd so at most 2
-  # non-container stage-3 jobs run at once.
+  # Stage 3 (i386). A QEMU VM booting Alpine's 32-bit kernel. Like the BSD VMs it
+  # gates on x86_64-linux-other; it also gates on openbsd so at most 2 VM stage-3
+  # jobs run at once.
   i386-linux:
     needs: [x86_64-linux-other, openbsd]
     if: ${{ !cancelled() }}
@@ -139,30 +138,56 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Pull Docker image
-        run: docker pull --platform linux/386 ghcr.io/ponylang/ponyc-ci-i386-unknown-linux-alpine3.24-builder:20261109
-      - name: Build and push libs
+          persist-credentials: false
+      - name: Check libs cache
+        id: check
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
-          docker run --rm \
-            --platform linux/386 \
-            --user pony \
-            -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
-            -e GITHUB_REPOSITORY \
-            -e GITHUB_ACTOR \
-            -e LIBS_IMAGE="ghcr.io/ponylang/ponyc-ci-i386-unknown-linux-alpine3.24-builder:20261109" \
-            -e LIBS_TAG="$LIBS_TAG" \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ghcr.io/ponylang/ponyc-ci-i386-unknown-linux-alpine3.24-builder:20261109 \
-            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=2 -P lib/build-libs.cmake'
+          if bash .ci-scripts/linux32/i386-libs-cache.bash exists-main; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Promote branch libs if present
+        id: promote
+        if: steps.check.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: |
+          # Host-side promote (no VM boot): if a branch artifact exists for this
+          # tag, copy it into the main cache instead of provisioning the VM to
+          # rebuild. A promote failure is non-fatal -- promoted=false falls through
+          # to the VM build below.
+          if bash .ci-scripts/linux32/i386-libs-cache.bash exists-branch; then
+            if bash .ci-scripts/linux32/i386-libs-cache.bash promote; then
+              echo "promoted=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "promoted=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Provision VM
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        run: bash .ci-scripts/linux32/i386-provision.bash
+      - name: Build and push libs
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: bash .ci-scripts/linux32/i386-libs-cache.bash build-push-main
+      - name: Show VM console
+        # Guest kernel messages (OOM kills, panics) land here, not in the ssh steps.
+        if: ${{ failure() && env.VM_CONSOLE != '' }}
+        run: cat "$VM_CONSOLE"
+      - name: Shutdown VM
+        if: always()
+        run: |
+          pkill -f qemu-system-i386 || true
 
   # Currently, Github actions supplied by GH like checkout do not work in musl
   # libc environments on arm64. We work around this by running checkout on the

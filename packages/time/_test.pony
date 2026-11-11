@@ -59,73 +59,18 @@ class \nodoc\ iso _TestPosixDateClamping is UnitTest
     // (gmtime_s limit), year 2038 on 32-bit time_t, year 2147483647
     // on 64-bit time_t.
     ifdef windows then
-      let max_date = PosixDate(32535215999)
-      h.assert_eq[I32](3000, max_date.year)
-      h.assert_eq[I32](12, max_date.month)
-      h.assert_eq[I32](31, max_date.day_of_month)
-      h.assert_eq[I32](23, max_date.hour)
-      h.assert_eq[I32](59, max_date.min)
-      h.assert_eq[I64](32535215999, max_date.time())
-
-      let clamped = PosixDate(32535216000)
-      h.assert_eq[I32](3000, clamped.year)
-      h.assert_eq[I32](12, clamped.month)
-      h.assert_eq[I32](31, clamped.day_of_month)
-      h.assert_eq[I32](0, clamped.nsec)
-      h.assert_eq[I64](32535215999, clamped.time())
-
-      // Nanoseconds pushing past the boundary
-      let nsec_over = PosixDate(32535215999, 1_000_000_000)
-      h.assert_eq[I32](3000, nsec_over.year)
-      h.assert_eq[I32](0, nsec_over.nsec)
-      h.assert_eq[I64](32535215999, nsec_over.time())
+      _check_windows(h)
     elseif ilp32 then
-      // ILP32 is used as a proxy for 32-bit time_t.  The C runtime uses
-      // sizeof(time_t) directly; if a future ILP32 target has 64-bit time_t
-      // (musl, glibc with _TIME_BITS=64, x32 ABI), this branch needs a
-      // finer-grained condition.
-      let max_date = PosixDate(2147483647)
-      h.assert_eq[I32](2038, max_date.year)
-      h.assert_eq[I32](1, max_date.month)
-      h.assert_eq[I32](19, max_date.day_of_month)
-      h.assert_eq[I32](3, max_date.hour)
-      h.assert_eq[I32](14, max_date.min)
-      h.assert_eq[I32](7, max_date.sec)
-      h.assert_eq[I64](2147483647, max_date.time())
-
-      let clamped = PosixDate(2147483648)
-      h.assert_eq[I32](2038, clamped.year)
-      h.assert_eq[I32](1, clamped.month)
-      h.assert_eq[I32](19, clamped.day_of_month)
-      h.assert_eq[I32](0, clamped.nsec)
-      h.assert_eq[I64](2147483647, clamped.time())
-
-      // Nanoseconds pushing past the boundary
-      let nsec_over = PosixDate(2147483647, 1_000_000_000)
-      h.assert_eq[I32](2038, nsec_over.year)
-      h.assert_eq[I32](0, nsec_over.nsec)
-      h.assert_eq[I64](2147483647, nsec_over.time())
+      // time_t is 32-bit with some ILP32 C libraries and 64-bit with others
+      // (musl; glibc when the runtime is compiled with _TIME_BITS=64). Clamping
+      // the largest I64 gives this platform's upper bound; check against it.
+      if PosixDate(I64.max_value()).time() == 2147483647 then
+        _check_32bit_time_t(h)
+      else
+        _check_64bit_time_t(h)
+      end
     else
-      let max_date = PosixDate(67767976233532799)
-      h.assert_eq[I32](2147483647, max_date.year)
-      h.assert_eq[I32](12, max_date.month)
-      h.assert_eq[I32](31, max_date.day_of_month)
-      h.assert_eq[I32](23, max_date.hour)
-      h.assert_eq[I32](59, max_date.min)
-      h.assert_eq[I64](67767976233532799, max_date.time())
-
-      let clamped = PosixDate(67767976233532800)
-      h.assert_eq[I32](2147483647, clamped.year)
-      h.assert_eq[I32](12, clamped.month)
-      h.assert_eq[I32](31, clamped.day_of_month)
-      h.assert_eq[I32](0, clamped.nsec)
-      h.assert_eq[I64](67767976233532799, clamped.time())
-
-      // Nanoseconds pushing past the boundary
-      let nsec_over = PosixDate(67767976233532799, 1_000_000_000)
-      h.assert_eq[I32](2147483647, nsec_over.year)
-      h.assert_eq[I32](0, nsec_over.nsec)
-      h.assert_eq[I64](67767976233532799, nsec_over.time())
+      _check_64bit_time_t(h)
     end
 
     // I64.max_value() seconds: clamped on all platforms
@@ -137,6 +82,75 @@ class \nodoc\ iso _TestPosixDateClamping is UnitTest
     let both_max = PosixDate(I64.max_value(), I64.max_value())
     h.assert_true(both_max.year >= 1970)
     h.assert_eq[I32](0, both_max.nsec)
+
+  fun _check_windows(h: TestHelper) =>
+    let max_date = PosixDate(32535215999)
+    h.assert_eq[I32](3000, max_date.year)
+    h.assert_eq[I32](12, max_date.month)
+    h.assert_eq[I32](31, max_date.day_of_month)
+    h.assert_eq[I32](23, max_date.hour)
+    h.assert_eq[I32](59, max_date.min)
+    h.assert_eq[I32](59, max_date.sec)
+    h.assert_eq[I64](32535215999, max_date.time())
+
+    let clamped = PosixDate(32535216000)
+    h.assert_eq[I32](3000, clamped.year)
+    h.assert_eq[I32](12, clamped.month)
+    h.assert_eq[I32](31, clamped.day_of_month)
+    h.assert_eq[I32](0, clamped.nsec)
+    h.assert_eq[I64](32535215999, clamped.time())
+
+    // Nanoseconds pushing past the boundary
+    let nsec_over = PosixDate(32535215999, 1_000_000_000)
+    h.assert_eq[I32](3000, nsec_over.year)
+    h.assert_eq[I32](0, nsec_over.nsec)
+    h.assert_eq[I64](32535215999, nsec_over.time())
+
+  fun _check_32bit_time_t(h: TestHelper) =>
+    let max_date = PosixDate(2147483647)
+    h.assert_eq[I32](2038, max_date.year)
+    h.assert_eq[I32](1, max_date.month)
+    h.assert_eq[I32](19, max_date.day_of_month)
+    h.assert_eq[I32](3, max_date.hour)
+    h.assert_eq[I32](14, max_date.min)
+    h.assert_eq[I32](7, max_date.sec)
+    h.assert_eq[I64](2147483647, max_date.time())
+
+    let clamped = PosixDate(2147483648)
+    h.assert_eq[I32](2038, clamped.year)
+    h.assert_eq[I32](1, clamped.month)
+    h.assert_eq[I32](19, clamped.day_of_month)
+    h.assert_eq[I32](0, clamped.nsec)
+    h.assert_eq[I64](2147483647, clamped.time())
+
+    // Nanoseconds pushing past the boundary
+    let nsec_over = PosixDate(2147483647, 1_000_000_000)
+    h.assert_eq[I32](2038, nsec_over.year)
+    h.assert_eq[I32](0, nsec_over.nsec)
+    h.assert_eq[I64](2147483647, nsec_over.time())
+
+  fun _check_64bit_time_t(h: TestHelper) =>
+    let max_date = PosixDate(67767976233532799)
+    h.assert_eq[I32](2147483647, max_date.year)
+    h.assert_eq[I32](12, max_date.month)
+    h.assert_eq[I32](31, max_date.day_of_month)
+    h.assert_eq[I32](23, max_date.hour)
+    h.assert_eq[I32](59, max_date.min)
+    h.assert_eq[I32](59, max_date.sec)
+    h.assert_eq[I64](67767976233532799, max_date.time())
+
+    let clamped = PosixDate(67767976233532800)
+    h.assert_eq[I32](2147483647, clamped.year)
+    h.assert_eq[I32](12, clamped.month)
+    h.assert_eq[I32](31, clamped.day_of_month)
+    h.assert_eq[I32](0, clamped.nsec)
+    h.assert_eq[I64](67767976233532799, clamped.time())
+
+    // Nanoseconds pushing past the boundary
+    let nsec_over = PosixDate(67767976233532799, 1_000_000_000)
+    h.assert_eq[I32](2147483647, nsec_over.year)
+    h.assert_eq[I32](0, nsec_over.nsec)
+    h.assert_eq[I64](67767976233532799, nsec_over.time())
 
 class \nodoc\ iso _TestPosixDateFieldsInRange is Property2[I64, I64]
   """

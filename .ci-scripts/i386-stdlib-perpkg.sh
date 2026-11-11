@@ -28,18 +28,15 @@ ponyc="./build/$config/ponyc"
 outdir="./build/$config"
 pkgdir="./packages"
 
-# Detect SSL library for the -D flag.
-ssl_version_str=$(openssl version 2>/dev/null) || true
-case "$ssl_version_str" in
-    LibreSSL*)                       ssl_flag="-Dlibressl" ;;
-    "OpenSSL 4"*|"OpenSSL  4"*)     ssl_flag="-Dopenssl_4.0.x" ;;
-    "OpenSSL 3"*|"OpenSSL  3"*)     ssl_flag="-Dopenssl_3.0.x" ;;
-    "OpenSSL 1.1"*|"OpenSSL  1.1"*) ssl_flag="-Dopenssl_1.1.x" ;;
-    *)
-        echo "i386-stdlib-perpkg.sh: cannot detect SSL version from: $ssl_version_str" >&2
-        exit 1
-        ;;
-esac
+# The SSL -D flag the build chose for this preset. CMake picks it from the SSL
+# headers it builds against, which can belong to a different SSL library than the
+# `openssl` binary on PATH. CMakeLists.txt records the flag in the cache.
+cache="./build/build_$preset/CMakeCache.txt"
+ssl_flag=$(sed -n 's/^PONY_SSL_FLAG:[A-Z]*=//p' "$cache" 2>/dev/null) || true
+if [ -z "$ssl_flag" ]; then
+    echo "i386-stdlib-perpkg.sh: no PONY_SSL_FLAG in $cache; configure the '$preset' preset first" >&2
+    exit 1
+fi
 
 debug_flag=""
 codegen_label="release"

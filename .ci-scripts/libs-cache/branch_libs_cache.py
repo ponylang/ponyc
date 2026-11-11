@@ -28,7 +28,10 @@ Package naming (assembled in one place, `cache_package`):
   - `<arch>` is read from the build machine (`platform.machine()`) and normalized
     to one canonical spelling per ISA by `cache_arch.canonical`; the multi-arch
     builder images build the same reference on x86-64 and arm64, so arch must be
-    in the name or the two would clobber each other.
+    in the name or the two would clobber each other. `package-name` and `exists`
+    take `--arch` to name a different arch, for host-side checks of a package
+    that a VM of another arch builds; `pull` and `push` always use this
+    machine's.
 
 The name is **tag-addressable**: the package identity is just
 `<platform>-<arch>` and the version is the `hashFiles(...)` content hash -- the
@@ -43,7 +46,9 @@ tag share the one package, which is free dedup, not a hazard.
 
 Usage:
     branch_libs_cache.py package-name (--image <ref> | --platform <lbl>)
+                                      [--arch <arch>]
     branch_libs_cache.py exists --tag <hash> (--image <ref> | --platform <lbl>)
+                                [--arch <arch>]
     branch_libs_cache.py pull --tag <hash> (--image <ref> | --platform <lbl>)
     branch_libs_cache.py push --tag <hash> (--image <ref> | --platform <lbl>)
 
@@ -57,7 +62,6 @@ needs `packages: write`.
 Stdlib only so no pip install is required on any CI runner.
 """
 
-import platform
 import sys
 
 import cache_arch
@@ -67,8 +71,10 @@ from common import die
 NAMESPACE = 'ponyc-branch-libs-cache'
 
 
-def cache_package(platform_id):
+def cache_package(platform_id, arch_override=None):
     """Assemble the full GHCR package name for a platform/arch.
+
+    `arch_override` is an `--arch` value; None names this machine's arch.
 
     The one place namespace and architecture are attached, so a pull and a push
     for the same platform always agree on the name. This is exactly the main
@@ -76,7 +82,7 @@ def cache_package(platform_id):
     warmer discover a promotable artifact by construction rather than by search.
     """
     try:
-        arch = cache_arch.canonical(platform.machine())
+        arch = cache_arch.package_arch(arch_override)
     except ValueError as e:
         die(str(e))
     return f'{NAMESPACE}/{platform_id}-{arch}'
@@ -87,7 +93,7 @@ def resolve_package(args):
         platform_id = registry.derive_platform(args.image)
     else:
         platform_id = args.platform
-    return cache_package(platform_id)
+    return cache_package(platform_id, args.arch)
 
 
 def main(argv):

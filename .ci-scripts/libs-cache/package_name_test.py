@@ -9,17 +9,21 @@ namespace, the platform label, and the (normalized) arch are joined into the GHC
 package name. A pull and a push must agree on that name byte-for-byte or the cache
 silently misses, and the branch and main names must match (apart from the namespace
 prefix) or the warmer can't find a promotable artifact. This pins the assembly:
-namespace placement and the cache_arch.canonical arch normalization
-(amd64->x86_64, aarch64->arm64, uppercase Windows), and the hard error on an
-unrecognized arch. platform.machine() is monkeypatched so the result doesn't depend
-on the host this runs on.
+namespace placement and the cache_arch arch normalization (amd64->x86_64,
+aarch64->arm64, uppercase Windows), the hard error on an unrecognized or empty
+arch, the `--arch` override, and pull/push refusing it.
+platform.machine() is monkeypatched so the result doesn't depend on the host this
+runs on.
 """
+import contextlib
+import io
 import platform
 import sys
 
 import branch_libs_cache as branch
 from common import EXIT_ERROR
 import oci_libs_cache as oci
+import registry
 
 FAILURES = []
 
@@ -46,8 +50,7 @@ def test_main_cache_names():
          'ponyc-libs-cache/x86-macos-15-intel-x86_64'),
         ('aarch64', 'alpine3.23', 'ponyc-libs-cache/alpine3.23-arm64'),
         ('ARM64', 'arm64-macos-26', 'ponyc-libs-cache/arm64-macos-26-arm64'),
-        ('i686', 'i386-unknown-linux-alpine3.24-builder_20261109',
-         'ponyc-libs-cache/i386-unknown-linux-alpine3.24-builder_20261109-i686'),
+        ('i686', 'alpine3.24', 'ponyc-libs-cache/alpine3.24-i686'),
     ]
     for machine, label, want in cases:
         got = with_machine(machine, lambda: oci.cache_package(label))
@@ -62,8 +65,7 @@ def test_branch_cache_names():
          'ponyc-branch-libs-cache/windows-2025-vs2026-x86_64'),
         ('arm64', 'arm64-macos-26',
          'ponyc-branch-libs-cache/arm64-macos-26-arm64'),
-        ('i686', 'i386-unknown-linux-alpine3.24-builder_20261109',
-         'ponyc-branch-libs-cache/i386-unknown-linux-alpine3.24-builder_20261109-i686'),
+        ('i686', 'alpine3.24', 'ponyc-branch-libs-cache/alpine3.24-i686'),
     ]
     for machine, label, want in cases:
         got = with_machine(machine, lambda: branch.cache_package(label))
@@ -77,7 +79,7 @@ def test_branch_matches_main_modulo_namespace():
     for machine, label in [('x86_64', 'freebsd-15.1'),
                            ('aarch64', 'alpine3.23'),
                            ('AMD64', 'windows-2025-vs2026'),
-                           ('i686', 'i386-unknown-linux-alpine3.24-builder_20261109')]:
+                           ('i686', 'alpine3.24')]:
         main = with_machine(machine, lambda: oci.cache_package(label))
         br = with_machine(machine, lambda: branch.cache_package(label))
         main_suffix = main[len(oci.NAMESPACE) + 1:]
@@ -99,8 +101,72 @@ def test_unknown_arch_dies():
                                 f"{EXIT_ERROR}")
 
 
+def test_arch_override():
+    # An explicit arch replaces this machine's. The override goes through the
+    # same normalization, and both namespaces agree.
+    for arch in ('i686', 'i386'):
+        got = with_machine('x86_64', lambda: oci.cache_package('alpine3.24', arch))
+        check(f"oci arch={arch} @ x86_64", got, 'ponyc-libs-cache/alpine3.24-i686')
+        got = with_machine('x86_64',
+                           lambda: branch.cache_package('alpine3.24', arch))
+        check(f"branch arch={arch} @ x86_64", got,
+              'ponyc-branch-libs-cache/alpine3.24-i686')
+    # The CLI flag reaches cache_package.
+    args = registry.build_parser('t').parse_args(
+        ['exists', '--platform', 'alpine3.24', '--arch', 'i686', '--tag', 't'])
+    got = with_machine('x86_64', lambda: oci.resolve_package(args))
+    check("oci --arch via CLI", got, 'ponyc-libs-cache/alpine3.24-i686')
+    got = with_machine('x86_64', lambda: branch.resolve_package(args))
+    check("branch --arch via CLI", got, 'ponyc-branch-libs-cache/alpine3.24-i686')
+    args = registry.build_parser('t').parse_args(
+        ['package-name', '--platform', 'alpine3.24', '--arch', 'i686'])
+    got = with_machine('x86_64', lambda: oci.resolve_package(args))
+    check("package-name --arch via CLI", got, 'ponyc-libs-cache/alpine3.24-i686')
+    # Without the flag, this machine's arch is used.
+    args = registry.build_parser('t').parse_args(
+        ['exists', '--platform', 'alpine3.24', '--tag', 't'])
+    got = with_machine('x86_64', lambda: oci.resolve_package(args))
+    check("oci no --arch", got, 'ponyc-libs-cache/alpine3.24-x86_64')
+    # An empty override is an error, not a fallback to this machine.
+    for mod in (oci, branch):
+        try:
+            result = with_machine('x86_64', lambda: mod.cache_package('x', ''))
+            FAILURES.append(f"empty --arch returned {result!r}, expected exit")
+        except SystemExit as e:
+            if e.code != 1:
+                FAILURES.append(f"empty --arch exited {e.code}, want 1")
+    # pull and push move this machine's own build, so they refuse --arch.
+    for cmd in ('pull', 'push'):
+        err = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(err):
+                registry.build_parser('t').parse_args(
+                    [cmd, '--platform', 'x', '--arch', 'i686', '--tag', 't'])
+            FAILURES.append(f"{cmd} accepted --arch")
+        except SystemExit as e:
+            if e.code != 2:
+                FAILURES.append(f"{cmd} --arch exited {e.code}, want 2")
+            if '--arch' not in err.getvalue():
+                FAILURES.append(f"{cmd} --arch error doesn't name --arch")
+    # Without the flag, pull/push resolve to this machine's arch.
+    args = registry.build_parser('t').parse_args(
+        ['push', '--platform', 'alpine3.24', '--tag', 't'])
+    got = with_machine('i686', lambda: oci.resolve_package(args))
+    check("oci push name", got, 'ponyc-libs-cache/alpine3.24-i686')
+    # An unrecognized override is the same hard error as an unrecognized machine.
+    for mod in (oci, branch):
+        try:
+            result = with_machine('x86_64',
+                                  lambda: mod.cache_package('x', 'sparc'))
+            FAILURES.append(f"unknown --arch returned {result!r}, expected exit")
+        except SystemExit as e:
+            if e.code != 1:
+                FAILURES.append(f"unknown --arch exited {e.code}, want 1")
+
+
 TESTS = [test_main_cache_names, test_branch_cache_names,
-         test_branch_matches_main_modulo_namespace, test_unknown_arch_dies]
+         test_branch_matches_main_modulo_namespace, test_unknown_arch_dies,
+         test_arch_override]
 
 
 def main():

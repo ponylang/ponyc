@@ -4,9 +4,10 @@
 Run: python3 .ci-scripts/libs-cache/cache_arch_test.py
 Exits 0 if every check passes, 1 otherwise.
 
-One shared module, so this covers both oci_libs_cache.py and branch_libs_cache.py
-(they both call cache_arch.canonical).
+One shared module, so this covers the arch naming for both oci_libs_cache.py and
+branch_libs_cache.py.
 """
+import platform
 import sys
 
 import cache_arch as c
@@ -29,7 +30,7 @@ CANONICAL_TABLE = [
     ('aarch64', 'arm64'),    # Linux arm
     ('arm64', 'arm64'),      # macOS arm
     ('ARM64', 'arm64'),      # Windows arm
-    ('i686', 'i686'),        # i386 Docker container (uname -m returns i686)
+    ('i686', 'i686'),        # i386 VM (uname -m returns i686)
     ('i386', 'i686'),        # alternative 32-bit x86 spelling
     ('I686', 'i686'),        # defensive: any uppercase variant
     ('I386', 'i686'),        # defensive: any uppercase variant
@@ -64,8 +65,28 @@ def test_aliases_are_self_consistent():
               target)
 
 
+def test_package_arch():
+    # An override wins and is normalized; no override means this machine's arch;
+    # an empty override is an error rather than a fallback to this machine.
+    saved = platform.machine
+    platform.machine = lambda: 'x86_64'
+    try:
+        check("package_arch() on x86_64", c.package_arch(), 'x86_64')
+        check("package_arch(None) on x86_64", c.package_arch(None), 'x86_64')
+        check("package_arch('i386') on x86_64", c.package_arch('i386'), 'i686')
+        for bad in ('', 'sparc'):
+            try:
+                result = c.package_arch(bad)
+                FAILURES.append(f"package_arch({bad!r}) returned {result!r}, "
+                                "expected ValueError")
+            except ValueError:
+                pass
+    finally:
+        platform.machine = saved
+
+
 TESTS = [test_canonical_mapping, test_unknown_raises,
-         test_aliases_are_self_consistent]
+         test_aliases_are_self_consistent, test_package_arch]
 
 
 def main():
