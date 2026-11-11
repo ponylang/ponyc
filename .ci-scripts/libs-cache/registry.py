@@ -257,10 +257,11 @@ def cmd_package_name(package):
 def cmd_exists(package, tag):
     """Report whether the artifact exists, without downloading the blob.
 
-    Exits 0 when the manifest is present, EXIT_MISS (1) on a definite miss
-    (manifest 404). Any other failure — auth error, network error, 5xx — exits
-    EXIT_ERROR (3) via ``die``, so callers can distinguish "not there" from
-    "couldn't check."
+    Exits 0 when the manifest is present and EXIT_MISS on a definite miss (see
+    ``get_manifest``). Any other failure exits with a different code:
+    EXIT_ERROR via ``die`` for an auth error, network error, or 5xx, and 1 when
+    Python raises an exception this module doesn't catch. Callers can tell "not
+    there" from "couldn't check."
     """
     repo = repository(package)
     info(f"Checking libs cache {REGISTRY}/{repo}:{tag}")

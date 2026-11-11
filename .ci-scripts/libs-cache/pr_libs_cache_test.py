@@ -17,12 +17,17 @@ any subprocess or network. Load-bearing invariants:
     `--ensure` HARD-fails on a branch push failure; `--ensure` requires
     `--branch-cache`.
 """
+import contextlib
+import io
 import sys
 
-from common import EXIT_ERROR
+from common import EXIT_ERROR, EXIT_MISS
 import pr_libs_cache as pr
 
 FAILURES = []
+
+# The exit code of a Python script that dies on an uncaught exception.
+PYTHON_CRASH = 1
 
 
 def check(label, got, want):
@@ -74,7 +79,7 @@ def test_nonfork_main_hit():
 
 
 def test_nonfork_branch_reuse():
-    calls, code = run_main(NONFORK, {'main:pull': 1, 'branch:pull': 0})
+    calls, code = run_main(NONFORK, {'main:pull': EXIT_MISS, 'branch:pull': 0})
     check('branch-reuse calls', calls, ['main:pull', 'branch:pull'])
     check('branch-reuse code', code, 0)
     check('branch-reuse no build', 'BUILD' in calls, False)
@@ -82,7 +87,8 @@ def test_nonfork_branch_reuse():
 
 def test_nonfork_both_miss_builds_pushes_branch_without_pr():
     branch_argvs = []
-    calls, code = run_main(NONFORK, {'main:pull': 1, 'branch:pull': 1, 'BUILD': 0,
+    calls, code = run_main(NONFORK, {'main:pull': EXIT_MISS,
+                                     'branch:pull': EXIT_MISS, 'BUILD': 0,
                                      'branch:push': 0}, branch_argvs)
     check('both-miss calls', calls,
           ['main:pull', 'branch:pull', 'BUILD', 'branch:push'])
@@ -95,7 +101,8 @@ def test_nonfork_both_miss_builds_pushes_branch_without_pr():
 
 def test_nonfork_branch_push_failure_best_effort():
     # default mode: a branch push failure warns but does NOT fail the job.
-    calls, code = run_main(NONFORK, {'main:pull': 1, 'branch:pull': 1, 'BUILD': 0,
+    calls, code = run_main(NONFORK, {'main:pull': EXIT_MISS,
+                                     'branch:pull': EXIT_MISS, 'BUILD': 0,
                                      'branch:push': 1})
     check('push-fail calls', calls,
           ['main:pull', 'branch:pull', 'BUILD', 'branch:push'])
@@ -103,7 +110,8 @@ def test_nonfork_branch_push_failure_best_effort():
 
 
 def test_nonfork_build_failure_propagates_no_push():
-    calls, code = run_main(NONFORK, {'main:pull': 1, 'branch:pull': 1, 'BUILD': 7})
+    calls, code = run_main(NONFORK, {'main:pull': EXIT_MISS,
+                                     'branch:pull': EXIT_MISS, 'BUILD': 7})
     check('build-fail calls', calls, ['main:pull', 'branch:pull', 'BUILD'])
     check('build-fail code', code, 7)
     check('build-fail no push', 'branch:push' in calls, False)
@@ -111,7 +119,7 @@ def test_nonfork_build_failure_propagates_no_push():
 
 def test_fork_skips_branch_ops():
     # No --branch-cache -> pull main, build, NO branch pull/push.
-    calls, code = run_main(FORK, {'main:pull': 1, 'BUILD': 0})
+    calls, code = run_main(FORK, {'main:pull': EXIT_MISS, 'BUILD': 0})
     check('fork calls', calls, ['main:pull', 'BUILD'])
     check('fork code', code, 0)
     check('fork no branch', any('branch' in c for c in calls), False)
@@ -124,7 +132,8 @@ def test_fork_main_hit():
 
 
 def test_ensure_uses_exists_and_pushes():
-    calls, code = run_main(ENSURE, {'main:exists': 1, 'branch:exists': 1,
+    calls, code = run_main(ENSURE, {'main:exists': EXIT_MISS,
+                                    'branch:exists': EXIT_MISS,
                                     'BUILD': 0, 'branch:push': 0})
     check('ensure calls', calls,
           ['main:exists', 'branch:exists', 'BUILD', 'branch:push'])
@@ -132,7 +141,8 @@ def test_ensure_uses_exists_and_pushes():
 
 
 def test_ensure_branch_push_failure_hard_fails():
-    calls, code = run_main(ENSURE, {'main:exists': 1, 'branch:exists': 1,
+    calls, code = run_main(ENSURE, {'main:exists': EXIT_MISS,
+                                    'branch:exists': EXIT_MISS,
                                     'BUILD': 0, 'branch:push': 1})
     check('ensure push-fail calls', calls,
           ['main:exists', 'branch:exists', 'BUILD', 'branch:push'])
@@ -155,9 +165,9 @@ def test_nonfork_main_error_branch_hit():
 
 
 def test_nonfork_main_error_still_builds():
-    # An error (exit 3) on main pull still falls through to build.
+    # An error on main pull still falls through to build.
     calls, code = run_main(NONFORK, {'main:pull': EXIT_ERROR,
-                                     'branch:pull': 1, 'BUILD': 0,
+                                     'branch:pull': EXIT_MISS, 'BUILD': 0,
                                      'branch:push': 0})
     check('main-error calls', calls,
           ['main:pull', 'branch:pull', 'BUILD', 'branch:push'])
@@ -166,7 +176,7 @@ def test_nonfork_main_error_still_builds():
 
 def test_nonfork_branch_error_still_builds():
     # main misses, branch errors -> still builds.
-    calls, code = run_main(NONFORK, {'main:pull': 1,
+    calls, code = run_main(NONFORK, {'main:pull': EXIT_MISS,
                                      'branch:pull': EXIT_ERROR, 'BUILD': 0,
                                      'branch:push': 0})
     check('branch-error calls', calls,
@@ -177,11 +187,30 @@ def test_nonfork_branch_error_still_builds():
 def test_ensure_main_error_still_builds():
     # An error on main exists still falls through to build.
     calls, code = run_main(ENSURE, {'main:exists': EXIT_ERROR,
-                                    'branch:exists': 1, 'BUILD': 0,
+                                    'branch:exists': EXIT_MISS, 'BUILD': 0,
                                     'branch:push': 0})
     check('ensure main-error calls', calls,
           ['main:exists', 'branch:exists', 'BUILD', 'branch:push'])
     check('ensure main-error code', code, 0)
+
+
+def test_nonfork_crash_reported_as_error():
+    # A primitive that crashes exits with Python's uncaught-exception code. That
+    # is an error, so it's logged as a failed pull rather than a miss.
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        calls, code = run_main(NONFORK, {'main:pull': PYTHON_CRASH,
+                                         'branch:pull': PYTHON_CRASH,
+                                         'BUILD': 0, 'branch:push': 0})
+    check('crash calls', calls,
+          ['main:pull', 'branch:pull', 'BUILD', 'branch:push'])
+    check('crash code', code, 0)
+    check('crash warns main', 'main cache pull failed (exit 1)' in
+          out.getvalue(), True)
+    check('crash warns branch', 'branch cache pull failed (exit 1)' in
+          out.getvalue(), True)
+    check('crash not logged as a miss', 'Libs cache miss' in out.getvalue(),
+          False)
 
 
 def test_missing_double_dash():
@@ -210,6 +239,7 @@ TESTS = [test_nonfork_main_hit, test_nonfork_branch_reuse,
          test_nonfork_main_error_still_builds,
          test_nonfork_branch_error_still_builds,
          test_ensure_main_error_still_builds,
+         test_nonfork_crash_reported_as_error,
          test_missing_double_dash,
          test_empty_build_command]
 

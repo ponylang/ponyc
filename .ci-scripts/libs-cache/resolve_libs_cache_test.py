@@ -22,15 +22,20 @@ load-bearing invariants pinned here:
     quietly (writes the .libs-cache-miss marker, exit 0) under --skip-on-miss (the
     scheduled stress loop).
 """
+import contextlib
+import io
 import os
 import shutil
 import sys
 import tempfile
 
-from common import EXIT_ERROR
+from common import EXIT_ERROR, EXIT_MISS
 import resolve_libs_cache as r
 
 FAILURES = []
+
+# The exit code of a Python script that dies on an uncaught exception.
+PYTHON_CRASH = 1
 
 
 def check(label, got, want):
@@ -112,7 +117,7 @@ def test_consumer_hit():
 def test_consumer_miss_builds_never_pushes():
     # pull misses -> build runs. CONSUMER MODE MUST NOT PUSH and MUST NOT touch the
     # branch cache without --branch-cache.
-    calls, code = run_main(CONSUMER, {'main:pull': 1, 'BUILD': 0})
+    calls, code = run_main(CONSUMER, {'main:pull': EXIT_MISS, 'BUILD': 0})
     check('consumer miss calls', calls, ['main:pull', 'BUILD'])
     check('consumer miss code', code, 0)
     check('consumer never pushes', any('push' in c for c in calls), False)
@@ -120,7 +125,7 @@ def test_consumer_miss_builds_never_pushes():
 
 
 def test_consumer_build_failure_propagates():
-    calls, code = run_main(CONSUMER, {'main:pull': 1, 'BUILD': 7})
+    calls, code = run_main(CONSUMER, {'main:pull': EXIT_MISS, 'BUILD': 7})
     check('consumer build-fail calls', calls, ['main:pull', 'BUILD'])
     check('consumer build-fail code', code, 7)
 
@@ -137,14 +142,15 @@ def test_branch_cache_main_hit_short_circuits():
 
 def test_branch_cache_reuse_on_main_miss():
     # main-cache miss -> branch hit -> reuse, no build, no push.
-    calls, code = run_main(BRANCH, {'main:pull': 1, 'branch:pull': 0})
+    calls, code = run_main(BRANCH, {'main:pull': EXIT_MISS, 'branch:pull': 0})
     check('branch reuse calls', calls, ['main:pull', 'branch:pull'])
     check('branch reuse code', code, 0)
     check('branch reuse no build', 'BUILD' in calls, False)
 
 
 def test_branch_cache_both_miss_builds_then_pushes_branch():
-    calls, code = run_main(BRANCH, {'main:pull': 1, 'branch:pull': 1, 'BUILD': 0,
+    calls, code = run_main(BRANCH, {'main:pull': EXIT_MISS,
+                                    'branch:pull': EXIT_MISS, 'BUILD': 0,
                                     'branch:push': 0})
     check('branch both-miss calls', calls,
           ['main:pull', 'branch:pull', 'BUILD', 'branch:push'])
@@ -154,7 +160,8 @@ def test_branch_cache_both_miss_builds_then_pushes_branch():
 
 def test_branch_cache_push_failure_tolerated():
     # branch push fails -> best-effort: warn, do NOT fail the job.
-    calls, code = run_main(BRANCH, {'main:pull': 1, 'branch:pull': 1, 'BUILD': 0,
+    calls, code = run_main(BRANCH, {'main:pull': EXIT_MISS,
+                                    'branch:pull': EXIT_MISS, 'BUILD': 0,
                                     'branch:push': 1})
     check('branch push-fail calls', calls,
           ['main:pull', 'branch:pull', 'BUILD', 'branch:push'])
@@ -162,7 +169,8 @@ def test_branch_cache_push_failure_tolerated():
 
 
 def test_branch_cache_build_failure_propagates_no_push():
-    calls, code = run_main(BRANCH, {'main:pull': 1, 'branch:pull': 1, 'BUILD': 5})
+    calls, code = run_main(BRANCH, {'main:pull': EXIT_MISS,
+                                    'branch:pull': EXIT_MISS, 'BUILD': 5})
     check('branch build-fail calls', calls, ['main:pull', 'branch:pull', 'BUILD'])
     check('branch build-fail code', code, 5)
     check('branch build-fail no push', 'branch:push' in calls, False)
@@ -178,7 +186,7 @@ def test_warm_hit():
 
 def test_warm_promotes_on_branch_hit():
     # main-cache miss -> branch hit -> promote -> done. No build, no main push.
-    calls, code = run_main(WARM, {'main:exists': 1, 'branch:exists': 0,
+    calls, code = run_main(WARM, {'main:exists': EXIT_MISS, 'branch:exists': 0,
                                   'promote': 0})
     check('warm promote calls', calls,
           ['main:exists', 'branch:exists', 'promote'])
@@ -190,7 +198,7 @@ def test_warm_promotes_on_branch_hit():
 def test_warm_promote_failure_falls_through_to_build():
     # branch hit but promote fails -> build + push the main cache (best-effort
     # promote, never fatal).
-    calls, code = run_main(WARM, {'main:exists': 1, 'branch:exists': 0,
+    calls, code = run_main(WARM, {'main:exists': EXIT_MISS, 'branch:exists': 0,
                                   'promote': 1, 'BUILD': 0, 'main:push': 0})
     check('warm promote-fail calls', calls,
           ['main:exists', 'branch:exists', 'promote', 'BUILD', 'main:push'])
@@ -198,7 +206,8 @@ def test_warm_promote_failure_falls_through_to_build():
 
 
 def test_warm_branch_miss_builds_then_pushes_main():
-    calls, code = run_main(WARM, {'main:exists': 1, 'branch:exists': 1,
+    calls, code = run_main(WARM, {'main:exists': EXIT_MISS,
+                                  'branch:exists': EXIT_MISS,
                                   'BUILD': 0, 'main:push': 0})
     check('warm branch-miss calls', calls,
           ['main:exists', 'branch:exists', 'BUILD', 'main:push'])
@@ -206,7 +215,8 @@ def test_warm_branch_miss_builds_then_pushes_main():
 
 
 def test_warm_build_failure_no_push():
-    calls, code = run_main(WARM, {'main:exists': 1, 'branch:exists': 1, 'BUILD': 5})
+    calls, code = run_main(WARM, {'main:exists': EXIT_MISS,
+                                  'branch:exists': EXIT_MISS, 'BUILD': 5})
     check('warm build-fail calls', calls,
           ['main:exists', 'branch:exists', 'BUILD'])
     check('warm build-fail code', code, 5)
@@ -214,7 +224,8 @@ def test_warm_build_failure_no_push():
 
 
 def test_warm_push_failure_hard_fails():
-    calls, code = run_main(WARM, {'main:exists': 1, 'branch:exists': 1, 'BUILD': 0,
+    calls, code = run_main(WARM, {'main:exists': EXIT_MISS,
+                                  'branch:exists': EXIT_MISS, 'BUILD': 0,
                                   'main:push': 1})
     check('warm push-fail calls', calls,
           ['main:exists', 'branch:exists', 'BUILD', 'main:push'])
@@ -230,7 +241,7 @@ def test_require_hit_hit():
 
 
 def test_require_hit_miss_dies_never_builds():
-    calls, code = run_main(REQUIRE_HIT, {'main:pull': 1})
+    calls, code = run_main(REQUIRE_HIT, {'main:pull': EXIT_MISS})
     check('require-hit miss calls', calls, ['main:pull'])
     check('require-hit miss code', code, EXIT_ERROR)
     check('require-hit never builds', 'BUILD' in calls, False)
@@ -260,14 +271,16 @@ def test_require_hit_branch_main_hit_short_circuits():
 
 def test_require_hit_branch_reuse_on_main_miss():
     # main-cache miss -> branch hit -> run against the branch-built libs, no fail.
-    calls, code = run_main(REQUIRE_HIT_BRANCH, {'main:pull': 1, 'branch:pull': 0})
+    calls, code = run_main(REQUIRE_HIT_BRANCH, {'main:pull': EXIT_MISS,
+                                                'branch:pull': 0})
     check('require-hit branch reuse calls', calls, ['main:pull', 'branch:pull'])
     check('require-hit branch reuse code', code, 0)
 
 
 def test_require_hit_branch_both_miss_dies_never_builds():
     # neither cache has it for this target -> fail loudly (no --skip-on-miss).
-    calls, code = run_main(REQUIRE_HIT_BRANCH, {'main:pull': 1, 'branch:pull': 1})
+    calls, code = run_main(REQUIRE_HIT_BRANCH, {'main:pull': EXIT_MISS,
+                                                'branch:pull': EXIT_MISS})
     check('require-hit branch both-miss calls', calls, ['main:pull', 'branch:pull'])
     check('require-hit branch both-miss code', code, EXIT_ERROR)
     check('require-hit branch both-miss never builds', 'BUILD' in calls, False)
@@ -286,7 +299,8 @@ def test_require_hit_skip_hit_no_marker():
 
 def test_require_hit_skip_miss_writes_marker_exits_zero():
     # miss -> write the marker and exit 0 (the workflow skips build/run), no build.
-    calls, code, marker = run_main_ws(REQUIRE_HIT_SKIP, {'main:pull': 1})
+    calls, code, marker = run_main_ws(REQUIRE_HIT_SKIP,
+                                      {'main:pull': EXIT_MISS})
     check('require-hit skip miss calls', calls, ['main:pull'])
     check('require-hit skip miss code', code, 0)
     check('require-hit skip miss wrote marker', marker, True)
@@ -296,16 +310,17 @@ def test_require_hit_skip_miss_writes_marker_exits_zero():
 def test_require_hit_branch_skip_both_miss_skips():
     # --branch-cache + --skip-on-miss: branch is tried before the quiet skip.
     calls, code, marker = run_main_ws(REQUIRE_HIT_BRANCH_SKIP,
-                                      {'main:pull': 1, 'branch:pull': 1})
+                                      {'main:pull': EXIT_MISS,
+                                       'branch:pull': EXIT_MISS})
     check('require-hit branch+skip calls', calls, ['main:pull', 'branch:pull'])
     check('require-hit branch+skip code', code, 0)
     check('require-hit branch+skip wrote marker', marker, True)
 
 
-# ----- error vs miss (exit code 3 vs 1) -----
+# ----- error vs miss (any code but 0 and EXIT_MISS is an error) -----
 
 def test_require_hit_skip_error_fails_no_marker():
-    # An error (exit 3) must FAIL, not write the marker and skip.
+    # An error must FAIL, not write the marker and skip.
     calls, code, marker = run_main_ws(REQUIRE_HIT_SKIP, {'main:pull': EXIT_ERROR})
     check('require-hit skip error calls', calls, ['main:pull'])
     check('require-hit skip error code', code, EXIT_ERROR)
@@ -319,9 +334,9 @@ def test_require_hit_error_fails():
 
 
 def test_require_hit_branch_error_on_branch_fails():
-    # main misses (exit 1), branch errors (exit 3) -> fail, not "both miss."
+    # main misses, branch errors -> fail, not "both miss."
     calls, code = run_main(REQUIRE_HIT_BRANCH,
-                           {'main:pull': 1, 'branch:pull': EXIT_ERROR})
+                           {'main:pull': EXIT_MISS, 'branch:pull': EXIT_ERROR})
     check('require-hit branch error calls', calls, ['main:pull', 'branch:pull'])
     check('require-hit branch error code', code, EXIT_ERROR)
 
@@ -329,7 +344,7 @@ def test_require_hit_branch_error_on_branch_fails():
 def test_require_hit_branch_skip_error_on_branch_fails():
     # main misses, branch errors -> fail, not write marker.
     calls, code, marker = run_main_ws(REQUIRE_HIT_BRANCH_SKIP,
-                                      {'main:pull': 1,
+                                      {'main:pull': EXIT_MISS,
                                        'branch:pull': EXIT_ERROR})
     check('require-hit branch+skip error calls', calls,
           ['main:pull', 'branch:pull'])
@@ -355,7 +370,7 @@ def test_consumer_error_still_builds():
 def test_warm_error_still_builds():
     # An error on main exists still falls through to build.
     calls, code = run_main(WARM, {'main:exists': EXIT_ERROR,
-                                  'branch:exists': 1, 'BUILD': 0,
+                                  'branch:exists': EXIT_MISS, 'BUILD': 0,
                                   'main:push': 0})
     check('warm error calls', calls,
           ['main:exists', 'branch:exists', 'BUILD', 'main:push'])
@@ -364,11 +379,60 @@ def test_warm_error_still_builds():
 
 def test_branch_consumer_error_on_branch_still_builds():
     # main misses, branch errors -> still builds.
-    calls, code = run_main(BRANCH, {'main:pull': 1, 'branch:pull': EXIT_ERROR,
+    calls, code = run_main(BRANCH, {'main:pull': EXIT_MISS,
+                                    'branch:pull': EXIT_ERROR,
                                     'BUILD': 0, 'branch:push': 0})
     check('branch error calls', calls,
           ['main:pull', 'branch:pull', 'BUILD', 'branch:push'])
     check('branch error code', code, 0)
+
+
+def test_require_hit_skip_crash_fails_no_marker():
+    # A primitive that crashes exits with Python's uncaught-exception code; that
+    # is an error, not a miss, so it must fail rather than write the marker.
+    calls, code, marker = run_main_ws(REQUIRE_HIT_SKIP,
+                                      {'main:pull': PYTHON_CRASH})
+    check('require-hit skip crash calls', calls, ['main:pull'])
+    check('require-hit skip crash code', code, EXIT_ERROR)
+    check('require-hit skip crash no marker', marker, False)
+
+
+def test_require_hit_branch_main_crash_fails_without_branch():
+    # A crash on the main cache is not a miss, so the branch cache isn't tried.
+    calls, code = run_main(REQUIRE_HIT_BRANCH, {'main:pull': PYTHON_CRASH,
+                                                'branch:pull': 0})
+    check('require-hit branch main-crash calls', calls, ['main:pull'])
+    check('require-hit branch main-crash code', code, EXIT_ERROR)
+
+
+def test_consumer_crash_reported_as_error():
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        calls, code = run_main(CONSUMER, {'main:pull': PYTHON_CRASH,
+                                          'BUILD': 0})
+    check('consumer crash calls', calls, ['main:pull', 'BUILD'])
+    check('consumer crash code', code, 0)
+    check('consumer crash warns', 'main cache pull failed (exit 1)' in
+          out.getvalue(), True)
+    check('consumer crash not logged as a miss', 'Libs cache miss' in
+          out.getvalue(), False)
+
+
+def test_warm_crash_reported_as_error():
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        calls, code = run_main(WARM, {'main:exists': PYTHON_CRASH,
+                                      'branch:exists': PYTHON_CRASH, 'BUILD': 0,
+                                      'main:push': 0})
+    check('warm crash calls', calls,
+          ['main:exists', 'branch:exists', 'BUILD', 'main:push'])
+    check('warm crash code', code, 0)
+    check('warm crash warns main', 'main cache check failed (exit 1)' in
+          out.getvalue(), True)
+    check('warm crash warns branch', 'branch cache check failed (exit 1)' in
+          out.getvalue(), True)
+    check('warm crash not logged as a miss', 'Libs cache miss' in
+          out.getvalue(), False)
 
 
 # ----- flag validation -----
@@ -427,6 +491,10 @@ TESTS = [test_consumer_hit, test_consumer_miss_builds_never_pushes,
          test_consumer_error_still_builds,
          test_warm_error_still_builds,
          test_branch_consumer_error_on_branch_still_builds,
+         test_require_hit_skip_crash_fails_no_marker,
+         test_require_hit_branch_main_crash_fails_without_branch,
+         test_consumer_crash_reported_as_error,
+         test_warm_crash_reported_as_error,
          test_branch_cache_rejected_with_warm,
          test_skip_on_miss_rejected_without_require_hit,
          test_missing_double_dash, test_empty_build_command]

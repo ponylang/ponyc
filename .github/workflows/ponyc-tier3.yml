@@ -236,11 +236,12 @@ jobs:
           # it isn't cached (hit=false; the "Build libs" step pushes it). On main (a
           # scheduled run, or a dispatch left on main): if it isn't cached, write
           # the marker and skip -- we don't build LLVM on main.
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           bash .ci-scripts/linux32/i386-libs-cache.bash exists-main && main_rc=0 || main_rc=$?
           if [ "$main_rc" -eq 0 ]; then
             echo "Libs present in the main GHCR cache."
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          elif [ "$main_rc" -ne 1 ]; then
+          elif ! [ "$main_rc" -eq "$miss" ]; then
             echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
             exit "$main_rc"
           elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REF" != "main" ]; then
@@ -248,7 +249,7 @@ jobs:
             if [ "$branch_rc" -eq 0 ]; then
               echo "Libs present in the branch GHCR cache."
               echo "hit=true" >> "$GITHUB_OUTPUT"
-            elif [ "$branch_rc" -eq 1 ]; then
+            elif [ "$branch_rc" -eq "$miss" ]; then
               echo "Off-main manual run, cache miss; the VM will build LLVM."
               echo "hit=false" >> "$GITHUB_OUTPUT"
             else
@@ -449,11 +450,12 @@ jobs:
           # it isn't cached (hit=false; the "Build libs" step pushes it). On main (a
           # scheduled run, or a dispatch left on main): if it isn't cached, write
           # the marker and skip -- we don't build LLVM on main.
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG" && main_rc=0 || main_rc=$?
           if [ "$main_rc" -eq 0 ]; then
             echo "Libs present in the main GHCR cache."
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          elif [ "$main_rc" -ne 1 ]; then
+          elif ! [ "$main_rc" -eq "$miss" ]; then
             echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
             exit "$main_rc"
           elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REF" != "main" ]; then
@@ -461,7 +463,7 @@ jobs:
             if [ "$branch_rc" -eq 0 ]; then
               echo "Libs present in the branch GHCR cache."
               echo "hit=true" >> "$GITHUB_OUTPUT"
-            elif [ "$branch_rc" -eq 1 ]; then
+            elif [ "$branch_rc" -eq "$miss" ]; then
               echo "Off-main manual run, cache miss; the VM will build LLVM."
               echo "hit=false" >> "$GITHUB_OUTPUT"
             else
@@ -581,11 +583,12 @@ jobs:
           # it isn't cached (hit=false; the "Build libs" step pushes it). On main (a
           # scheduled run, or a dispatch left on main): if it isn't cached, write
           # the marker and skip -- we don't build LLVM on main.
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG" && main_rc=0 || main_rc=$?
           if [ "$main_rc" -eq 0 ]; then
             echo "Libs present in the main GHCR cache."
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          elif [ "$main_rc" -ne 1 ]; then
+          elif ! [ "$main_rc" -eq "$miss" ]; then
             echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
             exit "$main_rc"
           elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REF" != "main" ]; then
@@ -593,7 +596,7 @@ jobs:
             if [ "$branch_rc" -eq 0 ]; then
               echo "Libs present in the branch GHCR cache."
               echo "hit=true" >> "$GITHUB_OUTPUT"
-            elif [ "$branch_rc" -eq 1 ]; then
+            elif [ "$branch_rc" -eq "$miss" ]; then
               echo "Off-main manual run, cache miss; the VM will build LLVM."
               echo "hit=false" >> "$GITHUB_OUTPUT"
             else
@@ -705,11 +708,12 @@ jobs:
           # it isn't cached (hit=false; the "Build libs" step pushes it). On main (a
           # scheduled run, or a dispatch left on main): if it isn't cached, write
           # the marker and skip -- we don't build LLVM on main.
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG" && main_rc=0 || main_rc=$?
           if [ "$main_rc" -eq 0 ]; then
             echo "Libs present in the main GHCR cache."
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          elif [ "$main_rc" -ne 1 ]; then
+          elif ! [ "$main_rc" -eq "$miss" ]; then
             echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
             exit "$main_rc"
           elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REF" != "main" ]; then
@@ -717,7 +721,7 @@ jobs:
             if [ "$branch_rc" -eq 0 ]; then
               echo "Libs present in the branch GHCR cache."
               echo "hit=true" >> "$GITHUB_OUTPUT"
-            elif [ "$branch_rc" -eq 1 ]; then
+            elif [ "$branch_rc" -eq "$miss" ]; then
               echo "Off-main manual run, cache miss; the VM will build LLVM."
               echo "hit=false" >> "$GITHUB_OUTPUT"
             else

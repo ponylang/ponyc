@@ -52,10 +52,11 @@ Usage:
     branch_libs_cache.py pull --tag <hash> (--image <ref> | --platform <lbl>)
     branch_libs_cache.py push --tag <hash> (--image <ref> | --platform <lbl>)
 
-`exists` reports whether the artifact is cached (exit 0 present / 1 miss / 3
-error) without downloading the blob -- a cheap check for deciding whether to
-build. `pull` restores the artifact, with the same three exit codes so the caller
-can distinguish a miss (fall back to building) from an error (fail or warn).
+`exists` reports whether the artifact is cached (exit 0 present,
+`common.EXIT_MISS` on a miss, any other code on an error) without downloading
+the blob -- a cheap check for deciding whether to build. `pull` restores the
+artifact, with the same exit codes so the caller can distinguish a miss (fall
+back to building) from an error (fail or warn).
 `push` uploads the blob before the manifest; auth uses GITHUB_TOKEN and the push
 needs `packages: write`.
 

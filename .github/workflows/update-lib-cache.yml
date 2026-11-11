@@ -146,10 +146,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           bash .ci-scripts/linux32/i386-libs-cache.bash exists-main && main_rc=0 || main_rc=$?
           if [ "$main_rc" -eq 0 ]; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          elif [ "$main_rc" -eq 1 ]; then
+          elif [ "$main_rc" -eq "$miss" ]; then
             echo "hit=false" >> "$GITHUB_OUTPUT"
           else
             echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
@@ -166,6 +167,7 @@ jobs:
           # tag, copy it into the main cache instead of provisioning the VM to
           # rebuild. A promote failure is non-fatal -- promoted=false falls through
           # to the VM build below.
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           bash .ci-scripts/linux32/i386-libs-cache.bash exists-branch && branch_rc=0 || branch_rc=$?
           if [ "$branch_rc" -eq 0 ]; then
             if bash .ci-scripts/linux32/i386-libs-cache.bash promote; then
@@ -173,7 +175,7 @@ jobs:
             else
               echo "promoted=false" >> "$GITHUB_OUTPUT"
             fi
-          elif [ "$branch_rc" -eq 1 ]; then
+          elif [ "$branch_rc" -eq "$miss" ]; then
             echo "promoted=false" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::Branch libs cache check failed (exit $branch_rc); falling through to VM build."
@@ -326,10 +328,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG" && main_rc=0 || main_rc=$?
           if [ "$main_rc" -eq 0 ]; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          elif [ "$main_rc" -eq 1 ]; then
+          elif [ "$main_rc" -eq "$miss" ]; then
             echo "hit=false" >> "$GITHUB_OUTPUT"
           else
             echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
@@ -346,6 +349,7 @@ jobs:
           # tag, copy it into the main cache instead of provisioning the VM to
           # rebuild. A promote failure is non-fatal -- promoted=false falls through
           # to the VM build below.
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG" && branch_rc=0 || branch_rc=$?
           if [ "$branch_rc" -eq 0 ]; then
             if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform freebsd-15.1 --tag "$LIBS_TAG"; then
@@ -353,7 +357,7 @@ jobs:
             else
               echo "promoted=false" >> "$GITHUB_OUTPUT"
             fi
-          elif [ "$branch_rc" -eq 1 ]; then
+          elif [ "$branch_rc" -eq "$miss" ]; then
             echo "promoted=false" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::Branch libs cache check failed (exit $branch_rc); falling through to VM build."
@@ -392,10 +396,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG" && main_rc=0 || main_rc=$?
           if [ "$main_rc" -eq 0 ]; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          elif [ "$main_rc" -eq 1 ]; then
+          elif [ "$main_rc" -eq "$miss" ]; then
             echo "hit=false" >> "$GITHUB_OUTPUT"
           else
             echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
@@ -412,6 +417,7 @@ jobs:
           # tag, copy it into the main cache instead of provisioning the VM to
           # rebuild. A promote failure is non-fatal -- promoted=false falls through
           # to the VM build below.
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG" && branch_rc=0 || branch_rc=$?
           if [ "$branch_rc" -eq 0 ]; then
             if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform openbsd-7.9 --tag "$LIBS_TAG"; then
@@ -419,7 +425,7 @@ jobs:
             else
               echo "promoted=false" >> "$GITHUB_OUTPUT"
             fi
-          elif [ "$branch_rc" -eq 1 ]; then
+          elif [ "$branch_rc" -eq "$miss" ]; then
             echo "promoted=false" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::Branch libs cache check failed (exit $branch_rc); falling through to VM build."
@@ -457,10 +463,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG" && main_rc=0 || main_rc=$?
           if [ "$main_rc" -eq 0 ]; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          elif [ "$main_rc" -eq 1 ]; then
+          elif [ "$main_rc" -eq "$miss" ]; then
             echo "hit=false" >> "$GITHUB_OUTPUT"
           else
             echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
@@ -477,6 +484,7 @@ jobs:
           # tag, copy it into the main cache instead of provisioning the VM to
           # rebuild. A promote failure is non-fatal -- promoted=false falls through
           # to the VM build below.
+          miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG" && branch_rc=0 || branch_rc=$?
           if [ "$branch_rc" -eq 0 ]; then
             if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
@@ -484,7 +492,7 @@ jobs:
             else
               echo "promoted=false" >> "$GITHUB_OUTPUT"
             fi
-          elif [ "$branch_rc" -eq 1 ]; then
+          elif [ "$branch_rc" -eq "$miss" ]; then
             echo "promoted=false" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::Branch libs cache check failed (exit $branch_rc); falling through to VM build."
