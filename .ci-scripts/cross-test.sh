@@ -25,16 +25,21 @@ cross_args="$3"
 cross_runner="$4"
 stdlib_excludes="$5"
 
-# The stdlib's net package requires an SSL version define. Detect the host's
-# SSL library the same way CMakeLists.txt does (via openssl version).
-ssl_version_str=$(openssl version 2>/dev/null) || true
-case "$ssl_version_str" in
-    LibreSSL*) ssl_flag="-Dlibressl" ;;
-    "OpenSSL 4"*|"OpenSSL  4"*) ssl_flag="-Dopenssl_4.0.x" ;;
-    "OpenSSL 3"*|"OpenSSL  3"*) ssl_flag="-Dopenssl_3.0.x" ;;
-    "OpenSSL 1.1"*|"OpenSSL  1.1"*) ssl_flag="-Dopenssl_1.1.x" ;;
-    *) echo "cross-test.sh: cannot detect SSL version from: $ssl_version_str" >&2; exit 1 ;;
-esac
+# The SSL -D flag the build chose for this preset. CMake picks it from the SSL
+# headers it builds against (find_package(OpenSSL) + LIBRESSL_VERSION_NUMBER
+# check), which can belong to a different SSL library than the `openssl` binary
+# on PATH. CMakeLists.txt records the flag in the cache.
+#
+# For cross builds this is still the HOST'S SSL detection. It gives the right
+# flag only because the host and target sysroot currently ship the same SSL
+# library (both Ubuntu 24.04 with OpenSSL 3). If they diverge, the flag must
+# come from the target sysroot's headers instead.
+cache="./build/build_$preset/CMakeCache.txt"
+ssl_flag=$(sed -n 's/^PONY_SSL_FLAG:[A-Z]*=//p' "$cache" 2>/dev/null) || true
+if [ -z "$ssl_flag" ]; then
+    echo "cross-test.sh: no PONY_SSL_FLAG in $cache; configure the '$preset' preset first" >&2
+    exit 1
+fi
 
 # ponyc's output directory is named after the build type, not after the preset.
 # Map rather than strip a suffix: a preset that sets PONY_USES lands in a
