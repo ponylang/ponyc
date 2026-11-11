@@ -41,6 +41,10 @@ actor \nodoc\ Main is TestList
     test(_TestArrayTrimInPlace)
     test(_TestArrayTrimInPlaceWithAppend)
     test(_TestArrayUnchop)
+    test.property[(U16, U16)](_ArrayUpdateU16Property)
+    test.property[(U32, U32)](_ArrayUpdateU32Property)
+    test.property[(U64, U64)](_ArrayUpdateU64Property)
+    test.property[(U128, U128)](_ArrayUpdateU128Property)
     test(_TestArrayValuesRewind)
     test(_TestArrayKeysRewind)
     test(_TestArrayPairsRewind)
@@ -1995,6 +1999,103 @@ class \nodoc\ iso _TestArrayInsert is UnitTest
     h.assert_array_eq[String](["one"; "three"; "four"], c)
 
     h.assert_error({() ? => ["one"; "three"].insert(3, "invalid")? })
+
+trait \nodoc\ _ArrayUpdateProperty[T: (UnsignedInteger[T] val & Number)]
+  is Property[(T, T)]
+
+  fun _update(data: Array[U8], offset: USize, value: T): T ?
+
+  fun ref property(sample: (T, T), h: PropertyHelper) ? =>
+    let width = T(0).bytewidth()
+    let mixed = T.from[U128](0x0123456789ABCDEF_FEDCBA9876543210)
+    for (old, value) in
+      [sample; (T(0), T.max_value()); (T.max_value(), T(0))
+        (mixed, not mixed)].values()
+    do
+      for offset in Range[USize].till(0, width + 2) do
+        _check_write(old, value, (width * 2) + 1, offset, h)?
+      end
+      _check_write(old, value, width, 0, h)?
+      _check_write(old, value, width + 1, 1, h)?
+    end
+
+    for size in [USize(0); width - 1; width; width + 1].values() do
+      let first_invalid = if size < width then USize(0)
+        else (size - width) + 1 end
+      for offset in [first_invalid; size; size + 1].values() do
+        let data = Array[U8].init(0xA5, size)
+          .>reserve(size + 1 + width)
+        h.assert_true(data.space() >= (size + 1 + width))
+        var rejected = false
+        try
+          _update(data, offset, T(0))?
+        else
+          rejected = true
+        end
+        h.assert_true(rejected, "out-of-bounds write")
+        h.assert_eq[USize](size, data.size(), "size after rejection")
+        for i in Range[USize].till(0, size) do
+          h.assert_eq[U8](0xA5, data(i)?, "byte after rejection")
+        end
+      end
+    end
+
+  fun _check_write(old: T, value: T, size: USize, offset: USize,
+    h: PropertyHelper) ?
+  =>
+    let width = T(0).bytewidth()
+    let data = Array[U8].init(0xA5, size)
+    for i in Range[USize].till(0, width) do
+      data(offset + i)? = _byte(old, i)
+    end
+
+    h.assert_eq[T](old, _update(data, offset, value)?, "previous value")
+    h.assert_eq[USize](size, data.size(), "size after write")
+    for i in Range[USize].till(0, size) do
+      if (i >= offset) and (i < (offset + width)) then
+        h.assert_eq[U8](_byte(value, i - offset), data(i)?, "written byte")
+      else
+        h.assert_eq[U8](0xA5, data(i)?, "untouched byte")
+      end
+    end
+    h.assert_eq[T](value, _update(data, offset, old)?, "second previous value")
+
+  fun _byte(value: T, index: USize): U8 =>
+    let shift = if Platform.littleendian() then index * 8
+      else (T(0).bytewidth() - 1 - index) * 8 end
+    (value >> T.from[USize](shift)).u8()
+
+class \nodoc\ iso _ArrayUpdateU16Property is _ArrayUpdateProperty[U16]
+  fun name(): String => "builtin/Array.update_u16"
+  fun gen(): Generator[(U16, U16)] =>
+    Generators.zip2[U16, U16](Generators.u16(), Generators.u16())
+
+  fun _update(data: Array[U8], offset: USize, value: U16): U16 ? =>
+    data.update_u16(offset, value)?
+
+class \nodoc\ iso _ArrayUpdateU32Property is _ArrayUpdateProperty[U32]
+  fun name(): String => "builtin/Array.update_u32"
+  fun gen(): Generator[(U32, U32)] =>
+    Generators.zip2[U32, U32](Generators.u32(), Generators.u32())
+
+  fun _update(data: Array[U8], offset: USize, value: U32): U32 ? =>
+    data.update_u32(offset, value)?
+
+class \nodoc\ iso _ArrayUpdateU64Property is _ArrayUpdateProperty[U64]
+  fun name(): String => "builtin/Array.update_u64"
+  fun gen(): Generator[(U64, U64)] =>
+    Generators.zip2[U64, U64](Generators.u64(), Generators.u64())
+
+  fun _update(data: Array[U8], offset: USize, value: U64): U64 ? =>
+    data.update_u64(offset, value)?
+
+class \nodoc\ iso _ArrayUpdateU128Property is _ArrayUpdateProperty[U128]
+  fun name(): String => "builtin/Array.update_u128"
+  fun gen(): Generator[(U128, U128)] =>
+    Generators.zip2[U128, U128](Generators.u128(), Generators.u128())
+
+  fun _update(data: Array[U8], offset: USize, value: U128): U128 ? =>
+    data.update_u128(offset, value)?
 
 class \nodoc\ iso _TestArrayKeysRewind is UnitTest
   """
