@@ -792,24 +792,24 @@ def validate_args(no_progress_seconds, timeout_seconds, mem_limit_mb,
 
 
 def detect_ssl():
-    """Probe the installed SSL library and return the ponyc -D flag."""
-    for name in ("openssl", "libressl"):
+    """Read the SSL -D flag from CMakeCache.txt (set by CMake's header-based
+    detection). The `openssl` binary on PATH can belong to a different SSL
+    library than the headers/libraries the build links against, so this reads
+    what CMake actually found rather than probing the binary."""
+    import glob
+    for path in sorted(glob.glob(
+            os.path.join(REPO_ROOT, "build", "build_*", "CMakeCache.txt"))):
         try:
-            result = subprocess.run([name, "version"], capture_output=True,
-                                    text=True, timeout=5)
-            if result.returncode == 0:
-                ver = result.stdout.strip()
-                if ver.lower().startswith("libressl"):
-                    return "-Dlibressl"
-                if ver.startswith("OpenSSL 4."):
-                    return "-Dopenssl_4.0.x"
-                if ver.startswith("OpenSSL 3."):
-                    return "-Dopenssl_3.0.x"
-                if ver.startswith("OpenSSL 1.1."):
-                    return "-Dopenssl_1.1.x"
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+            with open(path) as f:
+                for line in f:
+                    if line.startswith("PONY_SSL_FLAG:"):
+                        flag = line.split("=", 1)[1].strip()
+                        if flag:
+                            return flag
+        except OSError:
             continue
-    die("could not detect SSL library; pass --ssl explicitly")
+    die("could not find PONY_SSL_FLAG in any build/build_*/CMakeCache.txt; "
+        "pass --ssl explicitly")
     return ""  # unreachable
 
 

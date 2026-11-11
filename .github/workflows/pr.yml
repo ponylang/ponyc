@@ -171,15 +171,13 @@ jobs:
           PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
       - name: Compile generative stress engine
         run: PONYPATH=packages build/debug/ponyc -d --pic -b generative -o build/debug test/rt-stress/generative/
-      - name: Detect SSL version
+      - name: Read SSL flag from CMake cache
         run: |
-          ver=$(openssl version)
-          case "$ver" in
-            LibreSSL*) flag="-Dlibressl" ;;
-            *" 4."*)   flag="-Dopenssl_4.0.x" ;;
-            *" 3."*)   flag="-Dopenssl_3.0.x" ;;
-            *)         flag="-Dopenssl_1.1.x" ;;
-          esac
+          flag=$(sed -n 's/^PONY_SSL_FLAG:[A-Z]*=//p' build/build_x86-64-debug/CMakeCache.txt)
+          if [ -z "$flag" ]; then
+            echo "::error::no PONY_SSL_FLAG in CMakeCache.txt" >&2
+            exit 1
+          fi
           echo "PONY_SSL_FLAG=$flag" >> "$GITHUB_ENV"
       - name: Compile tcp-swarm stress engine
         run: PONYPATH=packages build/debug/ponyc -d ${{ env.PONY_SSL_FLAG }} --pic -b tcp-swarm -o build/debug test/rt-stress/tcp-swarm/

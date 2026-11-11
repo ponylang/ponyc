@@ -49,7 +49,8 @@ limitations — they need to be fixed.
   and the SSH session will time out. Redirect to a file instead.
 - **OpenSSL version matters for per-package tests.** cmake auto-detects the SSL
   library for ctest, but per-package compilation (steps 4c/5c) needs the flag
-  passed explicitly. The scripts detect it via `openssl version`.
+  passed explicitly. The scripts read it from CMakeCache.txt (set during cmake
+  configure).
 - **LLVM build parallelism.** LLVM is memory-hungry. On machines with limited RAM,
   use `-DJOBS=2` (or lower) to avoid OOM during the LLVM build.
 
@@ -271,15 +272,13 @@ PONYC=./build/debug/ponyc
 OUTDIR=./build/debug
 PKGDIR=./packages
 
-# Detect OpenSSL version for the SSL flag
-ssl_ver=$(openssl version 2>/dev/null | head -1)
-case "$ssl_ver" in
-  OpenSSL\ 3.*) SSL_FLAG=-Dopenssl_3.0.x ;;
-  OpenSSL\ 1.1.*) SSL_FLAG=-Dopenssl_1.1.x ;;
-  LibreSSL*) SSL_FLAG=-Dlibressl ;;
-  *) echo "ERROR: cannot detect OpenSSL version: $ssl_ver" >&2; exit 1 ;;
-esac
-echo "Detected SSL: $ssl_ver -> $SSL_FLAG"
+# Read the SSL -D flag from CMakeCache.txt (set during cmake configure).
+SSL_FLAG=$(sed -n 's/^PONY_SSL_FLAG:[A-Z]*=//p' ./build/build_debug/CMakeCache.txt 2>/dev/null)
+if [ -z "$SSL_FLAG" ]; then
+  echo "ERROR: no PONY_SSL_FLAG in CMakeCache.txt; run cmake --preset debug first" >&2
+  exit 1
+fi
+echo "SSL flag from CMake: $SSL_FLAG"
 
 # Packages with tests, from packages/stdlib/_test.pony
 PACKAGES=(
@@ -501,15 +500,13 @@ PONYC=./build/release/ponyc
 OUTDIR=./build/release
 PKGDIR=./packages
 
-# Detect OpenSSL version for the SSL flag
-ssl_ver=$(openssl version 2>/dev/null | head -1)
-case "$ssl_ver" in
-  OpenSSL\ 3.*) SSL_FLAG=-Dopenssl_3.0.x ;;
-  OpenSSL\ 1.1.*) SSL_FLAG=-Dopenssl_1.1.x ;;
-  LibreSSL*) SSL_FLAG=-Dlibressl ;;
-  *) echo "ERROR: cannot detect OpenSSL version: $ssl_ver" >&2; exit 1 ;;
-esac
-echo "Detected SSL: $ssl_ver -> $SSL_FLAG"
+# Read the SSL -D flag from CMakeCache.txt (set during cmake configure).
+SSL_FLAG=$(sed -n 's/^PONY_SSL_FLAG:[A-Z]*=//p' ./build/build_release/CMakeCache.txt 2>/dev/null)
+if [ -z "$SSL_FLAG" ]; then
+  echo "ERROR: no PONY_SSL_FLAG in CMakeCache.txt; run cmake --preset release first" >&2
+  exit 1
+fi
+echo "SSL flag from CMake: $SSL_FLAG"
 
 PACKAGES=(
   actor_pinning

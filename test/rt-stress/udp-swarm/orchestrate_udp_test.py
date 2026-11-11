@@ -492,6 +492,61 @@ def test_rlimit_as_supported():
           not o._rlimit_as_supported("linux", False))
 
 
+def test_detect_ssl():
+    import tempfile
+    import shutil
+    saved = o.REPO_ROOT
+    tmpdir = tempfile.mkdtemp()
+    try:
+        # Set up a fake build/build_debug/CMakeCache.txt with PONY_SSL_FLAG.
+        build_dir = os.path.join(tmpdir, "build", "build_debug")
+        os.makedirs(build_dir)
+        cache = os.path.join(build_dir, "CMakeCache.txt")
+        with open(cache, "w") as f:
+            f.write("# Some CMake cache\n")
+            f.write("CMAKE_BUILD_TYPE:STRING=Debug\n")
+            f.write("PONY_SSL_FLAG:INTERNAL=-Dopenssl_3.0.x\n")
+        o.REPO_ROOT = tmpdir
+        check("detect_ssl: reads openssl_3.0.x from CMakeCache.txt",
+              o.detect_ssl() == "-Dopenssl_3.0.x")
+
+        # LibreSSL flag.
+        with open(cache, "w") as f:
+            f.write("PONY_SSL_FLAG:INTERNAL=-Dlibressl\n")
+        check("detect_ssl: reads libressl from CMakeCache.txt",
+              o.detect_ssl() == "-Dlibressl")
+
+        # No cache file → dies.
+        shutil.rmtree(os.path.join(tmpdir, "build"))
+        try:
+            o.detect_ssl()
+            check("detect_ssl: dies when no CMakeCache.txt found", False)
+        except SystemExit:
+            check("detect_ssl: dies when no CMakeCache.txt found", True)
+
+        # Cache file without PONY_SSL_FLAG → dies.
+        os.makedirs(build_dir)
+        with open(cache, "w") as f:
+            f.write("CMAKE_BUILD_TYPE:STRING=Debug\n")
+        try:
+            o.detect_ssl()
+            check("detect_ssl: dies when flag is missing from cache", False)
+        except SystemExit:
+            check("detect_ssl: dies when flag is missing from cache", True)
+
+        # PONY_SSL_FLAG with an empty value → dies.
+        with open(cache, "w") as f:
+            f.write("PONY_SSL_FLAG:INTERNAL=\n")
+        try:
+            o.detect_ssl()
+            check("detect_ssl: dies when flag value is empty", False)
+        except SystemExit:
+            check("detect_ssl: dies when flag value is empty", True)
+    finally:
+        o.REPO_ROOT = saved
+        shutil.rmtree(tmpdir)
+
+
 def main():
     for fn in (test_resolve_config_deterministic, test_clamp_run,
                test_resolve_config_coverage, test_burst_clamp,
@@ -502,7 +557,8 @@ def main():
                test_lldb_exit_code, test_watchdog_kill_reason,
                test_parse_reported, test_is_progress, test_classify_outcome,
                test_is_failure, test_watch_for_progress, test_run_once,
-               test_run_under_lldb, test_rlimit_as_supported):
+               test_run_under_lldb, test_rlimit_as_supported,
+               test_detect_ssl):
         fn()
     if FAILURES:
         print("\n%d failure(s): %s" % (len(FAILURES), ", ".join(FAILURES)))

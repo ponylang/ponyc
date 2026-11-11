@@ -164,7 +164,8 @@ if(NOT PONY_CROSS_LIBPONYRT)
             message(STATUS "SSL for stdlib net: ${PONY_SSL_FLAG} (${OPENSSL_VERSION})")
         endif()
         # Also record the flag in CMakeCache.txt, for scripts that compile
-        # stdlib packages outside ctest (.ci-scripts/i386-stdlib-perpkg.sh).
+        # stdlib packages outside ctest (cross-test.sh, i386-stdlib-perpkg.sh,
+        # pr.yml, and the stress-test orchestrators).
         set(PONY_SSL_FLAG "${PONY_SSL_FLAG}" CACHE INTERNAL
             "SSL -D flag for compiling the stdlib net package")
         # Directory containing the SSL/crypto static libraries. Tool binaries
