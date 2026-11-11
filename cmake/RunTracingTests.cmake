@@ -169,6 +169,22 @@ expect_file("content-verify: trace file exists" "${_trace}")
 
 find_program(_python3 NAMES python3 python)
 if(_python3)
+    execute_process(
+        COMMAND "${_python3}" -I
+            "${TESTS}/content-verification/test_verify.py"
+        RESULT_VARIABLE _regression_rc
+        OUTPUT_VARIABLE _regression_out
+        ERROR_VARIABLE _regression_err
+        TIMEOUT 120)
+    message(STATUS "${_regression_out}${_regression_err}")
+    if(NOT _regression_rc EQUAL 0)
+        message(WARNING "  FAIL content-verify: verifier regressions failed")
+        math(EXPR _fail_count "${_fail_count} + 1")
+    else()
+        message(STATUS "  PASS content-verify: verifier regressions passed")
+        math(EXPR _pass_count "${_pass_count} + 1")
+    endif()
+
     message(STATUS "Running content verification script ...")
     execute_process(
         COMMAND "${_python3}" -I
