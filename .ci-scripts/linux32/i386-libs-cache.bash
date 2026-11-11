@@ -5,7 +5,10 @@
 # push it, and check the VM's CPU and toolchain. Run from the checkout root.
 #
 # Usage: i386-libs-cache.bash <operation>
-#   Host-side, before or without the VM (exit status is the cache script's):
+#   Host-side, before or without the VM. exists-main and exists-branch exit 0
+#   if present, 1 on a miss, 3 on an error; promote exits 0 or 3. A missing or
+#   unknown operation, an unreadable i386-alpine.env, and a missing LIBS_TAG
+#   also exit 3, so none of them reads as a miss:
 #     exists-main        is the libs package in the main cache?
 #     exists-branch      is it in the branch cache?
 #     promote            copy it from the branch cache into the main cache
@@ -21,18 +24,31 @@
 # into the VM.
 set -euo pipefail
 
-operation=${1:?usage: i386-libs-cache.bash <operation>}
+if [ $# -lt 1 ]; then
+  echo "usage: i386-libs-cache.bash <operation>" >&2
+  exit 3
+fi
+operation=$1
 case "$operation" in
   exists-main|exists-branch|promote|check-32bit) ;;
   restore|build-push-branch|build-push-main) ;;
   *)
     echo "unknown operation: $operation" >&2
-    exit 1
+    exit 3
     ;;
 esac
 
+env_file="$(dirname "$0")/i386-alpine.env"
+if [ ! -r "$env_file" ]; then
+  echo "can't read $env_file" >&2
+  exit 3
+fi
 # shellcheck source-path=SCRIPTDIR source=i386-alpine.env disable=SC1091
-. "$(dirname "$0")/i386-alpine.env"
+. "$env_file"
+if [ -z "${ALPINE_BRANCH:-}" ]; then
+  echo "ALPINE_BRANCH isn't set in $env_file" >&2
+  exit 3
+fi
 LIBS_PLATFORM="alpine${ALPINE_BRANCH#v}"
 # The VM's arch in libs-cache spelling. The cache scripts in the VM name packages
 # with their own machine's arch; the x86_64 host names the same packages with
@@ -49,17 +65,25 @@ case \"\$llvm_triple\" in
   *) echo \"LLVM's default triple is '\$llvm_triple', not 32-bit x86\" >&2; exit 1 ;;
 esac"
 
+# A missing LIBS_TAG is an error, not a miss, so exit 3 rather than the shell's 1.
+require_libs_tag() {
+  if [ -z "${LIBS_TAG:-}" ]; then
+    echo "set LIBS_TAG" >&2
+    exit 3
+  fi
+}
+
 case "$operation" in
   exists-main)
-    : "${LIBS_TAG:?set LIBS_TAG}"
+    require_libs_tag
     exec python3 "$cache/oci_libs_cache.py" exists --platform "$LIBS_PLATFORM" --arch "$LIBS_ARCH" --tag "$LIBS_TAG"
     ;;
   exists-branch)
-    : "${LIBS_TAG:?set LIBS_TAG}"
+    require_libs_tag
     exec python3 "$cache/branch_libs_cache.py" exists --platform "$LIBS_PLATFORM" --arch "$LIBS_ARCH" --tag "$LIBS_TAG"
     ;;
   promote)
-    : "${LIBS_TAG:?set LIBS_TAG}"
+    require_libs_tag
     exec python3 "$cache/promote_libs_cache.py" --platform "$LIBS_PLATFORM" --arch "$LIBS_ARCH" --tag "$LIBS_TAG"
     ;;
   check-32bit)

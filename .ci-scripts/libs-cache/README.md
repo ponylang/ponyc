@@ -179,8 +179,8 @@ A registry error (auth failure, GHCR outage, network timeout) is distinct from a
 miss. `--skip-on-miss` only writes the marker on a definite miss (exit 1); an
 error (exit 3) fails the step, so broken credentials or a GHCR outage surfaces
 as a red job rather than a silent green skip. The same distinction applies to the
-BSD VM `Check libs cache` steps in `ponyc-tier3.yml`: an error on `exists` fails
-the step instead of writing the marker.
+BSD and i386 VM `Check libs cache` steps in `ponyc-tier3.yml`: an error on
+`exists` fails the step instead of writing the marker.
 
 The accepted tradeoff: a permanent gap in the warmer's coverage is no longer
 surfaced loudly by these jobs on main, since a scheduled miss just skips. It
