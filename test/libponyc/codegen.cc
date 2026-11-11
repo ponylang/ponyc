@@ -371,6 +371,50 @@ TEST(CodegenPassInitTest, DefaultTripleLeavesUserTripleClear)
   pass_opt_done(&opt);
 }
 
+TEST(CodegenPassInitTest, I686TripleGetsSse2)
+{
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  opt.argv0 = test_argv0;
+  opt.triple = const_cast<char*>("i686-unknown-linux-gnu");
+  ASSERT_TRUE(codegen_pass_init(&opt));
+  EXPECT_NE(strstr(opt.features, "+sse2"), nullptr);
+  codegen_pass_cleanup(&opt);
+  pass_opt_done(&opt);
+}
+
+TEST(CodegenPassInitTest, I686ExistingFeaturesGetsSse2Appended)
+{
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  opt.argv0 = test_argv0;
+  opt.triple = const_cast<char*>("i686-unknown-linux-gnu");
+  opt.features = const_cast<char*>("+mmx");
+  ASSERT_TRUE(codegen_pass_init(&opt));
+  EXPECT_NE(strstr(opt.features, "+sse2"), nullptr);
+  EXPECT_NE(strstr(opt.features, "+mmx"), nullptr);
+  codegen_pass_cleanup(&opt);
+  pass_opt_done(&opt);
+}
+
+TEST(CodegenPassInitTest, I686Sse2OverridesExplicitRemoval)
+{
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  opt.argv0 = test_argv0;
+  opt.triple = const_cast<char*>("i686-unknown-linux-gnu");
+  opt.features = const_cast<char*>("-sse2");
+  ASSERT_TRUE(codegen_pass_init(&opt));
+  // +sse2 must appear after -sse2 so LLVM's last-occurrence-wins gives SSE2.
+  const char* minus = strstr(opt.features, "-sse2");
+  const char* plus = strstr(opt.features, "+sse2");
+  ASSERT_NE(minus, nullptr);
+  ASSERT_NE(plus, nullptr);
+  EXPECT_GT(plus, minus);
+  codegen_pass_cleanup(&opt);
+  pass_opt_done(&opt);
+}
+
 
 TEST_F(CodegenTest, ShiftLeft128BitOversize)
 {
