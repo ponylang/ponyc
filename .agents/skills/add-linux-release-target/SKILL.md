@@ -131,7 +131,7 @@ options:
 
 **b. Add one job block** by copying the structural-exemplar job (e.g. `alpine3_24-builder`) and substituting the version. Place the new job alphabetically among the sibling jobs.
 
-The job map key replaces `.` with `_` (YAML map keys can't contain `.`): a version of `26.04` becomes `26_04` in the job key only — the `if:` filter value, the `name:` field, and the `bash` script path all keep the dot form. Reference shape:
+The job map key replaces `.` with `_` (GitHub Actions job IDs allow only alphanumerics, hyphens, and underscores): a version of `26.04` becomes `26_04` in the job key only — the `if:` filter value, the `name:` field, and the `bash` script path all keep the dot form. Reference shape:
 
 ```yaml
 <distro><version_underscore>-builder:
