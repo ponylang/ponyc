@@ -372,6 +372,13 @@ static const char* dynamic_linker_path(compile_t* c)
   if(target_is_openbsd(c->opt->triple))
     return "/usr/libexec/ld.so";
 
+  // On NixOS, libc.so.6 is absent from FHS paths, so the musl/glibc
+  // probe below misidentifies glibc as musl. The Nix environment records
+  // the exact dynamic linker path; use it when available.
+  nixenv_t nix;
+  if(nixenv_probe(&nix, c->opt->strtab) && nix.dynamic_linker != NULL)
+    return nix.dynamic_linker;
+
   bool is_musl = target_libc_is_musl(c->opt);
 
   switch(triple.getArch())
@@ -563,6 +570,22 @@ static const char* find_libc_crt_dir(const char* sysroot,
     }
   }
 
+  // Nix fallback: CRT objects live under /nix/store paths exposed via
+  // NIX_LDFLAGS -L dirs.
+  nixenv_t nix;
+  if(nixenv_probe(&nix, strtab))
+  {
+    for(size_t i = 0; i < nix.lib_dir_count; i++)
+    {
+      for(size_t j = 0; j < sizeof(sentinels) / sizeof(sentinels[0]); j++)
+      {
+        snprintf(buf, sizeof(buf), "%s/%s", nix.lib_dirs[i], sentinels[j]);
+        if(file_exists(buf) && elf_matches_target(buf, target_machine))
+          return nix.lib_dirs[i];
+      }
+    }
+  }
+
   return NULL;
 }
 
@@ -606,6 +629,19 @@ bool target_libc_is_musl(pass_opt_t* opt)
     snprintf(buf, sizeof(buf), "%s/libc.so.6", candidates[i]);
     if(file_exists(buf))
       return false;
+  }
+
+  // Nix fallback: on NixOS, libc.so.6 is absent from FHS paths but
+  // present under /nix/store.
+  nixenv_t nix;
+  if(nixenv_probe(&nix, opt->strtab))
+  {
+    for(size_t i = 0; i < nix.lib_dir_count; i++)
+    {
+      snprintf(buf, sizeof(buf), "%s/libc.so.6", nix.lib_dirs[i]);
+      if(file_exists(buf))
+        return false;
+    }
   }
 
   return true;
@@ -911,6 +947,24 @@ static const char* find_gcc_lib_dir(const char* sysroot,
     closedir(base_dir);
   }
 
+  // Nix fallback: a Nix closure contains exactly one GCC, so
+  // version-picking is unnecessary — a flat search for libgcc.a suffices.
+  if(best_dir == NULL)
+  {
+    nixenv_t nix;
+    if(nixenv_probe(&nix, strtab))
+    {
+      char candidate[PATH_MAX];
+      for(size_t i = 0; i < nix.lib_dir_count; i++)
+      {
+        snprintf(candidate, sizeof(candidate), "%s/libgcc.a",
+          nix.lib_dirs[i]);
+        if(file_exists(candidate))
+          return nix.lib_dirs[i];
+      }
+    }
+  }
+
   return best_dir;
 }
 
@@ -1059,6 +1113,20 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
       "could not find a libc crt startup object (crt1.o or crt0.o) "
       "matching target architecture '%s' in sysroot '%s'",
       c->opt->triple, sysroot);
+
+    struct stat nixos_st;
+    if(stat("/etc/NIXOS", &nixos_st) == 0)
+    {
+      if(getenv("NIX_CC") == NULL)
+        errorf(errors, NULL,
+          "On NixOS, run ponyc inside nix-shell or nix develop"
+          " so that NIX_CC, NIX_LDFLAGS, and NIX_CFLAGS_COMPILE are set.");
+      else
+        errorf(errors, NULL,
+          "NIX_CC is set but NIX_LDFLAGS appears missing or empty."
+          " Check your Nix shell derivation.");
+    }
+
     return false;
   }
 
@@ -1400,6 +1468,26 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
         char lbuf[PATH_MAX];
         snprintf(lbuf, sizeof(lbuf), "-L%s", buf);
         args.push_back(stringtab(c->opt->strtab, lbuf));
+      }
+    }
+  }
+
+  // Nix library paths. Nix store paths are not in the runtime linker's
+  // default search, so each gets both -L and -rpath.
+  {
+    nixenv_t nix;
+    if(nixenv_probe(&nix, c->opt->strtab))
+    {
+      for(size_t i = 0; i < nix.lib_dir_count; i++)
+      {
+        snprintf(buf, sizeof(buf), "-L%s", nix.lib_dirs[i]);
+        args.push_back(stringtab(c->opt->strtab, buf));
+
+        if(!c->opt->staticbin)
+        {
+          args.push_back("-rpath");
+          args.push_back(nix.lib_dirs[i]);
+        }
       }
     }
   }
@@ -2056,6 +2144,22 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
       if(stat(fallback_dirs[i], &st) == 0 && S_ISDIR(st.st_mode))
       {
         snprintf(buf, sizeof(buf), "-L%s", fallback_dirs[i]);
+        args.push_back(stringtab(c->opt->strtab, buf));
+      }
+    }
+  }
+
+  // Nix library paths (macOS). Nix-installed libraries live under
+  // /nix/store; NIX_LDFLAGS carries their -L paths. No -rpath — Mach-O
+  // rpath semantics differ from ELF, and Nix sets install names at
+  // build time.
+  {
+    nixenv_t nix;
+    if(nixenv_probe(&nix, c->opt->strtab))
+    {
+      for(size_t i = 0; i < nix.lib_dir_count; i++)
+      {
+        snprintf(buf, sizeof(buf), "-L%s", nix.lib_dirs[i]);
         args.push_back(stringtab(c->opt->strtab, buf));
       }
     }

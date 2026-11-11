@@ -475,6 +475,20 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
   // -x c, where it is inert — kept here for byte-parity with the driver.
   bool any = false;
 
+  // Nix system headers live under /nix/store, not FHS paths, so the
+  // Nix include dirs must precede the FHS probes.
+  {
+    nixenv_t nix;
+    if(nixenv_probe(&nix, opt->strtab))
+    {
+      for(size_t i = 0; i < nix.include_dir_count; i++)
+      {
+        any |= push_isystem(opt, args, errors, "-internal-isystem",
+          nix.include_dirs[i], "");
+      }
+    }
+  }
+
   any |= push_isystem(opt, args, errors, "-internal-isystem", sysroot,
     "/usr/local/include");
 
@@ -502,6 +516,25 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
       "  Searched: usr/local/include, usr/include/<triple>, include, "
       "usr/include", sysroot);
     return false;
+  }
+
+  if(!any)
+  {
+    struct stat nixos_st;
+    if(stat("/etc/NIXOS", &nixos_st) == 0)
+    {
+      if(getenv("NIX_CC") == NULL)
+        errorf(errors, NULL,
+          "no system include directories found.\n"
+          "  On NixOS, run ponyc inside nix-shell or nix develop"
+          " so that NIX_CC, NIX_LDFLAGS, and NIX_CFLAGS_COMPILE are set.");
+      else
+        errorf(errors, NULL,
+          "no system include directories found.\n"
+          "  NIX_CC is set but NIX_CFLAGS_COMPILE appears missing or empty."
+          " Check your Nix shell derivation.");
+      return false;
+    }
   }
 
   return true;

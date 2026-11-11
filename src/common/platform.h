@@ -416,6 +416,8 @@ inline uint32_t __pony_clzzu(size_t x) {
 #  include "vcvars.h"
 #endif
 
+#include "nixenv.h"
+
 #if defined(ARMV7) && !defined(__ARM_NEON) && !defined(__ARM_NEON__)
 #  define PLATFORM_IS_ARMHF_WITHOUT_NEON 1
 #endif
