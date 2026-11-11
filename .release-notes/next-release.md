@@ -69,3 +69,7 @@ Time values now use the full 64-bit range on 32-bit musl. On glibc 32-bit system
 
 On 32-bit x86 targets whose CPU lacked SSE2, floating-point arithmetic could produce incorrect results that violated IEEE 754. ponyc now unconditionally enables SSE2 for all 32-bit x86 targets.
 
+## Fix link failure on x86-64 when passing `--features=-cx16`
+
+The Pony runtime uses 128-bit atomic operations that need the x86-64 `cx16` CPU feature. ponyc turns that feature on for x86-64 targets, but passing `--features=-cx16` turned it off and ponyc didn't turn it back on. The compiled program then referenced `__atomic_compare_exchange_16`, and on platforms where nothing provides that function, such as macOS, linking failed with an undefined symbol. ponyc now keeps `cx16` on for every x86-64 target, even when `--features` turns it off.
+
