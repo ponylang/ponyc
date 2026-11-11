@@ -872,6 +872,24 @@ void codegen_llvm_shutdown()
   LLVMShutdown();
 }
 
+// Appends a feature entry such as "+cx16" to opt->features. LLVM applies
+// feature entries in order, so the appended entry overrides any earlier entry
+// for the same feature.
+static void append_feature(pass_opt_t* opt, const char* entry)
+{
+  size_t len = strlen(opt->features);
+  size_t elen = strlen(entry);
+  size_t sep = (len == 0) ? 0 : 1;
+  char* extended = (char*)malloc(len + sep + elen + 1);
+  memcpy(extended, opt->features, len);
+  if(sep == 1)
+    extended[len] = ',';
+  memcpy(extended + len + sep, entry, elen + 1);
+  LLVMDisposeMessage(opt->features);
+  opt->features = LLVMCreateMessage(extended);
+  free(extended);
+}
+
 bool codegen_pass_init(pass_opt_t* opt)
 {
 #ifndef NDEBUG
@@ -958,40 +976,16 @@ bool codegen_pass_init(pass_opt_t* opt)
   // requires the cx16 target feature. When ponyc merges the runtime bitcode
   // and stamps target attributes, a features string that leaves cx16 disabled
   // causes LLVM to lower the 128-bit CAS to a libcall that doesn't exist on
-  // macOS. +cx16 is appended without checking for an existing cx16 entry:
-  // LLVM applies feature entries in order, so the appended +cx16 overrides any
-  // earlier -cx16.
+  // macOS.
   if(target_is_x86(opt->triple) && !target_is_ilp32(opt->triple))
-  {
-    size_t len = strlen(opt->features);
-    // "+cx16" when features is empty, ",+cx16" otherwise.
-    const char* suffix = (len == 0) ? "+cx16" : ",+cx16";
-    size_t slen = strlen(suffix);
-    char* extended = (char*)malloc(len + slen + 1);
-    memcpy(extended, opt->features, len);
-    memcpy(extended + len, suffix, slen + 1);
-    LLVMDisposeMessage(opt->features);
-    opt->features = LLVMCreateMessage(extended);
-    free(extended);
-  }
+    append_feature(opt, "+cx16");
 
   // On 32-bit x86, LLVM lowers floating-point arithmetic to x87 when SSE2 is
   // absent. x87 holds intermediates in 80-bit extended-precision registers
   // without rounding to double or single precision between operations, so
-  // results can differ from IEEE 754. Appended last so it takes precedence
-  // over an earlier -sse2 in the string.
+  // results can differ from IEEE 754.
   if(target_is_x86(opt->triple) && target_is_ilp32(opt->triple))
-  {
-    size_t len = strlen(opt->features);
-    const char* suffix = (len == 0) ? "+sse2" : ",+sse2";
-    size_t slen = strlen(suffix);
-    char* extended = (char*)malloc(len + slen + 1);
-    memcpy(extended, opt->features, len);
-    memcpy(extended + len, suffix, slen + 1);
-    LLVMDisposeMessage(opt->features);
-    opt->features = LLVMCreateMessage(extended);
-    free(extended);
-  }
+    append_feature(opt, "+sse2");
 
   return true;
 }
