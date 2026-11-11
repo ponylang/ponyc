@@ -890,6 +890,69 @@ static void append_feature(pass_opt_t* opt, const char* entry)
   free(extended);
 }
 
+// LLVM aborts while loading a module whose target-features attribute has an
+// empty entry or an entry that doesn't start with '+' or '-'. An empty string
+// is valid and means no features.
+static bool features_are_valid(pass_opt_t* opt, const char* features)
+{
+  if(features[0] == '\0')
+    return true;
+
+  const char* entry = features;
+
+  while(true)
+  {
+    const char* end = strchr(entry, ',');
+    size_t len = (end == NULL) ? strlen(entry) : (size_t)(end - entry);
+
+    if(len == 0)
+    {
+      errorf(opt->check.errors, NULL,
+        "invalid --features value \"%s\": empty feature entry", features);
+      return false;
+    }
+
+    if((entry[0] != '+') && (entry[0] != '-'))
+    {
+      errorf(opt->check.errors, NULL,
+        "invalid --features value \"%s\": feature \"%.*s\" must start "
+        "with '+' or '-'", features, (int)len, entry);
+      return false;
+    }
+
+    if(end == NULL)
+      return true;
+
+    entry = end + 1;
+  }
+}
+
+// An empty CPU selects the target's default CPU. A triple with no registered
+// target is reported when the target machine is created; checking the CPU
+// against it here would report the CPU instead of the triple.
+static bool cpu_is_valid(pass_opt_t* opt)
+{
+  if(opt->cpu[0] == '\0')
+    return true;
+
+  LLVMTargetRef target;
+  char* err;
+
+  if(LLVMGetTargetFromTriple(opt->triple, &target, &err) != 0)
+  {
+    LLVMDisposeMessage(err);
+    return true;
+  }
+
+  if(codegen_cpu_is_valid(opt->triple, opt->cpu))
+    return true;
+
+  errorf(opt->check.errors, NULL,
+    "invalid --cpu value \"%s\": not a recognized processor for target %s",
+    opt->cpu, opt->triple);
+  return false;
+}
+
 bool codegen_pass_init(pass_opt_t* opt)
 {
 #ifndef NDEBUG
@@ -922,7 +985,10 @@ bool codegen_pass_init(pass_opt_t* opt)
     triple = normalized;
   }
 
-  if(opt->features != NULL)
+  bool user_features = opt->features != NULL;
+  bool user_cpu = opt->cpu != NULL;
+
+  if(user_features)
   {
     opt->features = LLVMCreateMessage(opt->features);
   } else {
@@ -947,30 +1013,45 @@ bool codegen_pass_init(pass_opt_t* opt)
     // string), not the host's. is_cross_compiling is true whenever the target
     // arch, OS, OR environment differs from the host, and generic is right for
     // all three. For an arch-cross target a host CPU name (e.g. x86's "znver3")
-    // is outright invalid: LLVM's target machine silently falls back to
-    // generic, but the clang gencshim drives to compile C shims rejects it
-    // ("unknown target CPU"). For a same-arch OS/env-cross target (e.g.
-    // x86_64-linux-musl on a glibc host) the host CPU would be valid, but
-    // generic is still the right default -- features are already "" for any
-    // explicit --triple (see above), so this keeps CPU and features consistent
-    // for explicit-triple builds. An empty string lets each tool pick the
-    // target baseline; a literal like "generic" can't (riscv rejects it,
-    // wanting "generic-rv64").
+    // is outright invalid: LLVM's target machine prints a warning and falls
+    // back to generic, but the clang gencshim drives to compile C shims
+    // rejects it ("unknown target CPU"). For a same-arch OS/env-cross target
+    // (e.g. x86_64-linux-musl on a glibc host) the host CPU would be valid,
+    // but generic is still the right default -- features are already "" for
+    // any explicit --triple (see above), so this keeps CPU and features
+    // consistent for explicit-triple builds. An empty string lets each tool
+    // pick the target baseline; a literal like "generic" can't (riscv rejects
+    // it, wanting "generic-rv64").
     opt->cpu = LLVMCreateMessage("");
   else
   {
     opt->cpu = LLVMGetHostCPUName();
 
     // Under QEMU -cpu host, the emulated CPUID can map to a name that is valid
-    // only for a narrower target (e.g. "athlon-xp" on x86-64). The target
-    // machine silently falls back to generic, but gencshim's embedded clang
-    // rejects the name outright.
-    if(!codegen_host_cpu_is_valid(opt->triple, opt->cpu))
+    // only for a narrower target (e.g. "athlon-xp" on x86-64). Building for
+    // that CPU stops with an LLVM fatal error, and gencshim's embedded clang
+    // rejects the name.
+    if(!codegen_cpu_is_valid(opt->triple, opt->cpu))
     {
       LLVMDisposeMessage(opt->cpu);
       opt->cpu = LLVMCreateMessage("");
     }
   }
+
+  // triple, cpu, features and abi are LLVM-owned copies by this point, so a
+  // false return leaves them safe for codegen_pass_cleanup to free. The
+  // features are checked before ponyc appends its own entries, so an error
+  // shows the user's string.
+  bool valid = true;
+
+  if(user_features && !features_are_valid(opt, opt->features))
+    valid = false;
+
+  if(user_cpu && !cpu_is_valid(opt))
+    valid = false;
+
+  if(!valid)
+    return false;
 
   // The runtime's 128-bit atomics compile to cmpxchg16b on x86-64, which
   // requires the cx16 target feature. When ponyc merges the runtime bitcode

@@ -12,6 +12,7 @@
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Target/TargetOptions.h>
+#include <llvm/TargetParser/RISCVTargetParser.h>
 #include <llvm/TargetParser/X86TargetParser.h>
 
 #include "llvm_config_end.h"
@@ -47,7 +48,14 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt)
   return reinterpret_cast<LLVMTargetMachineRef>(m);
 }
 
-bool codegen_host_cpu_is_valid(const char* triple_str, const char* cpu)
+// Returns whether cpu names a processor that the target can generate code for.
+// On x86 and RISC-V the CPU must also match the triple's bit width; LLVM stops
+// with a fatal error when it doesn't. These use the same rule as clang's
+// -target-cpu, so an x86 or RISC-V CPU accepted here is also accepted when
+// compiling C shims. Other targets are checked against LLVM's processor list,
+// which accepts some names that clang rejects. Returns false when the triple
+// has no registered target.
+bool codegen_cpu_is_valid(const char* triple_str, const char* cpu)
 {
   Triple triple(triple_str);
 
@@ -57,13 +65,19 @@ bool codegen_host_cpu_is_valid(const char* triple_str, const char* cpu)
   if(triple.getArch() == Triple::x86)
     return X86::parseArchX86(cpu, false) != X86::CK_None;
 
+  if(triple.isRISCV())
+    return RISCV::parseCPU(cpu, triple.isArch64Bit());
+
   std::string error;
   const Target* t = TargetRegistry::lookupTarget(triple, error);
   if(t == nullptr)
     return false;
 
+  // Build the subtarget with the default CPU. Building it with an unknown CPU
+  // makes LLVM print a warning, and building it with "help" makes LLVM print
+  // its CPU list.
   std::unique_ptr<MCSubtargetInfo> sti(
-    t->createMCSubtargetInfo(triple, cpu, ""));
+    t->createMCSubtargetInfo(triple, "", ""));
   if(sti == nullptr)
     return false;
 
