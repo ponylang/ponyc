@@ -35,6 +35,7 @@ actor \nodoc\ Main is TestList
     test(_TestArrayCopyFrom)
     test(_TestArrayCopyTo)
     test(_TestArrayCopyOverflowBounds)
+    test(_TestArrayAppendConcatOverflowBounds)
     test(_TestArrayMultiByteOverflowBounds)
     test(_TestArrayInsert)
     test(_TestArrayReserveMinAlloc)
@@ -2573,6 +2574,37 @@ class \nodoc\ iso _TestArrayCopyOverflowBounds is UnitTest
     let ct_dst2: Array[U8] = [9; 8; 7]
     ct_src2.copy_to(ct_dst2, 0, 100, 1)
     h.assert_array_eq[U8]([9; 8; 7], ct_dst2)
+
+class \nodoc\ iso _TestArrayAppendConcatOverflowBounds is UnitTest
+  fun name(): String => "builtin/Array.append_concat_overflow_bounds"
+
+  fun apply(h: TestHelper) ? =>
+    // concat: _size + len wraps when len is near USize.max_value()
+    var a: Array[USize] = [1; 2; 3]
+    let b: Array[USize] = [4; 5]
+    a.concat(b.values() where len = USize.max_value() - 1)
+    h.assert_array_eq[USize]([1; 2; 3], a)
+
+    // concat: _size + len wraps to exactly 0
+    a = [1; 2; 3]
+    a.concat(b.values() where len = USize.max_value() - 2)
+    h.assert_array_eq[USize]([1; 2; 3], a)
+
+    // concat: legitimate len still works
+    a = [1; 2; 3]
+    a.concat(b.values() where len = 2)
+    h.assert_eq[USize](5, a.size())
+    h.assert_eq[USize](4, a(3)?)
+    h.assert_eq[USize](5, a(4)?)
+
+    // append: large len is clamped to source size, so the overflow
+    // guard fires only when _size is near USize.max_value(). We can't
+    // construct such an array, but we verify the normal path is intact.
+    a = [1; 2; 3]
+    a.append(b)
+    h.assert_eq[USize](5, a.size())
+    h.assert_eq[USize](4, a(3)?)
+    h.assert_eq[USize](5, a(4)?)
 
 class \nodoc\ iso _TestArrayMultiByteOverflowBounds is UnitTest
   fun name(): String => "builtin/Array.multibyte_overflow_bounds"
