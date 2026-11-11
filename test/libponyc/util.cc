@@ -126,7 +126,7 @@ static const char* const _builtin =
   "    envp: Pointer[Pointer[U8]] val)\n"
   "  => None\n"
   "primitive None\n"
-  "trait val Equatable[A: Equatable[A] val]\n"
+  "trait val Eqable[A: Eqable[A] val]\n"
   "  fun eq(that: A): Bool => this is that\n"
   "  fun ne(that: A): Bool => not eq(that)\n"
   "interface tag Any\n"

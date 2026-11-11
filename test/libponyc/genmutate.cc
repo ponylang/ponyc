@@ -4919,12 +4919,12 @@ TEST_F(GenMutateCodegenTest, RvrKeepsHandWrittenPrimitiveEq)
 
 TEST_F(GenMutateCodegenTest, RvrKeepsInheritedTraitDefaultEq)
 {
-  // A primitive that inherits eq from a trait default (Equatable's
+  // A primitive that inherits eq from a trait default (Eqable's
   // `this is that`) is user code via the trait — RVR must keep it.
   const char* src =
     "type Colour is (Red | Blue)\n"                           // 1
-    "primitive Red is Equatable[Colour]\n"                    // 2
-    "primitive Blue is Equatable[Colour]\n"                   // 3
+    "primitive Red is Eqable[Colour]\n"                       // 2
+    "primitive Blue is Eqable[Colour]\n"                      // 3
     "\n"                                                      // 4
     "actor Main\n"                                            // 5
     "  new create(env: Env) =>\n"                             // 6
