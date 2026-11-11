@@ -540,14 +540,24 @@ class Array[A] is ResizableSeq[A]
     len: USize)
   =>
     """
-    Copy len elements from src(src_idx) to this(dst_idx).
-    Only works for Array[U8].
-    """
-    reserve(dst_idx + len)
-    src._ptr._offset(src_idx)._copy_to(_ptr._convert[U8]()._offset(dst_idx), len)
+    Copy up to len bytes from src starting at src_idx into this array
+    starting at dst_idx, growing as needed. Only works for Array[U8].
 
-    if _size < (dst_idx + len) then
-      _size = dst_idx + len
+    The number of bytes actually copied is the minimum of len and the
+    bytes available in src from src_idx. If src_idx is out of bounds,
+    nothing is copied.
+    """
+    if src_idx < src.size() then
+      let count = len.min(src.size() - src_idx)
+      if (count > 0) and (dst_idx <= (USize.max_value() - count)) then
+        let new_end = dst_idx + count
+        reserve(new_end)
+        src._ptr._offset(src_idx)._copy_to(
+          _ptr._convert[U8]()._offset(dst_idx), count)
+        if _size < new_end then
+          _size = new_end
+        end
+      end
     end
 
   fun copy_to(
@@ -557,16 +567,20 @@ class Array[A] is ResizableSeq[A]
     len: USize)
   =>
     """
-    Copy len elements from this(src_idx) to dst(dst_idx).
+    Copy up to len elements from this(src_idx) to dst(dst_idx), growing
+    dst as needed. The number of elements actually copied is the minimum
+    of len and the elements available from src_idx. If src_idx is out of
+    bounds, or dst_idx is past dst's current size, nothing is copied.
     """
     if (src_idx < _size) and (dst_idx <= dst._size) then
       let count = len.min(_size - src_idx)
-      if count > 0 then
-        dst.reserve(dst_idx + count)
+      if (count > 0) and (dst_idx <= (USize.max_value() - count)) then
+        let new_end = dst_idx + count
+        dst.reserve(new_end)
         _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), count)
 
-        if dst._size < (dst_idx + count) then
-          dst._size = dst_idx + count
+        if dst._size < new_end then
+          dst._size = new_end
         end
       end
     end
