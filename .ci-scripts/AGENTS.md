@@ -38,8 +38,9 @@ when you want to exercise them).
 - A subdirectory mixes **entry scripts** (runnable by full path, each with a
   `main` and a CLI) with **support-library modules** (import-only, no `main`). In
   `libs-cache/` the library modules are `common.py` (die/info/`require_env`/the
-  orchestrator helpers, plus the shared entry-script path constants
-  `MAIN_CACHE`/`BRANCH_CACHE`/`PROMOTE`), `registry.py` (the GHCR registry-v2
+  orchestrator helpers, the exit-code constants `EXIT_MISS`/`EXIT_ERROR`, and the
+  shared entry-script path constants `MAIN_CACHE`/`BRANCH_CACHE`/`PROMOTE`),
+  `registry.py` (the GHCR registry-v2
   push/pull client, including `copy` — the cross-namespace promote the warmer uses
   to reuse a branch build), `ghpackages.py` (the GitHub-packages REST client), and
   `cache_arch.py` (arch normalization); the entry scripts (`*_libs_cache.py`,

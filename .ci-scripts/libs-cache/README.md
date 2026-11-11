@@ -166,6 +166,13 @@ so the Windows sites spell the two modes out under a literal `if
 falling back to the working directory, which is the workspace mount for the
 arm64-linux docker-in-docker jobs — so the host-side `hashFiles` gate sees it.
 
+A registry error (auth failure, GHCR outage, network timeout) is distinct from a
+miss. `--skip-on-miss` only writes the marker on a definite miss (exit 1); an
+error (exit 3) fails the step, so broken credentials or a GHCR outage surfaces
+as a red job rather than a silent green skip. The same distinction applies to the
+BSD VM `Check libs cache` steps in `ponyc-tier3.yml`: an error on `exists` fails
+the step instead of writing the marker.
+
 The accepted tradeoff: a permanent gap in the warmer's coverage is no longer
 surfaced loudly by these jobs on main, since a scheduled miss just skips. It
 still surfaces via the non-stress consumers that pull the same platforms. tier2's
@@ -319,9 +326,11 @@ after `--`. There are two modes:
   requires `--branch-cache`.
 
 The `exists` subcommand lives in both `oci_libs_cache.py` and
-`branch_libs_cache.py`. It checks the manifest only, with no blob download, and
-exits 0 when present and 1 when absent. Any HTTP or network error routes through
-`die` to exit 1, so it fails safe to "build".
+`branch_libs_cache.py`. It checks the manifest only, with no blob download. It
+exits 0 when present, 1 on a definite miss (manifest 404), and 3 on any error
+(auth failure, network error, 5xx, bad input). `pull` uses the same three exit
+codes. Callers branch on these three outcomes: a miss triggers a build or a skip,
+an error fails the step or prints a warning (see below).
 
 A main-cache hit short-circuits before any push, so the warmer stays the only
 pusher to `ponyc-libs-cache`.

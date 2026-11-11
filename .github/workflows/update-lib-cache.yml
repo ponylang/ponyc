@@ -293,10 +293,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
-          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
+          python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG" && main_rc=0 || main_rc=$?
+          if [ "$main_rc" -eq 0 ]; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          else
+          elif [ "$main_rc" -eq 1 ]; then
             echo "hit=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
+            exit "$main_rc"
           fi
       - name: Promote branch libs if present
         id: promote
@@ -309,13 +313,17 @@ jobs:
           # tag, copy it into the main cache instead of provisioning the VM to
           # rebuild. A promote failure is non-fatal -- promoted=false falls through
           # to the VM build below.
-          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
+          python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG" && branch_rc=0 || branch_rc=$?
+          if [ "$branch_rc" -eq 0 ]; then
             if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform freebsd-15.1 --tag "$LIBS_TAG"; then
               echo "promoted=true" >> "$GITHUB_OUTPUT"
             else
               echo "promoted=false" >> "$GITHUB_OUTPUT"
             fi
+          elif [ "$branch_rc" -eq 1 ]; then
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
           else
+            echo "::warning::Branch libs cache check failed (exit $branch_rc); falling through to VM build."
             echo "promoted=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Provision VM
@@ -351,10 +359,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
-          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
+          python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG" && main_rc=0 || main_rc=$?
+          if [ "$main_rc" -eq 0 ]; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          else
+          elif [ "$main_rc" -eq 1 ]; then
             echo "hit=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
+            exit "$main_rc"
           fi
       - name: Promote branch libs if present
         id: promote
@@ -367,13 +379,17 @@ jobs:
           # tag, copy it into the main cache instead of provisioning the VM to
           # rebuild. A promote failure is non-fatal -- promoted=false falls through
           # to the VM build below.
-          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
+          python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG" && branch_rc=0 || branch_rc=$?
+          if [ "$branch_rc" -eq 0 ]; then
             if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform openbsd-7.9 --tag "$LIBS_TAG"; then
               echo "promoted=true" >> "$GITHUB_OUTPUT"
             else
               echo "promoted=false" >> "$GITHUB_OUTPUT"
             fi
+          elif [ "$branch_rc" -eq 1 ]; then
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
           else
+            echo "::warning::Branch libs cache check failed (exit $branch_rc); falling through to VM build."
             echo "promoted=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Provision VM
@@ -408,10 +424,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
-          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
+          python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG" && main_rc=0 || main_rc=$?
+          if [ "$main_rc" -eq 0 ]; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
-          else
+          elif [ "$main_rc" -eq 1 ]; then
             echo "hit=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Main libs cache check failed (exit $main_rc); not treating this as a miss."
+            exit "$main_rc"
           fi
       - name: Promote branch libs if present
         id: promote
@@ -424,13 +444,17 @@ jobs:
           # tag, copy it into the main cache instead of provisioning the VM to
           # rebuild. A promote failure is non-fatal -- promoted=false falls through
           # to the VM build below.
-          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
+          python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG" && branch_rc=0 || branch_rc=$?
+          if [ "$branch_rc" -eq 0 ]; then
             if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
               echo "promoted=true" >> "$GITHUB_OUTPUT"
             else
               echo "promoted=false" >> "$GITHUB_OUTPUT"
             fi
+          elif [ "$branch_rc" -eq 1 ]; then
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
           else
+            echo "::warning::Branch libs cache check failed (exit $branch_rc); falling through to VM build."
             echo "promoted=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Provision VM
