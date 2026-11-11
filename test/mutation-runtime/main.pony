@@ -186,7 +186,8 @@ actor Main
       env.exitcode(1)
     end
 
-    // CR wide literal: U128 above 2^64. Variable operand prevents Rule 2.
+    // CR wide literal: U128 above 2^64. Variable operand prevents the
+    // equivalent-mutant filter from dropping the replacement.
     let small: U128 = a.u128()  // 3
     let cr_wide: U128 = small + 0x1_0000_0000_0000_000A  // 3 + 2^64+10
     env.out.print("cr_wide=" + cr_wide.string())
