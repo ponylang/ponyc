@@ -116,3 +116,7 @@ Some `--cpu` values that used to be accepted are now errors:
 - On RISC-V, `--cpu=generic` and other names that only set tuning, such as `rocket`, are now rejected. Use `--cpu=generic-rv64` or `--cpu=generic-rv32` instead.
 - On every target, `--cpu=help` is now rejected instead of printing LLVM's CPU list.
 
+## Fix integer overflow in Array.copy_from and Array.copy_to bounds arithmetic
+
+Passing a large index to `Array.copy_from` or `Array.copy_to` could write past the end of the destination array's allocation. `copy_from` could also read past the end of the source array.
+
