@@ -21,6 +21,14 @@ ENDC = '\033[0m'
 ERROR = '\033[31m'
 INFO = '\033[34m'
 
+# Exit codes for the cache primitives (exists, pull, push). Callers that shell
+# out to these scripts branch on the exit code to distinguish a definite cache
+# miss (the artifact is not present) from an error (auth failure, network error,
+# 5xx, bad input, etc.). Argparse uses exit 2 for usage errors, so the error
+# code must avoid that.
+EXIT_MISS = 1
+EXIT_ERROR = 3
+
 # Paths to the cache entry scripts, shared so the orchestrators
 # (resolve_libs_cache.py, pr_libs_cache.py) agree on one spelling. They are
 # strings, not imports, so there is no import cycle; each orchestrator still calls
@@ -34,7 +42,7 @@ PROMOTE = os.path.join(SCRIPTS_DIR, 'promote_libs_cache.py')
 
 def die(message):
     print(ERROR + message + ENDC, file=sys.stderr)
-    sys.exit(1)
+    sys.exit(EXIT_ERROR)
 
 
 def info(message):

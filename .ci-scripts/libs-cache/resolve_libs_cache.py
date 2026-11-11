@@ -70,8 +70,8 @@ import os
 import sys
 from pathlib import Path
 
-from common import (BRANCH_CACHE, MAIN_CACHE, PROMOTE, cache_args, die, info, run,
-                    split_build_command)
+from common import (BRANCH_CACHE, EXIT_MISS, MAIN_CACHE, PROMOTE, cache_args,
+                    die, info, run, split_build_command)
 
 # A caller that passes --skip-on-miss gates its build/run steps on the ABSENCE of
 # this marker (`if: hashFiles('.libs-cache-miss') == ''`), so when the libs are not
@@ -136,16 +136,24 @@ def main(argv):
             die("--require-cache-hit takes no build command (it never builds).")
         args = parser.parse_args(rest)
         base = cache_args(args)
-        if run([sys.executable, MAIN_CACHE, 'pull'] + base) == 0:
+        rc = run([sys.executable, MAIN_CACHE, 'pull'] + base)
+        if rc == 0:
             info("Libs restored from the main GHCR cache.")
             return
+        if rc != EXIT_MISS:
+            die(f"Libs cache check failed (exit {rc}); not treating this as a "
+                "miss. See the error output above.")
         # When the main cache does not have the libs, --branch-cache checks the
         # branch cache too -- the same main-then-branch lookup a consumer does. It
         # only pulls here.
-        if (args.branch_cache
-                and run([sys.executable, BRANCH_CACHE, 'pull'] + base) == 0):
-            info("Libs restored from the branch GHCR cache.")
-            return
+        if args.branch_cache:
+            brc = run([sys.executable, BRANCH_CACHE, 'pull'] + base)
+            if brc == 0:
+                info("Libs restored from the branch GHCR cache.")
+                return
+            if brc != EXIT_MISS:
+                die(f"Branch libs cache check failed (exit {brc}); not treating "
+                    "this as a miss. See the error output above.")
         sel_str = args.image or args.platform
         # --skip-on-miss treats the libs being absent as expected and skips
         # quietly; without it -- or with --branch-cache and neither cache has the
@@ -175,17 +183,25 @@ def main(argv):
     base = cache_args(args)
 
     if args.warm:
-        if run([sys.executable, MAIN_CACHE, 'exists'] + base) == 0:
+        main_rc = run([sys.executable, MAIN_CACHE, 'exists'] + base)
+        if main_rc == 0:
             info("Libs present in the main GHCR cache.")
             return
-        if run([sys.executable, BRANCH_CACHE, 'exists'] + base) == 0:
+        if main_rc != EXIT_MISS:
+            info(f"warning: main cache check failed (exit {main_rc}); "
+                 "building from source.")
+        branch_rc = run([sys.executable, BRANCH_CACHE, 'exists'] + base)
+        if branch_rc == 0:
             info("Branch cache hit; promoting it into the main cache.")
             if run([sys.executable, PROMOTE] + base) == 0:
                 info("Promoted branch libs into the main GHCR cache.")
                 return
             info("warning: promote failed; building from source instead.")
-        else:
+        elif branch_rc == EXIT_MISS:
             info("Libs cache miss; building from source.")
+        else:
+            info(f"warning: branch cache check failed (exit {branch_rc}); "
+                 "building from source.")
         rc = run(build_cmd)
         if rc != 0:
             sys.exit(rc)
@@ -195,14 +211,24 @@ def main(argv):
         return
 
     # consumer (default), optionally participating in the branch cache.
-    if run([sys.executable, MAIN_CACHE, 'pull'] + base) == 0:
+    main_rc = run([sys.executable, MAIN_CACHE, 'pull'] + base)
+    if main_rc == 0:
         info("Libs restored from the main GHCR cache.")
         return
-    if args.branch_cache and run([sys.executable, BRANCH_CACHE, 'pull'] + base) == 0:
-        info("Libs restored from the branch GHCR cache.")
-        return
+    if main_rc != EXIT_MISS:
+        info(f"warning: main cache pull failed (exit {main_rc}); "
+             "building from source.")
+    if args.branch_cache:
+        branch_rc = run([sys.executable, BRANCH_CACHE, 'pull'] + base)
+        if branch_rc == 0:
+            info("Libs restored from the branch GHCR cache.")
+            return
+        if branch_rc != EXIT_MISS:
+            info(f"warning: branch cache pull failed (exit {branch_rc}); "
+                 "building from source.")
 
-    info("Libs cache miss; building from source.")
+    if main_rc == EXIT_MISS:
+        info("Libs cache miss; building from source.")
     rc = run(build_cmd)
     if rc != 0:
         sys.exit(rc)

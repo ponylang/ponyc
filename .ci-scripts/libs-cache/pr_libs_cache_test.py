@@ -19,6 +19,7 @@ any subprocess or network. Load-bearing invariants:
 """
 import sys
 
+from common import EXIT_ERROR
 import pr_libs_cache as pr
 
 FAILURES = []
@@ -135,28 +136,66 @@ def test_ensure_branch_push_failure_hard_fails():
                                     'BUILD': 0, 'branch:push': 1})
     check('ensure push-fail calls', calls,
           ['main:exists', 'branch:exists', 'BUILD', 'branch:push'])
-    check('ensure push-fail code', code, 1)
+    check('ensure push-fail code', code, EXIT_ERROR)
 
 
 def test_ensure_requires_branch_cache():
     calls, code = run_main(['--ensure', '--platform', 'p', '--tag', 't', '--',
                             'cmake'], {})
     check('ensure-no-branch calls', calls, [])
-    check('ensure-no-branch code', code, 1)
+    check('ensure-no-branch code', code, EXIT_ERROR)
+
+
+def test_nonfork_main_error_branch_hit():
+    # main errors, branch hits -> restored from branch, no build.
+    calls, code = run_main(NONFORK, {'main:pull': EXIT_ERROR, 'branch:pull': 0})
+    check('main-error branch-hit calls', calls, ['main:pull', 'branch:pull'])
+    check('main-error branch-hit code', code, 0)
+    check('main-error branch-hit no build', 'BUILD' in calls, False)
+
+
+def test_nonfork_main_error_still_builds():
+    # An error (exit 3) on main pull still falls through to build.
+    calls, code = run_main(NONFORK, {'main:pull': EXIT_ERROR,
+                                     'branch:pull': 1, 'BUILD': 0,
+                                     'branch:push': 0})
+    check('main-error calls', calls,
+          ['main:pull', 'branch:pull', 'BUILD', 'branch:push'])
+    check('main-error code', code, 0)
+
+
+def test_nonfork_branch_error_still_builds():
+    # main misses, branch errors -> still builds.
+    calls, code = run_main(NONFORK, {'main:pull': 1,
+                                     'branch:pull': EXIT_ERROR, 'BUILD': 0,
+                                     'branch:push': 0})
+    check('branch-error calls', calls,
+          ['main:pull', 'branch:pull', 'BUILD', 'branch:push'])
+    check('branch-error code', code, 0)
+
+
+def test_ensure_main_error_still_builds():
+    # An error on main exists still falls through to build.
+    calls, code = run_main(ENSURE, {'main:exists': EXIT_ERROR,
+                                    'branch:exists': 1, 'BUILD': 0,
+                                    'branch:push': 0})
+    check('ensure main-error calls', calls,
+          ['main:exists', 'branch:exists', 'BUILD', 'branch:push'])
+    check('ensure main-error code', code, 0)
 
 
 def test_missing_double_dash():
     calls, code = run_main(['--branch-cache', '--platform', 'p', '--tag', 't',
                             'cmake'], {})
     check('missing -- calls', calls, [])
-    check('missing -- code', code, 1)
+    check('missing -- code', code, EXIT_ERROR)
 
 
 def test_empty_build_command():
     calls, code = run_main(['--branch-cache', '--platform', 'p', '--tag', 't',
                             '--'], {})
     check('empty build calls', calls, [])
-    check('empty build code', code, 1)
+    check('empty build code', code, EXIT_ERROR)
 
 
 TESTS = [test_nonfork_main_hit, test_nonfork_branch_reuse,
@@ -166,7 +205,12 @@ TESTS = [test_nonfork_main_hit, test_nonfork_branch_reuse,
          test_fork_skips_branch_ops, test_fork_main_hit,
          test_ensure_uses_exists_and_pushes,
          test_ensure_branch_push_failure_hard_fails,
-         test_ensure_requires_branch_cache, test_missing_double_dash,
+         test_ensure_requires_branch_cache,
+         test_nonfork_main_error_branch_hit,
+         test_nonfork_main_error_still_builds,
+         test_nonfork_branch_error_still_builds,
+         test_ensure_main_error_still_builds,
+         test_missing_double_dash,
          test_empty_build_command]
 
 

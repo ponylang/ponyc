@@ -62,8 +62,8 @@ for the pulls/pushes uses GITHUB_TOKEN; the branch push needs `packages: write`.
 import argparse
 import sys
 
-from common import (BRANCH_CACHE, MAIN_CACHE, cache_args, die, info, run,
-                    split_build_command)
+from common import (BRANCH_CACHE, EXIT_MISS, MAIN_CACHE, cache_args, die, info,
+                    run, split_build_command)
 
 
 def main(argv):
@@ -91,14 +91,24 @@ def main(argv):
     base = cache_args(args)
     verb = 'exists' if args.ensure else 'pull'
 
-    if run([sys.executable, MAIN_CACHE, verb] + base) == 0:
+    main_rc = run([sys.executable, MAIN_CACHE, verb] + base)
+    if main_rc == 0:
         info("Libs present in/restored from the main GHCR cache.")
         return
-    if args.branch_cache and run([sys.executable, BRANCH_CACHE, verb] + base) == 0:
-        info("Libs present in/restored from the branch GHCR cache.")
-        return
+    if main_rc != EXIT_MISS:
+        info(f"warning: main cache {verb} failed (exit {main_rc}); "
+             "building from source.")
+    if args.branch_cache:
+        branch_rc = run([sys.executable, BRANCH_CACHE, verb] + base)
+        if branch_rc == 0:
+            info("Libs present in/restored from the branch GHCR cache.")
+            return
+        if branch_rc != EXIT_MISS:
+            info(f"warning: branch cache {verb} failed (exit {branch_rc}); "
+                 "building from source.")
 
-    info("Libs cache miss; building from source.")
+    if main_rc == EXIT_MISS:
+        info("Libs cache miss; building from source.")
     rc = run(build_cmd)
     if rc != 0:
         sys.exit(rc)

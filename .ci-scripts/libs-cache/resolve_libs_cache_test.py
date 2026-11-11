@@ -27,6 +27,7 @@ import shutil
 import sys
 import tempfile
 
+from common import EXIT_ERROR
 import resolve_libs_cache as r
 
 FAILURES = []
@@ -217,7 +218,7 @@ def test_warm_push_failure_hard_fails():
                                   'main:push': 1})
     check('warm push-fail calls', calls,
           ['main:exists', 'branch:exists', 'BUILD', 'main:push'])
-    check('warm push-fail code', code, 1)
+    check('warm push-fail code', code, EXIT_ERROR)
 
 
 # ----- require-cache-hit -----
@@ -231,7 +232,7 @@ def test_require_hit_hit():
 def test_require_hit_miss_dies_never_builds():
     calls, code = run_main(REQUIRE_HIT, {'main:pull': 1})
     check('require-hit miss calls', calls, ['main:pull'])
-    check('require-hit miss code', code, 1)
+    check('require-hit miss code', code, EXIT_ERROR)
     check('require-hit never builds', 'BUILD' in calls, False)
     check('require-hit never pushes', any('push' in c for c in calls), False)
 
@@ -245,7 +246,7 @@ def test_require_hit_hit_with_image():
 def test_require_hit_rejects_build_command():
     calls, code = run_main(REQUIRE_HIT + ['--', 'cmake'], {})
     check('require-hit build-cmd calls', calls, [])
-    check('require-hit build-cmd code', code, 1)
+    check('require-hit build-cmd code', code, EXIT_ERROR)
 
 
 # ----- require-cache-hit + --branch-cache (manual branch runs) -----
@@ -268,7 +269,7 @@ def test_require_hit_branch_both_miss_dies_never_builds():
     # neither cache has it for this target -> fail loudly (no --skip-on-miss).
     calls, code = run_main(REQUIRE_HIT_BRANCH, {'main:pull': 1, 'branch:pull': 1})
     check('require-hit branch both-miss calls', calls, ['main:pull', 'branch:pull'])
-    check('require-hit branch both-miss code', code, 1)
+    check('require-hit branch both-miss code', code, EXIT_ERROR)
     check('require-hit branch both-miss never builds', 'BUILD' in calls, False)
     check('require-hit branch both-miss never pushes',
           any('push' in c for c in calls), False)
@@ -301,13 +302,82 @@ def test_require_hit_branch_skip_both_miss_skips():
     check('require-hit branch+skip wrote marker', marker, True)
 
 
+# ----- error vs miss (exit code 3 vs 1) -----
+
+def test_require_hit_skip_error_fails_no_marker():
+    # An error (exit 3) must FAIL, not write the marker and skip.
+    calls, code, marker = run_main_ws(REQUIRE_HIT_SKIP, {'main:pull': EXIT_ERROR})
+    check('require-hit skip error calls', calls, ['main:pull'])
+    check('require-hit skip error code', code, EXIT_ERROR)
+    check('require-hit skip error no marker', marker, False)
+
+
+def test_require_hit_error_fails():
+    calls, code = run_main(REQUIRE_HIT, {'main:pull': EXIT_ERROR})
+    check('require-hit error calls', calls, ['main:pull'])
+    check('require-hit error code', code, EXIT_ERROR)
+
+
+def test_require_hit_branch_error_on_branch_fails():
+    # main misses (exit 1), branch errors (exit 3) -> fail, not "both miss."
+    calls, code = run_main(REQUIRE_HIT_BRANCH,
+                           {'main:pull': 1, 'branch:pull': EXIT_ERROR})
+    check('require-hit branch error calls', calls, ['main:pull', 'branch:pull'])
+    check('require-hit branch error code', code, EXIT_ERROR)
+
+
+def test_require_hit_branch_skip_error_on_branch_fails():
+    # main misses, branch errors -> fail, not write marker.
+    calls, code, marker = run_main_ws(REQUIRE_HIT_BRANCH_SKIP,
+                                      {'main:pull': 1,
+                                       'branch:pull': EXIT_ERROR})
+    check('require-hit branch+skip error calls', calls,
+          ['main:pull', 'branch:pull'])
+    check('require-hit branch+skip error code', code, EXIT_ERROR)
+    check('require-hit branch+skip error no marker', marker, False)
+
+
+def test_branch_consumer_main_error_branch_hit():
+    # main errors, branch hits -> restored from branch, no build.
+    calls, code = run_main(BRANCH, {'main:pull': EXIT_ERROR, 'branch:pull': 0})
+    check('main-error branch-hit calls', calls, ['main:pull', 'branch:pull'])
+    check('main-error branch-hit code', code, 0)
+    check('main-error branch-hit no build', 'BUILD' in calls, False)
+
+
+def test_consumer_error_still_builds():
+    # An error on main pull still builds (safe fallback for consumer mode).
+    calls, code = run_main(CONSUMER, {'main:pull': EXIT_ERROR, 'BUILD': 0})
+    check('consumer error calls', calls, ['main:pull', 'BUILD'])
+    check('consumer error code', code, 0)
+
+
+def test_warm_error_still_builds():
+    # An error on main exists still falls through to build.
+    calls, code = run_main(WARM, {'main:exists': EXIT_ERROR,
+                                  'branch:exists': 1, 'BUILD': 0,
+                                  'main:push': 0})
+    check('warm error calls', calls,
+          ['main:exists', 'branch:exists', 'BUILD', 'main:push'])
+    check('warm error code', code, 0)
+
+
+def test_branch_consumer_error_on_branch_still_builds():
+    # main misses, branch errors -> still builds.
+    calls, code = run_main(BRANCH, {'main:pull': 1, 'branch:pull': EXIT_ERROR,
+                                    'BUILD': 0, 'branch:push': 0})
+    check('branch error calls', calls,
+          ['main:pull', 'branch:pull', 'BUILD', 'branch:push'])
+    check('branch error code', code, 0)
+
+
 # ----- flag validation -----
 
 def test_branch_cache_rejected_with_warm():
     calls, code = run_main(['--warm', '--branch-cache', '--platform', 'p',
                             '--tag', 't', '--', 'cmake'], {})
     check('branch+warm calls', calls, [])
-    check('branch+warm code', code, 1)
+    check('branch+warm code', code, EXIT_ERROR)
 
 
 def test_skip_on_miss_rejected_without_require_hit():
@@ -315,19 +385,19 @@ def test_skip_on_miss_rejected_without_require_hit():
     calls, code = run_main(['--skip-on-miss', '--platform', 'p', '--tag', 't',
                             '--', 'cmake'], {})
     check('skip-on-miss reject calls', calls, [])
-    check('skip-on-miss reject code', code, 1)
+    check('skip-on-miss reject code', code, EXIT_ERROR)
 
 
 def test_missing_double_dash():
     calls, code = run_main(['--platform', 'p', '--tag', 't', 'cmake'], {})
     check('missing -- calls', calls, [])
-    check('missing -- code', code, 1)
+    check('missing -- code', code, EXIT_ERROR)
 
 
 def test_empty_build_command():
     calls, code = run_main(['--platform', 'p', '--tag', 't', '--'], {})
     check('empty build calls', calls, [])
-    check('empty build code', code, 1)
+    check('empty build code', code, EXIT_ERROR)
 
 
 TESTS = [test_consumer_hit, test_consumer_miss_builds_never_pushes,
@@ -349,6 +419,14 @@ TESTS = [test_consumer_hit, test_consumer_miss_builds_never_pushes,
          test_require_hit_skip_hit_no_marker,
          test_require_hit_skip_miss_writes_marker_exits_zero,
          test_require_hit_branch_skip_both_miss_skips,
+         test_require_hit_skip_error_fails_no_marker,
+         test_require_hit_error_fails,
+         test_require_hit_branch_error_on_branch_fails,
+         test_require_hit_branch_skip_error_on_branch_fails,
+         test_branch_consumer_main_error_branch_hit,
+         test_consumer_error_still_builds,
+         test_warm_error_still_builds,
+         test_branch_consumer_error_on_branch_still_builds,
          test_branch_cache_rejected_with_warm,
          test_skip_on_miss_rejected_without_require_hit,
          test_missing_double_dash, test_empty_build_command]

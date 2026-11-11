@@ -33,7 +33,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from common import die, info, require_env
+from common import EXIT_MISS, die, info, require_env
 
 REGISTRY = 'https://ghcr.io'
 REQUEST_TIMEOUT = 600
@@ -185,14 +185,26 @@ def put_manifest(repo, tag, manifest, token):
     check(status, body, 'PUT', url, (201,))
 
 
-def get_manifest(repo, tag, token):
-    """Return the parsed manifest, or None on a miss (404 / no access)."""
+def get_manifest(repo, tag, token, authenticated=True):
+    """Return the parsed manifest, or None on a definite miss (404).
+
+    A 401 or 403 when ``authenticated`` is True (the default — a GITHUB_TOKEN
+    was used to obtain the bearer token) is a permissions error, not a miss, and
+    routes through ``die``. When ``authenticated`` is False (anonymous token for
+    a package that may be private), 401/403 is indistinguishable from "not
+    present" and returns None.
+    """
     url = f'{REGISTRY}/v2/{repo}/manifests/{tag}'
     status, _, body = request('GET', url, headers={
         'Authorization': f'Bearer {token}',
         'Accept': MANIFEST_TYPE,
     })
-    if status in (401, 403, 404):
+    if status == 404:
+        return None
+    if status in (401, 403):
+        if authenticated:
+            text = body.decode('utf-8', errors='replace') if body else ''
+            die(f"GET {url} returned {status} (permission denied)\n{text}")
         return None
     check(status, body, 'GET', url, (200,))
     return json.loads(body)
@@ -241,28 +253,30 @@ def cmd_package_name(package):
 def cmd_exists(package, tag):
     """Report whether the artifact exists, without downloading the blob.
 
-    Exits 0 when the manifest is present, 1 otherwise. A miss returns None from
-    get_manifest; any other HTTP code or a network failure routes through
-    check/request -> die (exit 1). So every non-present outcome exits non-zero,
-    and a caller gating a build always fails safe to building.
+    Exits 0 when the manifest is present, EXIT_MISS (1) on a definite miss
+    (manifest 404). Any other failure — auth error, network error, 5xx — exits
+    EXIT_ERROR (3) via ``die``, so callers can distinguish "not there" from
+    "couldn't check."
     """
     repo = repository(package)
     info(f"Checking libs cache {REGISTRY}/{repo}:{tag}")
+    authenticated = bool(os.environ.get('GITHUB_TOKEN', ''))
     token = auth_token(package, 'pull')
-    if get_manifest(repo, tag, token) is None:
+    if get_manifest(repo, tag, token, authenticated=authenticated) is None:
         info("Libs cache miss.")
-        sys.exit(1)
+        sys.exit(EXIT_MISS)
     info("Libs cache present.")
 
 
 def cmd_pull(package, tag):
     repo = repository(package)
     info(f"Pulling libs cache from {REGISTRY}/{repo}:{tag}")
+    authenticated = bool(os.environ.get('GITHUB_TOKEN', ''))
     token = auth_token(package, 'pull')
-    manifest = get_manifest(repo, tag, token)
+    manifest = get_manifest(repo, tag, token, authenticated=authenticated)
     if manifest is None:
         info("Libs cache miss.")
-        sys.exit(1)
+        sys.exit(EXIT_MISS)
     layers = manifest.get('layers') or []
     if not layers:
         die("Manifest has no layers; cannot restore libs cache.")
@@ -353,8 +367,10 @@ def copy(src_package, dst_package, tag):
     dst_repo = repository(dst_package)
     info(f"Promoting {REGISTRY}/{src_repo}:{tag} -> {REGISTRY}/{dst_repo}:{tag}")
 
+    authenticated = bool(os.environ.get('GITHUB_TOKEN', ''))
     token_src = auth_token(src_package, 'pull')
-    src_manifest = get_manifest(src_repo, tag, token_src)
+    src_manifest = get_manifest(src_repo, tag, token_src,
+                                authenticated=authenticated)
     if src_manifest is None:
         die(f"Source artifact {src_repo}:{tag} not found; nothing to promote.")
     layers = src_manifest.get('layers') or []

@@ -17,6 +17,7 @@ import json
 import os
 import sys
 
+from common import EXIT_ERROR
 import promote_libs_cache as promote
 import registry
 
@@ -57,7 +58,7 @@ def _patch_registry(manifest, blobs, calls, uploads, put):
         calls.append(('auth', scope))
         return 'tok'
 
-    def fake_get_manifest(repo, tag, token):
+    def fake_get_manifest(repo, tag, token, authenticated=True):
         calls.append(('get_manifest', repo))
         return manifest
 
@@ -152,7 +153,7 @@ def test_copy_aborts_on_archive_digest_mismatch():
         registry.copy(src_pkg, dst_pkg, tag)
         FAILURES.append('digest mismatch did not abort')
     except SystemExit as e:
-        check('mismatch exit code', e.code, 1)
+        check('mismatch exit code', e.code, EXIT_ERROR)
         check('mismatch wrote nothing', uploads, {})
         check('mismatch put no manifest', put, {})
     finally:

@@ -18,6 +18,7 @@ import platform
 import sys
 
 import branch_libs_cache as branch
+from common import EXIT_ERROR
 import oci_libs_cache as oci
 
 FAILURES = []
@@ -93,8 +94,9 @@ def test_unknown_arch_dies():
             result = with_machine('riscv64', entry)
             FAILURES.append(f"unknown arch returned {result!r}, expected exit")
         except SystemExit as e:
-            if e.code != 1:
-                FAILURES.append(f"unknown arch exited {e.code}, want 1")
+            if e.code != EXIT_ERROR:
+                FAILURES.append(f"unknown arch exited {e.code}, want "
+                                f"{EXIT_ERROR}")
 
 
 TESTS = [test_main_cache_names, test_branch_cache_names,

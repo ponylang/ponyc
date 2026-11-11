@@ -36,11 +36,12 @@ Usage:
     oci_libs_cache.py push --tag <hash> (--image <ref> | --platform <label>)
 
 `package-name` prints the full package name (for debugging). `exists` reports
-whether the artifact is cached (exit 0 present / 1 absent) without downloading
-the blob -- a cheap check for deciding whether to build. `pull` restores the
-artifact into the working tree, exiting non-zero on a miss so the caller can fall
-back to building. `push` uploads the blob before the manifest; auth uses
-GITHUB_TOKEN and needs `packages: write`.
+whether the artifact is cached (exit 0 present / 1 miss / 3 error) without
+downloading the blob -- a cheap check for deciding whether to build. `pull`
+restores the artifact into the working tree, with the same three exit codes so the
+caller can distinguish a miss (fall back to building) from an error (fail or
+warn). `push` uploads the blob before the manifest; auth uses GITHUB_TOKEN and
+needs `packages: write`.
 
 Stdlib only so no pip install is required on any CI runner.
 """
