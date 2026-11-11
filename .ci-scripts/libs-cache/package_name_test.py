@@ -133,8 +133,9 @@ def test_arch_override():
             result = with_machine('x86_64', lambda: mod.cache_package('x', ''))
             FAILURES.append(f"empty --arch returned {result!r}, expected exit")
         except SystemExit as e:
-            if e.code != 1:
-                FAILURES.append(f"empty --arch exited {e.code}, want 1")
+            if e.code != EXIT_ERROR:
+                FAILURES.append(f"empty --arch exited {e.code}, want "
+                                f"{EXIT_ERROR}")
     # pull and push move this machine's own build, so they refuse --arch.
     for cmd in ('pull', 'push'):
         err = io.StringIO()
@@ -160,8 +161,9 @@ def test_arch_override():
                                   lambda: mod.cache_package('x', 'sparc'))
             FAILURES.append(f"unknown --arch returned {result!r}, expected exit")
         except SystemExit as e:
-            if e.code != 1:
-                FAILURES.append(f"unknown --arch exited {e.code}, want 1")
+            if e.code != EXIT_ERROR:
+                FAILURES.append(f"unknown --arch exited {e.code}, want "
+                                f"{EXIT_ERROR}")
 
 
 TESTS = [test_main_cache_names, test_branch_cache_names,
