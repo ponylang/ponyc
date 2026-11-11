@@ -9,7 +9,8 @@ disable-model-invocation: false
 Run the test suite on a 32-bit ARM machine to verify nothing is broken.
 The default test machine is `pony-rpi4-32` (user `pi`, checkout at
 `/home/pi/code/ponylang/ponyc`). It has a persistent checkout and a built LLVM
-that only needs rebuilding when the vendored LLVM changes.
+that only needs rebuilding when the vendored LLVM changes. For 32-bit x86, use
+`create-i386-dev-env`.
 
 This is slow — LLVM builds take many hours, ponyc builds take roughly an hour each,
 and the test suites add more on top. Run long steps detached and poll their logs.
