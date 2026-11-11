@@ -88,6 +88,8 @@ void mutate_record(mutate_state_t* state, int32_t id,
   mutant_record_t* r = &state->mutants[state->mutant_count++];
   r->id = id;
   r->coverage_counter = coverage_counter;
+  r->owner = NULL;
+  r->shared = false;
   r->file = file;
   r->line = line;
   r->column = column;
@@ -96,16 +98,16 @@ void mutate_record(mutate_state_t* state, int32_t id,
   r->replacement = replacement;
 }
 
-int32_t mutate_find_or_record(mutate_state_t* state,
+int32_t mutate_find_or_record(mutate_state_t* state, ast_t* owner, bool shared,
   const char* file, size_t line, size_t column,
   const char* category, const char* original,
-  const char* replacement, int32_t coverage_counter,
-  int32_t* out_coverage)
+  const char* replacement, int32_t* out_coverage)
 {
   for(size_t i = 0; i < state->mutant_count; i++)
   {
     mutant_record_t* r = &state->mutants[i];
-    if((r->line == line) && (r->column == column) &&
+    if((r->owner == owner) && (r->line == line) &&
+      (r->column == column) &&
       (strcmp(r->file, file) == 0) &&
       (strcmp(r->category, category) == 0) &&
       (strcmp(r->original, original) == 0) &&
@@ -118,10 +120,38 @@ int32_t mutate_find_or_record(mutate_state_t* state,
   }
 
   int32_t id = mutate_next_id(state);
+  int32_t coverage_counter = state->next_coverage_id++;
   mutate_record(state, id, file, line, column, category, original,
     replacement, coverage_counter);
+  mutant_record_t* r = &state->mutants[state->mutant_count - 1];
+  r->owner = owner;
+  r->shared = shared;
   if(out_coverage != NULL)
     *out_coverage = coverage_counter;
+  return id;
+}
+
+static int32_t record_site(compile_t* c,
+  const char* file, size_t line, size_t column,
+  const char* category, const char* original, const char* replacement)
+{
+  ast_t* owner = NULL;
+  bool shared = false;
+  deferred_reification_t* reify = c->frame->reify;
+  if(reify != NULL)
+  {
+    pony_assert(ast_id(reify->thistype) == TK_NOMINAL);
+    owner = (ast_t*)ast_data(reify->thistype);
+    shared = ((reify->type_typeparams != NULL) &&
+      (ast_child(reify->type_typeparams) != NULL)) ||
+      ((reify->method_typeparams != NULL) &&
+      (ast_child(reify->method_typeparams) != NULL));
+  }
+
+  int32_t coverage_counter;
+  int32_t id = mutate_find_or_record(&c->mutate, owner, shared,
+    file, line, column, category, original, replacement, &coverage_counter);
+  mutate_emit_coverage_inc(c, coverage_counter);
   return id;
 }
 
@@ -231,7 +261,8 @@ bool mutate_write_info(mutate_state_t* state, const char* output_dir,
     fprintf(f, "\"replacement\": ");
     write_escaped(f, r->replacement);
     fprintf(f, ", ");
-    fprintf(f, "\"coverage_counter\": %d", r->coverage_counter);
+    fprintf(f, "\"coverage_counter\": %d, ", r->coverage_counter);
+    fprintf(f, "\"shared\": %s", r->shared ? "true" : "false");
 
     fprintf(f, "}");
   }
@@ -453,25 +484,15 @@ LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
   for(size_t i = 0; i < count; i++)
   {
     const char* cat =
       (variants[i].category != NULL) ? variants[i].category : category;
-    int32_t out_cov;
-    ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      cat, original, variants[i].replacement, cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[i] = record_site(c, file, line, pos,
+      cat, original, variants[i].replacement);
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
   LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
@@ -557,21 +578,11 @@ LLVMValueRef mutate_sc_flip(compile_t* c, ast_t* ast, bool is_and,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   const char* original = is_and ? "and" : "or";
   const char* replacement = is_and ? "or" : "and";
 
-  int32_t out_cov;
-  int32_t id = mutate_find_or_record(&c->mutate, file, line, pos,
-    "bor", original, replacement, cov_id, &out_cov);
-  cov_id = out_cov;
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
+  int32_t id = record_site(c, file, line, pos,
+    "bor", original, replacement);
 
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
   LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
@@ -584,7 +595,7 @@ LLVMValueRef mutate_sc_flip(compile_t* c, ast_t* ast, bool is_and,
 }
 
 void mutate_sc_xor_record(compile_t* c, ast_t* ast,
-  int32_t* and_id_out, int32_t* or_id_out, int32_t* cov_id_out)
+  int32_t* and_id_out, int32_t* or_id_out)
 {
   source_t* source = ast_source(ast);
   const char* file =
@@ -592,22 +603,11 @@ void mutate_sc_xor_record(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
+  *and_id_out = record_site(c, file, line, pos,
+    "bor", "xor", "and");
 
-  int32_t out_cov;
-  *and_id_out = mutate_find_or_record(&c->mutate, file, line, pos,
-    "bor", "xor", "and", cov_id, &out_cov);
-  cov_id = out_cov;
-
-  *or_id_out = mutate_find_or_record(&c->mutate, file, line, pos,
-    "bor", "xor", "or", cov_id, &out_cov);
-  cov_id = out_cov;
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  *cov_id_out = cov_id;
+  *or_id_out = record_site(c, file, line, pos,
+    "bor", "xor", "or");
 }
 
 LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
@@ -671,25 +671,15 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
   for(size_t i = 0; i < count; i++)
   {
     const char* cat =
       (variants[i].category != NULL) ? variants[i].category : category;
-    int32_t out_cov;
-    ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      cat, original, variants[i].replacement, cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[i] = record_site(c, file, line, pos,
+      cat, original, variants[i].replacement);
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
   LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
@@ -789,23 +779,13 @@ LLVMValueRef mutate_cmp_values(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
   for(size_t i = 0; i < count; i++)
   {
-    int32_t out_cov;
-    ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      category, original, variants[i].replacement, cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[i] = record_site(c, file, line, pos,
+      category, original, variants[i].replacement);
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
   LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
@@ -882,25 +862,15 @@ LLVMValueRef mutate_unary(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
   for(size_t i = 0; i < count; i++)
   {
     const char* cat =
       (variants[i].category != NULL) ? variants[i].category : category;
-    int32_t out_cov;
-    ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      cat, original, variants[i].replacement, cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[i] = record_site(c, file, line, pos,
+      cat, original, variants[i].replacement);
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
   LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
@@ -1027,8 +997,6 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
 
   const char* original = is_shl ? "shl" : "shr";
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
 
   int32_t sor_id = 0;
   int32_t amr_id = 0;
@@ -1037,10 +1005,8 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
   if(do_sor)
   {
     const char* replacement = is_shl ? "shr" : "shl";
-    int32_t out_cov;
-    sor_id = mutate_find_or_record(&c->mutate, file, line, pos,
-      "sor", original, replacement, cov_id, &out_cov);
-    cov_id = out_cov;
+    sor_id = record_site(c, file, line, pos,
+      "sor", original, replacement);
     var_count++;
   }
 
@@ -1049,17 +1015,10 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
     const char* amr_repl = safe
       ? (is_shl ? "shl_unsafe" : "shr_unsafe")
       : (is_shl ? "shl_wrapping" : "shr_wrapping");
-    int32_t out_cov;
-    amr_id = mutate_find_or_record(&c->mutate, file, line, pos,
-      "amr", original, amr_repl, cov_id, &out_cov);
-    cov_id = out_cov;
+    amr_id = record_site(c, file, line, pos,
+      "amr", original, amr_repl);
     var_count++;
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   LLVMValueRef shift_amount = r_value;
   if(safe)
@@ -1182,23 +1141,13 @@ LLVMValueRef mutate_uoi_insert(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
   for(size_t i = 0; i < count; i++)
   {
-    int32_t out_cov;
-    ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "uoi", "result", variant_labels[i], cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[i] = record_site(c, file, line, pos,
+      "uoi", "result", variant_labels[i]);
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
   LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
@@ -1424,23 +1373,13 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
   for(size_t i = 0; i < count; i++)
   {
-    int32_t out_cov;
-    ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "rvr", "return", labels[i], cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[i] = record_site(c, file, line, pos,
+      "rvr", "return", labels[i]);
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
   LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
@@ -1507,18 +1446,8 @@ bool mutate_vcr_begin(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
-  int32_t out_cov;
-  int32_t id = mutate_find_or_record(&c->mutate, file, line, pos,
-    "vcr", "call", "remove", cov_id, &out_cov);
-  cov_id = out_cov;
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
+  int32_t id = record_site(c, file, line, pos,
+    "vcr", "call", "remove");
 
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
   LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
@@ -1757,31 +1686,19 @@ LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(total * sizeof(int32_t));
 
   for(size_t i = 0; i < l_count; i++)
   {
-    int32_t out_cov;
-    ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "lhs", l_labels[i], cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[i] = record_site(c, file, line, pos,
+      "cr", "lhs", l_labels[i]);
   }
 
   for(size_t i = 0; i < r_count; i++)
   {
-    int32_t out_cov;
-    ids[l_count + i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "rhs", r_labels[i], cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[l_count + i] = record_site(c, file, line, pos,
+      "cr", "rhs", r_labels[i]);
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   // Filter duplicate IDs: an LLVM switch must not repeat a case value.
   size_t unique_count = 0;
@@ -1910,31 +1827,19 @@ LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(total * sizeof(int32_t));
 
   for(size_t i = 0; i < l_count; i++)
   {
-    int32_t out_cov;
-    ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "lhs", l_labels[i], cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[i] = record_site(c, file, line, pos,
+      "cr", "lhs", l_labels[i]);
   }
 
   for(size_t i = 0; i < r_count; i++)
   {
-    int32_t out_cov;
-    ids[l_count + i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "rhs", r_labels[i], cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[l_count + i] = record_site(c, file, line, pos,
+      "cr", "rhs", r_labels[i]);
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   // Filter duplicate IDs: an LLVM switch must not repeat a case value.
   size_t unique_count = 0;
@@ -2072,31 +1977,19 @@ LLVMValueRef mutate_cr_shift(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(total * sizeof(int32_t));
 
   for(size_t i = 0; i < l_count; i++)
   {
-    int32_t out_cov;
-    ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "lhs", l_labels[i], cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[i] = record_site(c, file, line, pos,
+      "cr", "lhs", l_labels[i]);
   }
 
   for(size_t i = 0; i < r_count; i++)
   {
-    int32_t out_cov;
-    ids[l_count + i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "rhs", r_labels[i], cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[l_count + i] = record_site(c, file, line, pos,
+      "cr", "rhs", r_labels[i]);
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   size_t unique_count = 0;
   size_t* unique_map =
@@ -2214,31 +2107,19 @@ LLVMValueRef mutate_cr_cmp(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(total * sizeof(int32_t));
 
   for(size_t i = 0; i < l_count; i++)
   {
-    int32_t out_cov;
-    ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "lhs", l_labels[i], cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[i] = record_site(c, file, line, pos,
+      "cr", "lhs", l_labels[i]);
   }
 
   for(size_t i = 0; i < r_count; i++)
   {
-    int32_t out_cov;
-    ids[l_count + i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "rhs", r_labels[i], cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[l_count + i] = record_site(c, file, line, pos,
+      "cr", "rhs", r_labels[i]);
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   size_t unique_count = 0;
   size_t* unique_map =
@@ -2352,23 +2233,13 @@ LLVMValueRef mutate_cr_unary(compile_t* c, ast_t* ast,
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
 
-  size_t prev_count = c->mutate.mutant_count;
-  int32_t cov_id = c->mutate.next_coverage_id;
-
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
   for(size_t i = 0; i < count; i++)
   {
-    int32_t out_cov;
-    ids[i] = mutate_find_or_record(&c->mutate, file, line, pos,
-      "cr", "operand", labels[i], cov_id, &out_cov);
-    cov_id = out_cov;
+    ids[i] = record_site(c, file, line, pos,
+      "cr", "operand", labels[i]);
   }
-
-  if(c->mutate.mutant_count > prev_count)
-    c->mutate.next_coverage_id++;
-
-  mutate_emit_coverage_inc(c, cov_id);
 
   size_t unique_count = 0;
   size_t* unique_map =

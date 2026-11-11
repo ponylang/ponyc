@@ -10,3 +10,5 @@ The `pony-mutate` tool automates running all mutants against a test binary and r
 ponyc --mutate -b myapp .
 pony-mutate ./myapp
 ```
+
+In generic types and methods, the same mutation uses one ID across instantiations of the same implementing type definition. Default methods inherited by different implementing types have separate mutant IDs for each implementing type. The `shared` field in `.mutants.json` marks sites in generic code, even when only one instantiation is compiled. Coverage is recorded separately for each replacement and only when an instantiation that supports it runs. For example, running a floating-point instantiation does not mark an integer-only complement replacement as covered, so `pony-mutate` reports no coverage for that replacement unless an integer instantiation runs.

@@ -70,6 +70,8 @@ typedef struct mutant_record_t
 {
   int32_t id;
   int32_t coverage_counter;
+  ast_t* owner;
+  bool shared;
   const char* file;
   size_t line;
   size_t column;

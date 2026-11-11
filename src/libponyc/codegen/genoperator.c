@@ -1680,15 +1680,10 @@ LLVMValueRef gen_xor(compile_t* c, ast_t* left, ast_t* right)
         return result;
       }
 
-      // Firing: record both mutants and emit the short-circuit branch.
-      int32_t and_id, or_id, cov_id;
-      mutate_sc_xor_record(c, mutate_ast, &and_id, &or_id, &cov_id);
-
-      // Coverage increment goes in left_exit so it runs before the
-      // right side, matching the placement of other BOR sites.
       LLVMPositionBuilderAtEnd(c->builder, left_exit);
       codegen_debugloc(c, mutate_ast);
-      mutate_emit_coverage_inc(c, cov_id);
+      int32_t and_id, or_id;
+      mutate_sc_xor_record(c, mutate_ast, &and_id, &or_id);
 
       LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
       LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,

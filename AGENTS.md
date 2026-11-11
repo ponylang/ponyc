@@ -65,6 +65,7 @@ Run individual tests by name:
 - `ctest --preset debug -R validate-grammar` — checks `pony.g` against the compiler
 - `ctest --preset debug -R examples` — compiles all examples (not part of `ci-core`; runs locally and in the weekly `build-examples.yml` workflow)
 - `ctest --preset debug -R mutation-runtime` — compiles a test program with `--mutate`, runs baseline and mutant execution
+- `ctest --preset debug -R mutation-monomorphization` — checks generic mutant sharing, replacement coverage, and inherited method isolation
 - `ctest --preset debug -R mutation-runner` — end-to-end test of the `pony-mutate` runner tool (scope filtering, operator filtering, terminal report)
 
 #### Per-module stdlib tests

@@ -21,14 +21,13 @@ void mutate_record(mutate_state_t* state, int32_t id,
   const char* category, const char* original,
   const char* replacement, int32_t coverage_counter);
 
-// Look up an existing mutant by (file, line, column, category, original,
-// replacement). Returns its ID and coverage counter via *out_coverage, or
-// allocates a new one and returns coverage_counter via *out_coverage.
-int32_t mutate_find_or_record(mutate_state_t* state,
+// Reuse an ID and counter for the same owner, source site, and replacement.
+// Each distinct mutant has its own counter. owner is the implementing type
+// definition; shared marks generic sites, including single instantiations.
+int32_t mutate_find_or_record(mutate_state_t* state, ast_t* owner, bool shared,
   const char* file, size_t line, size_t column,
   const char* category, const char* original,
-  const char* replacement, int32_t coverage_counter,
-  int32_t* out_coverage);
+  const char* replacement, int32_t* out_coverage);
 
 bool mutate_write_info(mutate_state_t* state, const char* output_dir,
   const char* bin_name);
@@ -94,9 +93,9 @@ LLVMValueRef mutate_sc_flip(compile_t* c, ast_t* ast, bool is_and,
   LLVMValueRef l_value);
 
 // Record the two BOR mutants (xor->and, xor->or) for a Bool xor site.
-// Returns both mutant IDs and the shared coverage counter.
+// Records both mutant IDs and increments their coverage counters.
 void mutate_sc_xor_record(compile_t* c, ast_t* ast,
-  int32_t* and_id_out, int32_t* or_id_out, int32_t* cov_id_out);
+  int32_t* and_id_out, int32_t* or_id_out);
 
 // Emit switch/phi for a div/rem mutation. Each branch runs make_divrem_inner
 // with its own build functions and is_div flag.

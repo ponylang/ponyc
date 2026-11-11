@@ -14,6 +14,7 @@
 #include <fstream>
 #include <sstream>
 #include <set>
+#include <vector>
 
 #include "llvm_config_begin.h"
 
@@ -290,8 +291,8 @@ TEST_F(GenMutateTest, FindOrRecordAllocatesNewId)
   mutate_init(&state);
 
   int32_t out_cov;
-  int32_t id = mutate_find_or_record(&state,
-    "test.pony", 10, 5, "aor", "+", "-", 0, &out_cov);
+  int32_t id = mutate_find_or_record(&state, nullptr, false,
+    "test.pony", 10, 5, "aor", "+", "-", &out_cov);
 
   EXPECT_EQ(id, 1);
   EXPECT_EQ(out_cov, 0);
@@ -304,14 +305,15 @@ TEST_F(GenMutateTest, FindOrRecordReturnsExistingCoverage)
 {
   mutate_init(&state);
 
+  state.next_coverage_id = 42;
   int32_t out_cov1;
-  mutate_find_or_record(&state,
-    "test.pony", 10, 5, "aor", "+", "-", 42, &out_cov1);
+  mutate_find_or_record(&state, nullptr, false,
+    "test.pony", 10, 5, "aor", "+", "-", &out_cov1);
   EXPECT_EQ(out_cov1, 42);
 
   int32_t out_cov2;
-  int32_t id2 = mutate_find_or_record(&state,
-    "test.pony", 10, 5, "aor", "+", "-", 99, &out_cov2);
+  int32_t id2 = mutate_find_or_record(&state, nullptr, false,
+    "test.pony", 10, 5, "aor", "+", "-", &out_cov2);
   EXPECT_EQ(id2, 1);
   EXPECT_EQ(out_cov2, 42);
   EXPECT_EQ(state.mutant_count, 1u);
@@ -488,6 +490,58 @@ protected:
         r->category, r->original, r->replacement});
     }
     return result;
+  }
+
+  std::vector<mutant_record_t*> site_records(size_t line,
+    const char* category)
+  {
+    std::vector<mutant_record_t*> records;
+    for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+    {
+      mutant_record_t* r = &compile->mutate.mutants[i];
+      if((strlen(r->file) == 0) && (r->line == line) &&
+        (strcmp(r->category, category) == 0))
+        records.push_back(r);
+    }
+    return records;
+  }
+
+  std::set<std::string> selecting_functions(int32_t id)
+  {
+    std::set<std::string> functions;
+    for(auto& fn : *llvm::unwrap(compile->module))
+      for(auto& bb : fn)
+        for(auto& inst : bb)
+          if(auto* sw = llvm::dyn_cast<llvm::SwitchInst>(&inst))
+            for(auto item : sw->cases())
+              if(item.getCaseValue()->getSExtValue() == id)
+                functions.insert(fn.getName().str());
+    return functions;
+  }
+
+  std::set<std::string> covering_functions(int32_t counter)
+  {
+    std::set<std::string> functions;
+    for(auto& fn : *llvm::unwrap(compile->module))
+      for(auto& bb : fn)
+        for(auto& inst : bb)
+          if(auto* rmw = llvm::dyn_cast<llvm::AtomicRMWInst>(&inst))
+            if(auto* gep = llvm::dyn_cast<llvm::GetElementPtrInst>(
+              rmw->getPointerOperand()))
+              if(auto* index = llvm::dyn_cast<llvm::ConstantInt>(
+                gep->getOperand(1)))
+                if(index->getSExtValue() == counter)
+                  functions.insert(fn.getName().str());
+    return functions;
+  }
+
+  void check_site_wiring(mutant_record_t* r)
+  {
+    auto functions = selecting_functions(r->id);
+    EXPECT_FALSE(functions.empty());
+    EXPECT_EQ(functions, covering_functions(r->coverage_counter));
+    EXPECT_GE(r->coverage_counter, 0);
+    EXPECT_LT(r->coverage_counter, compile->mutate.next_coverage_id);
   }
 
   void verify_module()
@@ -1670,7 +1724,7 @@ TEST_F(GenMutateCodegenTest, NomutateOnClassSuppressesAllMethods)
 }
 
 
-TEST_F(GenMutateCodegenTest, CoverageCounterSharedAcrossReplacements)
+TEST_F(GenMutateCodegenTest, CoverageCounterDistinctAcrossReplacements)
 {
   const char* src =
     "actor Main\n"
@@ -1685,20 +1739,14 @@ TEST_F(GenMutateCodegenTest, CoverageCounterSharedAcrossReplacements)
 
   ASSERT_GE(compile->mutate.mutant_count, 2u);
 
-  // Filter to line 5 — other lines may have different counters from
-  // monomorphized stdlib.
-  int32_t first_cov = -1;
+  std::set<int32_t> counters;
   size_t line5_count = 0;
   for(size_t i = 0; i < compile->mutate.mutant_count; i++)
   {
     mutant_record_t* r = &compile->mutate.mutants[i];
     if(r->line == 5)
     {
-      if(first_cov == -1)
-        first_cov = r->coverage_counter;
-      else
-        EXPECT_EQ(r->coverage_counter, first_cov)
-          << "line 5 mutant " << i << " has different coverage counter";
+      EXPECT_TRUE(counters.insert(r->coverage_counter).second);
       line5_count++;
     }
   }
@@ -4312,8 +4360,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitCategoryIndependence)
     << "and-false then-arm has AOR under ALL";
 }
 
-// Bool xor codegen: records at the site are exactly xor->and and
-// xor->or with a shared coverage counter.
+// Bool xor has xor->and and xor->or replacements.
 TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCodegen)
 {
   const char* src =
@@ -4448,25 +4495,26 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCoverageTiming)
   opt.mutate_operators = MUTATE_OP_BOR | MUTATE_OP_ROR;
   DO(test_compile(src, "ir"));
 
-  int32_t bor_cov = -1;
+  std::set<int32_t> bor_covs;
   std::set<int32_t> ror_covs;
   for(size_t i = 0; i < compile->mutate.mutant_count; i++)
   {
     mutant_record_t* r = &compile->mutate.mutants[i];
     if(r->line == 4 && strcmp(r->category, "bor") == 0)
-      bor_cov = r->coverage_counter;
+      bor_covs.insert(r->coverage_counter);
     if(r->line == 4 && strcmp(r->category, "ror") == 0)
       ror_covs.insert(r->coverage_counter);
   }
-  ASSERT_GE(bor_cov, 0) << "no bor record at line 4";
+  ASSERT_EQ(bor_covs.size(), 2u);
   ASSERT_FALSE(ror_covs.empty()) << "no ror records at line 4";
-  ASSERT_EQ(ror_covs.count(bor_cov), 0u)
-    << "bor and ror share a coverage counter for xor site";
+  for(int32_t counter : bor_covs)
+    ASSERT_EQ(ror_covs.count(counter), 0u);
 
   // The coverage atomicrmw must be in the left-exit block (which ends
   // with a condbr on the enter condition), not in the right-side block.
   auto module = llvm::unwrap(compile->module);
-  bool found_cov_in_condbr_block = false;
+  std::set<int32_t> covered;
+  llvm::BasicBlock* coverage_block = nullptr;
   for(auto& fn : *module)
   {
     if(fn.getName().find("create") == llvm::StringRef::npos)
@@ -4483,14 +4531,20 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCoverageTiming)
             if(auto* ci = llvm::dyn_cast<llvm::ConstantInt>(
               gep->getOperand(1)))
             {
-              if(ci->getSExtValue() == bor_cov)
+              if(bor_covs.count((int32_t)ci->getSExtValue()) != 0)
               {
                 auto* term = bb.getTerminator();
                 ASSERT_NE(term, nullptr)
                   << "xor bor coverage block has no terminator";
                 ASSERT_TRUE(llvm::isa<llvm::CondBrInst>(term))
                   << "xor bor coverage block ends with unconditional br";
-                found_cov_in_condbr_block = true;
+                auto* branch = llvm::cast<llvm::CondBrInst>(term);
+                EXPECT_TRUE(branch->getSuccessor(0)->getName()
+                  .starts_with("xor_right"));
+                if(coverage_block != nullptr)
+                  EXPECT_EQ(coverage_block, &bb);
+                coverage_block = &bb;
+                EXPECT_TRUE(covered.insert((int32_t)ci->getSExtValue()).second);
               }
             }
           }
@@ -4498,8 +4552,7 @@ TEST_F(GenMutateCodegenTest, ShortCircuitBoolXorCoverageTiming)
       }
     }
   }
-  ASSERT_TRUE(found_cov_in_condbr_block)
-    << "xor bor coverage atomicrmw not found in a condbr block";
+  EXPECT_EQ(covered, bor_covs);
 }
 
 // Nested sites get distinct ids and columns.
@@ -5443,4 +5496,345 @@ TEST_F(GenMutateCodegenTest, RvrCrIndependenceExplicitReturn)
 
   ASSERT_EQ(rvr_only, rvr_with_cr)
     << "RVR record set must be the same with and without CR (explicit return)";
+}
+
+
+TEST_F(GenMutateTest, MonomorphIdentityDimensions)
+{
+  ast_t* first = ast_blank(TK_CLASS);
+  ast_t* second = ast_blank(TK_CLASS);
+  mutate_init(&state);
+  int32_t first_cov;
+  int32_t first_id = mutate_find_or_record(&state, first, true,
+    "test.pony", 10, 5, "aor", "add", "sub", &first_cov);
+  int32_t cov;
+  EXPECT_EQ(mutate_find_or_record(&state, first, true,
+    "test.pony", 10, 5, "aor", "add", "sub", &cov), first_id);
+  EXPECT_EQ(cov, first_cov);
+  EXPECT_EQ(state.mutant_count, 1u);
+  EXPECT_EQ(state.next_coverage_id, 1);
+
+  struct key_t
+  {
+    ast_t* owner;
+    const char* file;
+    size_t line;
+    size_t column;
+    const char* category;
+    const char* original;
+    const char* replacement;
+  };
+  key_t keys[] = {
+    {second, "test.pony", 10, 5, "aor", "add", "sub"},
+    {first, "other.pony", 10, 5, "aor", "add", "sub"},
+    {first, "test.pony", 11, 5, "aor", "add", "sub"},
+    {first, "test.pony", 10, 6, "aor", "add", "sub"},
+    {first, "test.pony", 10, 5, "bor", "add", "sub"},
+    {first, "test.pony", 10, 5, "aor", "mul", "sub"},
+    {first, "test.pony", 10, 5, "aor", "add", "mul"}
+  };
+  std::set<int32_t> ids = {first_id};
+  std::set<int32_t> counters = {first_cov};
+  for(auto& key : keys)
+  {
+    int32_t id = mutate_find_or_record(&state, key.owner, true,
+      key.file, key.line, key.column, key.category, key.original,
+      key.replacement, &cov);
+    EXPECT_TRUE(ids.insert(id).second);
+    EXPECT_TRUE(counters.insert(cov).second);
+    EXPECT_EQ(mutate_find_or_record(&state, key.owner, true,
+      key.file, key.line, key.column, key.category, key.original,
+      key.replacement, &cov), id);
+  }
+  EXPECT_EQ(state.mutant_count, ids.size());
+  EXPECT_EQ(state.next_coverage_id, (int32_t)counters.size());
+  ast_free(first);
+  ast_free(second);
+}
+
+
+TEST_F(GenMutateTest, MonomorphReplacementEncounterOrders)
+{
+  for(bool integer_first : {false, true})
+  {
+    mutate_init(&state);
+    int32_t neg_cov, complement_cov;
+    int32_t neg = mutate_find_or_record(&state, nullptr, true,
+      "test.pony", 3, 7, "uoi", "result", "neg", &neg_cov);
+    if(integer_first)
+      mutate_find_or_record(&state, nullptr, true,
+        "test.pony", 3, 7, "uoi", "result", "complement", &complement_cov);
+    int32_t reused_cov;
+    EXPECT_EQ(mutate_find_or_record(&state, nullptr, true,
+      "test.pony", 3, 7, "uoi", "result", "neg", &reused_cov), neg);
+    EXPECT_EQ(reused_cov, neg_cov);
+    int32_t complement = mutate_find_or_record(&state, nullptr, true,
+      "test.pony", 3, 7, "uoi", "result", "complement", &complement_cov);
+    EXPECT_NE(neg, complement);
+    EXPECT_NE(neg_cov, complement_cov);
+    EXPECT_EQ(state.mutant_count, 2u);
+    EXPECT_EQ(state.next_coverage_id, 2);
+    mutate_cleanup(&state);
+  }
+}
+
+
+TEST_F(GenMutateTest, MonomorphSharedJson)
+{
+  mutate_init(&state);
+  mutate_find_or_record(&state, nullptr, true,
+    "generic.pony", 3, 7, "uoi", "result", "neg", nullptr);
+  mutate_find_or_record(&state, nullptr, false,
+    "concrete.pony", 8, 4, "uoi", "result", "neg", nullptr);
+  std::string tmpdir = make_temp_dir();
+  ASSERT_TRUE(mutate_write_info(&state, tmpdir.c_str(), "test"));
+  std::string path = make_path(tmpdir, "test.mutants.json");
+  std::ifstream f(path);
+  std::string line;
+  size_t records = 0;
+  while(std::getline(f, line))
+  {
+    if(line.find("\"id\": ") == std::string::npos)
+      continue;
+    records++;
+    if(line.find("\"id\": 1,") != std::string::npos)
+    {
+      EXPECT_NE(line.find("\"coverage_counter\": 0,"), std::string::npos);
+      EXPECT_NE(line.find("\"shared\": true"), std::string::npos);
+    }
+    else
+    {
+      EXPECT_NE(line.find("\"id\": 2,"), std::string::npos);
+      EXPECT_NE(line.find("\"coverage_counter\": 1,"), std::string::npos);
+      EXPECT_NE(line.find("\"shared\": false"), std::string::npos);
+    }
+  }
+  EXPECT_EQ(records, 2u);
+  f.close();
+  remove(path.c_str());
+  remove_temp_dir(tmpdir);
+}
+
+
+TEST_F(GenMutateCodegenTest, MonomorphGenericType)
+{
+  const char* src =
+    "primitive Sum[A]\n"
+    "  fun apply(a: U64, b: U64): U64 => a + b\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Sum[U8](U64(3), U64(2))\n"
+    "    Sum[U64](U64(3), U64(2))\n";
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  auto records = site_records(2, "aor");
+  ASSERT_EQ(records.size(), 2u);
+  for(auto* r : records)
+  {
+    EXPECT_TRUE(r->shared);
+    EXPECT_NE(r->owner, nullptr);
+    check_site_wiring(r);
+    auto functions = selecting_functions(r->id);
+    EXPECT_EQ(functions.size(), 4u);
+    for(const char* type : {"U8", "U64"})
+    {
+      size_t found = 0;
+      for(auto& fn : functions)
+        if(fn.find(std::string("Sum_") + type + "_") != std::string::npos)
+          found++;
+      EXPECT_EQ(found, 2u) << type;
+    }
+  }
+  verify_module();
+}
+
+
+TEST_F(GenMutateCodegenTest, MonomorphGenericMethod)
+{
+  const char* src =
+    "primitive Sum\n"
+    "  fun apply[A](a: U64, b: U64): U64 => a + b\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Sum.apply[U8](U64(3), U64(2))\n"
+    "    Sum.apply[U64](U64(3), U64(2))\n";
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  auto records = site_records(2, "aor");
+  ASSERT_EQ(records.size(), 2u);
+  for(auto* r : records)
+  {
+    EXPECT_TRUE(r->shared);
+    check_site_wiring(r);
+    EXPECT_EQ(selecting_functions(r->id).size(), 4u);
+  }
+  verify_module();
+}
+
+
+TEST_F(GenMutateCodegenTest, MonomorphSingleGenericInstantiation)
+{
+  const char* src =
+    "primitive Sum[A]\n"
+    "  fun apply[B](a: U64, b: U64): U64 => a + b\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Sum[U8].apply[U64](U64(3), U64(2))\n";
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  auto records = site_records(2, "aor");
+  ASSERT_EQ(records.size(), 2u);
+  for(auto* r : records)
+  {
+    EXPECT_TRUE(r->shared);
+    check_site_wiring(r);
+    EXPECT_EQ(selecting_functions(r->id).size(), 2u);
+  }
+}
+
+
+TEST_F(GenMutateCodegenTest, MonomorphDefaultImplementers)
+{
+  for(const char* kind : {"trait", "interface"})
+  {
+    std::string src = std::string(kind) + " Sum\n"
+      "  fun apply(a: U64, b: U64): U64 => a + b\n"
+      "primitive First is Sum\n"
+      "primitive Second is Sum\n"
+      "actor Main\n"
+      "  new create(env: Env) =>\n"
+      "    First(U64(3), U64(2))\n"
+      "    Second(U64(3), U64(2))\n";
+    opt.mutate = true;
+    opt.mutate_operators = MUTATE_OP_AOR;
+    DO(test_compile(src.c_str(), "ir"));
+    auto records = site_records(2, "aor");
+    ASSERT_EQ(records.size(), 4u) << kind;
+    std::set<ast_t*> owners;
+    std::set<int32_t> counters;
+    for(auto* r : records)
+    {
+      owners.insert(r->owner);
+      EXPECT_TRUE(counters.insert(r->coverage_counter).second);
+      EXPECT_FALSE(r->shared);
+      check_site_wiring(r);
+      auto functions = selecting_functions(r->id);
+      ASSERT_EQ(functions.size(), 2u);
+      const char* owner_name = ast_name(ast_child(r->owner));
+      for(auto& fn : functions)
+        EXPECT_NE(fn.find(owner_name), std::string::npos);
+    }
+    EXPECT_EQ(owners.size(), 2u);
+    verify_module();
+  }
+}
+
+
+TEST_F(GenMutateCodegenTest, MonomorphGenericDefaultImplementers)
+{
+  const char* src =
+    "trait Sum\n"
+    "  fun apply(a: U64, b: U64): U64 => a + b\n"
+    "primitive First[A] is Sum\n"
+    "primitive Second[A] is Sum\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    First[U8](U64(3), U64(2))\n"
+    "    First[U64](U64(3), U64(2))\n"
+    "    Second[U8](U64(3), U64(2))\n"
+    "    Second[U64](U64(3), U64(2))\n";
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  auto records = site_records(2, "aor");
+  ASSERT_EQ(records.size(), 4u);
+  std::set<ast_t*> owners;
+  for(auto* r : records)
+  {
+    owners.insert(r->owner);
+    EXPECT_TRUE(r->shared);
+    check_site_wiring(r);
+    auto functions = selecting_functions(r->id);
+    ASSERT_EQ(functions.size(), 4u);
+    for(auto& fn : functions)
+      EXPECT_NE(fn.find(ast_name(ast_child(r->owner))), std::string::npos);
+  }
+  EXPECT_EQ(owners.size(), 2u);
+  verify_module();
+}
+
+
+TEST_F(GenMutateCodegenTest, MonomorphCapabilityVariants)
+{
+  const char* src =
+    "class Sum\n"
+    "  let _a: U64\n"
+    "  new create(a: U64) => _a = a\n"
+    "  fun apply(b: U64): U64 => _a + b\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let r = Sum(U64(3))\n"
+    "    let v: Sum val = recover val Sum(U64(3)) end\n"
+    "    r(U64(2))\n"
+    "    v(U64(2))\n";
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  auto records = site_records(4, "aor");
+  ASSERT_EQ(records.size(), 2u);
+  for(auto* r : records)
+  {
+    EXPECT_FALSE(r->shared);
+    check_site_wiring(r);
+    EXPECT_EQ(selecting_functions(r->id).size(), 3u);
+  }
+  verify_module();
+}
+
+
+TEST_F(GenMutateCodegenTest, MonomorphReplacementApplicability)
+{
+  for(bool integer_first : {false, true})
+  {
+    std::string src =
+      "interface val Addable[A: Addable[A] val]\n"
+      "  fun add(that: A): A\n"
+      "primitive Sum\n"
+      "  fun apply[A: (Number & Addable[A] val)](a: A, b: A): A =>\n"
+      "    a + b\n"
+      "actor Main\n"
+      "  new create(env: Env) =>\n";
+    const char* integer = "    Sum[U64](U64(3), U64(2))\n";
+    const char* floating = "    Sum[F64](F64(3), F64(2))\n";
+    src += integer_first ? integer : floating;
+    src += integer_first ? floating : integer;
+    opt.mutate = true;
+    opt.mutate_operators = MUTATE_OP_UOI;
+    DO(test_compile(src.c_str(), "ir"));
+    auto records = site_records(5, "uoi");
+    ASSERT_EQ(records.size(), 2u);
+    for(auto* r : records)
+    {
+      EXPECT_TRUE(r->shared);
+      check_site_wiring(r);
+      auto functions = selecting_functions(r->id);
+      if(strcmp(r->replacement, "neg") == 0)
+        EXPECT_EQ(functions.size(), 4u);
+      else
+      {
+        EXPECT_STREQ(r->replacement, "complement");
+        ASSERT_EQ(functions.size(), 2u);
+        for(auto& fn : functions)
+        {
+          EXPECT_NE(fn.find("U64"), std::string::npos);
+          EXPECT_EQ(fn.find("F64"), std::string::npos);
+        }
+      }
+    }
+    EXPECT_NE(records[0]->coverage_counter, records[1]->coverage_counter);
+    verify_module();
+  }
 }
