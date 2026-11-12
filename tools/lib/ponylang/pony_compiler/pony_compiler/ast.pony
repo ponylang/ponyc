@@ -259,7 +259,9 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     """
     try
       let ptr = source()()?.file
-      recover val String.copy_cstring(ptr) end
+      if not ptr.is_null() then
+        recover val String.copy_cstring(ptr) end
+      end
     end
 
   fun box source_contents(): (String box | None) =>

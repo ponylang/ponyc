@@ -1,5 +1,4 @@
 use "json"
-use "pony_compiler"
 
 class val Diagnostic
   """
@@ -27,48 +26,6 @@ class val Diagnostic
     severity = severity'
     message = message'
     related_information = related_information'
-
-  new val from_error(err: Error) =>
-    """
-    Create a Diagnostic from a compiler Error.
-    """
-    this.location =
-      LspLocation(
-        Uris.from_path(
-          try
-            err.file as String
-          else
-            ""
-          end),
-        LspPositionRange.from_single_pos(
-          LspPosition.from_ast_pos(err.position))
-      )
-    this.severity = DiagnosticSeverities.err()
-    this.message = err.msg
-    let relinfos =
-      recover trn
-        Array[DiagnosticRelatedInformation].create(err.infos.size())
-      end
-    for info in err.infos.values() do
-      let file_path =
-        try
-          info.file as String
-        else
-          try
-            err.file as String
-          else
-            continue
-          end
-        end
-      let file = Uris.from_path(file_path)
-      let rel_loc =
-        LspLocation.create(
-          file,
-          LspPositionRange.from_single_pos(
-            LspPosition.from_ast_pos(info.position)))
-      relinfos.push(DiagnosticRelatedInformation.create(rel_loc, info.msg))
-    end
-    this.related_information = consume relinfos
 
   fun val file_uri(): String val =>
     this.location.uri

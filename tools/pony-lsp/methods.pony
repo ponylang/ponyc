@@ -210,6 +210,12 @@ primitive WindowMethods
   fun log_message(): String val =>
     "window/logMessage"
 
+  fun show_message(): String val =>
+    """
+    LSP method name for displaying a message in the client user interface.
+    """
+    "window/showMessage"
+
   fun work_done_progress(): WorkDoneProgressMethods =>
     WorkDoneProgressMethods.create_progress()
 

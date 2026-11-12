@@ -5,8 +5,8 @@ primitive ASTSourceSpan
   Computes the true source span of an AST node, including all descendants
   whose `source_file()` is None (synthetic container nodes) or matches
   `doc_path` (leaf tokens from the current file). Descendants whose
-  source_file() is a non-empty string that does not match doc_path are
-  excluded — this filters trait method bodies merged from other files.
+  source_file() names a file other than doc_path are excluded — this filters
+  trait method bodies merged from other files.
 
   The optional `max_pos` parameter caps the end of the computed span:
   only descendants whose end position is strictly less than `max_pos`

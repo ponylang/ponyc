@@ -2,6 +2,7 @@ use ".."
 use "pony_test"
 use "files"
 use "json"
+use "collections"
 
 primitive \nodoc\ _DiagnosticTests is TestList
   new make() =>
@@ -9,6 +10,10 @@ primitive \nodoc\ _DiagnosticTests is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_DiagnosticTest)
+    test(_CompilerDiagnosticTest)
+    test(recover iso WsTest(_FilelessDiagnosticTest(true, false)) end)
+    test(recover iso WsTest(_FilelessDiagnosticTest(false, true)) end)
+    test(recover iso WsTest(_FilelessDiagnosticTest(false, false)) end)
 
 class \nodoc\ iso _DiagnosticTest is UnitTest
   fun name(): String =>
@@ -24,6 +29,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
         PonyCompiler("", try h.env.args(0)? else "" end),
         object iso is MessageHandler
           var received_diagnostics: USize = 0
+          let seen: Set[String] iso = recover iso Set[String] end
           let expected_messages:
             Array[String] val =
             [
@@ -91,16 +97,42 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
                       message,
                       {(l, r) => l == r }),
                     "Unexpected diagnostic message: '" + message + "'")
+                  h.assert_false(seen.contains(message), message)
+                  seen.set(message)
+                  let is_parameter = message == "parameter type requires U8 val^"
+                  let file = if is_parameter then "frombnicator.pony"
+                    else "main.pony" end
+                  h.assert_eq[String](
+                    Uris.from_path(Path.join(workspace_dir, file)),
+                    JSONNav(notification.params)("uri").as_string()?)
+                  let range = JSONNav(diagnostic)("range")
+                  let line: I64 = if is_parameter then 6
+                    elseif message == "cannot infer type of fromb" then 4
+                    else 2 end
+                  let column: I64 = if is_parameter then 13
+                    elseif message == "cannot infer type of fromb" then 6
+                    else 36 end
+                  h.assert_eq[I64](line, range("start")("line").as_i64()?)
+                  h.assert_eq[I64](column,
+                    range("start")("character").as_i64()?)
                   if
                     received_diagnostics == 5
                   then
-                    h.complete(true)
+                    server(
+                      RequestMessage(
+                        I64(999), Methods.text_document().diagnostic(),
+                        JSONObject.update("textDocument",
+                          JSONObject.update("uri", Uris.from_path(
+                            Path.join(workspace_dir, "main.pony")))))
+                      .into_bytes())
                   end
                 end
               else
                 h.fail(
                   "Weird diagnostics notification: " + notification.string())
               end
+            | Methods.window().show_message() =>
+              h.fail("A file-backed error became a window message")
             end
 
           fun ref handle_response(
@@ -110,13 +142,18 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
           =>
             h.log("received response: " + res.json().print())
             try
-              h.assert_true(RequestIds.eq(I64(0), res.id as RequestId))
+              let id = res.id as RequestId
+              if RequestIds.eq(I64(999), id) then
+                h.assert_eq[USize](5, received_diagnostics)
+                h.assert_eq[USize](5, seen.size())
+                h.complete(true)
+              else
+                h.assert_true(RequestIds.eq(I64(0), id))
+                server(LspMsg.initialized())
+              end
             else
               h.fail("No RequestId")
             end
-            // send initialized notification
-            server(
-              Notification(Methods.initialized(), None).string().clone().iso_array())
         end,
         {(h: TestHelper, harness: TestHarness ref): Bool => true }
         where

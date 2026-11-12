@@ -116,20 +116,12 @@ class ref _ReferenceCollector is ASTVisitor
 
       let hl_node = ASTIdentifier.identifier_node(ast)
       (let start_pos, let end_pos) = hl_node.span()
-      // AST.visit's _from_same_source filter ensures every node visited
-      // during a module's traversal carries that module's source or None.
-      // Nodes with a NULL file pointer (source_open_string paths, reachable
-      // via mixed-source grafting) produce an empty string from
-      // String.copy_cstring rather than None, so we guard both cases.
       let file: String val =
         try
           hl_node.source_file() as String val
         else
           return Continue
         end
-      if file.size() == 0 then
-        return Continue
-      end
       // Deduplicate using the node's own source file (not the walking module's
       // file): a grafted node retains its original source, so this key is
       // stable across packages. Pre-excluded keys (declaration site) are in
