@@ -1432,8 +1432,6 @@ void ponyint_tracing_thread_start(scheduler_t* sched)
 
   this_tracing_scheduler->sched = sched;
   this_tracing_scheduler->categories_bitmask = init_categories_bitmask;
-  SET_TRACING_ENABLED(
-    (init_categories_bitmask != 0) || flight_recorder_enabled);
 
 #if defined(PLATFORM_IS_WINDOWS)
   this_tracing_scheduler->tid = (uint64_t)GetCurrentThreadId();
@@ -3446,8 +3444,6 @@ static uint64_t ponyint_tracing_parse_category_pattern(const char* token)
 
 static void apply_bitmask(uint64_t bitmask)
 {
-  SET_TRACING_ENABLED(
-    (bitmask != 0) || flight_recorder_enabled);
   this_tracing_scheduler->categories_bitmask = bitmask;
 }
 
@@ -3477,6 +3473,7 @@ void ponyint_tracing_master_apply(sched_msg_t op, uint64_t categories)
   }
 
   uint64_t new_bitmask = this_tracing_scheduler->categories_bitmask;
+  SET_TRACING_ENABLED((new_bitmask != 0) || flight_recorder_enabled);
 
   if(tracing_thread_started && (old_bitmask != new_bitmask))
   {
@@ -3541,6 +3538,7 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
 
   flight_recorder_max_events = ponyint_next_pow2(flight_recorder_events_size);
   flight_recorder_enabled = strcmp(tracing_mode, "flight_recorder") == 0;
+  SET_TRACING_ENABLED((init_categories_bitmask != 0) || flight_recorder_enabled);
 
   atomic_store_explicit(&stop_tracing_thread, false, memory_order_relaxed);
 
