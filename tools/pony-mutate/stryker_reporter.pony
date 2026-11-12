@@ -12,9 +12,14 @@ primitive StrykerReporter is Reporter
     env: Env)
   =>
     """
-    Print the Stryker JSON report to stdout.
+    Print the Stryker JSON report to stdout. Source files must be readable
+    UTF-8 text.
     """
-    env.out.print(_build(outcomes, no_coverage))
+    try
+      env.out.print(_build(outcomes, no_coverage, env)?)
+    else
+      env.exitcode(1)
+    end
 
   fun write_file(
     outcomes: Array[MutantOutcome] val,
@@ -24,22 +29,28 @@ primitive StrykerReporter is Reporter
     : Bool
   =>
     """
-    Write the Stryker JSON report to `path`. Returns true on success.
+    Replace `path` with the Stryker JSON report. Returns true on success.
+    Source files must be readable UTF-8 text.
     """
+    let data =
+      try _build(outcomes, no_coverage, env)?
+      else return false
+      end
     let fp = FilePath(FileAuth(env.root), path)
     match CreateFile(fp)
     | let file: File =>
-      file.print(_build(outcomes, no_coverage))
-      true
-    else
-      env.err.print("error: cannot write " + path)
-      false
+      let written = file.set_length(0) and file.print(consume data)
+      file.dispose()
+      if written then return true end
     end
+    env.err.print("error: cannot write " + path)
+    false
 
   fun _build(
     outcomes: Array[MutantOutcome] val,
-    no_coverage: Array[Mutant] val)
-    : String iso^
+    no_coverage: Array[Mutant] val,
+    env: Env)
+    : String iso^ ?
   =>
     let by_file = Map[String val, Array[_StrykerEntry]]
     for o in outcomes.values() do
@@ -69,9 +80,12 @@ primitive StrykerReporter is Reporter
     for (file, entries) in by_file.pairs() do
       if file_idx > 0 then buf.append(",\n") end
       buf.append("    ")
-      buf.append(_escape(file))
+      buf.append(_escape(file, env, file)?)
       buf.append(": {\n")
       buf.append("      \"language\": \"pony\",\n")
+      buf.append("      \"source\": ")
+      buf.append(_escape(_source(file, env)?, env, file)?)
+      buf.append(",\n")
       buf.append("      \"mutants\": [\n")
 
       for (i, e) in entries.pairs() do
@@ -83,10 +97,12 @@ primitive StrykerReporter is Reporter
         buf.append("          \"mutatorName\": ")
         buf.append(_escape(
           e.mutant.category + "/" + e.mutant.original +
-            "->" + e.mutant.replacement))
+            "->" + e.mutant.replacement,
+          env,
+          file)?)
         buf.append(",\n")
         buf.append("          \"replacement\": ")
-        buf.append(_escape(e.mutant.replacement))
+        buf.append(_escape(e.mutant.replacement, env, file)?)
         buf.append(",\n")
         buf.append("          \"location\": {\n")
         buf.append("            \"start\": {\"line\": ")
@@ -101,7 +117,7 @@ primitive StrykerReporter is Reporter
         buf.append("}\n")
         buf.append("          },\n")
         buf.append("          \"status\": ")
-        buf.append(_escape(e.status))
+        buf.append(_escape(e.status, env, file)?)
         buf.append("\n")
         buf.append("        }")
       end
@@ -115,6 +131,21 @@ primitive StrykerReporter is Reporter
     buf.append("}\n")
     consume buf
 
+  fun _source(path: String val, env: Env): String val ? =>
+    match OpenFile(FilePath(FileAuth(env.root), path))
+    | let file: File =>
+      let size = file.size()
+      let data: String val = file.read_string(size)
+      let errno = file.errno()
+      let read_ok =
+        (data.size() == size) and
+        ((errno is FileOK) or ((size == 0) and (errno is FileEOF)))
+      file.dispose()
+      if read_ok then return data end
+    end
+    env.err.print("error: cannot read source " + path)
+    error
+
   fun _status(r: MutantResult): String val =>
     match \exhaustive\ r
     | MutantKilled => "Killed"
@@ -122,32 +153,43 @@ primitive StrykerReporter is Reporter
     | MutantTimedOut => "Timeout"
     end
 
-  fun _escape(s: String val): String val =>
-    recover val
-      let out = String(s.size() + 2)
-      out.push('"')
-      for byte in s.values() do
-        match byte
-        | '"' => out.append("\\\"")
-        | '\\' => out.append("\\\\")
-        | '\n' => out.append("\\n")
-        | '\t' => out.append("\\t")
-        | '\r' => out.append("\\r")
+  fun _escape(s: String val, env: Env, path: String val): String val ? =>
+    let out = recover iso String(s.size() + 2) end
+    out.push('"')
+    var offset: USize = 0
+    while offset < s.size() do
+      (let rune, let len) =
+        try s.utf32(offset.isize())?
         else
-          if byte < 0x20 then
-            out.append("\\u00")
-            let hi = (byte >> 4) and 0x0F
-            let lo = byte and 0x0F
-            out.push(if hi < 10 then '0' + hi else ('a' - 10) + hi end)
-            out.push(if lo < 10 then '0' + lo else ('a' - 10) + lo end)
-          else
-            out.push(byte)
-          end
+          _Unreachable()
+          (U32(0), U8(1))
+        end
+      if (rune == 0xFFFD) and (len == 1) then
+        env.err.print("error: invalid UTF-8 in JSON report for " + path)
+        error
+      end
+      match rune
+      | '"' => out.append("\\\"")
+      | '\\' => out.append("\\\\")
+      | '\n' => out.append("\\n")
+      | '\t' => out.append("\\t")
+      | '\r' => out.append("\\r")
+      else
+        if rune < 0x20 then
+          let byte = rune.u8()
+          out.append("\\u00")
+          let hi = (byte >> 4) and 0x0F
+          let lo = byte and 0x0F
+          out.push(if hi < 10 then '0' + hi else ('a' - 10) + hi end)
+          out.push(if lo < 10 then '0' + lo else ('a' - 10) + lo end)
+        else
+          out.push_utf32(rune)
         end
       end
-      out.push('"')
-      out
+      offset = offset + len.usize()
     end
+    out.push('"')
+    consume out
 
 class val _StrykerEntry
   let mutant: Mutant

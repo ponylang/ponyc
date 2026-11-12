@@ -26,4 +26,9 @@ runs the binary once per mutant with `PONY_MUTANT_ID` set. Each mutant
 is classified as killed (test failed), survived (test passed — a gap),
 or timed out. The terminal report lists survived mutants with source
 locations.
+
+Use `--format=json` for a Stryker JSON report on stdout, or
+`--json-file=report.json` to write one alongside either stdout format.
+JSON reports include source contents, so the original source files must
+remain readable as UTF-8 text at the paths recorded in the info file.
 """

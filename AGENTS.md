@@ -68,6 +68,14 @@ Run individual tests by name:
 - `ctest --preset debug -R mutation-monomorphization` — checks generic mutant sharing, replacement coverage, and inherited method isolation
 - `ctest --preset debug -R mutation-string` — checks String return replacement across capabilities with debug and release codegen
 - `ctest --preset debug -R mutation-runner` — end-to-end test of the `pony-mutate` runner tool (scope filtering, operator filtering, terminal report)
+- `ctest --preset debug -R mutation-reports` — controlled reporter output and CLI report-file tests (requires Python 3)
+
+Validate reports against the pinned Stryker schema after running `mutation-reports`:
+
+```bash
+python3 -m pip install --target build/mutation-schema jsonschema==4.26.0
+PYTHONPATH=build/mutation-schema python3 test/mutation-reports/check_reports.py --schema --fixture build/debug/mutation-reports/report-fixture --runner build/debug/pony-mutate
+```
 
 #### Per-module stdlib tests
 

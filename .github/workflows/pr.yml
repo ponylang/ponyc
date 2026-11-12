@@ -389,7 +389,11 @@ jobs:
       - name: Test pony-agent-server
         run: ctest --preset debug -R pony-agent-server-tests
       - name: Test pony-mutate
-        run: ctest --preset debug -R pony-mutate-tests
+        run: ctest --preset debug -R '^(pony-mutate-tests|mutation-reports)$'
+      - name: Validate mutation report schema
+        run: |
+          python3 -m pip install --target "$RUNNER_TEMP/mutation-schema" jsonschema==4.26.0
+          PYTHONPATH="$RUNNER_TEMP/mutation-schema" python3 test/mutation-reports/check_reports.py --schema --fixture build/debug/mutation-reports/report-fixture --runner build/debug/pony-mutate -v
       - name: Lint tools
         run: cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/
       - name: Lint examples
@@ -434,7 +438,7 @@ jobs:
       - name: Test pony-agent-server
         run: ctest --preset armv8-debug -R pony-agent-server-tests
       - name: Test pony-mutate
-        run: ctest --preset armv8-debug -R pony-mutate-tests
+        run: ctest --preset armv8-debug -R '^(pony-mutate-tests|mutation-reports)$'
 
   tools-windows:
     needs: [changes, maybe-build-windows]
@@ -479,7 +483,7 @@ jobs:
       - name: Test pony-agent-server
         run: ctest --preset windows-x86-64-debug -R pony-agent-server-tests
       - name: Test pony-mutate
-        run: ctest --preset windows-x86-64-debug -R pony-mutate-tests
+        run: ctest --preset windows-x86-64-debug -R '^(pony-mutate-tests|mutation-reports)$'
 
   # ----- ssl-backends suite -----
 

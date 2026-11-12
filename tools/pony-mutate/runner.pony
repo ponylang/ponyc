@@ -141,10 +141,7 @@ actor Runner
       if _all_mutants.size() == 0 then
         _env.err.print("No mutants to run.")
       end
-      _reporter.report(
-        recover val Array[MutantOutcome] end,
-        _no_coverage_mutants,
-        _env)
+      _finish()
       return
     end
 
