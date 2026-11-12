@@ -170,7 +170,7 @@ class \nodoc\ iso _URIFromPathAlreadyURITest is UnitTest
 
 class \nodoc\ iso _URIRoundTripTest is UnitTest
   """
-  Diagnostic.from_error turns a compiler path into a URI with from_path and
+  CompilerDiagnostic turns a compiler path into a URI with from_path and
   WorkspaceManager turns it back with to_path, so the pair has to be lossless.
   A file named "50%20off.pony" comes back as "50 off.pony" if the encode side
   does not escape '%'.

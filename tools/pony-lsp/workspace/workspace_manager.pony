@@ -26,7 +26,6 @@ actor WorkspaceManager
   let _request_sender: RequestSender
   let _compiler: LspCompiler
   let _modules: Map[String, ModuleState]
-  let _global_errors: Array[Diagnostic val]
   var _compile_run: USize = 0
   var _compiling: Bool = false
   var _awaiting_compilation_for: Map[String, (USize | None)] =
@@ -51,8 +50,6 @@ actor WorkspaceManager
     _request_sender = request_sender'
     _compiler = compiler'
     _modules = _modules.create()
-    _global_errors =
-      Array[Diagnostic val].create(4)
 
   fun ref _ensure_module(module_path: FilePath): ModuleState =>
     try
@@ -161,9 +158,6 @@ actor WorkspaceManager
         end
       end
 
-      // clear out global errors
-      this._global_errors.clear()
-
       match \exhaustive\ result
       | let program: Program val =>
         this._channel.log("Successfully compiled " + program_dir.path)
@@ -209,40 +203,53 @@ actor WorkspaceManager
         this._channel.log(
           "Compilation failed with " + errors.size().string() + " errors")
 
-        let diag_iter =
-          Iter[Error](errors.values())
-            .map[Diagnostic]({(err): Diagnostic => Diagnostic.from_error(err) })
-            .flat_map[Diagnostic](
-              {(diag): Iterator[Diagnostic] =>
-                diag.expand_related().values()})
-        for diagnostic in diag_iter do
-          this._channel.log(
-            "ERROR: " + diagnostic.message +
-            " in file " + diagnostic.file_uri())
-          match \exhaustive\ diagnostic.file_uri()
-          | "" =>
-            // collect global errors
-            this._global_errors.push(diagnostic)
+        let fileless_messages = String
+        for err in errors.values() do
+          match \exhaustive\ CompilerDiagnostic(err)
+          | let root: Diagnostic =>
+            for diagnostic in root.expand_related().values() do
+              this._channel.log(
+                "ERROR: " + diagnostic.message +
+                " in file " + diagnostic.file_uri())
+              let err_file = Uris.to_path(diagnostic.file_uri())
+              let err_module_path = FilePath(this._file_auth, Path.dir(err_file))
+              let module_state = this._ensure_module(err_module_path)
+              let document_state = module_state.ensure_document(err_file)
+              document_state.add_diagnostic(run, diagnostic)
 
-          | let err_file_uri: String val =>
-            let err_file = Uris.to_path(err_file_uri)
-            let err_module_path = FilePath(this._file_auth, Path.dir(err_file))
-            // store the error in the document-state
-            let module_state = this._ensure_module(err_module_path)
-            let document_state = module_state.ensure_document(err_file)
-            document_state.add_diagnostic(run, diagnostic)
-
-            if this._client.supports_publish_diagnostics() then
-              // collect errors by file
-              errors_by_file.upsert(
-                err_file,
-                pc.Vec[JSONValue].push(diagnostic.to_json()),
-                {(current: pc.Vec[JSONValue], provided: pc.Vec[JSONValue]) =>
-                  current.concat(provided.values())
-                }
-              )
+              if this._client.supports_publish_diagnostics() then
+                errors_by_file.upsert(
+                  err_file,
+                  pc.Vec[JSONValue].push(diagnostic.to_json()),
+                  {(current: pc.Vec[JSONValue], provided: pc.Vec[JSONValue]) =>
+                    current.concat(provided.values())
+                  })
+              end
+            end
+          | None =>
+            fileless_messages.>append("\n").>append(err.msg)
+            for info in err.infos.values() do
+              fileless_messages.append("\n")
+              match info.file
+              | let file: String if file.size() > 0 =>
+                fileless_messages
+                  .>append(file)
+                  .>append(":")
+                  .>append(info.position.string())
+                  .>append(": ")
+              end
+              fileless_messages.append(info.msg)
             end
           end
+        end
+        if fileless_messages.size() > 0 then
+          this._channel.send(
+            Notification(
+              Methods.window().show_message(),
+              JSONObject
+                .update("type", I64(1))
+                .update("message", program_dir.path + ":" +
+                  consume fileless_messages)))
         end
       end
 
@@ -263,22 +270,6 @@ actor WorkspaceManager
           end
         end
 
-        // publish global diagnostics if any
-        let num_global_errs = this._global_errors.size()
-        if (num_global_errs > 0) then
-          let json_global_diagnostics =
-            pc.Vec[JSONValue].concat(
-              Iter[Diagnostic](
-                this._global_errors.values())
-                  .map[JSONValue]({(diagnostic) => diagnostic.to_json() }))
-          let global_notifications =
-            Notification.create(
-              Methods.text_document().publish_diagnostics(),
-              JSONObject
-                .update("uri", "global")
-                .update("diagnostics", JSONArray(json_global_diagnostics)))
-          this._channel.send(global_notifications)
-        end
       elseif this._client.supports_workspace_diagnostic_refresh() then
         // we only need to issue a refresh if
         // the client doesn't support publish
