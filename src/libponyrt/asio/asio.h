@@ -2,6 +2,7 @@
 #define asio_asio_h
 
 #include "../pony.h"
+#include "../actor/messageq.h"
 #include <platform.h>
 #include <stdbool.h>
 
@@ -32,6 +33,12 @@
 #define ASIO_RETURN_IDLE_WAIT_MS 500
 
 PONY_EXTERN_C_BEGIN
+
+typedef enum asio_msg_id_t
+{
+  ASIO_MSG_EVENT = 0,
+  ASIO_MSG_TRACING_UPDATE
+} asio_msg_id_t;
 
 enum
 {
@@ -86,6 +93,11 @@ bool ponyint_asio_start();
  * returns NULL (see ponyint_asio_start).
  */
 asio_backend_t* ponyint_asio_get_backend();
+
+void ponyint_asio_send_tracing_update(uint64_t categories);
+void ponyint_asio_backend_send_message(asio_backend_t* backend, pony_msg_t* msg);
+bool ponyint_asio_handle_message(pony_msg_t* msg);
+void ponyint_asio_finalise_tracing(messageq_t* q);
 
 /** Returns the cpu assigned for the ASIO thread.
  *
