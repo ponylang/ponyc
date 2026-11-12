@@ -132,3 +132,7 @@ Passing a large `len` to `Array.concat` could write past the end of the array's 
 
 The language server now reports compiler errors that have no source file as editor messages, including their related explanations. These errors no longer appear as document diagnostics under invalid URIs such as `file://`.
 
+## Preserve runtime tracing across thread startup and category changes
+
+Runtime-enabled tracing could stop recording events when a runtime thread started or when category changes reached schedulers at different times. Tracing now remains enabled or disabled according to the latest category change.
+
