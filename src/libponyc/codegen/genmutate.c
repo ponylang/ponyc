@@ -2,13 +2,16 @@
 #include "codegen.h"
 #include "genexpr.h"
 #include "genoperator.h"
+#include "genreference.h"
 #include "../ast/ast.h"
 #include "../ast/lexint.h"
 #include "../ast/source.h"
 #include "../ast/token.h"
 #include "../pass/pass.h"
+#include "../pkg/package.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
@@ -1224,6 +1227,26 @@ static bool type_contains_none(ast_t* type)
   return false;
 }
 
+static bool is_string_return(ast_t* type)
+{
+  if(ast_id(type) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(type);
+    if(unfolded == NULL)
+      return false;
+    bool result = is_string_return(unfolded);
+    ast_free_unattached(unfolded);
+    return result;
+  }
+
+  if(!is_literal(type, "String"))
+    return false;
+
+  ast_t* def = (ast_t*)ast_data(type);
+  return strcmp(module_qualified_name(ast_nearest(def, TK_MODULE)),
+    "builtin") == 0;
+}
+
 LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
   LLVMValueRef original_value, ast_t* return_type, ast_t* body_type)
 {
@@ -1237,6 +1260,7 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
   LLVMValueRef defaults[MAX_RVR_VARIANTS];
   const char* labels[MAX_RVR_VARIANTS];
   size_t count = 0;
+  bool string_default = false;
 
   switch(kind)
   {
@@ -1276,7 +1300,14 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
       break;
 
     case LLVMPointerTypeKind:
-      if(type_contains_none(return_type) && (c->none_instance != NULL))
+      if(is_string_return(return_type))
+      {
+        string_default = true;
+        defaults[count] = NULL;
+        labels[count] = "\"\"";
+        count++;
+      }
+      else if(type_contains_none(return_type) && (c->none_instance != NULL))
       {
         LLVMValueRef none_val = codegen_resolve_global(c, c->none_instance);
         defaults[count] = LLVMBuildBitCast(c->builder, none_val,
@@ -1416,6 +1447,8 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
   for(size_t i = 0; i < count; i++)
   {
     LLVMPositionBuilderAtEnd(c->builder, var_bbs[i]);
+    if(string_default)
+      defaults[i] = gen_empty_string(c, return_type);
     LLVMBuildBr(c->builder, merge_bb);
     phi_vals[i + 1] = defaults[i];
     phi_bbs[i + 1] = var_bbs[i];

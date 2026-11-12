@@ -506,6 +506,13 @@ protected:
     return records;
   }
 
+  bool is_mutant_switch(llvm::SwitchInst* sw)
+  {
+    auto* load = llvm::dyn_cast<llvm::LoadInst>(sw->getCondition());
+    return load && load->getPointerOperand()->stripPointerCasts()->getName()
+      == "pony_mutant_selector";
+  }
+
   std::set<std::string> selecting_functions(int32_t id)
   {
     std::set<std::string> functions;
@@ -513,9 +520,10 @@ protected:
       for(auto& bb : fn)
         for(auto& inst : bb)
           if(auto* sw = llvm::dyn_cast<llvm::SwitchInst>(&inst))
-            for(auto item : sw->cases())
-              if(item.getCaseValue()->getSExtValue() == id)
-                functions.insert(fn.getName().str());
+            if(is_mutant_switch(sw))
+              for(auto item : sw->cases())
+                if(item.getCaseValue()->getSExtValue() == id)
+                  functions.insert(fn.getName().str());
     return functions;
   }
 
@@ -2091,6 +2099,332 @@ TEST_F(GenMutateCodegenTest, RvrEmitsSwitchPhi)
 
   ASSERT_GT(switch_count, 0u);
   ASSERT_GT(phi_count, 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, RvrStringCapabilities)
+{
+  const char* caps[] = {"val", "box", "ref", "iso", "trn", "tag"};
+  std::string src;
+  size_t next_line = 1;
+  auto append = [&](const std::string& text)
+  {
+    src += text;
+    for(char c : text)
+      if(c == '\n')
+        next_line++;
+  };
+  append("use @foreign_string[String iso^]()\n");
+  append("actor Main\n  new create(env: Env) =>\n");
+  for(const char* cap : caps)
+  {
+    std::string name(cap);
+    append("    let " + name + "_a = @foreign_string()\n");
+    append("    implicit_" + name + "(consume " + name + "_a)\n");
+    append("    let " + name + "_b = @foreign_string()\n");
+    append("    explicit_" + name + "(consume " + name + "_b, true)\n");
+  }
+  std::vector<size_t> lines;
+  for(const char* cap : caps)
+  {
+    std::string name(cap);
+    std::string value = ((name == "iso") || (name == "trn"))
+      ? "consume s" : "s";
+    append("  fun implicit_" + name + "(s: String " + name
+      + "): String " + name + " =>\n");
+    lines.push_back(next_line);
+    append("    " + value + "\n");
+    append("  fun explicit_" + name + "(s: String " + name
+      + ", flag: Bool): String " + name + " =>\n");
+    append("    if flag then\n");
+    lines.push_back(next_line);
+    append("      return " + value + "\n");
+    append("    end\n");
+    append("    " + value + "\n");
+  }
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src.c_str(), "ir"));
+
+  for(size_t line : lines)
+  {
+    SCOPED_TRACE(line);
+    auto records = site_records(line, "rvr");
+    ASSERT_EQ(records.size(), 1u);
+    EXPECT_STREQ(records[0]->original, "return");
+    EXPECT_STREQ(records[0]->replacement, "\"\"");
+    check_site_wiring(records[0]);
+  }
+  verify_module();
+}
+
+
+TEST_F(GenMutateCodegenTest, RvrStringAllocationIsSelected)
+{
+  const char* src =
+    "use @foreign_string[String]()\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    passthrough(@foreign_string())\n"
+    "  fun passthrough(s: String): String =>\n"
+    "    s\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  auto records = site_records(6, "rvr");
+  ASSERT_EQ(records.size(), 1u);
+  ASSERT_STREQ(records[0]->replacement, "\"\"");
+  check_site_wiring(records[0]);
+
+  std::vector<llvm::SwitchInst*> selectors;
+  auto module = llvm::unwrap(compile->module);
+  for(auto& fn : *module)
+    for(auto& bb : fn)
+      for(auto& inst : bb)
+        if(auto* sw = llvm::dyn_cast<llvm::SwitchInst>(&inst))
+          if(is_mutant_switch(sw))
+            for(auto item : sw->cases())
+              if(item.getCaseValue()->getSExtValue() == records[0]->id)
+                selectors.push_back(sw);
+
+  ASSERT_FALSE(selectors.empty());
+  for(auto* selector : selectors)
+  {
+    SCOPED_TRACE(selector->getFunction()->getName().str());
+    llvm::BasicBlock* variant = nullptr;
+    for(auto item : selector->cases())
+      if(item.getCaseValue()->getSExtValue() == records[0]->id)
+        variant = item.getCaseSuccessor();
+    ASSERT_NE(variant, nullptr);
+    ASSERT_NE(variant, selector->getDefaultDest());
+    llvm::CallInst* object = nullptr;
+    llvm::CallInst* buffer = nullptr;
+    for(auto& bb : *selector->getFunction())
+      for(auto& inst : bb)
+        if(auto* call = llvm::dyn_cast<llvm::CallInst>(&inst))
+          if(auto* callee = call->getCalledFunction())
+          {
+            auto name = callee->getName();
+            if(name == "pony_alloc_small")
+            {
+              EXPECT_EQ(&bb, variant);
+              ASSERT_EQ(object, nullptr);
+              object = call;
+            }
+            else if(name == "pony_alloc")
+            {
+              EXPECT_EQ(&bb, variant);
+              ASSERT_EQ(buffer, nullptr);
+              buffer = call;
+            }
+            EXPECT_FALSE(name.contains("String_create"));
+          }
+
+    ASSERT_NE(object, nullptr);
+    ASSERT_NE(buffer, nullptr);
+    auto* capacity = llvm::dyn_cast<llvm::ConstantInt>(
+      buffer->getArgOperand(1));
+    ASSERT_NE(capacity, nullptr);
+    ASSERT_GT(capacity->getZExtValue(), 1u);
+    bool nul = false;
+    bool size = false;
+    bool space = false;
+    bool pointer = false;
+    for(auto& inst : *variant)
+      if(auto* store = llvm::dyn_cast<llvm::StoreInst>(&inst))
+      {
+        auto* value = store->getValueOperand();
+        if(store->getPointerOperand() == buffer)
+        {
+          auto* byte = llvm::dyn_cast<llvm::ConstantInt>(value);
+          nul = byte && byte->getType()->isIntegerTy(8) && byte->isZero();
+        }
+        if(auto* gep = llvm::dyn_cast<llvm::GetElementPtrInst>(
+          store->getPointerOperand()))
+        {
+          if(gep->getPointerOperand() != object || gep->getNumIndices() != 2)
+            continue;
+          auto* index = llvm::dyn_cast<llvm::ConstantInt>(gep->getOperand(2));
+          ASSERT_NE(index, nullptr);
+          auto* integer = llvm::dyn_cast<llvm::ConstantInt>(value);
+          if(index->getZExtValue() == 1)
+            size = integer && integer->isZero();
+          if(index->getZExtValue() == 2)
+            space = value == capacity;
+          if(index->getZExtValue() == 3)
+            pointer = value == buffer;
+        }
+      }
+    EXPECT_TRUE(nul);
+    EXPECT_TRUE(size);
+    EXPECT_TRUE(space);
+    EXPECT_TRUE(pointer);
+
+    auto* branch = llvm::dyn_cast<llvm::UncondBrInst>(variant->getTerminator());
+    ASSERT_NE(branch, nullptr);
+    bool replacement_in_phi = false;
+    bool original_in_phi = false;
+    for(auto& inst : *branch->getSuccessor(0))
+      if(auto* phi = llvm::dyn_cast<llvm::PHINode>(&inst))
+        if(phi->getName().starts_with("rvr.result"))
+        {
+          replacement_in_phi = phi->getIncomingValueForBlock(variant)
+            == object;
+          original_in_phi = phi->getIncomingValueForBlock(
+            selector->getDefaultDest()) == selector->getFunction()->getArg(1);
+        }
+    EXPECT_TRUE(replacement_in_phi);
+    EXPECT_TRUE(original_in_phi);
+  }
+  verify_module();
+}
+
+
+TEST_F(GenMutateCodegenTest, RvrStringAliasAndExclusions)
+{
+  add_module("other", "class Other\n  new create() => None\n");
+  const char* src =
+    "use other = \"other\"\n"
+    "use @foreign_string[String]()\n"
+    "type Text is String\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    alias_string(@foreign_string())\n"
+    "    union_string(@foreign_string())\n"
+    "    other_string(other.Other)\n"
+    "    try partial_string(@foreign_string())? end\n"
+    "  fun alias_string(s: Text): Text =>\n"
+    "    s\n"
+    "  fun union_string(s: String): (String | None) =>\n"
+    "    s\n"
+    "  fun other_string(s: other.Other): other.Other =>\n"
+    "    s\n"
+    "  fun partial_string(s: String): String ? =>\n"
+    "    if s is s then s else error end\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  auto alias = site_records(11, "rvr");
+  ASSERT_EQ(alias.size(), 1u);
+  EXPECT_STREQ(alias[0]->replacement, "\"\"");
+  check_site_wiring(alias[0]);
+  auto union_records = site_records(13, "rvr");
+  ASSERT_EQ(union_records.size(), 1u);
+  EXPECT_STREQ(union_records[0]->replacement, "None");
+  EXPECT_TRUE(site_records(15, "rvr").empty());
+  EXPECT_TRUE(site_records(17, "rvr").empty());
+  verify_module();
+}
+
+
+TEST_F(GenMutateCodegenTest, RvrStringGenericSharing)
+{
+  const char* src =
+    "use @foreign_string[String iso^]()\n"
+    "class Other\n"
+    "class Pass[A]\n"
+    "  fun apply(s: A): A =>\n"
+    "    s\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = @foreign_string()\n"
+    "    Pass[String].apply(consume a)\n"
+    "    let b = @foreign_string()\n"
+    "    Pass[String ref].apply(consume b)\n"
+    "    Pass[Other].apply(Other)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  auto records = site_records(5, "rvr");
+  ASSERT_EQ(records.size(), 1u);
+  EXPECT_STREQ(records[0]->replacement, "\"\"");
+  EXPECT_TRUE(records[0]->shared);
+  auto functions = selecting_functions(records[0]->id);
+  size_t val = 0;
+  size_t ref = 0;
+  for(const auto& name : functions)
+  {
+    val += name.find("String_val") != std::string::npos;
+    ref += name.find("String_ref") != std::string::npos;
+    EXPECT_EQ(name.find("Other"), std::string::npos);
+  }
+  EXPECT_GT(val, 0u);
+  EXPECT_GT(ref, 0u);
+  EXPECT_EQ(functions.size(), val + ref);
+  check_site_wiring(records[0]);
+  verify_module();
+}
+
+
+TEST_F(GenMutateCodegenTest, RvrStringOperatorFilter)
+{
+  const char* src =
+    "use @foreign_string[String]()\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    passthrough(@foreign_string())\n"
+    "  fun passthrough(s: String): String =>\n"
+    "    s\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_TRUE(site_records(6, "rvr").empty());
+  for(auto& function : *llvm::unwrap(compile->module))
+    for(auto& block : function)
+      EXPECT_FALSE(block.getName().starts_with("rvr.var"));
+  verify_module();
+}
+
+
+TEST_F(GenMutateCodegenTest, RvrStringScopeAndNomutate)
+{
+  const char* src =
+    "use @foreign_string[String]()\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    included(@foreign_string())\n"
+    "    excluded(@foreign_string())\n"
+    "    suppressed(@foreign_string())\n"
+    "  fun included(s: String): String =>\n"
+    "    s\n"
+    "  fun excluded(s: String): String =>\n"
+    "    s\n"
+    "  fun \\nomutate\\ suppressed(s: String): String =>\n"
+    "    s\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  auto* scopes = (mutate_scope_t*)ponyint_pool_alloc_size(
+    2 * sizeof(mutate_scope_t));
+  for(size_t i = 0; i < 2; i++)
+  {
+    auto* file = (char*)ponyint_pool_alloc_size(1);
+    file[0] = '\0';
+    scopes[i].file = file;
+  }
+  scopes[0].start_line = 7;
+  scopes[0].end_line = 8;
+  scopes[1].start_line = 11;
+  scopes[1].end_line = 12;
+  opt.mutate_scopes = scopes;
+  opt.mutate_scope_count = 2;
+  DO(test_compile(src, "ir"));
+
+  auto included = site_records(8, "rvr");
+  ASSERT_EQ(included.size(), 1u);
+  EXPECT_STREQ(included[0]->replacement, "\"\"");
+  EXPECT_TRUE(site_records(10, "rvr").empty());
+  EXPECT_TRUE(site_records(12, "rvr").empty());
+  verify_module();
 }
 
 

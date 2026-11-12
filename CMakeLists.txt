@@ -1079,10 +1079,17 @@ else()
             -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-runtime
             -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationRunner.cmake)
 
+    add_test(NAME mutation-string
+        COMMAND ${CMAKE_COMMAND}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DOUTPUT=${PONY_OUTPUT_DIR}/mutation-string
+            -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-string
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationString.cmake)
+
     set_tests_properties(full-programs
         full-program-runner-rejects-broken-config
         stdlib validate-grammar mutation-runtime mutation-monomorphization
-        mutation-runner
+        mutation-runner mutation-string
         PROPERTIES LABELS ci-core)
     set_tests_properties(tracing-tests
         PROPERTIES LABELS "ci-core;tracing")
