@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.78.2] - 2026-11-12
 
 ### Fixed
 
@@ -29,9 +29,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add i386 (32-bit x86) support to the embedded LLD linker ([PR #6417](https://github.com/ponylang/ponyc/pull/6417))
 - Add NixOS linking support ([PR #6457](https://github.com/ponylang/ponyc/pull/6457))
-
-### Changed
-
 
 ## [0.78.1] - 2026-11-07
 
