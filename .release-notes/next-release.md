@@ -128,3 +128,7 @@ On x86-64, passing `--features=-sse`, `-sse2`, `-64bit`, or `-64bit-mode` could 
 
 Passing a large `len` to `Array.concat` could write past the end of the array's allocation. `Array.append` had the same vulnerability when the array was already large.
 
+## Report fileless compiler errors without invalid diagnostic URIs
+
+The language server now reports compiler errors that have no source file as editor messages, including their related explanations. These errors no longer appear as document diagnostics under invalid URIs such as `file://`.
+
