@@ -990,9 +990,10 @@ class \nodoc\ iso _TestFileWritevLarge is UnitTest
 class \nodoc\ iso _TestFileFlush is UnitTest
   fun name(): String => "files/File.flush"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
+    let tmp = FilePath.mkdtemp(FileAuth(h.env.root), "tmp.TestFileFlush.")?
     try
-      let path = FilePath(FileAuth(h.env.root), "tmp.flush")
+      let path = tmp.join("flush")?
       with file = CreateFile(path) as File do
         // Flush with no writes succeeds trivially, but does nothing.
         h.assert_true(file.flush())
@@ -1011,9 +1012,10 @@ class \nodoc\ iso _TestFileFlush is UnitTest
           h.assert_eq[String]("foobar", "".join(read_file.lines()))
         end
       end
-      path.remove()
     else
       h.fail("Unhandled error!")
+    then
+      h.assert_true(tmp.remove())
     end
 
 class \nodoc\ iso _TestFileReadMore is UnitTest
