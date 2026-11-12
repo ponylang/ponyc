@@ -14,6 +14,7 @@ add_executable(libponyrt.tests
     mem/pool.cc
     sched/cpu.cc
     sched/scheduler.cc
+    tracing/tracing.cc
 )
 
 target_include_directories(libponyrt.tests
