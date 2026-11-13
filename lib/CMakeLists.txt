@@ -60,13 +60,15 @@ if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(PONY_PIC_FLAG "/EHsc")
 endif()
 
-set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.9.5.tar.gz)
+set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.9.5.tar.gz
+    CACHE STRING "Google Benchmark source archive")
 ExternalProject_Add(gbenchmark
     URL ${PONYC_GBENCHMARK_URL}
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} ${PONYC_LIBS_COMPILER_ARGS} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DBENCHMARK_ENABLE_WERROR=OFF -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} --no-warn-unused-cli
 )
 
-set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz)
+set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz
+    CACHE STRING "GoogleTest source archive")
 
 ExternalProject_Add(googletest
     URL ${PONYC_GOOGLETEST_URL}
@@ -76,7 +78,7 @@ ExternalProject_Add(googletest
 find_package(Git)
 
 set(LLVM_DESIRED_HASH "0d261d1ca552c95a8f007e061c787ac7132fbcbc")
-set(PATCHES_DESIRED_HASH "87eb9c62b0b6c9284c90eb06283de61ee04c4d337ca820bf499a5574fefe6984")
+set(PATCHES_DESIRED_HASH "6d075ed2a24c486433985dcd7e9d263a1c4024196310e5eb70cd4faeea9a2067")
 
 if(GIT_FOUND)
     if(EXISTS "${PROJECT_SOURCE_DIR}/../.git")

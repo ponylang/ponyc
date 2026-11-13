@@ -11,7 +11,7 @@ You also need [CMake](https://cmake.org/download/) version 3.25 or higher. You a
 
 ## Clone this repository
 
-The Pony build process uses git submodules so you need to build from a checked out clone of this repository.
+The direct CMake build uses git submodules, so build from a checked out clone of this repository. The [Nix package](#nix-and-nixos) can also be built from a source archive without Git metadata.
 
 ## Build Steps
 
@@ -37,7 +37,163 @@ The presets default to using Clang on Unix. To build ponyc with GCC, override th
 cmake --preset release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 ```
 
-The libs build (`cmake -P lib/build-libs.cmake`) takes the same `-DCMAKE_C_COMPILER`/`-DCMAKE_CXX_COMPILER` flags — one spelling overrides the compiler for either step. You don't need to rebuild the libraries to switch the ponyc compiler; the ones built by the default (Clang) libs build work with a GCC ponyc build. You only pass the override to the libs build on platforms that need a non-default compiler for the vendored LLVM (32-bit Raspbian and DragonFly BSD — see those sections).
+The libs build (`cmake -P lib/build-libs.cmake`) takes the same `-DCMAKE_C_COMPILER`/`-DCMAKE_CXX_COMPILER` flags — one spelling overrides the compiler for either step. You don't need to rebuild the libraries to switch the ponyc compiler; the ones built by the default (Clang) libs build work with a GCC ponyc build. Pass the override to the libs build on platforms that need a non-default compiler for the vendored LLVM: 32-bit Raspbian, DragonFly BSD, and the Nix development environment. See those sections for the commands.
+
+## Nix and NixOS
+
+The Nix package supports `x86_64-linux`. Enable `nix-command` and `flakes` in your Nix configuration:
+
+```ini
+experimental-features = nix-command flakes
+```
+
+You can also enable them for a single command by placing `--extra-experimental-features 'nix-command flakes'` before the subcommand, for example:
+
+```bash
+nix --extra-experimental-features 'nix-command flakes' build .#ponyc --no-update-lock-file
+```
+
+### Install from a source checkout
+
+From the root of a checkout containing `flake.nix`, build the package:
+
+```bash
+nix build .#ponyc --no-update-lock-file
+./result/bin/ponyc --version
+```
+
+To install the package in your Nix profile, run:
+
+```bash
+nix profile install .#ponyc --no-update-lock-file
+ponyc --version
+```
+
+The package includes `ponyc`, `pony-lsp`, `pony-lint`, `pony-doc`, `pony-dep`, and `pony-agent-server`. You can run these commands outside `nix develop`; no external `LD_LIBRARY_PATH` setting is required. The package build uses a locked LLVM archive, independently of the LLVM submodule in your checkout.
+
+### Install on NixOS
+
+Add Pony to your system flake's inputs. Replace `REVISION` with a revision of `ponylang/ponyc` that contains `flake.nix`:
+
+```nix
+inputs.ponyc.url = "github:ponylang/ponyc/REVISION";
+```
+
+Pass the flake inputs to your NixOS modules through `specialArgs`. For example, in an existing system flake:
+
+```nix
+outputs = inputs@{ nixpkgs, ... }: {
+  nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+    specialArgs = { inherit inputs; };
+    modules = [ ./configuration.nix ];
+  };
+};
+```
+
+Then add the package in `configuration.nix`:
+
+```nix
+{ inputs, pkgs, ... }:
+{
+  environment.systemPackages = [
+    inputs.ponyc.packages.${pkgs.stdenv.hostPlatform.system}.ponyc
+  ];
+}
+```
+
+The package uses its own committed lock file. There is no separate Pony NixOS module.
+
+### Compiler environment and generated programs
+
+The installed commands use the package's pinned GCC and libc, with the required OpenSSL, zlib, and resource headers and libraries. Their wrappers set `NIX_CC` to the package toolchain and prepend the required entries to `NIX_CFLAGS_COMPILE` and `NIX_LDFLAGS`. Setting `NIX_CC` in your shell does not select another compiler for these commands.
+
+You can add include and library directories through `NIX_CFLAGS_COMPILE` and `NIX_LDFLAGS`. The parser accepts `-isystem PATH`, `-LPATH`, and `-L PATH`. Paths containing spaces and quoted flag syntax are unsupported. Include directories and library directories each have a limit of 64 entries. The package uses six entries in each list, leaving 58 caller entries per list; duplicates count toward the limit. Required package entries come first. Extra entries beyond the limit produce a warning and are ignored.
+
+Generated ELF programs refer to runtime paths in the Nix store. Keep the compiler's profile installation or `result` link to retain its runtime closure. Arbitrary output files are not Nix garbage collection roots: manage their runtime references when retaining or distributing programs independently. These programs are not portable standalone binaries.
+
+These environment guarantees apply to the Nix package. A raw CMake install follows a separate workflow.
+
+### Contributor builds
+
+Enter the locked development environment from the repository root:
+
+```bash
+nix develop --no-update-lock-file
+```
+
+This provides build dependencies without building LLVM or ponyc. It does not run build hooks or update dependencies. Run the following commands inside this environment as an unprivileged user. The `pony-dep` permission tests require filesystem access to be denied when permissions are removed; root bypasses that denial.
+
+Use GCC for both the vendored libraries and ponyc. The Unix CMake presets default to Clang, whose Nix wrapper cannot find the static GCC `libstdc++.a` needed by this build.
+
+Initialize the LLVM submodule and build the vendored libraries:
+
+```bash
+git submodule update --init lib/llvm/src
+export CMAKE_BUILD_PARALLEL_LEVEL=2
+cmake -DJOBS=2 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -P lib/build-libs.cmake
+```
+
+The first build compiles LLVM and requires substantial memory. Limit parallel builds to the memory available; the two-job limit above is an example, not a memory guarantee. Provide swap or more RAM for optimized stdlib compilation, which can exhaust an 8 GiB machine without swap even with one Pony compiler process.
+
+Configure and build ponyc, then run the core tests with debug Pony code generation:
+
+```bash
+cmake --preset x86-64-debug -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+cmake --build --preset x86-64-debug
+PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core --output-on-failure
+```
+
+Run the stdlib and full-program tests again with optimized Pony code generation:
+
+```bash
+env -u PONY_DEBUG ctest --preset x86-64-debug -R '^(stdlib|full-programs)$' --output-on-failure
+```
+
+Build the six tool test binaries explicitly, then run them:
+
+```bash
+cmake --build --preset x86-64-debug --target tool-tests
+ctest --preset x86-64-debug -L tools --output-on-failure
+```
+
+For a release build:
+
+```bash
+cmake --preset x86-64-release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+cmake --build --preset x86-64-release
+```
+
+The CMake configuration directories are `build/build_x86-64-debug` and `build/build_x86-64-release`. The binaries are in `build/debug` and `build/release`.
+
+These builds use the LLVM submodule in your checkout. The Nix package uses the separately pinned archive in `nix/sources.nix`; local submodule changes do not change the package build. Local Git flake builds include edits to tracked files. Stage new files with `git add` before building the package so Nix includes them.
+
+To check the Nix package and its installed commands:
+
+```bash
+nix flake check --no-update-lock-file --print-build-logs
+```
+
+This builds the package and runs an independent check of the installed commands. The package checks include the C/C++ test suites and deterministic installed operations. They do not replace the full core and tool test commands above.
+
+A raw CMake installation is also possible:
+
+```bash
+cmake --install build/build_x86-64-release --prefix /desired/prefix
+```
+
+This does not install the Nix package wrappers. Keep the development environment active when running these manually installed binaries.
+
+### Updating the Nix dependencies
+
+The committed `flake.lock` pins the development and package environment. Routine builds must preserve it. To intentionally update the flake inputs, run:
+
+```bash
+nix flake update
+```
+
+Inspect the lock diff. If the pinned LLVM source identity changes, regenerate the affected fixed-source hashes with Nix as well. Commit the lock file and affected hashes together.
+
+After an update, enter the development environment again and repeat the contributor builds, core tests in both Pony code generation modes, tool tests, package build, and `nix flake check` above. Check that the installed commands and generated programs still work with their runtime closure, and verify cache restoration with the updated environment. Changes to the environment definitions, lock file, or bootstrap invalidate the Nix archive cache key; do not assume the previous archive will be reused. CI uses `--no-update-lock-file` and does not update the lock during builds.
 
 ## FreeBSD
 

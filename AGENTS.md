@@ -34,6 +34,20 @@ cmake --build --preset debug
 
 The output goes in `build/debug`. Use `--preset release` for a release build. The vendored LLVM libraries must be built first with `cmake -P lib/build-libs.cmake` — this only needs to run once (or when the LLVM submodule changes).
 
+### Nix and NixOS
+
+Use `nix develop --no-update-lock-file`, then build as an unprivileged user. Use GCC overrides for both build stages; the Unix preset's default Clang cannot find static `libstdc++.a` in this environment:
+
+```bash
+git submodule update --init lib/llvm/src
+export CMAKE_BUILD_PARALLEL_LEVEL=2
+cmake -DJOBS=2 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -P lib/build-libs.cmake
+cmake --preset x86-64-debug -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+cmake --build --preset x86-64-debug
+```
+
+Use `x86-64-debug` for the test commands below, or `x86-64-release` for release builds. CMake configuration directories are `build/build_x86-64-debug` and `build/build_x86-64-release`; binaries still go in `build/debug` and `build/release`. Limit parallelism to available memory and provide swap or more RAM for optimized stdlib compilation. See [Nix contributor builds](BUILD.md#contributor-builds) for both Pony code generation modes, tool tests, package checks, and lock updates.
+
 ## Testing
 
 Tests are registered with ctest and grouped by label. Two labels matter:

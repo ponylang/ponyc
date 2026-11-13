@@ -184,9 +184,6 @@ bool nixenv_probe(nixenv_t* nix, strtable_t* strtab)
   nix->lib_dir_count = parse_l_dirs(getenv("NIX_LDFLAGS"), strtab,
     nix->lib_dirs, NIXENV_MAX_DIRS);
 
-  // The Nix compiler wrapper stores glibc's prefix in orig-libc.  Its lib/
-  // subdirectory holds crt1.o, crti.o, crtn.o, and libc.so — none of which
-  // appear in NIX_LDFLAGS.
   if(nix->lib_dir_count < NIXENV_MAX_DIRS)
   {
     const char* orig_libc = read_nix_support_line(nix_cc, "orig-libc", strtab);
@@ -199,8 +196,6 @@ bool nixenv_probe(nixenv_t* nix, strtable_t* strtab)
     }
   }
 
-  // cc-ldflags contains -L paths for the compiler's own runtime libraries
-  // (libgcc, libgcc_s).  These are also absent from NIX_LDFLAGS.
   if(nix->lib_dir_count < NIXENV_MAX_DIRS)
   {
     char ccld_path[PATH_MAX];
@@ -231,6 +226,19 @@ bool nixenv_probe(nixenv_t* nix, strtable_t* strtab)
   nix->include_dir_count = parse_isystem_dirs(
     getenv("NIX_CFLAGS_COMPILE"), strtab,
     nix->include_dirs, NIXENV_MAX_DIRS);
+
+  if(nix->include_dir_count < NIXENV_MAX_DIRS)
+  {
+    const char* orig_libc_dev = read_nix_support_line(nix_cc,
+      "orig-libc-dev", strtab);
+    if(orig_libc_dev != NULL)
+    {
+      char buf[PATH_MAX];
+      int m = snprintf(buf, sizeof(buf), "%s/include", orig_libc_dev);
+      if(m > 0 && (size_t)m < sizeof(buf) && dir_exists(buf))
+        nix->include_dirs[nix->include_dir_count++] = stringtab(strtab, buf);
+    }
+  }
 
   return true;
 }

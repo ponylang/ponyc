@@ -218,7 +218,7 @@ class \nodoc\ iso _TestLongRunningChild is UnitTest
   fun name(): String => "process/long-running-child"
   fun exclusion_group(): String => "process-monitor"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     let notifier =
       object iso is ProcessNotify
         fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
@@ -238,7 +238,8 @@ class \nodoc\ iso _TestLongRunningChild is UnitTest
     let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
     let file_auth = FileAuth(h.env.root)
 
-    let path = FilePath(file_auth, _SleepPath())
+    let path_resolver = _PathResolver(h.env.vars, file_auth)
+    let path = FilePath(file_auth, _SleepPath(path_resolver)?)
     let args = _SleepArgs(2)
     let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
@@ -261,7 +262,7 @@ class \nodoc\ iso _TestKillLongRunningChild is UnitTest
   fun name(): String => "process/kill-long-running-child"
   fun exclusion_group(): String => "process-monitor"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     let notifier =
       object iso is ProcessNotify
         fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
@@ -287,7 +288,8 @@ class \nodoc\ iso _TestKillLongRunningChild is UnitTest
     let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
     let file_auth = FileAuth(h.env.root)
 
-    let path = FilePath(file_auth, _SleepPath())
+    let path_resolver = _PathResolver(h.env.vars, file_auth)
+    let path = FilePath(file_auth, _SleepPath(path_resolver)?)
     let args = _SleepArgs(2)
     let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
@@ -317,7 +319,7 @@ class \nodoc\ iso _TestGrandchildDoesNotBlockExit is UnitTest
   fun name(): String => "process/grandchild-does-not-block-exit"
   fun exclusion_group(): String => "process-monitor"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     ifdef windows then
       // posix-only shell semantics; covered on posix.
       h.complete(true)
@@ -343,7 +345,10 @@ class \nodoc\ iso _TestGrandchildDoesNotBlockExit is UnitTest
       let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
       let file_auth = FileAuth(h.env.root)
       let path = FilePath(file_auth, "/bin/sh")
-      let args: Array[String] val = ["sh"; "-c"; "sleep 30 & exit 7"]
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let sleep = path_resolver.resolve("sleep")?.path
+      let args: Array[String] val =
+        ["sh"; "-c"; "\"$1\" 30 & exit 7"; "sh"; sleep]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       match \exhaustive\ StartProcess(
@@ -740,7 +745,7 @@ class \nodoc\ _TestChdir is UnitTest
   fun name(): String => "process/Chdir"
   fun exclusion_group(): String => "process-monitor"
 
-  fun ref apply(h: TestHelper) =>
+  fun ref apply(h: TestHelper) ? =>
     let process_auth = StartProcessAuth(h.env.root)
     let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
     let file_auth = FileAuth(h.env.root)
@@ -753,7 +758,8 @@ class \nodoc\ _TestChdir is UnitTest
         0,
         h)
 
-    let path = FilePath(file_auth, _PwdPath())
+    let path_resolver = _PathResolver(h.env.vars, file_auth)
+    let path = FilePath(file_auth, _PwdPath(path_resolver)?)
     let args: Array[String] val = _PwdArgs()
     let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
@@ -777,12 +783,13 @@ class \nodoc\ _TestBadChdir is UnitTest
   fun name(): String => "process/BadChdir"
   fun exclusion_group(): String => "process-monitor"
 
-  fun ref apply(h: TestHelper) =>
+  fun ref apply(h: TestHelper) ? =>
     let badpath = Path.abs(Path.random(10))
     let process_auth = StartProcessAuth(h.env.root)
     let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
     let file_auth = FileAuth(h.env.root)
-    let path = FilePath(file_auth, _PwdPath())
+    let path_resolver = _PathResolver(h.env.vars, file_auth)
+    let path = FilePath(file_auth, _PwdPath(path_resolver)?)
     let args: Array[String] val = _PwdArgs()
     let vars: Array[String] val = []
     let bad_wdir = FilePath(file_auth, badpath)
@@ -963,12 +970,13 @@ class \nodoc\ _TestWaitingOnClosedProcessTwice is UnitTest
   fun ref tear_down(h: TestHelper) =>
     try (_timers as Timers).dispose() end
 
-  fun ref apply(h: TestHelper) =>
+  fun ref apply(h: TestHelper) ? =>
     let process_auth = StartProcessAuth(h.env.root)
     let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
     let file_auth = FileAuth(h.env.root)
 
-    let path = FilePath(file_auth, _SleepPath())
+    let path_resolver = _PathResolver(h.env.vars, file_auth)
+    let path = FilePath(file_auth, _SleepPath(path_resolver)?)
     let args = _SleepArgs(1)
     let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
@@ -1041,11 +1049,11 @@ primitive \nodoc\ _EchoPath
     end
 
 primitive \nodoc\ _PwdPath
-  fun apply(): String =>
+  fun apply(path_resolver: _PathResolver): String ? =>
     ifdef windows then
       "C:\\Windows\\System32\\cmd.exe"
     else
-      "/bin/pwd"
+      path_resolver.resolve("pwd")?.path
     end
 
 primitive \nodoc\ _PwdArgs
@@ -1057,11 +1065,11 @@ primitive \nodoc\ _PwdArgs
     end
 
 primitive \nodoc\ _SleepPath
-  fun apply(): String =>
+  fun apply(path_resolver: _PathResolver): String ? =>
     ifdef windows then
       "C:\\Windows\\System32\\ping.exe"
     else
-      "/bin/sleep"
+      path_resolver.resolve("sleep")?.path
     end
 
 primitive \nodoc\ _SleepArgs
@@ -1164,7 +1172,7 @@ class \nodoc\ iso _TestGrandchildDeliversBufferedOutput is UnitTest
   fun name(): String => "process/grandchild-delivers-buffered-output"
   fun exclusion_group(): String => "process-monitor"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     ifdef windows then
       h.complete(true)
     else
@@ -1173,8 +1181,10 @@ class \nodoc\ iso _TestGrandchildDeliversBufferedOutput is UnitTest
       let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
       let file_auth = FileAuth(h.env.root)
       let path = FilePath(file_auth, "/bin/sh")
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let sleep = path_resolver.resolve("sleep")?.path
       let args: Array[String] val =
-        ["sh"; "-c"; "echo hello; sleep 30 & exit 0"]
+        ["sh"; "-c"; "echo hello; \"$1\" 30 & exit 0"; "sh"; sleep]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       match \exhaustive\ StartProcess(
@@ -1203,7 +1213,7 @@ class \nodoc\ iso _TestChildClosesOutputKeepsRunning is UnitTest
   fun name(): String => "process/child-closes-output-keeps-running"
   fun exclusion_group(): String => "process-monitor"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     ifdef windows then
       h.complete(true)
     else
@@ -1228,9 +1238,11 @@ class \nodoc\ iso _TestChildClosesOutputKeepsRunning is UnitTest
       let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
       let file_auth = FileAuth(h.env.root)
       let path = FilePath(file_auth, "/bin/sh")
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let sleep = path_resolver.resolve("sleep")?.path
       // close stdout+stderr, sleep, exit 5 — all while we hold stdin open.
       let args: Array[String] val =
-        ["sh"; "-c"; "exec 1>&- 2>&-; sleep 1; exit 5"]
+        ["sh"; "-c"; "exec 1>&- 2>&-; \"$1\" 1; exit 5"; "sh"; sleep]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       match \exhaustive\ StartProcess(
@@ -1260,7 +1272,7 @@ class \nodoc\ iso _TestBackpressureAppliedThenReleased is UnitTest
   fun name(): String => "process/backpressure-applied-then-released"
   fun exclusion_group(): String => "process-monitor"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     ifdef windows then
       h.complete(true)
     else
@@ -1275,7 +1287,8 @@ class \nodoc\ iso _TestBackpressureAppliedThenReleased is UnitTest
       let process_auth = StartProcessAuth(h.env.root)
       let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
       let file_auth = FileAuth(h.env.root)
-      let path = FilePath(file_auth, "/bin/sleep")
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _SleepPath(path_resolver)?)
       let args: Array[String] val = ["sleep"; "5"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
@@ -1757,7 +1770,7 @@ class \nodoc\ iso _TestFloodingGrandchildDoesNotStallTeardown is UnitTest
   fun name(): String => "process/flooding-grandchild-does-not-stall-teardown"
   fun exclusion_group(): String => "process-monitor"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     ifdef windows then
       h.complete(true)
     else
@@ -1782,9 +1795,12 @@ class \nodoc\ iso _TestFloodingGrandchildDoesNotStallTeardown is UnitTest
       let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
       let file_auth = FileAuth(h.env.root)
       let path = FilePath(file_auth, "/bin/sh")
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let cat = path_resolver.resolve("cat")?.path
       // cat /dev/zero floods the inherited stdout without end; the child exits
       // at once. Once we drain the cap and close our read end, cat gets EPIPE.
-      let args: Array[String] val = ["sh"; "-c"; "cat /dev/zero & exit 0"]
+      let args: Array[String] val =
+        ["sh"; "-c"; "\"$1\" /dev/zero & exit 0"; "sh"; cat]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       match \exhaustive\ StartProcess(

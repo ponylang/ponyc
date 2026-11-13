@@ -1,11 +1,4 @@
-# Build the vendored LLVM and support libraries (the lib/ CMake project).
-#
-# Runs the two cmake steps for the lib/ project -- configure it through a preset
-# in lib/CMakePresets.json, then build and install it into build/libs. The build
-# definition (LLVM targets, compiler, install layout) lives entirely in the
-# presets; this file only sequences the two commands, so the CI libs cache -- which
-# runs the build as a single command -- has one command to run. Developers run it
-# the same way.
+# Build and install the vendored LLVM and support libraries.
 #
 # Run from the repo root:
 #   cmake -P lib/build-libs.cmake
@@ -17,11 +10,11 @@
 #                    memory-hungry).
 #   -DCMAKE_C_COMPILER=<path> -DCMAKE_CXX_COMPILER=<path>  override the compiler
 #                    (DragonFly builds LLVM with gcc, not the preset's clang).
-#                    Same flag names the ponyc configure step uses, so one
-#                    spelling overrides the compiler at either step.
+#   -DPONYC_GBENCHMARK_URL=<url> -DPONYC_GOOGLETEST_URL=<url>  override the
+#                    dependency archive locations.
+#   -DCMAKE_INSTALL_PREFIX=<path>  installation path (default: build/libs).
 #   -DPONY_PIC_FLAG=<flag>  position-independent-code flag (default -fpic; some
-#                    64-bit ARM targets need -fPIC). Same flag name the ponyc
-#                    configure step uses.
+#                    64-bit ARM targets need -fPIC).
 
 if(NOT DEFINED PRESET)
     set(PRESET "libs")
@@ -40,6 +33,11 @@ endif()
 if(DEFINED PONY_PIC_FLAG)
     list(APPEND _configure "-DPONY_PIC_FLAG=${PONY_PIC_FLAG}")
 endif()
+foreach(_option PONYC_GBENCHMARK_URL PONYC_GOOGLETEST_URL CMAKE_INSTALL_PREFIX)
+    if(DEFINED ${_option})
+        list(APPEND _configure "-D${_option}=${${_option}}")
+    endif()
+endforeach()
 
 execute_process(COMMAND ${_configure} RESULT_VARIABLE _rc)
 if(NOT _rc EQUAL 0)

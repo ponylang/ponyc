@@ -430,9 +430,7 @@ jobs:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
-    # Build ponyc inside a Nix environment (Docker nixos/nix) and verify that
-    # the compiled ponyc can link Pony programs — CRT objects, glibc, gcc
-    # runtime, and the Nix store dynamic linker (PT_INTERP) are all found.
+    timeout-minutes: 360
     name: x86-64 NixOS
     steps:
       - name: Checkout
@@ -443,7 +441,7 @@ jobs:
         id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*', 'VERSION', 'flake.nix', 'flake.lock', 'nix/**') }}
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ inputs.ref }}
         run: |
@@ -461,7 +459,7 @@ jobs:
               echo "Libs present in the branch GHCR cache."
               echo "hit=true" >> "$GITHUB_OUTPUT"
             elif [ "$branch_rc" -eq "$miss" ]; then
-              echo "Off-main manual run, cache miss; the container will build LLVM."
+              echo "Off-main manual run, cache miss; Nix will build LLVM."
               echo "hit=false" >> "$GITHUB_OUTPUT"
             else
               echo "::error::Branch libs cache check failed (exit $branch_rc); not treating this as a miss."
@@ -471,46 +469,37 @@ jobs:
             touch .libs-cache-miss
             echo "::notice::NixOS libs cache miss (tag $LIBS_TAG) on a main run; skipping this tier-3 run. The warmer refills it on the next push to main."
           fi
-      - name: Allow unprivileged user namespaces
+      - name: Enable Nix sandbox namespaces
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      - name: Start Nix container
+      - name: Install Nix
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: |
-          docker run -d --name ponyc-nix \
-            -v "$GITHUB_WORKSPACE:/src:ro" \
-            nixos/nix \
-            sleep infinity
-          # Copy source to a writable location inside the container and fix
-          # git's dubious-ownership check (root in the container, runner user
-          # on the host).
-          docker exec ponyc-nix sh -c '
-            cp -a /src /work
-            git config --global --add safe.directory /work
-            git config --global --add safe.directory /work/lib/llvm/src
-          '
+        uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086
+        with:
+          extra_nix_config: |
+            sandbox = true
+            sandbox-fallback = false
       - name: Restore libs
         if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: bash .ci-scripts/nix/nix-libs-cache.bash restore
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*', 'VERSION', 'flake.nix', 'flake.lock', 'nix/**') }}
+        run: |
+          nix develop --no-update-lock-file --command \
+            bash .ci-scripts/nix/nix-libs-cache.bash restore
       - name: Build libs
         if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: bash .ci-scripts/nix/nix-libs-cache.bash build-push-branch
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*', 'VERSION', 'flake.nix', 'flake.lock', 'nix/**') }}
+        run: |
+          nix develop --no-update-lock-file --command \
+            bash .ci-scripts/nix/nix-libs-cache.bash build-push-branch
       - name: Build and test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          docker exec ponyc-nix \
-            nix-shell -p cmake clang gcc python3 zlib openssl libxml2 ncurses coreutils findutils binutils git file --run \
-            'bash /work/.ci-scripts/nix/nix-build-and-test.sh'
-      - name: Stop Nix container
-        if: ${{ always() && hashFiles('.libs-cache-miss') == '' }}
-        run: |
-          docker rm -f ponyc-nix || true
+          nix develop --no-update-lock-file --command \
+            bash .ci-scripts/nix/nix-build-and-test.sh
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

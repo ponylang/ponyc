@@ -522,12 +522,13 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Stage 3. NixOS in a Docker container. Gates on x86_64-linux-other like the
-  # BSDs to stay within the stage-3 "at most 2 at once" cap.
+  # Stage 3. NixOS build. Gates on x86_64-linux-other like the BSDs to stay
+  # within the stage-3 "at most 2 at once" cap.
   nixos-linux:
     needs: [x86_64-linux-other]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     name: x86-64 NixOS
     steps:
       - name: Checkout
@@ -536,7 +537,7 @@ jobs:
         id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*', 'VERSION', 'flake.nix', 'flake.lock', 'nix/**') }}
         run: |
           miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform nixos-nix --tag "$LIBS_TAG" && main_rc=0 || main_rc=$?
@@ -553,7 +554,7 @@ jobs:
         if: steps.check.outputs.hit != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*', 'VERSION', 'flake.nix', 'flake.lock', 'nix/**') }}
         run: |
           miss=$(cd .ci-scripts/libs-cache && python3 -c 'from common import EXIT_MISS; print(EXIT_MISS)')
           python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform nixos-nix --tag "$LIBS_TAG" && branch_rc=0 || branch_rc=$?
@@ -566,34 +567,27 @@ jobs:
           elif [ "$branch_rc" -eq "$miss" ]; then
             echo "promoted=false" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::Branch libs cache check failed (exit $branch_rc); falling through to container build."
+            echo "::warning::Branch libs cache check failed (exit $branch_rc); falling through to build."
             echo "promoted=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Allow unprivileged user namespaces
+      - name: Enable Nix sandbox namespaces
         if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      - name: Start Nix container
+      - name: Install Nix
         if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
-        run: |
-          docker run -d --name ponyc-nix \
-            -v "$GITHUB_WORKSPACE:/src:ro" \
-            nixos/nix \
-            sleep infinity
-          docker exec ponyc-nix sh -c '
-            cp -a /src /work
-            git config --global --add safe.directory /work
-            git config --global --add safe.directory /work/lib/llvm/src
-          '
+        uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086
+        with:
+          extra_nix_config: |
+            sandbox = true
+            sandbox-fallback = false
       - name: Build and push libs
         if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: bash .ci-scripts/nix/nix-libs-cache.bash build-push-main
-      - name: Stop Nix container
-        if: always()
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*', 'VERSION', 'flake.nix', 'flake.lock', 'nix/**') }}
         run: |
-          docker rm -f ponyc-nix || true
+          nix develop --no-update-lock-file --command \
+            bash .ci-scripts/nix/nix-libs-cache.bash build-push-main
 
   # Keep storage bounded: keep the 2 newest versions of each ponyc-libs-cache/*
   # package, delete older ones. Only the warmer pushes (on every main commit), so
