@@ -6,6 +6,8 @@
 #include <stdio.h>
 
 #include "asio.h"
+#include "../mem/pool.h"
+#include "../tracing/tracing.h"
 
 struct asio_base_t
 {
@@ -59,6 +61,36 @@ size_t ponyint_asio_static_alloc_size()
 asio_backend_t* ponyint_asio_get_backend()
 {
   return atomic_load_explicit(&running_base.backend, memory_order_relaxed);
+}
+
+void ponyint_asio_send_tracing_update(uint64_t categories)
+{
+  asio_backend_t* backend = ponyint_asio_get_backend();
+  if(backend == NULL)
+    return;
+
+  pony_msg_u64_t* msg = (pony_msg_u64_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(pony_msg_u64_t)), ASIO_MSG_TRACING_UPDATE);
+  msg->value = categories;
+  ponyint_asio_backend_send_message(backend, &msg->msg);
+}
+
+bool ponyint_asio_handle_message(pony_msg_t* msg)
+{
+  if(msg->id != ASIO_MSG_TRACING_UPDATE)
+    return false;
+
+  ponyint_tracing_apply_update(((pony_msg_u64_t*)msg)->value);
+  return true;
+}
+
+void ponyint_asio_finalise_tracing(messageq_t* q)
+{
+  // Scheduler 0 has stopped sending updates before joining ASIO. Apply its
+  // remaining masks before thread_stop without delivering pending I/O work.
+  pony_msg_t* msg;
+  while((msg = ponyint_thread_messageq_pop(q)) != NULL)
+    ponyint_asio_handle_message(msg);
 }
 
 uint32_t ponyint_asio_get_cpu()

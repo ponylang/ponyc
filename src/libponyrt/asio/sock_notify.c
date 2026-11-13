@@ -146,6 +146,12 @@ enum // Event requests
 };
 
 
+void ponyint_asio_backend_send_message(asio_backend_t* b, pony_msg_t* msg)
+{
+  ponyint_thread_messageq_push(&b->q, msg, msg);
+  PostQueuedCompletionStatus(b->port, 0, KEY_WAKEUP, NULL);
+}
+
 static void send_request(asio_event_t* ev, int req)
 {
   // NULL means asio teardown has committed (#5564). A signal delivered
@@ -156,13 +162,11 @@ static void send_request(asio_event_t* ev, int req)
     return;
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(asio_msg_t)), 0);
+    POOL_INDEX(sizeof(asio_msg_t)), ASIO_MSG_EVENT);
   msg->event = ev;
   msg->flags = req;
 
-  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
-
-  PostQueuedCompletionStatus(b->port, 0, KEY_WAKEUP, NULL);
+  ponyint_asio_backend_send_message(b, &msg->msg);
 }
 
 
@@ -722,6 +726,9 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
     while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q)) != NULL)
     {
+      if(ponyint_asio_handle_message(&msg->msg))
+        continue;
+
       asio_event_t* ev = msg->event;
 
       switch(msg->flags)
@@ -1023,6 +1030,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   // backend while any noisy event is subscribed, so the list is already empty.
 
   CloseHandle(b->port);
+  ponyint_asio_finalise_tracing(&b->q);
   ponyint_messageq_destroy(&b->q, true);
   POOL_FREE(asio_backend_t, b);
 

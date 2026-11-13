@@ -37,6 +37,11 @@ asio_backend_t* ponyint_asio_backend_init()
   return b;
 }
 
+void ponyint_asio_backend_send_message(asio_backend_t* b, pony_msg_t* msg)
+{
+  ponyint_thread_messageq_push(&b->q, msg, msg);
+}
+
 void ponyint_asio_backend_final(asio_backend_t* b)
 {
   atomic_store_explicit(&b->terminate, true, memory_order_relaxed);
@@ -74,6 +79,9 @@ static void handle_queue(asio_backend_t* b)
 
   while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q)) != NULL)
   {
+    if(ponyint_asio_handle_message(&msg->msg))
+      continue;
+
     asio_event_t* ev = msg->event;
 
     switch(msg->flags)
@@ -102,6 +110,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     handle_queue(b);
   }
 
+  ponyint_asio_finalise_tracing(&b->q);
   ponyint_messageq_destroy(&b->q, true);
   POOL_FREE(asio_backend_t, b);
 

@@ -1069,6 +1069,7 @@ else()
             -DTESTS=${CMAKE_SOURCE_DIR}/test/tracing-tests
             -DWORKDIR=${PONY_OUTPUT_DIR}/tracing-tests
             -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+            -DPONY_USE_SYSTEMATIC_TESTING=${PONY_USE_SYSTEMATIC_TESTING}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunTracingTests.cmake)
 
     set_tests_properties(full-programs

@@ -108,6 +108,38 @@ file(MAKE_DIRECTORY "${WORKDIR}")
 
 compile_test(tracing-cli "${TESTS}/cli-flags" _cli_bin)
 compile_test(tracing-api "${TESTS}/runtime-api" _api_bin)
+set(_asio_cases "")
+if(NOT PONY_USE_SYSTEMATIC_TESTING)
+    compile_test(tracing-asio "${TESTS}/asio" _asio_bin)
+    set(_asio_cases enable enable-startup disable replace sequence)
+endif()
+
+foreach(_case IN LISTS _asio_cases)
+    set(_args --ponymaxthreads=1)
+    set(_expected TRUE)
+    if(_case STREQUAL "enable-startup")
+        list(APPEND _args enable --ponytracingcategories=actor)
+    elseif(_case STREQUAL "disable" OR _case STREQUAL "replace")
+        list(APPEND _args ${_case} --ponytracingcategories=actor,scheduler)
+        set(_expected FALSE)
+    else()
+        list(APPEND _args ${_case})
+    endif()
+    run_scenario(asio-${_case} "${_asio_bin}" "${_args}")
+    set(_trace "${WORKDIR}/scenario-asio-${_case}/ponytrace.json")
+    expect_file("asio-${_case}: trace file exists" "${_trace}")
+    file(READ "${_trace}" _contents)
+    string(REGEX MATCH
+        "\"name\":\"thread_stop\"[^\n]*\"index\":-1[012]"
+        _asio_stop "${_contents}")
+    if((_expected AND _asio_stop) OR (NOT _expected AND NOT _asio_stop))
+        message(STATUS "  PASS asio-${_case}: ASIO shutdown category")
+        math(EXPR _pass_count "${_pass_count} + 1")
+    else()
+        message(WARNING "  FAIL asio-${_case}: ASIO shutdown category")
+        math(EXPR _fail_count "${_fail_count} + 1")
+    endif()
+endforeach()
 
 # --- scenario 1: no tracing flags at all -> no trace file -------------------
 

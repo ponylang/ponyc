@@ -1810,6 +1810,7 @@ static void send_msg_u64_pinned_actor_thread(uint32_t from, sched_msg_t msg,
 __attribute__((cold))
 void ponyint_sched_broadcast_tracing_update(uint64_t bitmask)
 {
+  ponyint_asio_send_tracing_update(bitmask);
   send_msg_u64_all(this_scheduler->index, SCHED_TRACING_UPDATE, bitmask);
   send_msg_u64_pinned_actor_thread(this_scheduler->index,
     SCHED_TRACING_UPDATE, bitmask);
