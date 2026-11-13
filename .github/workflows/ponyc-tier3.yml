@@ -471,6 +471,9 @@ jobs:
             touch .libs-cache-miss
             echo "::notice::NixOS libs cache miss (tag $LIBS_TAG) on a main run; skipping this tier-3 run. The warmer refills it on the next push to main."
           fi
+      - name: Allow unprivileged user namespaces
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Start Nix container
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
