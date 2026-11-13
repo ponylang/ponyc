@@ -793,8 +793,7 @@ set(CMAKE_STATIC_LIBRARY_PREFIX "")
 # #3898 -- since one PONY_ARCH cache variable drives both the compile define
 # package.c reads and this destination, so the two can't disagree. Stable entry
 # points in <prefix>/bin (and <prefix>/lib) point at the active version: symlinks
-# on Unix, a shim on Windows (added after the shim is verified). Nothing tests
-# this -- a mismatch surfaces as an installed ponyc that can't find libponyrt.a.
+# on Unix, a shim on Windows.
 set(PONY_VERSIONED_DIR "lib/pony/${PONYC_VERSION}")
 if(WIN32)
     set(PONY_INSTALL_LIBDIR "${PONY_VERSIONED_DIR}/lib")
@@ -1015,6 +1014,28 @@ else()
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunBrokenConfig.cmake)
 
+    if(WIN32)
+        set(_installed_shim_tmp "$ENV{TEMP}")
+    elseif(NOT "$ENV{TMPDIR}" STREQUAL "")
+        set(_installed_shim_tmp "$ENV{TMPDIR}")
+    else()
+        set(_installed_shim_tmp /tmp)
+    endif()
+    file(REAL_PATH "${CMAKE_BINARY_DIR}" _installed_shim_build)
+    string(SHA256 _installed_shim_id "${_installed_shim_build}")
+    add_test(NAME installed-c-shim-pony-header
+        COMMAND ${CMAKE_COMMAND}
+            "-DBUILD_DIR=${CMAKE_BINARY_DIR}"
+            "-DCONFIG=$<CONFIG>"
+            "-DVERSIONED_DIR=${PONY_VERSIONED_DIR}"
+            "-DEXE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+            "-DRUNNER=${_full_program_runner}"
+            "-DFIXTURE=${CMAKE_SOURCE_DIR}/test/full-program-tests/c-shim-pony-header"
+            "-DWORKDIR=${_installed_shim_tmp}/ponyc-installed-${_installed_shim_id}-$<CONFIG>"
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunInstalledCShim.cmake)
+    set_tests_properties(installed-c-shim-pony-header PROPERTIES
+        LABELS ci-core TIMEOUT 300)
+
     add_test(NAME stdlib
         COMMAND ${CMAKE_COMMAND}
             -DPONYC=$<TARGET_FILE:ponyc>
@@ -1108,20 +1129,20 @@ else()
     # include path (add_pony_include_args). Layout must match what gencshim
     # expects: the headers a shim names directly at include/pony/, atomics at
     # include/pony/detail/. Kept under pony/ so a shared system include never gets
-    # a flat collision-prone name. The gtest suite only exercises the build-tree
-    # offsets, so a packaging change here surfaces only against an installed tree.
+    # a flat collision-prone name.
     install(FILES src/libponyrt/pony.h
         DESTINATION ${PONY_VERSIONED_DIR}/include/pony)
     install(FILES src/common/pony/detail/atomics.h
         DESTINATION ${PONY_VERSIONED_DIR}/include/pony/detail)
     # pony.h and pony_assert (ponyassert.h) are supported for shims;
-    # platform.h/threads.h/paths.h are ponyassert.h's internal include closure,
+    # platform.h/threads.h/paths.h/nixenv.h are its internal include closure,
     # not a committed interface. vcvars.h is omitted on Unix; on Windows
     # platform.h includes it, so it's in the closure there -- gate it on MSVC
     # rather than dropping it outright.
     install(FILES
         src/common/ponyassert.h
         src/common/platform.h
+        src/common/nixenv.h
         src/common/threads.h
         src/common/paths.h
         DESTINATION ${PONY_VERSIONED_DIR}/include/pony)
