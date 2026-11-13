@@ -283,9 +283,9 @@ PONY_API int32_t ponyint_utimensat(int32_t fd, const char* path,
 {
   struct timespec ts[2];
   ts[0].tv_sec = (time_t)atime_sec;
-  ts[0].tv_nsec = atime_usec * 1000;
+  ts[0].tv_nsec = (long)(atime_usec * 1000);
   ts[1].tv_sec = (time_t)mtime_sec;
-  ts[1].tv_nsec = mtime_usec * 1000;
+  ts[1].tv_nsec = (long)(mtime_usec * 1000);
   return utimensat(fd, path, ts, 0);
 }
 
