@@ -569,6 +569,9 @@ jobs:
             echo "::warning::Branch libs cache check failed (exit $branch_rc); falling through to container build."
             echo "promoted=false" >> "$GITHUB_OUTPUT"
           fi
+      - name: Allow unprivileged user namespaces
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Start Nix container
         if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         run: |
