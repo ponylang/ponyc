@@ -54,6 +54,8 @@ To use ponyc on Windows, install one of:
 
 When installing either, select the `Desktop Development with C++` workload along with the latest `Windows 11 SDK (11.x.x.x) for Desktop` individual component. ponyc bundles its own linker but links your program against the Windows SDK (UCRT, kernel32) and MSVC runtime libraries from this install.
 
+You also need an SSL library built for MSVC. Add its `lib` directory to your `LIB` environment variable using Advanced System Settings->Environment Variables.
+
 Once you have installed the prerequisites, you can get prebuilt release or nightly builds via [ponyup](https://github.com/ponylang/ponyup).  To install the most recent ponyc on Windows:
 
 ```pwsh
