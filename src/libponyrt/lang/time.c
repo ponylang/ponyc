@@ -6,6 +6,8 @@
 
 #if !defined(PLATFORM_IS_WINDOWS)
 #include <sys/time.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #endif
 
 PONY_EXTERN_C_BEGIN
@@ -275,16 +277,16 @@ PONY_API int32_t ponyint_futimes(int32_t fd, int64_t atime_sec,
 
 #if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
 
-PONY_API int32_t ponyint_futimesat(int32_t fd, const char* path,
+PONY_API int32_t ponyint_utimensat(int32_t fd, const char* path,
   int64_t atime_sec, int64_t atime_usec, int64_t mtime_sec,
   int64_t mtime_usec)
 {
-  struct timeval tv[2];
-  tv[0].tv_sec = (time_t)atime_sec;
-  tv[0].tv_usec = (suseconds_t)atime_usec;
-  tv[1].tv_sec = (time_t)mtime_sec;
-  tv[1].tv_usec = (suseconds_t)mtime_usec;
-  return futimesat(fd, path, tv);
+  struct timespec ts[2];
+  ts[0].tv_sec = (time_t)atime_sec;
+  ts[0].tv_nsec = atime_usec * 1000;
+  ts[1].tv_sec = (time_t)mtime_sec;
+  ts[1].tv_nsec = mtime_usec * 1000;
+  return utimensat(fd, path, ts, 0);
 }
 
 #endif

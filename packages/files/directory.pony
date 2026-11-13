@@ -16,7 +16,7 @@ use @renameat[I32](fd: I32, from: Pointer[U8] tag, tofd: I32,
   to_path: Pointer[U8] tag) if linux or bsd
 use @symlinkat[I32](source: Pointer[U8] tag, fd: I32,
   dst: Pointer[U8] tag) if linux or bsd
-use @ponyint_futimesat[I32](fd: I32, path: Pointer[U8] tag,
+use @ponyint_utimensat[I32](fd: I32, path: Pointer[U8] tag,
   atime_sec: I64, atime_usec: I64, mtime_sec: I64, mtime_usec: I64)
   if linux or bsd
 use @fchownat[I32](fd: I32, path: Pointer[U8] tag, uid: U32, gid: U32,
@@ -427,7 +427,7 @@ class Directory
       let path' = FilePath.from(path, target, path.caps)?
 
       ifdef linux or bsd then
-        0 == @ponyint_futimesat(
+        0 == @ponyint_utimensat(
           _fd,
           target.cstring(),
           atime._1,
