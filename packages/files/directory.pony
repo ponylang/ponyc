@@ -377,7 +377,7 @@ class Directory
 
   fun chownat(target: String, uid: U32, gid: U32): Bool =>
     """
-    Set the FileMode for some path relative to this directory.
+    Set the owner and group for some path relative to this directory.
     """
     if
       not path.caps(FileChown) or
@@ -401,7 +401,8 @@ class Directory
 
   fun touchat(target: String): Bool =>
     """
-    Set the last access and modification times of the directory to now.
+    Set the last access and modification times of a path relative to this
+    directory to now.
     """
     set_time_at(target, Time.now(), Time.now())
 
@@ -412,8 +413,8 @@ class Directory
     : Bool
   =>
     """
-    Set the last access and modification times of the directory to the given
-    values.
+    Set the last access and modification times of a path relative to this
+    directory to the given values.
     """
     if
       not path.caps(FileChown) or
