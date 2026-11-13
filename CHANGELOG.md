@@ -6,7 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
-- Fix installed headers for C shims ([PR #6495](https://github.com/ponylang/ponyc/pull/6495))
+- Fix C shims that include ponyassert.h ([PR #6495](https://github.com/ponylang/ponyc/pull/6495))
 
 ### Added
 
