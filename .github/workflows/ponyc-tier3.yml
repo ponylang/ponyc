@@ -286,6 +286,8 @@ jobs:
           ssh ponyc-i386-vm <<'EOF'
           set -e
           cd /build/ponyc
+          mkdir -p /build/tmp
+          export TMPDIR=/build/tmp
           cmake --preset debug
           cmake --build --preset debug
           cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
@@ -296,15 +298,15 @@ jobs:
           ssh ponyc-i386-vm <<'EOF'
           set -e
           cd /build/ponyc
-          mkdir -p /tmp/hello
-          printf 'actor Main\n  new create(env: Env) =>\n    env.out.print("hello from i386")\n' > /tmp/hello/main.pony
-          PONYPATH="$PWD/packages" ./build/debug/ponyc -o /tmp/hello /tmp/hello
+          mkdir -p /build/hello
+          printf 'actor Main\n  new create(env: Env) =>\n    env.out.print("hello from i386")\n' > /build/hello/main.pony
+          PONYPATH="$PWD/packages" ./build/debug/ponyc -o /build/hello /build/hello
           # ELF header: class 1 is 32-bit, machine 3 is i386.
-          test "$(od -An -tx1 -j4 -N1 /tmp/hello/hello | tr -d ' ')" = 01
-          test "$(od -An -tx1 -j18 -N2 /tmp/hello/hello | tr -d ' ')" = 0300
+          test "$(od -An -tx1 -j4 -N1 /build/hello/hello | tr -d ' ')" = 01
+          test "$(od -An -tx1 -j18 -N2 /build/hello/hello | tr -d ' ')" = 0300
           # LLVM's default triple says gnu; the program only runs if ponyc
           # linked it against musl's loader.
-          /tmp/hello/hello
+          /build/hello/hello
           EOF
       - name: Test with Debug Runtime (debug codegen)
         if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
@@ -347,6 +349,8 @@ jobs:
           ssh ponyc-i386-vm <<'EOF'
           set -e
           cd /build/ponyc
+          mkdir -p /build/tmp
+          export TMPDIR=/build/tmp
           cmake --preset release
           cmake --build --preset release
           EOF
@@ -596,6 +600,8 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost <<'EOF'
           set -e
           cd /home/freebsd/ponyc
+          mkdir -p /home/freebsd/tmp
+          export TMPDIR=/home/freebsd/tmp
           # Use x86-64 presets, not native: QEMU -cpu host can present a
           # CPU that LLVM maps to a 32-bit-only name (e.g. athlon-xp),
           # which clang rejects with -march=native on a 64-bit target.
@@ -605,11 +611,11 @@ jobs:
           # Smoke-test the --static embedded-LLD link path; the test targets
           # below only exercise dynamic linking. Covers actor init plus
           # exception unwinding through the static recipe.
-          mkdir -p /tmp/static-smoke
-          printf 'actor Main\n  new create(env: Env) =>\n    try error else env.out.print("static ok") end\n' > /tmp/static-smoke/main.pony
-          PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /tmp/static-smoke /tmp/static-smoke
-          file /tmp/static-smoke/static-smoke | grep -q 'statically linked'
-          /tmp/static-smoke/static-smoke
+          mkdir -p /home/freebsd/static-smoke
+          printf 'actor Main\n  new create(env: Env) =>\n    try error else env.out.print("static ok") end\n' > /home/freebsd/static-smoke/main.pony
+          PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /home/freebsd/static-smoke /home/freebsd/static-smoke
+          file /home/freebsd/static-smoke/static-smoke | grep -q 'statically linked'
+          /home/freebsd/static-smoke/static-smoke
           PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
           ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
           ctest --preset x86-64-debug -R pony-doc-tests
@@ -732,6 +738,8 @@ jobs:
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost <<'EOF'
           set -e
           cd /build/ponyc
+          mkdir -p /build/tmp
+          export TMPDIR=/build/tmp
           df -h
           export PONY_FULL_PROGRAM_TIMEOUT=120
           # Use x86-64 presets, not native: QEMU -cpu host can present a
@@ -750,11 +758,11 @@ jobs:
           # command propagates; `! ... | grep -q '(NEEDED)'` asserts the
           # absence rather than a count of zero (which is what a failing
           # readelf would also produce).
-          mkdir -p /tmp/static-smoke
-          printf 'actor Main\n  new create(env: Env) =>\n    try error else env.out.print("static ok") end\n' > /tmp/static-smoke/main.pony
-          PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /tmp/static-smoke /tmp/static-smoke
-          ! readelf -d /tmp/static-smoke/static-smoke | grep -q '(NEEDED)'
-          /tmp/static-smoke/static-smoke | grep -q 'static ok'
+          mkdir -p /build/static-smoke
+          printf 'actor Main\n  new create(env: Env) =>\n    try error else env.out.print("static ok") end\n' > /build/static-smoke/main.pony
+          PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /build/static-smoke /build/static-smoke
+          ! readelf -d /build/static-smoke/static-smoke | grep -q '(NEEDED)'
+          /build/static-smoke/static-smoke | grep -q 'static ok'
           PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
           ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
           ctest --preset x86-64-debug -R pony-doc-tests
@@ -864,6 +872,8 @@ jobs:
           export LD_LIBRARY_PATH=/usr/local/lib/gcc13
           export SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
           cd /build/ponyc
+          mkdir -p /build/tmp
+          export TMPDIR=/build/tmp
           # Use x86-64 presets, not native: QEMU -cpu host can present a
           # CPU that LLVM maps to a 32-bit-only name (e.g. athlon-xp),
           # which clang rejects with -march=native on a 64-bit target.
