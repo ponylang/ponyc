@@ -8,12 +8,14 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix C shims that include ponyassert.h ([PR #6495](https://github.com/ponylang/ponyc/pull/6495))
 - Apply runtime tracing category changes to ASIO ([PR #6494](https://github.com/ponylang/ponyc/pull/6494))
+- Fix compilation failure on OpenBSD and DragonFly BSD ([PR #6499](https://github.com/ponylang/ponyc/pull/6499))
 
 ### Added
 
 
 ### Changed
 
+- Rename `ponyint_futimesat` to `ponyint_utimensat` ([PR #6499](https://github.com/ponylang/ponyc/pull/6499))
 
 ## [0.78.2] - 2026-11-12
 
