@@ -204,7 +204,7 @@ cmake --build --preset windows-x86-64-release
 
 The Visual Studio generator is multi-config, so one `cmake --preset windows-x86-64` configures the build and you pick debug or release at build time: `cmake --build --preset windows-x86-64-debug` or `windows-x86-64-release`.
 
-Following building, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<ponyc repo>\build\release"`
+Following building, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by running this in PowerShell: `[Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path', 'User') + ';<ponyc repo>\build\release', 'User')`
 
 Note that you only need to run `cmake -P lib/build-libs.cmake` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
