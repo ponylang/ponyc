@@ -76,7 +76,7 @@ cp "$VM_ARTIFACTS/netboot/boot/modloop-lts" "$VM_ARTIFACTS/http/"
 python3 -m http.server "$HTTP_PORT" --bind 127.0.0.1 \
   --directory "$VM_ARTIFACTS/http" > "$VM_ARTIFACTS/http.log" 2>&1 &
 http_pid=$!
-qemu-img create -q -f qcow2 "$VM_ARTIFACTS/data.qcow2" 60G
+qemu-img create -q -f qcow2 "$VM_ARTIFACTS/data.qcow2" 120G
 echo "::endgroup::"
 
 # VM_CONSOLE is the guest's serial console log.
