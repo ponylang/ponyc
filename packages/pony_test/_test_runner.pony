@@ -1075,5 +1075,26 @@ actor _TestRunner
     if _property_phase.in_replay() then return end
     match _property_exec
     | let exec: _PropertyExecution =>
-      exec.target(score, label)
+      if not exec.target(score, label) then
+        let msg: String val =
+          "Property failed: target() called with NaN score" +
+            if label.size() > 0 then
+              " (label: \"" + label + "\")"
+            else
+              ""
+            end
+        if _is_long_test then
+          fail(msg)
+          _property_queue.clear()
+          _property_phase = _PropertyIdle
+          complete(false)
+        else
+          _pass = false
+          _log(msg, false)
+          _property_queue.clear()
+          _property_phase = _PropertyIdle
+          _property_exec = None
+          _property_apply_done()
+        end
+      end
     end
