@@ -108,6 +108,14 @@ Targeted testing (`PropertyHelper.target`) over `Generators.f64(-F64.max_value()
 
 The `ASCIINonPrintable` primitive in the `pony_test` package did not include DEL (0x7F). Because `ASCIIAll` and `ASCIIAllWithNUL` are built from it, they were also missing DEL — `ASCIIAll` had 126 bytes instead of 127, and `ASCIIAllWithNUL` had 127 instead of 128. `Generators.ascii()` uses `ASCIIAll` as its default range, so property tests using the default range never generated strings containing DEL.
 
+## Fix `XorOshiro128Plus(0, 0)` and `XorShift128Plus(0, 0)` producing only zeros
+
+`XorOshiro128Plus(0, 0)`, `XorOshiro128StarStar(0, 0)`, and `XorShift128Plus(0, 0)` returned 0 from every call to `next()`. An all-zero state is a fixed point of xorshift-family generators: every output is zero and the state never advances. The constructors now remap `(0, 0)` through SplitMix64.
+
+## Fix pony_test `Randomness` producing degenerate sequences for seed 0
+
+`Randomness(seed)` passed the seed directly as half the PRNG state with the other half zero. `Randomness(0)` produced a generator stuck at zero, and small seeds produced biased early output. The constructor now seeds through SplitMix64, producing well-distributed state from any input. Existing `.ponytest/` regression files are unaffected — they store choice sequences, not seeds — but a pinned seed value produces a different sequence than before.
+
 ## Fix identical NaN property failures reported as distinct
 
 Property tests using float generators that produce NaN reported each failure as a new one, even when the failures were identical. The equality check compared floats with `==`, which returns false when either operand is NaN, so identical failure sequences containing NaN were never recognized as duplicates.

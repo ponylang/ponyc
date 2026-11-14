@@ -23,9 +23,18 @@ class XorShift128Plus is Random
     """
     Create with the specified seed. Returned values are deterministic for a
     given seed.
+
+    An all-zero state is a fixed point of xorshift-family generators, so
+    `(0, 0)` is remapped through SplitMix64 to produce a non-degenerate state.
     """
-    _x = x
-    _y = y
+    if (x == 0) and (y == 0) then
+      let sm = SplitMix64(5489)
+      _x = sm.next()
+      _y = sm.next()
+    else
+      _x = x
+      _y = y
+    end
     next()
 
   fun ref next(): U64 =>

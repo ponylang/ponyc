@@ -20,6 +20,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Generators.f64 and f32 producing NaN with infinite bounds ([PR #6535](https://github.com/ponylang/ponyc/pull/6535))
 - Add missing DEL (0x7F) to PonyCheck ASCII range primitives ([PR #6537](https://github.com/ponylang/ponyc/pull/6537))
 - Fix identical NaN property failures reported as distinct ([PR #6538](https://github.com/ponylang/ponyc/pull/6538))
+- Fix `XorOshiro128Plus(0, 0)` and `XorShift128Plus(0, 0)` producing only zeros ([PR #NNNN](https://github.com/ponylang/ponyc/pull/NNNN))
+- Fix pony_test `Randomness` producing degenerate sequences for seed 0 ([PR #NNNN](https://github.com/ponylang/ponyc/pull/NNNN))
 
 ### Added
 
