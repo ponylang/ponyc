@@ -80,6 +80,11 @@ primitive Path
     On Windows, normalize `\` to `/`.
     Remove instances of `.` from the path.
     Remove instances of `..` and the preceding path element from the path.
+    A `..` that would climb above the root of an absolute path or above a
+    volume prefix is discarded: `clean("/../../a")` is `"/a"` and
+    `clean("//h/s/../../../a")` is `"//h/s/a"`.
+    In a relative path, leading `..` components that cannot be resolved are
+    kept: `clean("../../a")` is `"../../a"`.
     A leading `//` (exactly two separators) is preserved as a network path
     prefix per POSIX; three or more leading separators collapse to one.
     The result will have no trailing slash unless it is a root directory.
@@ -98,7 +103,12 @@ primitive Path
     var state: _PathState = _PathOther
     var i = vol.size()
     var backtrack = ISize(-1)
+    let vol_end = vol.size().isize()
     let n = path.size()
+
+    // A path is rooted when it has a volume or starts with a separator.
+    // `..` that would climb above the root is discarded rather than kept.
+    var is_rooted = vol.size() > 0
 
     try
       var c = path(i)?
@@ -107,6 +117,7 @@ primitive Path
         s.append(sep())
         i = i + 1
         state = _PathSep
+        is_rooted = true
       elseif c == '.' then
         i = i + 1
         state = _PathDot
@@ -120,22 +131,34 @@ primitive Path
         if is_sep(c) then
           match state
           | _PathDot2 =>
-            if backtrack == -1 then
-              s.append("..")
-              s.append(sep())
+            if (backtrack == -1) or (is_rooted and (backtrack <= vol_end)) then
+              if not is_rooted then
+                s.append("..")
+                s.append(sep())
+              end
             else
               s.delete(backtrack, -1)
 
               try
                 backtrack = s.rfind(sep(), backtrack - 2)? + 1
               else
-                backtrack = vol.size().isize()
+                backtrack = vol_end
               end
 
-              if
+              if is_rooted and (backtrack <= vol_end) then
+                backtrack = -1
+              elseif
                 (s.size() == 0) or
                 (s.compare_sub("../", 3, backtrack) is Equal)
               then
+                backtrack = -1
+              end
+
+              // For bare / paths (vol_end=0), rfind finds the root / and
+              // gives backtrack=1, which equals s.size() when every component
+              // has been consumed. Detect that here instead of relying on
+              // s.delete(1,-1) being a no-op on a 1-char string.
+              if is_rooted and (backtrack >= s.size().isize()) then
                 backtrack = -1
               end
             end
@@ -177,8 +200,12 @@ primitive Path
 
     match state
     | _PathDot2 =>
-      if backtrack == -1 then
-        s.append("..")
+      if (backtrack == -1) or (is_rooted and (backtrack <= vol_end)) or
+        (is_rooted and (backtrack >= s.size().isize()))
+      then
+        if not is_rooted then
+          s.append("..")
+        end
       else
         s.delete(backtrack, -1)
       end
@@ -403,6 +430,9 @@ primitive Path
     POSIX rule that a pathname beginning with exactly two slashes is
     implementation-defined. Three or more leading slashes are not a network
     path and collapse to one in `clean()`.
+
+    The host and share components must each be a non-empty name that is not
+    `.` or `..`. A path like `//usr/..` is not a valid network path.
     """
     ifdef windows then
       if path.compare_sub("""\\?\""", 4) is Equal then
@@ -448,21 +478,63 @@ primitive Path
 
   fun _network_share(path: String, offset: ISize = 0): String =>
     """
-    Look for a host, a separator, and a resource. Return the path up to that
-    point if we found one, otherwise an empty String. Accepts both `/` and `\`
+    Parse a host, separator, and share from the path. Return the path up to
+    the end of the share if found, otherwise an empty String. Accepts both `/`
+    and `\`
     as separators since input may arrive un-normalized from external sources.
+
+    The host and share must each be at least one character and must not be
+    `.` or `..`. Those are directory traversal components, not valid network
+    path elements, and accepting them would let `Path.clean` produce volumes
+    that contain unresolved `..` components.
     """
     try
-      let next = _find_sep(path, offset)? + 1
-
-      try
-        path.trim(0, _find_sep(path, next)?.usize())
-      else
-        path
+      let host_end = _find_sep(path, offset)?
+      if not _valid_network_component(path, offset.usize(), host_end.usize())
+      then
+        return ""
       end
+
+      let share_start = host_end + 1
+      let share_end =
+        try
+          _find_sep(path, share_start)?
+        else
+          path.size().isize()
+        end
+
+      if
+        not _valid_network_component(
+          path, share_start.usize(), share_end.usize())
+      then
+        return ""
+      end
+
+      path.trim(0, share_end.usize())
     else
       ""
     end
+
+  fun _valid_network_component(
+    path: String,
+    from: USize,
+    to: USize)
+    : Bool
+  =>
+    """
+    Return true when the slice `path[from..to)` is a non-empty name that is
+    not `.` or `..`.
+    """
+    let len = to - from
+    if len == 0 then return false end
+    if
+      (len <= 2) and
+        (try path(from)? == '.' else false end) and
+        ((len == 1) or (try path(from + 1)? == '.' else false end))
+    then
+      return false
+    end
+    true
 
   fun _find_sep(path: String, offset: ISize = 0): ISize ? =>
     """

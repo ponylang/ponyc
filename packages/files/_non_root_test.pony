@@ -36,6 +36,7 @@ actor \nodoc\ Main is TestList
     test(_TestFilePathFrom)
     test(_TestFilePathFromContainment)
     test(_TestFilePathFromError)
+    test(_TestFilePathFromNetworkEscape)
     test(_TestFilePathFromNul)
     test(_TestFileQueue)
     test(_TestFileQueuev)
@@ -48,6 +49,9 @@ actor \nodoc\ Main is TestList
     test(_TestPathBase)
     test(_TestPathClean)
     test(_TestPathCleanBackslash)
+    test.property(_TestPathCleanIdempotent)
+    test(_TestPathCleanRootBoundary)
+    test.property(_TestPathCleanRootedNoDotDot)
     test(_TestPathBackslashDirBaseExt)
     test(_TestPathDir)
     test(_TestPathExt)
@@ -57,6 +61,7 @@ actor \nodoc\ Main is TestList
     test(_TestPathNormcase)
     test(_TestPathToOs)
     test(_TestPathVolume)
+    test(_TestPathVolumeRejectTraversal)
     test(_TestWalk)
 
     // Tests below exclude windows and are listed alphabetically
@@ -287,6 +292,43 @@ class \nodoc\ iso _TestFilePathFromError is UnitTest
     let filepath = FilePath(FileAuth(h.env.root), path)
     h.assert_error({()? => FilePath.from(filepath, "/")? })
 
+class \nodoc\ iso _TestFilePathFromNetworkEscape is UnitTest
+  """
+  `..` past a `//host/share` volume is discarded by `clean`, so
+  `FilePath.from` resolves the path within the base rather than escaping it.
+  The joined path stays under the base directory.
+  """
+  fun name(): String => "files/FilePath.from-network-escape"
+
+  fun apply(h: TestHelper) ? =>
+    // .. that would have escaped is discarded by clean() at the volume
+    // boundary. The resulting path is within the base.
+    let base2 = FilePath(FileAuth(h.env.root), "//usr/share")
+    let p1 = FilePath.from(base2, "../../etc/passwd")?
+    h.assert_eq[String](p1.path, "//usr/share/etc/passwd")
+
+    let p2 = FilePath.from(base2, "../share2")?
+    h.assert_eq[String](p2.path, "//usr/share/share2")
+
+    // A child within the base still works
+    let p3 = FilePath.from(base2, "doc/pony")?
+    h.assert_eq[String](p3.path, "//usr/share/doc/pony")
+
+    // .. at the volume root resolves to the base itself
+    let p_self = FilePath.from(base2, "..")?
+    h.assert_eq[String](p_self.path, "//usr/share")
+
+    // With a three-component // base, .. past the volume root lands outside
+    // the base text and fails the containment check.
+    let base3 = FilePath(FileAuth(h.env.root), "//usr/share/doc")
+    h.assert_error(
+      {()? => FilePath.from(base3, "../../../etc/passwd")? },
+      ".. absorbed at volume root lands outside the three-component base")
+
+    // One .. within a three-component // base resolves normally
+    let p4 = FilePath.from(base3, "../doc/pony")?
+    h.assert_eq[String](p4.path, "//usr/share/doc/pony")
+
 class \nodoc\ iso _TestDirectoryOpen is UnitTest
   fun name(): String => "files/File.open.directory"
 
@@ -371,6 +413,47 @@ class \nodoc\ iso _TestPathCleanBackslash is UnitTest
       h.assert_eq[String](Path.clean("\\\\server/share\\dir"), "//server/share/dir")
       h.assert_eq[String](Path.clean("foo\\bar\\..\\baz"), "foo/baz")
     end
+
+class \nodoc\ iso _TestPathCleanRootBoundary is UnitTest
+  """
+  `clean()` discards `..` that would climb above a root or volume prefix.
+  In a relative path, leading `..` that cannot be resolved is preserved.
+  """
+  fun name(): String => "files/Path.clean-root-boundary"
+
+  fun apply(h: TestHelper) =>
+    // .. at a plain root is discarded
+    h.assert_eq[String](Path.clean("/../foo"), "/foo")
+    h.assert_eq[String](Path.clean("/../../foo"), "/foo")
+    h.assert_eq[String](Path.clean("/foo/../.."), "/")
+
+    // .. at a //host/share volume root is discarded
+    h.assert_eq[String](
+      Path.clean("//srv/share/../../etc"), "//srv/share/etc")
+    h.assert_eq[String](
+      Path.clean("//srv/share/../foo"), "//srv/share/foo")
+    h.assert_eq[String](
+      Path.clean("//srv/share/.."), "//srv/share")
+
+    // Multiple components above a volume backtrack correctly, then stop
+    h.assert_eq[String](
+      Path.clean("//a/b/c/../../../etc"), "//a/b/etc")
+    h.assert_eq[String](
+      Path.clean("//a/b/c/d/../../../../etc"), "//a/b/etc")
+
+    // Relative paths preserve leading ..
+    h.assert_eq[String](Path.clean("../foo"), "../foo")
+    h.assert_eq[String](Path.clean("../../foo"), "../../foo")
+    h.assert_eq[String](Path.clean("../.."), "../..")
+
+    // Incomplete // paths collapse to / (empty share rejected)
+    h.assert_eq[String](Path.clean("//"), "/")
+    h.assert_eq[String](Path.clean("//usr/"), "/usr")
+    h.assert_eq[String](Path.clean("//a"), "/a")
+
+    // .. that resolves within a relative path is still removed
+    h.assert_eq[String](Path.clean("foo/../bar"), "bar")
+    h.assert_eq[String](Path.clean("foo/bar/../../baz"), "baz")
 
 class \nodoc\ iso _TestPathBackslashDirBaseExt is UnitTest
   """
@@ -489,6 +572,30 @@ class \nodoc\ iso _TestPathVolume is UnitTest
       h.assert_eq[String](Path.volume("//foo/bar"), "//foo/bar")
       h.assert_eq[String](Path.volume("///foo/bar"), "")
     end
+
+class \nodoc\ iso _TestPathVolumeRejectTraversal is UnitTest
+  """
+  `volume()` rejects `.`, `..`, and empty strings as host or share components
+  in a `//host/share` network path.
+  """
+  fun name(): String => "files/Path.volume-reject-traversal"
+
+  fun apply(h: TestHelper) =>
+    // .. as share
+    h.assert_eq[String](Path.volume("//usr/.."), "")
+    h.assert_eq[String](Path.volume("//usr/../etc"), "")
+    // . as host
+    h.assert_eq[String](Path.volume("//./share"), "")
+    // . as share
+    h.assert_eq[String](Path.volume("//host/."), "")
+    h.assert_eq[String](Path.volume("//host/./dir"), "")
+    // .. as host
+    h.assert_eq[String](Path.volume("//../share"), "")
+    // empty share (trailing slash after host, nothing after)
+    h.assert_eq[String](Path.volume("//host/"), "")
+    // valid paths still accepted
+    h.assert_eq[String](Path.volume("//host/share"), "//host/share")
+    h.assert_eq[String](Path.volume("//host/share/dir"), "//host/share")
 
 class \nodoc\ iso _TestPathNormcase is UnitTest
   fun name(): String => "files/Path.normcase"
@@ -1301,4 +1408,79 @@ class \nodoc\ _TestFileLinesMovingCursor is UnitTest
       h.assert_true(fl3.has_next())
       h.assert_eq[String](fl3.next()?, "d")
       h.assert_eq[USize](file.position(), 7)
+    end
+
+primitive \nodoc\ _PathGen
+  fun apply(): Generator[String] =>
+    let segments: Array[String val] val = ["a"; "b"; "c"; ".."; "."; "x"]
+    let prefixes: Array[String val] val = ["/"; "//host/share"; ""]
+    Generator[String](
+      object is GenObj[String]
+        fun generate(rnd: Randomness): String^ =>
+          let prefix =
+            try
+              prefixes(rnd.usize(0, prefixes.size() - 1))?
+            else
+              ""
+            end
+          let count = rnd.usize(0, 8)
+          recover val
+            let s: String ref = prefix.clone()
+            var i: USize = 0
+            while i < count do
+              if s.size() > 0 then s.append("/") end
+              try
+                s.append(segments(rnd.usize(0, segments.size() - 1))?)
+              end
+              i = i + 1
+            end
+            s
+          end
+      end)
+
+class \nodoc\ iso _TestPathCleanIdempotent is Property[String]
+  """
+  `clean(clean(p)) == clean(p)` for any path.
+  """
+  fun name(): String => "files/Path.clean-idempotent"
+
+  fun gen(): Generator[String] =>
+    _PathGen()
+
+  fun ref property(sample: String, ph: PropertyHelper) =>
+    let once = Path.clean(sample)
+    let twice = Path.clean(once)
+    ph.assert_eq[String](once, twice)
+
+class \nodoc\ iso _TestPathCleanRootedNoDotDot is Property[String]
+  """
+  For any rooted path, `clean` never produces a result containing `/../`
+  or ending with `/..`.
+  """
+  fun name(): String => "files/Path.clean-rooted-no-dotdot"
+
+  fun gen(): Generator[String] =>
+    _PathGen()
+
+  fun ref property(sample: String, ph: PropertyHelper) =>
+    let cleaned = Path.clean(sample)
+    let is_rooted =
+      (try Path.is_sep(cleaned(0)?) else false end) or
+      (Path.volume(cleaned).size() > 0)
+    if is_rooted then
+      try
+        cleaned.find("/../")?
+        ph.fail(
+          "cleaned rooted path contains /../: " + cleaned +
+            " (from: " + sample + ")")
+      end
+      let ends_dotdot =
+        (cleaned.size() >= 3) and
+          (cleaned.compare_sub(
+            "/..", 3, cleaned.size().isize() - 3) is Equal)
+      if ends_dotdot then
+        ph.fail(
+          "cleaned rooted path ends with /..: " + cleaned +
+            " (from: " + sample + ")")
+      end
     end
