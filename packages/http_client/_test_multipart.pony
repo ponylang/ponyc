@@ -26,11 +26,16 @@ class \nodoc\ iso _PropertyMultipartBodyStructure
           recover val
             [as U8: 0xDE; 0xAD; 0xBE; 0xEF]
           end
-        form.file(
-          "file" + i.string(),
-          "f" + i.string() + ".bin",
-          "application/octet-stream",
-          data)
+        try
+          form.file(
+            "file" + i.string(),
+            "f" + i.string() + ".bin",
+            "application/octet-stream",
+            data)?
+        else
+          ph.fail("file() should not error with valid content type")
+          return
+        end
       end
       i = i + 1
     end
@@ -168,7 +173,9 @@ class \nodoc\ iso _TestMultipartFilePart is UnitTest
   fun apply(h: TestHelper) =>
     let data: Array[U8] val = recover val [as U8: 0x89; 0x50; 0x4E; 0x47] end
     let form = MultipartFormData
-    form.file("avatar", "photo.png", "image/png", data)
+    try form.file("avatar", "photo.png", "image/png", data)?
+    else h.fail("file() should not error"); return
+    end
     let body = form.body()
     let body_str = String.from_array(body)
 
@@ -205,9 +212,11 @@ class \nodoc\ iso _TestMultipartMixed is UnitTest
   fun apply(h: TestHelper) =>
     let file_data: Array[U8] val = recover val [as U8: 1; 2; 3] end
     let form = MultipartFormData
-      .> field("name", "alice")
-      .> file("doc", "readme.txt", "text/plain", file_data)
-      .> field("action", "upload")
+    form.field("name", "alice")
+    try form.file("doc", "readme.txt", "text/plain", file_data)?
+    else h.fail("file() should not error"); return
+    end
+    form.field("action", "upload")
     let body_str = String.from_array(form.body())
 
     // All three parts should be present
@@ -294,31 +303,32 @@ class \nodoc\ iso _TestMultipartNonAsciiFilename is UnitTest
   fun apply(h: TestHelper) =>
     let data: Array[U8] val = recover val [as U8: 0xFF] end
     let form = MultipartFormData
-    form.file("doc", "\xC3\xA9l\xC3\xA8ve.pdf", "application/pdf", data)
+    try form.file("doc", "\xC3\xA9l\xC3\xA8ve.pdf", "application/pdf", data)?
+    else h.fail("file() should not error"); return
+    end
     let body_str = String.from_array(form.body())
     h.assert_true(
       body_str.contains("filename=\"\xC3\xA9l\xC3\xA8ve.pdf\""),
       "UTF-8 filename should be preserved as-is")
 
 // ---------------------------------------------------------------------------
-// Escaped quoting tests
+// Name encoding tests
 // ---------------------------------------------------------------------------
-class \nodoc\ iso _PropertyMultipartEscapedNamesWellFormed
+class \nodoc\ iso _PropertyMultipartEncodedNamesWellFormed
   is Property[String val]
   """
-  For any generated string used as a field name, the serialized body's
-  Content-Disposition quoted-strings are well-formed: each opening `"`
-  after `name=` is terminated by a closing `"` with only escaped quotes
-  inside.
+  For any generated name, the serialized Content-Disposition quoted-strings
+  are well-formed: no raw `"`, CR, or LF appears between the opening and
+  closing quotes.
   """
-  fun name(): String => "multipart/escaped_names_well_formed"
+  fun name(): String => "multipart/encoded_names_well_formed"
 
   fun gen(): Generator[String val] =>
-    // Biased byte generator: extra copies of " and \ mixed with normal chars
     let byte_gen =
       Generators.one_of[U8](
         [ '"'; '"'; '"'
           '\\'; '\\'; '\\'
+          '\r'; '\r'; '\n'; '\n'
           'a'; 'b'; 'c'; 'd'; '.'; ' '; '=' ])
     Generators.byte_string(byte_gen, 1, 20)
 
@@ -326,11 +336,11 @@ class \nodoc\ iso _PropertyMultipartEscapedNamesWellFormed
     let form = MultipartFormData
     form.field(arg1, "val")
     let data: Array[U8] val = recover val [as U8: 0x00] end
-    form.file(arg1, arg1, "application/octet-stream", data)
+    try form.file(arg1, arg1, "application/octet-stream", data)?
+    else ph.fail("file() should not error"); return
+    end
 
     let body_str = String.from_array(form.body())
-    // Find each name=" and filename=" occurrence and verify well-formed
-    // quoted-string
     let markers: Array[String val] val = ["name=\""; "filename=\""]
     for marker in markers.values() do
       var search_from: ISize = 0
@@ -341,37 +351,31 @@ class \nodoc\ iso _PropertyMultipartEscapedNamesWellFormed
           else
             break
           end
-        // Walk from after the opening " to find the closing "
         let start = pos + marker.size().isize()
         var i = start.usize()
-        var escaped = false
         var found_close = false
         while i < body_str.size() do
           try
             let byte = body_str(i)?
-            if escaped then
-              escaped = false
-            elseif byte == '\\' then
-              escaped = true
-            elseif byte == '"' then
+            if byte == '"' then
               found_close = true
               break
             end
+            ph.assert_true(
+              (byte != '\r') and (byte != '\n'),
+              "no raw CR or LF inside quoted-string")
           end
           i = i + 1
         end
         ph.assert_true(
           found_close,
           "quoted-string after " + marker + " should have closing quote")
-        ph.assert_false(
-          escaped,
-          "quoted-string should not end in a dangling backslash")
         search_from = i.isize() + 1
       end
     end
 
 class \nodoc\ iso _TestMultipartFieldNameWithQuote is UnitTest
-  """Field name containing `"` is escaped as `\"`."""
+  """Field name containing `"` is percent-encoded as `%22`."""
   fun name(): String => "multipart/field_name_with_quote"
 
   fun apply(h: TestHelper) =>
@@ -379,24 +383,26 @@ class \nodoc\ iso _TestMultipartFieldNameWithQuote is UnitTest
     form.field("field\"name", "value")
     let body_str = String.from_array(form.body())
     h.assert_true(
-      body_str.contains("name=\"field\\\"name\""),
-      "quote in field name should be escaped")
+      body_str.contains("name=\"field%22name\""),
+      "quote in field name should be percent-encoded")
 
 class \nodoc\ iso _TestMultipartFilenameWithQuote is UnitTest
-  """Filename containing `"` is escaped as `\"`."""
+  """Filename containing `"` is percent-encoded as `%22`."""
   fun name(): String => "multipart/filename_with_quote"
 
   fun apply(h: TestHelper) =>
     let data: Array[U8] val = recover val [as U8: 0xFF] end
     let form = MultipartFormData
-    form.file("doc", "file\"name.txt", "text/plain", data)
+    try form.file("doc", "file\"name.txt", "text/plain", data)?
+    else h.fail("file() should not error"); return
+    end
     let body_str = String.from_array(form.body())
     h.assert_true(
-      body_str.contains("filename=\"file\\\"name.txt\""),
-      "quote in filename should be escaped")
+      body_str.contains("filename=\"file%22name.txt\""),
+      "quote in filename should be percent-encoded")
 
 class \nodoc\ iso _TestMultipartFieldNameWithBackslash is UnitTest
-  """Field name containing `\` is escaped as `\\`."""
+  """Backslash in field name passes through unescaped (WHATWG)."""
   fun name(): String => "multipart/field_name_with_backslash"
 
   fun apply(h: TestHelper) =>
@@ -404,18 +410,83 @@ class \nodoc\ iso _TestMultipartFieldNameWithBackslash is UnitTest
     form.field("field\\name", "value")
     let body_str = String.from_array(form.body())
     h.assert_true(
-      body_str.contains("name=\"field\\\\name\""),
-      "backslash in field name should be escaped")
+      body_str.contains("name=\"field\\name\""),
+      "backslash should pass through unchanged")
 
 class \nodoc\ iso _TestMultipartFilenameWithBothSpecials is UnitTest
-  """Filename with both `"` and `\` has both escaped."""
+  """Filename with `"` and `\` has `"` percent-encoded, `\` unchanged."""
   fun name(): String => "multipart/filename_with_both_specials"
 
   fun apply(h: TestHelper) =>
     let data: Array[U8] val = recover val [as U8: 0xFF] end
     let form = MultipartFormData
-    form.file("doc", "a\\b\"c.txt", "text/plain", data)
+    try form.file("doc", "a\\b\"c.txt", "text/plain", data)?
+    else h.fail("file() should not error"); return
+    end
     let body_str = String.from_array(form.body())
     h.assert_true(
-      body_str.contains("filename=\"a\\\\b\\\"c.txt\""),
-      "both backslash and quote in filename should be escaped")
+      body_str.contains("filename=\"a\\b%22c.txt\""),
+      "quote percent-encoded, backslash unchanged")
+
+class \nodoc\ iso _TestMultipartFieldNameWithCRLF is UnitTest
+  """CR and LF in field name are percent-encoded."""
+  fun name(): String => "multipart/field_name_with_crlf"
+
+  fun apply(h: TestHelper) =>
+    let form = MultipartFormData
+    form.field("a\r\nb", "value")
+    let body_str = String.from_array(form.body())
+    h.assert_true(
+      body_str.contains("name=\"a%0D%0Ab\""),
+      "CR LF in field name should be percent-encoded")
+
+class \nodoc\ iso _TestMultipartFieldNameWithBareLF is UnitTest
+  """Bare LF in field name is percent-encoded."""
+  fun name(): String => "multipart/field_name_with_bare_lf"
+
+  fun apply(h: TestHelper) =>
+    let form = MultipartFormData
+    form.field("a\nb", "value")
+    let body_str = String.from_array(form.body())
+    h.assert_true(
+      body_str.contains("name=\"a%0Ab\""),
+      "bare LF in field name should be percent-encoded")
+
+class \nodoc\ iso _TestMultipartFilenameWithCR is UnitTest
+  """Bare CR in filename is percent-encoded."""
+  fun name(): String => "multipart/filename_with_cr"
+
+  fun apply(h: TestHelper) =>
+    let data: Array[U8] val = recover val [as U8: 0xFF] end
+    let form = MultipartFormData
+    try form.file("f", "x\ry.txt", "text/plain", data)?
+    else h.fail("file() should not error"); return
+    end
+    let body_str = String.from_array(form.body())
+    h.assert_true(
+      body_str.contains("filename=\"x%0Dy.txt\""),
+      "CR in filename should be percent-encoded")
+
+class \nodoc\ iso _TestMultipartFileContentTypeRejectsCR is UnitTest
+  """file() errors when content type contains CR."""
+  fun name(): String => "multipart/file_content_type_rejects_cr"
+
+  fun apply(h: TestHelper) =>
+    let data: Array[U8] val = recover val [as U8: 0xFF] end
+    let form = MultipartFormData
+    try
+      form.file("f", "x.txt", "text/plain\rX-Injected: 1", data)?
+      h.fail("file() should error on content type with CR")
+    end
+
+class \nodoc\ iso _TestMultipartFileContentTypeRejectsLF is UnitTest
+  """file() errors when content type contains LF."""
+  fun name(): String => "multipart/file_content_type_rejects_lf"
+
+  fun apply(h: TestHelper) =>
+    let data: Array[U8] val = recover val [as U8: 0xFF] end
+    let form = MultipartFormData
+    try
+      form.file("f", "x.txt", "text/plain\nX-Injected: 1", data)?
+      h.fail("file() should error on content type with LF")
+    end
