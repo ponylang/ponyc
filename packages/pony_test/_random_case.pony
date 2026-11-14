@@ -1864,6 +1864,151 @@ class \nodoc\ iso _EncodeNameSpecialCharsTest is UnitTest
       not encoded.contains(" "),
       "encoded name should not contain spaces")
 
+class \nodoc\ iso _EncodeNameUppercaseTest is UnitTest
+  fun name(): String => "regression_db/encode_name/uppercase"
+
+  fun apply(h: TestHelper) =>
+    let foo_upper = _RegressionDb._encode_name("Foo")
+    let foo_lower = _RegressionDb._encode_name("foo")
+    h.assert_true(
+      foo_upper != foo_lower,
+      "Foo and foo should encode differently")
+    h.assert_true(
+      not foo_upper.contains("F"),
+      "uppercase should be percent-encoded, not literal")
+    h.assert_eq[String](foo_upper, "%46oo")
+
+class \nodoc\ iso _RegressionDbHashInNameTest is UnitTest
+  """
+  A literal `#` in a property name must not collide with indexed
+  filenames for another property.
+  """
+  fun name(): String => "regression_db/hash_in_name_no_collision"
+
+  fun apply(h: TestHelper) ? =>
+    let dir = _TempDir(h.env)?
+    let c_x: Array[_Choice val] val = [_IntChoice(1, 0, 10, 0)]
+    let c_x2: Array[_Choice val] val = [_IntChoice(2, 0, 10, 0)]
+    let c_xhash2: Array[_Choice val] val = [_IntChoice(99, 0, 100, 0)]
+
+    _RegressionDb.save(dir, "x", c_x, h)
+    _RegressionDb.save_indexed(dir, "x", 2, c_x2, h)
+    _RegressionDb.save(dir, "x#2", c_xhash2, h)
+
+    let loaded_x = _RegressionDb.load(dir, "x", h)
+    h.assert_eq[USize](
+      loaded_x.size(),
+      2,
+      "x should have 2 regressions (bare + indexed)")
+
+    let loaded_xhash2 = _RegressionDb.load(dir, "x#2", h)
+    h.assert_eq[USize](
+      loaded_xhash2.size(),
+      1,
+      "x#2 should have 1 regression")
+    match loaded_xhash2(0)?(0)?
+    | let ic: _IntChoice =>
+      h.assert_eq[I128](
+        ic.value,
+        99,
+        "x#2 should load its own data, not x's indexed file")
+    else h.fail("expected IntChoice")
+    end
+
+    _RegressionDb.clear(dir, "x#2", h)
+    let after_x = _RegressionDb.load(dir, "x", h)
+    h.assert_eq[USize](
+      after_x.size(),
+      2,
+      "clearing x#2 must not affect x's regressions")
+
+class \nodoc\ iso _RegressionDbCaseDistinctTest is UnitTest
+  """
+  Property names differing only in case must produce separate files.
+  """
+  fun name(): String => "regression_db/case_distinct"
+
+  fun apply(h: TestHelper) ? =>
+    let dir = _TempDir(h.env)?
+    let c_upper: Array[_Choice val] val = [_IntChoice(1, 0, 10, 0)]
+    let c_lower: Array[_Choice val] val = [_IntChoice(2, 0, 10, 0)]
+
+    _RegressionDb.save(dir, "Foo", c_upper, h)
+    _RegressionDb.save(dir, "foo", c_lower, h)
+
+    let loaded_upper = _RegressionDb.load(dir, "Foo", h)
+    h.assert_eq[USize](loaded_upper.size(), 1)
+    match loaded_upper(0)?(0)?
+    | let ic: _IntChoice =>
+      h.assert_eq[I128](
+        ic.value,
+        1,
+        "Foo should load its own data")
+    else h.fail("expected IntChoice")
+    end
+
+    let loaded_lower = _RegressionDb.load(dir, "foo", h)
+    h.assert_eq[USize](loaded_lower.size(), 1)
+    match loaded_lower(0)?(0)?
+    | let ic: _IntChoice =>
+      h.assert_eq[I128](
+        ic.value,
+        2,
+        "foo should load its own data")
+    else h.fail("expected IntChoice")
+    end
+
+    _RegressionDb.clear(dir, "Foo", h)
+    let after = _RegressionDb.load(dir, "foo", h)
+    h.assert_eq[USize](
+      after.size(),
+      1,
+      "clearing Foo must not affect foo")
+
+class \nodoc\ iso _RegressionDbTildeInNameTest is UnitTest
+  """
+  A property name containing `~` (the index separator) must not
+  collide with indexed filenames for another property.
+  """
+  fun name(): String => "regression_db/tilde_in_name_no_collision"
+
+  fun apply(h: TestHelper) ? =>
+    let dir = _TempDir(h.env)?
+    let c_x: Array[_Choice val] val = [_IntChoice(1, 0, 10, 0)]
+    let c_x2: Array[_Choice val] val = [_IntChoice(2, 0, 10, 0)]
+    let c_xtilde: Array[_Choice val] val = [_IntChoice(77, 0, 100, 0)]
+
+    _RegressionDb.save(dir, "x", c_x, h)
+    _RegressionDb.save_indexed(dir, "x", 2, c_x2, h)
+    _RegressionDb.save(dir, "x~2", c_xtilde, h)
+
+    let loaded_x = _RegressionDb.load(dir, "x", h)
+    h.assert_eq[USize](
+      loaded_x.size(),
+      2,
+      "x should have 2 regressions (bare + indexed)")
+
+    let loaded_xtilde = _RegressionDb.load(dir, "x~2", h)
+    h.assert_eq[USize](
+      loaded_xtilde.size(),
+      1,
+      "x~2 should have 1 regression")
+    match loaded_xtilde(0)?(0)?
+    | let ic: _IntChoice =>
+      h.assert_eq[I128](
+        ic.value,
+        77,
+        "x~2 should load its own data, not x's indexed file")
+    else h.fail("expected IntChoice")
+    end
+
+    _RegressionDb.clear(dir, "x~2", h)
+    let after_x = _RegressionDb.load(dir, "x", h)
+    h.assert_eq[USize](
+      after_x.size(),
+      2,
+      "clearing x~2 must not affect x's regressions")
+
 class \nodoc\ iso _RegressionDbSaveLoadClearTest is UnitTest
   fun name(): String => "regression_db/save_load_clear"
 
@@ -3961,8 +4106,8 @@ class \nodoc\ iso _MultiRegressionReplayTest is UnitTest
     let choices2: Array[_Choice val] val =
       [_IntChoice(20, 0, 100, 0)]
     _RegressionDb.save(regression_dir, prop_name, choices1, h)
-    _RegressionDb.save(
-      regression_dir, prop_name + "#2", choices2, h)
+    _RegressionDb.save_indexed(
+      regression_dir, prop_name, 2, choices2, h)
     let loaded =
       _RegressionDb.load(regression_dir, prop_name, h)
     if loaded.size() != 2 then
@@ -4244,8 +4389,8 @@ class \nodoc\ iso _RegressionDbMultiSaveLoadClearTest is UnitTest
     let c2: Array[_Choice val] val = [_IntChoice(2, 0, 10, 0)]
     let c3: Array[_Choice val] val = [_IntChoice(3, 0, 10, 0)]
     _RegressionDb.save(dir, "multi_prop", c1, h)
-    _RegressionDb.save(dir, "multi_prop#2", c2, h)
-    _RegressionDb.save(dir, "multi_prop#3", c3, h)
+    _RegressionDb.save_indexed(dir, "multi_prop", 2, c2, h)
+    _RegressionDb.save_indexed(dir, "multi_prop", 3, c3, h)
     let loaded = _RegressionDb.load(dir, "multi_prop", h)
     h.assert_eq[USize](loaded.size(), 3)
     _RegressionDb.clear(dir, "multi_prop", h)
