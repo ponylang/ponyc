@@ -13,6 +13,7 @@ actor \nodoc\ Main is TestList
     test(_TestXorOshiro128Plus)
     test(_TestXorOshiro128StarStar)
     test(_TestXorShift128Plus)
+    test(_TestZeroSeedNotDegenerate)
 
 class \nodoc\ iso _TestMT is UnitTest
   fun name(): String => "random/MT"
@@ -700,4 +701,27 @@ class \nodoc\ iso _TestXorShift128Plus is UnitTest
     h.assert_eq[U64](xorshift128.next(), 11177430575090270534)
     h.assert_eq[U64](xorshift128.next(), 943079753218141183)
     h.assert_eq[U64](xorshift128.next(), 6344534688474580359)
+
+class \nodoc\ iso _TestZeroSeedNotDegenerate is UnitTest
+  """
+  The constructors remap the all-zero state through SplitMix64, so
+  create(0, 0) produces nonzero, deterministic output.
+  """
+  fun name(): String => "random/zero_seed_not_degenerate"
+
+  fun apply(h: TestHelper) =>
+    let xp = XorOshiro128Plus(0, 0)
+    h.assert_eq[U64](xp.next(), 2990509804681050637)
+    h.assert_eq[U64](xp.next(), 783701095666355130)
+    h.assert_eq[U64](xp.next(), 3096471354056454726)
+
+    let xss = XorOshiro128StarStar(0, 0)
+    h.assert_eq[U64](xss.next(), 10461193527062965873)
+    h.assert_eq[U64](xss.next(), 15186268968933349085)
+    h.assert_eq[U64](xss.next(), 628586289187598050)
+
+    let xs = XorShift128Plus(0, 0)
+    h.assert_eq[U64](xs.next(), 4250649549080418511)
+    h.assert_eq[U64](xs.next(), 18209621400644742653)
+    h.assert_eq[U64](xs.next(), 2409687647673793773)
 

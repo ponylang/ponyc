@@ -30,7 +30,12 @@ class ref Randomness
   var _filter_accepts: USize = 0
 
   new ref create(seed1: U64 = 42, seed2: U64 = 0) =>
-    _random = Rand(seed1, seed2)
+    """
+    Create a Randomness instance seeded by `seed1`. Returned values are
+    deterministic for a given seed. `seed2` is accepted for backward
+    compatibility but ignored.
+    """
+    _random = Rand.from_u64(seed1)
 
   // --- Public draw methods ---
   fun ref u8(min: U8 = U8.min_value(), max: U8 = U8.max_value()): U8 =>

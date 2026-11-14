@@ -23,9 +23,18 @@ class XorOshiro128Plus is Random
     """
     Create with the specified seed. Returned values are deterministic for a
     given seed.
+
+    An all-zero state is a fixed point of xorshift-family generators, so
+    `(0, 0)` is remapped through SplitMix64 to produce a non-degenerate state.
     """
-    _x = x
-    _y = y
+    if (x == 0) and (y == 0) then
+      let sm = SplitMix64(5489)
+      _x = sm.next()
+      _y = sm.next()
+    else
+      _x = x
+      _y = y
+    end
     next()
 
   fun ref next(): U64 =>
@@ -66,8 +75,21 @@ class XorOshiro128StarStar is Random
     _y = sm.next()
 
   new create(x: U64 = 5489, y: U64 = 0) =>
-    _x = x
-    _y = y
+    """
+    Create with the specified seed. Returned values are deterministic for a
+    given seed.
+
+    An all-zero state is a fixed point of xorshift-family generators, so
+    `(0, 0)` is remapped through SplitMix64 to produce a non-degenerate state.
+    """
+    if (x == 0) and (y == 0) then
+      let sm = SplitMix64(5489)
+      _x = sm.next()
+      _y = sm.next()
+    else
+      _x = x
+      _y = y
+    end
     next()
 
   fun ref next(): U64 =>
