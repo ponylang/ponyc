@@ -737,17 +737,75 @@ class \nodoc\ iso _UTF32CodePointStringTest is UnitTest
     let rnd = Randomness(Time.millis())
     let string_gen =
       Generators.utf32_codepoint_string(
-        Generators.u32(),
+        Generators.u32(0xD000, 0xEFFF),
         50,
         100)
 
     for i in Range[USize].till(0, 100) do
       let sample = string_gen.generate(rnd)?
+      var rune_count: USize = 0
       for cp in sample.runes() do
+        rune_count = rune_count + 1
         h.assert_true(
-          (cp <= 0xD7FF) or (cp >= 0xE000),
-          "\"" + sample + "\" invalid utf32")
+          cp != 0xFFFD,
+          "surrogate was not skipped (got U+FFFD)")
+        h.assert_true(
+          ((cp >= 0xD000) and (cp <= 0xD7FF)) or
+            ((cp >= 0xE000) and (cp <= 0xEFFF)),
+          "rune " + cp.string() + " outside expected range")
       end
+      h.assert_true(
+        (rune_count >= 50) and (rune_count <= 100),
+        "rune count " + rune_count.string() +
+          " outside [50, 100]")
+    end
+
+class \nodoc\ iso _UnicodeStringTest is UnitTest
+  fun name(): String => "Gen/unicode"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    let string_gen = Generators.unicode(50, 100)
+
+    for i in Range[USize].till(0, 100) do
+      let sample = string_gen.generate(rnd)?
+      var rune_count: USize = 0
+      for cp in sample.runes() do
+        rune_count = rune_count + 1
+        h.assert_true(
+          (cp <= 0xD7FF) or
+            ((cp >= 0xE000) and (cp <= 0x10FFFF)),
+          "rune " + cp.string() +
+            " is not a valid Unicode scalar value")
+      end
+      h.assert_true(
+        (rune_count >= 50) and (rune_count <= 100),
+        "rune count " + rune_count.string() +
+          " outside [50, 100]")
+    end
+
+class \nodoc\ iso _UnicodeBMPStringTest is UnitTest
+  fun name(): String => "Gen/unicode_bmp"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    let string_gen = Generators.unicode_bmp(50, 100)
+
+    for i in Range[USize].till(0, 100) do
+      let sample = string_gen.generate(rnd)?
+      var rune_count: USize = 0
+      for cp in sample.runes() do
+        rune_count = rune_count + 1
+        h.assert_true(
+          (cp <= 0xD7FF) or
+            ((cp >= 0xE000) and (cp <= 0xFFFF)),
+          "rune " + cp.string() +
+            " is not a valid BMP scalar value")
+      end
+      h.assert_true(
+        (rune_count >= 50) and (rune_count <= 100),
+        "rune count " + rune_count.string() +
+          " outside [50, 100]")
     end
 
 class \nodoc\ iso _SuccessfulIntProperty is IntProperty
