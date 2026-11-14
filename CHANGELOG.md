@@ -25,6 +25,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `XorOshiro128Plus(0, 0)` and `XorShift128Plus(0, 0)` producing only zeros ([PR #6539](https://github.com/ponylang/ponyc/pull/6539))
 - Fix pony_test `Randomness` producing degenerate sequences for seed 0 ([PR #6539](https://github.com/ponylang/ponyc/pull/6539))
 - Fix property-test shrinker counting identical candidates as reductions ([PR #6541](https://github.com/ponylang/ponyc/pull/6541))
+- Fix `Generators.frequency` over-weighting the first entry ([PR #6540](https://github.com/ponylang/ponyc/pull/6540))
 
 ### Added
 
