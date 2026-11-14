@@ -1,22 +1,6 @@
 name: Nix package
 
 on:
-  pull_request:
-    paths:
-      - 'flake.nix'
-      - 'flake.lock'
-      - 'nix/**'
-      - 'CMakeLists.txt'
-      - 'CMakePresets.json'
-      - 'VERSION'
-      - 'cmake/**'
-      - 'lib/**'
-      - 'src/**'
-      - 'packages/**'
-      - 'tools/**'
-      - 'test/**'
-      - '.ci-scripts/nix/**'
-      - '.github/workflows/nix-package.yml'
   workflow_dispatch:
     inputs:
       ref:
