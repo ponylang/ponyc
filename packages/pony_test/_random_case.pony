@@ -499,6 +499,126 @@ class \nodoc\ iso _MapIsOfMinTest is UnitTest
         "empty MapIs created with min = 1")
     end
 
+class \nodoc\ iso _SetOfStallBelowFromTest is UnitTest
+  fun name(): String => "Gen/set_of_stall_below_from"
+
+  fun apply(h: TestHelper) =>
+    let gen =
+      Generators.set_of[String](
+        Generators.unit[String]("only")
+        where from = 5, to = 10)
+    let rnd = Randomness(Time.millis())
+    try
+      gen.generate(rnd)?
+      h.fail("expected error when element generator can't reach from")
+    end
+
+class \nodoc\ iso _SetIsOfStallBelowFromTest is UnitTest
+  fun name(): String => "Gen/set_is_of_stall_below_from"
+
+  fun apply(h: TestHelper) =>
+    let gen =
+      Generators.set_is_of[String](
+        Generators.unit[String]("only")
+        where from = 5, to = 10)
+    let rnd = Randomness(Time.millis())
+    try
+      gen.generate(rnd)?
+      h.fail("expected error when element generator can't reach from")
+    end
+
+class \nodoc\ iso _MapOfStallBelowFromTest is UnitTest
+  fun name(): String => "Gen/map_of_stall_below_from"
+
+  fun apply(h: TestHelper) =>
+    let gen =
+      Generators.map_of[String, U8](
+        Generators.zip2[String, U8](
+          Generators.unit[String]("only"),
+          Generators.u8())
+        where from = 5, to = 10)
+    let rnd = Randomness(Time.millis())
+    try
+      gen.generate(rnd)?
+      h.fail("expected error when element generator can't reach from")
+    end
+
+class \nodoc\ iso _MapIsOfStallBelowFromTest is UnitTest
+  fun name(): String => "Gen/map_is_of_stall_below_from"
+
+  fun apply(h: TestHelper) =>
+    let gen =
+      Generators.map_is_of[String, U8](
+        Generators.zip2[String, U8](
+          Generators.unit[String]("only"),
+          Generators.u8())
+        where from = 5, to = 10)
+    let rnd = Randomness(Time.millis())
+    try
+      gen.generate(rnd)?
+      h.fail("expected error when element generator can't reach from")
+    end
+
+class \nodoc\ iso _PersistentSetOfStallBelowFromTest is UnitTest
+  fun name(): String => "Gen/persistent_set_of_stall_below_from"
+
+  fun apply(h: TestHelper) =>
+    let gen =
+      Generators.persistent_set_of[String](
+        Generators.unit[String]("only")
+        where from = 5, to = 10)
+    let rnd = Randomness(Time.millis())
+    try
+      gen.generate(rnd)?
+      h.fail("expected error when element generator can't reach from")
+    end
+
+class \nodoc\ iso _PersistentSetIsOfStallBelowFromTest is UnitTest
+  fun name(): String => "Gen/persistent_set_is_of_stall_below_from"
+
+  fun apply(h: TestHelper) =>
+    let gen =
+      Generators.persistent_set_is_of[String](
+        Generators.unit[String]("only")
+        where from = 5, to = 10)
+    let rnd = Randomness(Time.millis())
+    try
+      gen.generate(rnd)?
+      h.fail("expected error when element generator can't reach from")
+    end
+
+class \nodoc\ iso _PersistentMapOfStallBelowFromTest is UnitTest
+  fun name(): String => "Gen/persistent_map_of_stall_below_from"
+
+  fun apply(h: TestHelper) =>
+    let gen =
+      Generators.persistent_map_of[String, U8](
+        Generators.zip2[String, U8](
+          Generators.unit[String]("only"),
+          Generators.u8())
+        where from = 5, to = 10)
+    let rnd = Randomness(Time.millis())
+    try
+      gen.generate(rnd)?
+      h.fail("expected error when element generator can't reach from")
+    end
+
+class \nodoc\ iso _PersistentMapIsOfStallBelowFromTest is UnitTest
+  fun name(): String => "Gen/persistent_map_is_of_stall_below_from"
+
+  fun apply(h: TestHelper) =>
+    let gen =
+      Generators.persistent_map_is_of[String, U8](
+        Generators.zip2[String, U8](
+          Generators.unit[String]("only"),
+          Generators.u8())
+        where from = 5, to = 10)
+    let rnd = Randomness(Time.millis())
+    try
+      gen.generate(rnd)?
+      h.fail("expected error when element generator can't reach from")
+    end
+
 class \nodoc\ iso _ASCIIRangeTest is UnitTest
   fun name(): String => "Gen/ascii_range"
 
