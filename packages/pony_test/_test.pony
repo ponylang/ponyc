@@ -40,6 +40,8 @@ actor \nodoc\ Main is TestList
     test(_GenF64FullRangeTest)
     test(_GenF64NaNTest)
     test(_UTF32CodePointStringTest)
+    test(_UnicodeStringTest)
+    test(_UnicodeBMPStringTest)
     test(_VecOfEmptyTest)
     test(_VecOfFromToReversedTest)
     test(_VecOfMaxTest)
