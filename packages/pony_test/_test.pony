@@ -30,6 +30,10 @@ actor \nodoc\ Main is TestList
     test(_SetIsOfMinTest)
     test(_MapOfMinTest)
     test(_MapIsOfMinTest)
+    test(_SetOfStallBelowFromTest)
+    test(_SetIsOfStallBelowFromTest)
+    test(_MapOfStallBelowFromTest)
+    test(_MapIsOfStallBelowFromTest)
     test(_ASCIIRangeTest)
     test(_GenF32Test)
     test(_GenF32ReversedTest)
@@ -64,6 +68,10 @@ actor \nodoc\ Main is TestList
     test(_PersistentMapIsOfEmptyTest)
     test(_PersistentMapIsOfMaxTest)
     test(_PersistentMapIsOfMinTest)
+    test(_PersistentSetOfStallBelowFromTest)
+    test(_PersistentSetIsOfStallBelowFromTest)
+    test(_PersistentMapOfStallBelowFromTest)
+    test(_PersistentMapIsOfStallBelowFromTest)
 
     // Stringify test
     test(_StringifyTest)
