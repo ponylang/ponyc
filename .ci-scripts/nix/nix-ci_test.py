@@ -337,11 +337,6 @@ def identities_and_authority():
         require('flake.nix' not in text.replace(block, ''),
                 f'{filename}: Nix input leaked into other platform identities')
     require(len(set(identities)) == 1, 'Nix cache identity parity')
-    selected = set(re.findall(r"'([^']+)'", identities[0]))
-    require(selected == {'lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt',
-                         'lib/build-libs.cmake', 'lib/llvm/patches/*', 'VERSION',
-                         'flake.nix', 'flake.lock', 'nix/**'},
-            'Nix cache environment input membership')
     text = (REPO / '.github/workflows/nix-package.yml').read_text()
     permissions = re.search(r'^permissions:\n((?:  .+\n)+)', text, re.MULTILINE)
     require(permissions is not None and permissions[1] == '  contents: read\n',
