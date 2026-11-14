@@ -216,6 +216,7 @@ class \nodoc\ iso _GenFrequencyTest is UnitTest
   fun name(): String => "Gen/frequency"
 
   fun apply(h: TestHelper) ? =>
+    // Weights (1, 0, 2): entry 0 gets 1/3, entry 42 gets 0, entry 1 gets 2/3.
     let gen =
       Generators.frequency[U8](
         [ as WeightedGenerator[U8]:
@@ -223,27 +224,111 @@ class \nodoc\ iso _GenFrequencyTest is UnitTest
           (0, Generators.unit[U8](42))
           (2, Generators.unit[U8](1))
         ])
-    let rnd: Randomness ref = Randomness(Time.millis())
+    let rnd = Randomness(12345)
 
-    let generated = Array[U8](100)
-    for i in Range[USize].till(0, 100) do
-      generated.push(gen.generate(rnd)?)
+    var count_0: USize = 0
+    var count_42: USize = 0
+    var count_1: USize = 0
+    let n: USize = 30_000
+    for i in Range[USize].till(0, n) do
+      match gen.generate(rnd)?
+      | 0 => count_0 = count_0 + 1
+      | 42 => count_42 = count_42 + 1
+      | 1 => count_1 = count_1 + 1
+      end
     end
-    h.assert_false(
-      generated.contains(U8(42)),
-      "frequency generated value with 0 weight")
-    h.assert_true(
-      generated.contains(U8(0)),
-      "frequency did not generate value with weight of 1")
-    h.assert_true(
-      generated.contains(U8(1)),
-      "frequency did not generate value with weight of 2")
 
-    let empty_gen = Generators.frequency[U8](Array[WeightedGenerator[U8]](0))
+    h.assert_eq[USize](
+      count_42, 0, "zero-weight entry was chosen")
+    h.assert_eq[USize](
+      count_0 + count_1, n, "draws did not sum to n")
 
+    // Expected: count_0 ~ n/3, count_1 ~ 2n/3. Allow 5% tolerance.
+    let lo_0 = (n * 28) / 100
+    let hi_0 = (n * 38) / 100
+    h.assert_true(
+      (count_0 >= lo_0) and (count_0 <= hi_0),
+      "weight-1 entry count " + count_0.string() +
+        " outside [" + lo_0.string() + ", " + hi_0.string() + "]")
+
+class \nodoc\ iso _GenFrequencyZeroWeightFirstTest is UnitTest
+  fun name(): String => "Gen/frequency_zero_weight_first"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.frequency[U8](
+        [ as WeightedGenerator[U8]:
+          (0, Generators.unit[U8](0))
+          (1, Generators.unit[U8](1))
+        ])
+    let rnd = Randomness(12345)
+
+    for i in Range[USize].till(0, 10_000) do
+      h.assert_eq[U8](
+        gen.generate(rnd)?,
+        1,
+        "zero-weight first entry was chosen")
+    end
+
+class \nodoc\ iso _GenFrequencyZeroWeightLastTest is UnitTest
+  fun name(): String => "Gen/frequency_zero_weight_last"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.frequency[U8](
+        [ as WeightedGenerator[U8]:
+          (1, Generators.unit[U8](0))
+          (0, Generators.unit[U8](1))
+        ])
+    let rnd = Randomness(12345)
+
+    for i in Range[USize].till(0, 10_000) do
+      h.assert_eq[U8](
+        gen.generate(rnd)?,
+        0,
+        "zero-weight last entry was chosen")
+    end
+
+class \nodoc\ iso _GenFrequencyAllZeroTest is UnitTest
+  fun name(): String => "Gen/frequency_all_zero"
+
+  fun apply(h: TestHelper) =>
+    let gen =
+      Generators.frequency[U8](
+        [ as WeightedGenerator[U8]:
+          (0, Generators.unit[U8](0))
+          (0, Generators.unit[U8](1))
+        ])
     h.assert_error({() ? =>
-      empty_gen.generate(Randomness(Time.millis()))?
+      gen.generate(Randomness(12345))?
     })
+
+class \nodoc\ iso _GenFrequencyEmptyTest is UnitTest
+  fun name(): String => "Gen/frequency_empty"
+
+  fun apply(h: TestHelper) =>
+    let gen = Generators.frequency[U8](Array[WeightedGenerator[U8]](0))
+    h.assert_error({() ? =>
+      gen.generate(Randomness(12345))?
+    })
+
+class \nodoc\ iso _GenFrequencySingleEntryTest is UnitTest
+  fun name(): String => "Gen/frequency_single_entry"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.frequency[U8](
+        [ as WeightedGenerator[U8]:
+          (3, Generators.unit[U8](99))
+        ])
+    let rnd = Randomness(12345)
+
+    for i in Range[USize].till(0, 1_000) do
+      h.assert_eq[U8](
+        gen.generate(rnd)?,
+        99,
+        "single-entry frequency produced wrong value")
+    end
 
 class \nodoc\ iso _GenFrequencySafeTest is UnitTest
   fun name(): String => "Gen/frequency_safe"
@@ -251,6 +336,20 @@ class \nodoc\ iso _GenFrequencySafeTest is UnitTest
   fun apply(h: TestHelper) =>
     h.assert_error({() ? =>
       Generators.frequency_safe[U8](Array[WeightedGenerator[U8]](0))?
+    })
+
+class \nodoc\ iso _GenFrequencySafeAllZeroTest is UnitTest
+  fun name(): String => "Gen/frequency_safe_all_zero"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.frequency_safe[U8](
+        [ as WeightedGenerator[U8]:
+          (0, Generators.unit[U8](0))
+          (0, Generators.unit[U8](1))
+        ])?
+    h.assert_error({() ? =>
+      gen.generate(Randomness(12345))?
     })
 
 class \nodoc\ iso _GenOneOfTest is UnitTest
