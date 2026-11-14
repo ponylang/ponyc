@@ -800,8 +800,10 @@ primitive Generators
     : Generator[T]
   =>
     """
-    Choose a value from one of the given Generators, weighted by associated
-    weights.
+    Choose a value from one of the given Generators. Each entry is chosen
+    with probability `weight / weight_sum`. Entries with weight zero are
+    never chosen. Errors at generate time if the sequence is empty or all
+    weights are zero.
     """
     Generator[T](
       object is GenObj[T]
@@ -813,14 +815,14 @@ primitive Generators
                 {(acc: USize, weighted_gen: WeightedGenerator[T]): USize^ =>
                   weighted_gen._1 + acc
                 })
-          let desired_sum = rnd.usize(0, weight_sum)
+          if weight_sum == 0 then error end
+          let desired_sum = rnd.usize(1, weight_sum)
           var running_sum: USize = 0
           for weighted_gen in weighted_generators.values() do
             let new_sum = running_sum + weighted_gen._1
             if
-              ((desired_sum == 0) or
-                ((running_sum < desired_sum) and
-                  (desired_sum <= new_sum)))
+              (running_sum < desired_sum) and
+                (desired_sum <= new_sum)
             then
               return weighted_gen._2.generate(rnd)?
             else
@@ -835,8 +837,8 @@ primitive Generators
     : Generator[T] ?
   =>
     """
-    Version of `frequency` that errors if the given `weighted_generators` is
-    empty.
+    Like `frequency`, but errors at construction time if `weighted_generators`
+    is empty. Still errors at generate time if all weights are zero.
     """
     if weighted_generators.size() == 0 then error end
     Generators.frequency[T](weighted_generators)
