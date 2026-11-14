@@ -1,0 +1,75 @@
+name: Nix package
+
+on:
+  pull_request:
+    paths:
+      - 'flake.nix'
+      - 'flake.lock'
+      - 'nix/**'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'VERSION'
+      - 'cmake/**'
+      - 'lib/**'
+      - 'src/**'
+      - 'packages/**'
+      - 'tools/**'
+      - 'test/**'
+      - '.ci-scripts/nix/**'
+      - '.github/workflows/nix-package.yml'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to build and check
+        required: false
+        default: main
+  schedule:
+    - cron: '0 3 * * 0'
+
+concurrency:
+  group: nix-package-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: x86-64 Nix package and installed tools
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - name: Enable Nix sandbox namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Install Nix
+        uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086
+        with:
+          extra_nix_config: |
+            sandbox = true
+            sandbox-fallback = false
+      - name: Build package
+        run: |
+          set -o pipefail
+          timeout 18100 \
+            nix build .#ponyc --no-update-lock-file --print-build-logs \
+            --cores 4 --max-jobs 1 2>&1 | tee nix-package.log
+      - name: Check installed tools
+        run: |
+          set -o pipefail
+          timeout 3400 \
+            nix flake check --no-update-lock-file --print-build-logs \
+            --cores 4 --max-jobs 1 2>&1 | tee nix-installed-checks.log
+      - name: Save logs
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: nix-package-logs
+          path: |
+            nix-package.log
+            nix-installed-checks.log
+          if-no-files-found: ignore

@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
 #
 # Build ponyc inside a Nix environment and verify that the compiled ponyc can
-# link Pony programs. Run inside nixos/nix with nix-shell providing the build
-# dependencies. The caller is responsible for restoring the LLVM libs cache
+# link Pony programs. Run inside the committed development shell from the
+# checkout root. The caller is responsible for restoring the LLVM libs cache
 # before invoking this script.
 #
 # Usage: nix-build-and-test.sh
-#
-# Expects the ponyc source at /work (a writable copy, not the read-only mount).
 set -euo pipefail
-
-cd /work
 
 echo "=== Verify Nix environment ==="
 echo "NIX_CC=$NIX_CC"
@@ -33,43 +29,38 @@ cmake --preset x86-64-debug \
 cmake --build --preset x86-64-debug
 
 echo ""
-echo "=== Run compiler unit tests ==="
-ctest --preset x86-64-debug -R libponyc.tests
+echo "=== Run core tests (debug codegen) ==="
+PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core --output-on-failure
 
 echo ""
-echo "=== Run runtime unit tests ==="
-ctest --preset x86-64-debug -R libponyrt.tests
+echo "=== Run stdlib and full-program tests (release codegen) ==="
+env -u PONY_DEBUG ctest --preset x86-64-debug \
+  -R '^(stdlib|full-programs)$' --output-on-failure
 
 echo ""
-echo "=== Run stdlib tests (debug codegen) ==="
-PONY_DEBUG=1 ctest --preset x86-64-debug -R "^stdlib$"
+echo "=== Build and run tool tests ==="
+cmake --build --preset x86-64-debug --target tool-tests
+ctest --preset x86-64-debug -L tools --output-on-failure
 
 echo ""
-echo "=== Run full-program tests (debug codegen) ==="
-PONY_DEBUG=1 ctest --preset x86-64-debug -R "^full-programs$"
-
-echo ""
-echo "=== Run stdlib tests (release codegen) ==="
-ctest --preset x86-64-debug -R "^stdlib$"
-
-echo ""
-echo "=== Run full-program tests (release codegen) ==="
-ctest --preset x86-64-debug -R "^full-programs$"
+echo "=== Build ponyc (release) ==="
+cmake --preset x86-64-release \
+  -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+cmake --build --preset x86-64-release
 
 echo ""
 echo "=== Check ponyc links Pony programs ==="
-# The test suites exercise ponyc within the build tree. This step verifies
-# that ponyc's embedded linker can find the Nix CRT objects (crt1.o, crti.o,
-# crtn.o), glibc, gcc runtime libs, and sets PT_INTERP to the Nix store's
-# dynamic linker — the whole point of the NixOS linking support.
-
-mkdir -p /tmp/src/hello /tmp/bin
+program_workdir=$(mktemp -d)
+trap 'rm -rf "$program_workdir"' EXIT
+mkdir -p "$program_workdir/src/hello" "$program_workdir/bin"
 printf 'actor Main\n  new create(env: Env) =>\n    env.out.print("Hello from Nix!")\n' \
-  > /tmp/src/hello/main.pony
-./build/debug/ponyc /tmp/src/hello -b hello -o /tmp/bin/
-/tmp/bin/hello
+  > "$program_workdir/src/hello/main.pony"
+./build/debug/ponyc "$program_workdir/src/hello" \
+  -b hello -o "$program_workdir/bin/"
+"$program_workdir/bin/hello"
 
-interp=$(readelf -l /tmp/bin/hello | grep 'Requesting program interpreter' | sed 's/.*: \(.*\)]/\1/')
+interp=$(readelf -l "$program_workdir/bin/hello" \
+  | grep 'Requesting program interpreter' | sed 's/.*: \(.*\)]/\1/')
 echo "PT_INTERP: $interp"
 case "$interp" in
   /nix/store/*)
@@ -83,8 +74,8 @@ esac
 
 echo ""
 echo "=== Check ponyc links a stdlib-using program ==="
-mkdir -p /tmp/src/testprog
-cat > /tmp/src/testprog/main.pony <<'PONY'
+mkdir -p "$program_workdir/src/testprog"
+cat > "$program_workdir/src/testprog/main.pony" <<'PONY'
 use "collections"
 use "format"
 
@@ -98,8 +89,9 @@ actor Main
     end
     env.out.print("NixOS linking works!")
 PONY
-./build/debug/ponyc /tmp/src/testprog -b testprog -o /tmp/bin/
-/tmp/bin/testprog
+./build/debug/ponyc "$program_workdir/src/testprog" \
+  -b testprog -o "$program_workdir/bin/"
+"$program_workdir/bin/testprog"
 
 echo ""
 echo "=== ALL TESTS PASSED ==="

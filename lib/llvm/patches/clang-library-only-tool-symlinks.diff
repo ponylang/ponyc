@@ -1,0 +1,21 @@
+# What: Match Clang tool alias installation to CLANG_BUILD_TOOLS.
+# Why: Disabling Clang tools omits the alias targets. Installing their
+#      symlinks leaves the libraries prefix with dangling links.
+# Test: Install with CLANG_BUILD_TOOLS=OFF; aliases for omitted tools
+#       must be absent. With the option enabled, aliases must still
+#       resolve to their installed tools.
+
+diff --git i/clang/cmake/modules/AddClang.cmake w/clang/cmake/modules/AddClang.cmake
+index e2112d7..6cd1bbe 100644
+--- i/clang/cmake/modules/AddClang.cmake
++++ w/clang/cmake/modules/AddClang.cmake
+@@ -211,6 +211,7 @@ macro(add_clang_symlink name dest)
+   else()
+     llvm_add_tool_symlink(CLANG ${name} ${dest} ALWAYS_GENERATE)
+-    # Always generate install targets
+-    llvm_install_symlink(CLANG ${name} ${dest} ALWAYS_GENERATE)
++    if(CLANG_BUILD_TOOLS)
++      llvm_install_symlink(CLANG ${name} ${dest} ALWAYS_GENERATE)
++    endif()
+   endif()
+ endmacro()

@@ -870,6 +870,29 @@ namespace
 // and a non-Linux target each short-circuit that probe.
 TEST_F(CodegenTest, TargetLibcMuslDetection)
 {
+  struct NixEnvironment
+  {
+    bool had_cc = getenv("NIX_CC") != NULL;
+    bool had_ldflags = getenv("NIX_LDFLAGS") != NULL;
+    std::string cc = had_cc ? getenv("NIX_CC") : "";
+    std::string ldflags = had_ldflags ? getenv("NIX_LDFLAGS") : "";
+
+    ~NixEnvironment()
+    {
+      if(had_cc)
+        setenv("NIX_CC", cc.c_str(), 1);
+      else
+        unsetenv("NIX_CC");
+
+      if(had_ldflags)
+        setenv("NIX_LDFLAGS", ldflags.c_str(), 1);
+      else
+        unsetenv("NIX_LDFLAGS");
+    }
+  } environment;
+  ASSERT_EQ(unsetenv("NIX_CC"), 0);
+  ASSERT_EQ(unsetenv("NIX_LDFLAGS"), 0);
+
   // Reset opt.sysroot and remove the temp sysroots on every exit path,
   // including a fatal ASSERT_* (which returns from the test body). opt.triple
   // is left LLVM-owned throughout, so TearDown frees it independently.
@@ -937,6 +960,22 @@ TEST_F(CodegenTest, TargetLibcMuslDetection)
   // glibc-looking sysroot must not flip it back.
   set_triple(&opt, "x86_64-unknown-linux-musl");
   opt.sysroot = const_cast<char*>(glibc_root.c_str());
+  ASSERT_TRUE(target_libc_is_musl(&opt));
+
+  std::string nix_libc = glibc_root + "/nix-libc";
+  ASSERT_TRUE(put_libc_so_6(nix_libc, "/lib"));
+  std::string wrapper = glibc_root + "/wrapper";
+  mkdir_p(wrapper + "/nix-support");
+  FILE* orig_libc = fopen((wrapper + "/nix-support/orig-libc").c_str(), "w");
+  ASSERT_NE(orig_libc, nullptr);
+  int written = fprintf(orig_libc, "%s\n", nix_libc.c_str());
+  ASSERT_EQ(fclose(orig_libc), 0);
+  ASSERT_GT(written, 0);
+  ASSERT_EQ(setenv("NIX_CC", wrapper.c_str(), 1), 0);
+  set_triple(&opt, "x86_64-unknown-linux-gnu");
+  opt.sysroot = const_cast<char*>(musl_root.c_str());
+  ASSERT_FALSE(target_libc_is_musl(&opt));
+  ASSERT_EQ(unlink((nix_libc + "/lib/libc.so.6").c_str()), 0);
   ASSERT_TRUE(target_libc_is_musl(&opt));
 }
 
