@@ -1290,8 +1290,18 @@ primitive Generators
     : Generator[String]
   =>
     """
-    Generate a string from unicode codepoints with length in `from` to `to`
-    codepoints.
+    Generate a string from Unicode code points with length in `from` to `to`
+    code points.
+
+    Values outside the valid Unicode range (surrogates 0xD800-0xDFFF and
+    values above 0x10FFFF) are rejected and redrawn. Each rejected draw is
+    recorded in its own discardable span so the shrinker can remove the
+    failed draws cleanly. After 100 consecutive rejected
+    draws for a single code point, the generator errors.
+
+    Use `Generators.unicode` or `Generators.unicode_bmp` for a code-point
+    generator that produces only valid values and never triggers the retry
+    limit.
     """
     let lo = from.min(to)
     let hi = from.max(to)
@@ -1310,9 +1320,27 @@ primitive Generators
                 rnd.bool()
               end
             if cont then
-              var cp = gen.generate(rnd)?
-              while (cp > 0xD7FF) and (cp < 0xE000) do
+              var cp: U32 = 0
+              var tries: USize = 0
+              var valid = false
+              while tries < 100 do
+                rnd.start_span(SpanFilter)
                 cp = gen.generate(rnd)?
+                if
+                  ((cp >= 0xD800) and (cp <= 0xDFFF)) or
+                    (cp > 0x10FFFF)
+                then
+                  rnd.end_span(true)?
+                  tries = tries + 1
+                else
+                  rnd.end_span()?
+                  valid = true
+                  break
+                end
+              end
+              if not valid then
+                rnd.end_span(true)?
+                error
               end
               s.push_utf32(cp)
               count = count + 1
