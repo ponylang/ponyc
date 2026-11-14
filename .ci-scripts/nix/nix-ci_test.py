@@ -350,12 +350,8 @@ def identities_and_authority():
             'package workflow credential/event boundary')
     require('persist-credentials: false' in text,
             'package checkout persisted credentials')
-    paths = set(re.findall(r"^      - '([^']+)'$", text, re.MULTILINE))
-    require(paths == {'flake.nix', 'flake.lock', 'nix/**', 'CMakeLists.txt',
-                      'CMakePresets.json', 'VERSION', 'cmake/**', 'lib/**',
-                      'src/**', 'packages/**', 'tools/**', 'test/**',
-                      '.ci-scripts/nix/**', '.github/workflows/nix-package.yml'},
-            'package workflow source trigger families')
+    require('pull_request' not in text,
+            'package workflow must not trigger on pull_request')
     require('  workflow_dispatch:\n' in text and '  schedule:\n' in text
             and 'ref: ${{ inputs.ref || github.sha }}' in text,
             'package current-source scheduled/manual selection')
