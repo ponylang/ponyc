@@ -188,6 +188,42 @@ class ref Randomness
       v
     end
 
+  fun ref biased_bool(numerator: USize, denominator: USize): Bool =>
+    """
+    Generate a Bool that is `true` with probability `numerator/denominator`.
+    Shrinking and replay work the same as `bool()`. Returns `false` when
+    `denominator` is zero.
+
+    Collection generators use this to draw lengths uniformly on `[from, to]`:
+    at each position past `from`, the probability of continuing is
+    `remaining / (remaining + 1)`.
+    """
+    if denominator == 0 then return false end
+    match \exhaustive\ _mode
+    | _ModePlain =>
+      (_random.next() % denominator.u64()) < numerator.u64()
+    | _ModeRecording =>
+      let v = (_random.next() % denominator.u64()) < numerator.u64()
+      _choices.push(_BoolChoice(v))
+      v
+    | _ModeReplaying =>
+      if _replay_idx < _replay_seq.size() then
+        try
+          match _replay_seq(_replay_idx)?
+          | let bc: _BoolChoice =>
+            _replay_idx = _replay_idx + 1
+            return bc.value
+          end
+        else
+          _Unreachable()
+        end
+      end
+      _replay_exhausted_flag = true
+      let v = (_random.next() % denominator.u64()) < numerator.u64()
+      _choices.push(_BoolChoice(v))
+      v
+    end
+
   fun ref forced_bool(value: Bool): Bool =>
     """
     Record a predetermined Bool. This choice is excluded from

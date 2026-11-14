@@ -158,7 +158,7 @@ primitive Generators
               if count < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(hi - count, (hi - count) + 1)
               end
             if cont then
               let elem = _gen.generate(rnd)?
@@ -198,7 +198,7 @@ primitive Generators
               if count < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(hi - count, (hi - count) + 1)
               end
             if cont then
               let elem = _gen.generate(rnd)?
@@ -238,7 +238,7 @@ primitive Generators
               if count < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(hi - count, (hi - count) + 1)
               end
             if cont then
               let elem = _gen.generate(rnd)?
@@ -319,11 +319,12 @@ primitive Generators
           var stall: USize = 0
           while (result.size() < hi) and (stall < 100) do
             rnd.start_span(SpanElement)
+            let remaining = hi - result.size()
             let cont =
               if result.size() < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(remaining, remaining + 1)
               end
             if cont then
               let prev = result.size()
@@ -369,11 +370,12 @@ primitive Generators
           var stall: USize = 0
           while (result.size() < hi) and (stall < 100) do
             rnd.start_span(SpanElement)
+            let remaining = hi - result.size()
             let cont =
               if result.size() < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(remaining, remaining + 1)
               end
             if cont then
               let prev = result.size()
@@ -419,11 +421,12 @@ primitive Generators
           var stall: USize = 0
           while (result.size() < hi) and (stall < 100) do
             rnd.start_span(SpanElement)
+            let remaining = hi - result.size()
             let cont =
               if result.size() < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(remaining, remaining + 1)
               end
             if cont then
               let prev = result.size()
@@ -470,11 +473,12 @@ primitive Generators
           var stall: USize = 0
           while (result.size() < hi) and (stall < 100) do
             rnd.start_span(SpanElement)
+            let remaining = hi - result.size()
             let cont =
               if result.size() < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(remaining, remaining + 1)
               end
             if cont then
               let prev = result.size()
@@ -519,7 +523,7 @@ primitive Generators
               if count < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(hi - count, (hi - count) + 1)
               end
             if cont then
               result = result.push(_gen.generate(rnd)?)
@@ -557,7 +561,7 @@ primitive Generators
               if count < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(hi - count, (hi - count) + 1)
               end
             if cont then
               result = result.prepend(_gen.generate(rnd)?)
@@ -598,11 +602,12 @@ primitive Generators
           var stall: USize = 0
           while (result.size() < hi) and (stall < 100) do
             rnd.start_span(SpanElement)
+            let remaining = hi - result.size()
             let cont =
               if result.size() < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(remaining, remaining + 1)
               end
             if cont then
               let prev = result.size()
@@ -649,11 +654,12 @@ primitive Generators
           var stall: USize = 0
           while (result.size() < hi) and (stall < 100) do
             rnd.start_span(SpanElement)
+            let remaining = hi - result.size()
             let cont =
               if result.size() < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(remaining, remaining + 1)
               end
             if cont then
               let prev = result.size()
@@ -701,11 +707,12 @@ primitive Generators
           var stall: USize = 0
           while (result.size() < hi) and (stall < 100) do
             rnd.start_span(SpanElement)
+            let remaining = hi - result.size()
             let cont =
               if result.size() < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(remaining, remaining + 1)
               end
             if cont then
               let prev = result.size()
@@ -752,11 +759,12 @@ primitive Generators
           var stall: USize = 0
           while (result.size() < hi) and (stall < 100) do
             rnd.start_span(SpanElement)
+            let remaining = hi - result.size()
             let cont =
               if result.size() < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(remaining, remaining + 1)
               end
             if cont then
               let prev = result.size()
@@ -1218,7 +1226,7 @@ primitive Generators
               if count < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(hi - count, (hi - count) + 1)
               end
             if cont then
               arr.push(gen.generate(rnd)?)
@@ -1317,7 +1325,7 @@ primitive Generators
               if count < lo then
                 rnd.forced_bool(true)
               else
-                rnd.bool()
+                rnd.biased_bool(hi - count, (hi - count) + 1)
               end
             if cont then
               var cp: U32 = 0

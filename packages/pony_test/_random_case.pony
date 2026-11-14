@@ -827,6 +827,98 @@ class \nodoc\ iso _RandomnessF32InfClampTest is UnitTest
       h.assert_true(v <= 0, "f32(-inf, 0) produced positive: " + s)
     end
 
+class \nodoc\ iso _BiasedBoolDistributionTest is UnitTest
+  """
+  biased_bool(n, d) produces true with approximate frequency n/d.
+  """
+  fun name(): String => "Randomness/biased_bool_distribution"
+
+  fun apply(h: TestHelper) =>
+    let rnd = Randomness(42)
+    var true_count: USize = 0
+    let n: USize = 10000
+    for i in Range[USize].till(0, n) do
+      if rnd.biased_bool(3, 4) then
+        true_count = true_count + 1
+      end
+    end
+    let ratio = true_count.f64() / n.f64()
+    h.assert_true(
+      (ratio > 0.7) and (ratio < 0.8),
+      "biased_bool(3, 4) expected ~75% true, got " +
+        (ratio * 100).string() + "%")
+
+    // denominator == 0 always returns false
+    h.assert_false(rnd.biased_bool(1, 0))
+    h.assert_false(rnd.biased_bool(0, 0))
+
+    // numerator == 0 always returns false
+    var any_true = false
+    for i in Range[USize].till(0, 100) do
+      if rnd.biased_bool(0, 10) then any_true = true end
+    end
+    h.assert_false(any_true, "biased_bool(0, d) should always be false")
+
+    // numerator >= denominator always returns true
+    var any_false = false
+    for i in Range[USize].till(0, 100) do
+      if not rnd.biased_bool(10, 10) then any_false = true end
+    end
+    h.assert_false(any_false, "biased_bool(d, d) should always be true")
+
+    // numerator > denominator always returns true
+    h.assert_true(rnd.biased_bool(5, 3))
+
+class \nodoc\ iso _BiasedBoolRecordingTest is UnitTest
+  """
+  biased_bool records a _BoolChoice, same as bool.
+  """
+  fun name(): String => "Randomness/biased_bool_recording"
+
+  fun apply(h: TestHelper) =>
+    let rnd = Randomness(42)
+    rnd._start_recording()
+    rnd.biased_bool(1, 2)
+    rnd.biased_bool(3, 4)
+    let choices = rnd._get_choices()
+    h.assert_eq[USize](choices.size(), 2)
+    try
+      match choices(0)?
+      | let bc: _BoolChoice =>
+        h.assert_false(bc.forced)
+      else
+        h.fail("expected _BoolChoice at index 0")
+      end
+      match choices(1)?
+      | let bc: _BoolChoice =>
+        h.assert_false(bc.forced)
+      else
+        h.fail("expected _BoolChoice at index 1")
+      end
+    else
+      h.fail("index out of bounds")
+    end
+
+class \nodoc\ iso _BiasedBoolReplayTest is UnitTest
+  """
+  biased_bool replays recorded values regardless of bias parameters.
+  """
+  fun name(): String => "Randomness/biased_bool_replay"
+
+  fun apply(h: TestHelper) =>
+    let rnd = Randomness(42)
+    rnd._start_recording()
+    let v1 = rnd.biased_bool(1, 4)
+    let v2 = rnd.biased_bool(3, 4)
+    let v3 = rnd.biased_bool(99, 100)
+    let choices = rnd._get_choices()
+
+    let rnd2 = Randomness(0)
+    rnd2._replay(choices)
+    h.assert_eq[Bool](v1, rnd2.biased_bool(99, 100))
+    h.assert_eq[Bool](v2, rnd2.biased_bool(1, 100))
+    h.assert_eq[Bool](v3, rnd2.biased_bool(1, 2))
+
 class \nodoc\ iso _MutatorFloatOverflowTest is UnitTest
   """
   _perturb_float with a range that overflows to infinity produces
