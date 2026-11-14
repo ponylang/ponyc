@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add Nix flake package for x86-64 Linux ([PR #6504](https://github.com/ponylang/ponyc/pull/6504))
 
 ### Changed
 
