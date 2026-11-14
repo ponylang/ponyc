@@ -4,6 +4,23 @@ use "files"
 use "random"
 use "time"
 
+class \nodoc\ iso _SeedZeroNonDegenerateTest is UnitTest
+  """
+  Seed 0 must produce non-degenerate output. (0, 0) is a fixed point
+  of xorshift-family generators; SplitMix64 mixing prevents it.
+  """
+  fun name(): String => "randomness/seed_zero_non_degenerate"
+
+  fun apply(h: TestHelper) =>
+    let rnd = Randomness(0)
+    var nonzero: Bool = false
+    var i: USize = 0
+    while i < 10 do
+      if rnd.u64() != 0 then nonzero = true end
+      i = i + 1
+    end
+    h.assert_true(nonzero, "Randomness(0) produced 10 consecutive zeros")
+
 class \nodoc\ iso _StringifyTest is UnitTest
   fun name(): String => "stringify"
 
@@ -2862,10 +2879,28 @@ class \nodoc\ iso _DirectShrinkFlatMapTest is UnitTest
     while not exec.shrink_exhausted() do
       exec.run_shrink_candidate(ph)
     end
+    let repr = exec.sample_repr()
     h.assert_true(
-      exec.sample_repr().contains("(1, 51)"),
-      "shrinker should converge to (1, 51), got: " +
-      exec.sample_repr())
+      _is_minimal_product_failure(repr),
+      "shrinker should converge to a minimal pair with product > 50, got: " +
+      repr)
+
+  fun _is_minimal_product_failure(repr: String): Bool =>
+    """
+    A pair (a, b) is a minimal failing case for `a * b > 50` when the
+    product exceeds 50 but decrementing either component makes it <= 50.
+    The shrinker may converge to any such pair depending on the PRNG
+    sequence. Accepted pairs: (1, 51), (2, 26), (3, 17), (4, 13),
+    (5, 11), (6, 9), (7, 8), (8, 7), (9, 6), (11, 5), (13, 4),
+    (17, 3), (26, 2), (51, 1).
+    """
+    repr.contains("(1, 51)") or repr.contains("(2, 26)") or
+      repr.contains("(3, 17)") or repr.contains("(4, 13)") or
+      repr.contains("(5, 11)") or repr.contains("(6, 9)") or
+      repr.contains("(7, 8)") or repr.contains("(8, 7)") or
+      repr.contains("(9, 6)") or repr.contains("(11, 5)") or
+      repr.contains("(13, 4)") or repr.contains("(17, 3)") or
+      repr.contains("(26, 2)") or repr.contains("(51, 1)")
 
 // --- Meta-tests: run a sub-PonyTest and verify its output ---
 actor \nodoc\ _ShrinkVerifyReporter
@@ -3038,8 +3073,13 @@ class \nodoc\ iso _MultipleForAllAsyncTest is UnitTest
 class \nodoc\ iso _AsyncFailingProperty is Property[U8]
   """
   A property that signals async mode via long_test and then fails
-  via assertion for some samples. Used to verify that async-mode
-  failure detection and shrinking work.
+  via error for some samples. Used to verify that async-mode failure
+  detection and shrinking work.
+
+  Fails when the sample is >= 10 so the shrinker always has room to
+  reduce the value, regardless of which sample the async runner
+  detects first. Uses error (not assert_true) so the failure is
+  detected synchronously in run_sample.
   """
   fun name(): String => "meta/async_failing/property"
 
@@ -3049,9 +3089,9 @@ class \nodoc\ iso _AsyncFailingProperty is Property[U8]
     PropertyParams(where num_samples' = 100, seed' = 42,
       max_shrink_reductions' = 50, regression_db' = false)
 
-  fun ref property(sample: U8, h: PropertyHelper) =>
+  fun ref property(sample: U8, h: PropertyHelper) ? =>
     h.long_test(10_000_000_000)
-    h.assert_true(sample == 0)
+    if sample >= 10 then error end
 
 class \nodoc\ iso _AsyncFailingPropertyTest is UnitTest
   """

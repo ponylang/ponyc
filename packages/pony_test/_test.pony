@@ -7,6 +7,8 @@ actor \nodoc\ Main is TestList
     test(_TestShuffleVariesAcrossSeeds)
     test(_TestListShuffleSeedZero)
 
+    test(_SeedZeroNonDegenerateTest)
+
     // Generator tests
     test(_GenRndTest)
     test(_GenFilterTest)

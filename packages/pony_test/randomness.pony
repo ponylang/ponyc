@@ -29,7 +29,11 @@ class ref Randomness
   var _filter_accepts: USize = 0
 
   new ref create(seed1: U64 = 42, seed2: U64 = 0) =>
-    _random = Rand(seed1, seed2)
+    """
+    Seed the underlying PRNG via SplitMix64 mixing. Only `seed1` is used;
+    `seed2` is accepted for backward compatibility but ignored.
+    """
+    _random = Rand.from_u64(seed1)
 
   // --- Public draw methods ---
   fun ref u8(min: U8 = U8.min_value(), max: U8 = U8.max_value()): U8 =>
