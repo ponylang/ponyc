@@ -56,11 +56,17 @@ primitive _ChoiceMutator
   fun _perturb_float(fc: _FloatChoice, rnd: Randomness ref): _Choice val =>
     if fc.min == fc.max then return fc end
     let range = fc.max - fc.min
-    let delta = range / 4.0
+    let delta =
+      if range.finite() then
+        range / 4.0
+      else
+        (fc.max * 0.25) - (fc.min * 0.25)
+      end
     if delta == 0.0 then return fc end
     let offset = rnd.f64(-delta, delta)
     let raw = fc.value + offset
     let v = raw.max(fc.min).min(fc.max)
+    if v.nan() then return fc end
     _FloatChoice(v, fc.min, fc.max)
 
   fun _perturb_bool(bc: _BoolChoice): _Choice val =>

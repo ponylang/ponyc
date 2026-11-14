@@ -1100,15 +1100,15 @@ primitive Generators
     """
     Generate F32 values in `[from, to]`. Order does not matter.
 
-    Errors if `from` or `to` is NaN.
+    Errors if `from` or `to` is NaN or infinite.
     """
     let lo = from.min(to)
     let hi = from.max(to)
-    let nan = lo.nan()
+    let bad = not (lo.finite() and hi.finite())
     Generator[F32](
       object is GenObj[F32]
         fun generate(rnd: Randomness): F32 ? =>
-          if nan then error end
+          if bad then error end
           rnd.f32(lo, hi)
       end)
 
@@ -1120,15 +1120,15 @@ primitive Generators
     """
     Generate F64 values in `[from, to]`. Order does not matter.
 
-    Errors if `from` or `to` is NaN.
+    Errors if `from` or `to` is NaN or infinite.
     """
     let lo = from.min(to)
     let hi = from.max(to)
-    let nan = lo.nan()
+    let bad = not (lo.finite() and hi.finite())
     Generator[F64](
       object is GenObj[F64]
         fun generate(rnd: Randomness): F64 ? =>
-          if nan then error end
+          if bad then error end
           rnd.f64(lo, hi)
       end)
 
