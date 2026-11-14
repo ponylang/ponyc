@@ -503,6 +503,25 @@ class \nodoc\ iso _ASCIIRangeTest is UnitTest
   fun name(): String => "Gen/ascii_range"
 
   fun apply(h: TestHelper) ? =>
+    h.assert_eq[USize](27, ASCIINonPrintable().size())
+    h.assert_eq[USize](127, ASCIIAll().size())
+    h.assert_eq[USize](128, ASCIIAllWithNUL().size())
+    h.assert_true(
+      ASCIINonPrintable().contains("\x7f"),
+      "ASCIINonPrintable missing DEL (0x7F)")
+    h.assert_true(
+      ASCIIAll().contains("\x7f"),
+      "ASCIIAll missing DEL (0x7F)")
+    h.assert_true(
+      ASCIIAllWithNUL().contains("\x7f"),
+      "ASCIIAllWithNUL missing DEL (0x7F)")
+    h.assert_false(
+      ASCIIAll().contains("\x00"),
+      "ASCIIAll should not contain NUL")
+    h.assert_true(
+      ASCIIAllWithNUL().contains("\x00"),
+      "ASCIIAllWithNUL missing NUL (0x00)")
+
     let rnd = Randomness(Time.millis())
     let ascii_gen =
       Generators.ascii(where from = 1, to = 1, range = ASCIIAll)
