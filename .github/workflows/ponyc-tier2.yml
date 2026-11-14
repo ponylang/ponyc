@@ -78,7 +78,7 @@ jobs:
         run: |
           cmake --preset x86-64-debug
           cmake --build --preset x86-64-debug
-          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-mutate-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
@@ -91,6 +91,9 @@ jobs:
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset x86-64-debug -R pony-lsp-tests
+      - name: Test pony-mutate
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: ctest --preset x86-64-debug -R pony-mutate-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -134,7 +137,7 @@ jobs:
         run: |
           cmake --preset x86-64-debug
           cmake --build --preset x86-64-debug
-          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-mutate-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
@@ -147,6 +150,9 @@ jobs:
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset x86-64-debug -R pony-lsp-tests
+      - name: Test pony-mutate
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: ctest --preset x86-64-debug -R pony-mutate-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -228,7 +234,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            bash -c "cmake --preset armv8-a-debug && cmake --build --preset armv8-a-debug && cmake --build --preset armv8-a-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests"
+            bash -c "cmake --preset armv8-a-debug && cmake --build --preset armv8-a-debug && cmake --build --preset armv8-a-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-mutate-tests"
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -268,6 +274,15 @@ jobs:
             -w /home/pony/project \
             ${{ matrix.image }} \
             ctest --preset armv8-a-debug -R pony-lsp-tests
+      - name: Test pony-mutate
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            ctest --preset armv8-a-debug -R pony-mutate-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -321,7 +336,7 @@ jobs:
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           cmake --build --preset windows-arm64-debug
-          cmake --build --preset windows-arm64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --build --preset windows-arm64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-mutate-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -336,6 +351,9 @@ jobs:
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset windows-arm64-debug -R pony-lsp-tests
+      - name: Test pony-mutate
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: ctest --preset windows-arm64-debug -R pony-mutate-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

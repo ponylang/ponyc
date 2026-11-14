@@ -78,6 +78,18 @@ Run individual tests by name:
 - `ctest --preset debug -R full-programs` — compile-and-run integration tests
 - `ctest --preset debug -R validate-grammar` — checks `pony.g` against the compiler
 - `ctest --preset debug -R examples` — compiles all examples (not part of `ci-core`; runs locally and in the weekly `build-examples.yml` workflow)
+- `ctest --preset debug -R mutation-runtime` — compiles a test program with `--mutate`, runs baseline and mutant execution
+- `ctest --preset debug -R mutation-monomorphization` — checks generic mutant sharing, replacement coverage, and inherited method isolation
+- `ctest --preset debug -R mutation-string` — checks String return replacement across capabilities with debug and release codegen
+- `ctest --preset debug -R mutation-runner` — end-to-end test of the `pony-mutate` runner tool (scope filtering, operator filtering, terminal report)
+- `ctest --preset debug -R mutation-reports` — controlled reporter output and CLI report-file tests (requires Python 3)
+
+Validate reports against the pinned Stryker schema after running `mutation-reports`:
+
+```bash
+python3 -m pip install --target build/mutation-schema jsonschema==4.26.0
+PYTHONPATH=build/mutation-schema python3 test/mutation-reports/check_reports.py --schema --fixture build/debug/mutation-reports/report-fixture --runner build/debug/pony-mutate
+```
 
 #### Per-module stdlib tests
 
@@ -115,7 +127,17 @@ Run the `pony-lint` binary (built by a normal `cmake --build --preset debug`) ag
 cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lint/
 ```
 
-The same works for `../../tools/pony-lsp/`, `../../tools/pony-doc/`, `../../tools/pony-dep/`, and `../../tools/pony-agent-server/`.
+The same works for `../../tools/pony-lsp/`, `../../tools/pony-doc/`, `../../tools/pony-dep/`, `../../tools/pony-agent-server/`, and `../../tools/pony-mutate/`.
+
+### Mutation testing
+
+The compiler supports mutation testing via `--mutate`. This instruments operators and function returns so each can be replaced at runtime by setting `PONY_MUTANT_ID=<n>`. A `.mutants.json` info file lists every instrumented site. `--mutate-operators` and `--mutate-scope` narrow what gets instrumented; see `ponyc --help`.
+
+The `pony-mutate` tool (built by a normal `cmake --build --preset debug`) automates running all mutants:
+
+```bash
+cd build/debug && ./pony-mutate ./my-test-binary
+```
 
 ## Opening PRs
 

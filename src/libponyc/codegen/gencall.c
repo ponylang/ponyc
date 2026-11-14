@@ -1,4 +1,5 @@
 #include "gencall.h"
+#include "genmutate.h"
 #include "genoperator.h"
 #include "genreference.h"
 #include "genexpr.h"
@@ -99,6 +100,8 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
   *value = NULL;
 
   codegen_debugloc(c, ast);
+  ast_t* saved_mutate_ast = c->frame->mutate_ast;
+  c->frame->mutate_ast = ast;
 
   if(name == c->str_add)
     *value = gen_add(c, left, right, true);
@@ -171,6 +174,7 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
   else
     special_case = false;
 
+  c->frame->mutate_ast = saved_mutate_ast;
   codegen_debugloc(c, NULL);
   return special_case;
 }
@@ -985,6 +989,26 @@ static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
   return true;
 }
 
+static bool subtree_has_definition(ast_t* ast)
+{
+  if(ast == NULL)
+    return false;
+
+  token_id id = ast_id(ast);
+  if(id == TK_ASSIGN || id == TK_LET || id == TK_VAR)
+    return true;
+
+  ast_t* child = ast_child(ast);
+  while(child != NULL)
+  {
+    if(subtree_has_definition(child))
+      return true;
+    child = ast_sibling(child);
+  }
+
+  return false;
+}
+
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
   // Special case calls.
@@ -1026,6 +1050,24 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   ast_free_unattached(type);
   ast_free_unattached(typeargs);
+
+  // VCR: skip None-returning calls when the mutant is active. Placed before
+  // arg/receiver generation so the skip path bypasses evaluating them.
+  bool is_constructor =
+    (ast_id(postfix) == TK_NEWREF) || (ast_id(postfix) == TK_NEWBEREF);
+  bool is_chain =
+    (ast_id(postfix) == TK_BECHAIN) || (ast_id(postfix) == TK_FUNCHAIN);
+  bool vcr_active = false;
+  LLVMBasicBlockRef vcr_skip = NULL;
+  LLVMBasicBlockRef vcr_merge = NULL;
+
+  if(c->opt->mutate && !is_constructor && !is_chain
+    && is_none(m->result->ast)
+    && !subtree_has_definition(receiver)
+    && !subtree_has_definition(positional))
+  {
+    vcr_active = mutate_vcr_begin(c, ast, &vcr_skip, &vcr_merge);
+  }
 
   // Generate the arguments.
   size_t count = m->param_count + 1;
@@ -1225,11 +1267,15 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   if((ast_id(postfix) == TK_BECHAIN) || (ast_id(postfix) == TK_FUNCHAIN))
     r = args[0];
 
+  if(vcr_active && (r != NULL))
+    r = mutate_vcr_end(c, r, vcr_skip, vcr_merge);
+
   ponyint_pool_free_size(buf_size, args);
   return r;
 }
 
-LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
+LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value,
+  bool emit_ror)
 {
   // This is used for structural equality in pattern matching.
   ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
@@ -1264,7 +1310,13 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
         )
       {
         ast_free_unattached(pattern_type);
-        return gen_eq_rvalue(c, pattern, r_value, true);
+        ast_t* saved_mutate_ast = c->frame->mutate_ast;
+        if(emit_ror)
+          c->frame->mutate_ast = pattern;
+        LLVMValueRef result = gen_eq_rvalue(c, pattern, r_value, true);
+        if(emit_ror)
+          c->frame->mutate_ast = saved_mutate_ast;
+        return result;
       }
     }
   }

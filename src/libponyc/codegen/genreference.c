@@ -14,6 +14,7 @@
 #include "../type/subtype.h"
 #include "../type/typealias.h"
 #include "../type/viewpoint.h"
+#include "../../libponyrt/mem/heap.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
@@ -733,4 +734,31 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   genned_strings_putindex(&c->strings, string, index);
 
   return g_inst;
+}
+
+LLVMValueRef gen_empty_string(compile_t* c, ast_t* type)
+{
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  pony_assert(LLVMCountStructElementTypes(c_t->structure) == 4);
+
+  LLVMValueRef object = gencall_allocstruct(c, t);
+  LLVMValueRef args[2] = {
+    codegen_ctx(c), LLVMConstInt(c->intptr, HEAP_MIN, false)
+  };
+  LLVMValueRef buffer = gencall_runtime(c, "pony_alloc", args, 2, "");
+  LLVMBuildStore(c->builder, LLVMConstInt(c->i8, 0, false), buffer);
+
+  LLVMValueRef fields[3] = {
+    LLVMConstInt(c->intptr, 0, false),
+    LLVMConstInt(c->intptr, HEAP_MIN, false), buffer
+  };
+  for(unsigned i = 0; i < 3; i++)
+  {
+    LLVMValueRef field = LLVMBuildStructGEP2(c->builder, c_t->structure,
+      object, i + 1, "");
+    LLVMBuildStore(c->builder, fields[i], field);
+  }
+
+  return object;
 }

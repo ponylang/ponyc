@@ -2,6 +2,7 @@
 #include "gencall.h"
 #include "genexpr.h"
 #include "genfun.h"
+#include "genmutate.h"
 #include "genname.h"
 #include "genreference.h"
 #include "../pass/expr.h"
@@ -688,7 +689,19 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
   {
     ast_t* type = deferred_reify(c->frame->reify, ast_type(expr), c->opt);
     LLVMValueRef ret = gen_assign_cast(c, r_type, value, type);
+
+    if(c->opt->mutate)
+    {
+      AST_GET_CHILDREN(c->frame->reify->ast,
+        r_cap, r_id, r_typeparams, r_params, r_result_node);
+      ast_t* r_result = deferred_reify(c->frame->reify, r_result_node,
+        c->opt);
+      ret = mutate_rvr(c, ast, ret, r_result, type);
+      ast_free_unattached(r_result);
+    }
+
     ast_free_unattached(type);
+
     codegen_scope_lifetime_end(c);
     genfun_build_ret(c, ret);
   } else {
