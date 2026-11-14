@@ -4650,6 +4650,28 @@ class \nodoc\ iso _ChoiceEqTest is UnitTest
     // Cross-type
     h.assert_false(
       _ChoiceEq(_IntChoice(1, 0, 10, 0), _BoolChoice(true)))
+    // NaN is reflexive under bit comparison
+    let nan = F64(0) / F64(0)
+    let inf = F64(1) / F64(0)
+    h.assert_true(
+      _ChoiceEq(_FloatChoice(nan, 0.0, 1.0), _FloatChoice(nan, 0.0, 1.0)))
+    h.assert_true(
+      _ChoiceEq(_FloatChoice(1.0, nan, 2.0), _FloatChoice(1.0, nan, 2.0)))
+    h.assert_true(
+      _ChoiceEq(_FloatChoice(1.0, 0.0, nan), _FloatChoice(1.0, 0.0, nan)))
+    h.assert_true(
+      _ChoiceEq(
+        _FloatChoice(nan, -inf, inf), _FloatChoice(nan, -inf, inf)))
+    // -0.0 and 0.0 are distinct bit patterns
+    h.assert_false(
+      _ChoiceEq(
+        _FloatChoice(-F64(0), 0.0, 1.0), _FloatChoice(F64(0), 0.0, 1.0)))
+    h.assert_false(
+      _ChoiceEq(
+        _FloatChoice(1.0, -F64(0), 2.0), _FloatChoice(1.0, F64(0), 2.0)))
+    h.assert_false(
+      _ChoiceEq(
+        _FloatChoice(1.0, 0.0, -F64(0)), _FloatChoice(1.0, 0.0, F64(0))))
 
 class \nodoc\ iso _ChoiceSeqEqTest is UnitTest
   fun name(): String => "choice_seq_eq/basic"
@@ -4669,6 +4691,13 @@ class \nodoc\ iso _ChoiceSeqEqTest is UnitTest
     h.assert_false(_ChoiceSeqEq(a, c))
     h.assert_false(_ChoiceSeqEq(a, d))
     h.assert_true(_ChoiceSeqEq(empty, empty))
+    // Sequences containing NaN choices are reflexive
+    let nan = F64(0) / F64(0)
+    let nan_seq: Array[_Choice val] val =
+      [_FloatChoice(nan, 0.0, 1.0); _IntChoice(1, 0, 10, 0)]
+    let nan_seq2: Array[_Choice val] val =
+      [_FloatChoice(nan, 0.0, 1.0); _IntChoice(1, 0, 10, 0)]
+    h.assert_true(_ChoiceSeqEq(nan_seq, nan_seq2))
 
 class \nodoc\ iso _MutatorBoundsTest is UnitTest
   """
