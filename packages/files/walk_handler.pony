@@ -116,8 +116,21 @@ class val FilePath
           (try Path.is_sep(base.path(base.path.size() - 1)?) else false end) or
           (try Path.is_sep(tmp_path(base.path.size())?) else false end))
 
+    // A cleaned absolute path should never contain a `..` component.
+    // Reject it as a safeguard against Path.clean regressions.
+    let has_dotdot =
+      try
+        tmp_path.find("/../")?
+        true
+      else
+        (tmp_path.size() >= 3) and
+          (tmp_path.compare_sub(
+            "/..", 3, tmp_path.size().isize() - 3) is Equal)
+      end
+
     if
-      path'.contains("\x00") or tmp_path.contains("\x00") or not contained
+      path'.contains("\x00") or tmp_path.contains("\x00") or
+        not contained or has_dotdot
     then
       error
     end
