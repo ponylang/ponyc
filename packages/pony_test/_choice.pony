@@ -44,7 +44,9 @@ class val _FloatChoice is (Equatable[_FloatChoice] & Stringable)
     max = max'
 
   fun eq(other: box->_FloatChoice): Bool =>
-    (value == other.value) and (min == other.min) and (max == other.max)
+    (value.bits() == other.value.bits()) and
+      (min.bits() == other.min.bits()) and
+      (max.bits() == other.max.bits())
 
   fun string(): String =>
     recover val
