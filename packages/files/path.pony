@@ -263,21 +263,19 @@ primitive Path
       return "."
     end
 
-    var to_i: ISize = 0
-
     ifdef windows then
       to_clean = abs(to_clean)
       target_clean = abs(target_clean)
-
-      let to_vol = volume(to_clean)
-      let target_vol = volume(target_clean)
-
-      if to_vol != target_vol then
-        error
-      end
-
-      to_i = to_vol.size().isize()
     end
+
+    let to_vol = volume(to_clean)
+    let target_vol = volume(target_clean)
+
+    if to_vol != target_vol then
+      error
+    end
+
+    var to_i = to_vol.size().isize()
 
     var to_0 = to_i
     var target_i = to_i
