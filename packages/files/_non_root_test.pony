@@ -495,6 +495,32 @@ class \nodoc\ iso _TestPathRel is UnitTest
     let res = Path.rel("foo/bar", "foo/bar/baz")?
     h.assert_eq[String](res, "baz")
 
+    // Same network volume, child path
+    let r1 = Path.rel("//h/s", "//h/s/a")?
+    h.assert_eq[String](r1, "a")
+
+    // Same network volume, sibling path
+    let r2 = Path.rel("//h/s/a", "//h/s/b")?
+    h.assert_eq[String](r2, "../b")
+
+    // Same network volume, deeper traversal
+    let r3 = Path.rel("//h/s/a/b", "//h/s/c")?
+    h.assert_eq[String](r3, "../../c")
+
+    // Same network volume, round-trip
+    let r4 = Path.rel("//h/s/x", "//h/s/y/z")?
+    h.assert_eq[String](r4, "../y/z")
+    h.assert_eq[String](Path.clean(Path.join("//h/s/x", r4)), "//h/s/y/z")
+
+    // Different hosts
+    h.assert_error({()? => Path.rel("//a/b/x", "//c/d/y")? })
+
+    // Same host, different shares
+    h.assert_error({()? => Path.rel("//h/s1/a", "//h/s2/b")? })
+
+    // Network volume vs no volume
+    h.assert_error({()? => Path.rel("//h/s/a", "/b")? })
+
 class \nodoc\ iso _TestPathSplit is UnitTest
   fun name(): String => "files/Path.split"
 
