@@ -11,6 +11,7 @@ set(_c_src
     asio/event.c
     asio/kqueue.c
     asio/sock_notify.c
+    asio/wfo.c
     ds/fun.c
     ds/hash.c
     ds/list.c
@@ -101,6 +102,8 @@ else()
     if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
         set(LIBPONYRT_ARCHIVE libponyrt.a)
     elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD|DragonFly")
+        set(LIBPONYRT_ARCHIVE libponyrt.a)
+    elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Haiku")
         set(LIBPONYRT_ARCHIVE libponyrt.a)
     else()
         set(LIBPONYRT_ARCHIVE libponyrt-pic.a)
