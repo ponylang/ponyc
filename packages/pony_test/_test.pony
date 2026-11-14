@@ -109,6 +109,10 @@ actor \nodoc\ Main is TestList
     // Regression DB tests
     test(_EncodeNameSafeCharsTest)
     test(_EncodeNameSpecialCharsTest)
+    test(_EncodeNameUppercaseTest)
+    test(_RegressionDbHashInNameTest)
+    test(_RegressionDbCaseDistinctTest)
+    test(_RegressionDbTildeInNameTest)
     test(_RegressionDbSaveLoadClearTest)
     test(_RegressionDbLoadMissingTest)
     test(_RegressionDbCorruptDeletesTest)

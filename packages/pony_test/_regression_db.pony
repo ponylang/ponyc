@@ -5,8 +5,10 @@ primitive _RegressionDb
   Manages regression files for property-based tests.
 
   Supports multiple regressions per property for multi-failure mode.
-  The bare property name is used for the first (or only) regression;
-  indexed variants use `"name#2"`, `"name#3"`, etc.
+  The bare property name maps to `encoded.choices`; indexed variants
+  map to `encoded~2.choices`, `encoded~3.choices`, etc. The `~`
+  separator is appended after encoding, so it cannot collide with any
+  encoded property name.
   """
   fun resolve_dir(env: Env): (FilePath | None) =>
     """
@@ -45,7 +47,7 @@ primitive _RegressionDb
       result.push(choices)
     end
 
-    let prefix: String val = encoded + "%23"
+    let prefix: String val = encoded + "~"
     try
       let d = Directory(dir)?
       let entries = d.entries()?
@@ -58,7 +60,7 @@ primitive _RegressionDb
             entry.substring(
               prefix.size().isize(),
               entry.size().isize() - suffix.size().isize())
-          try mid.usize()? else continue end
+          try mid.usize(10)? else continue end
           match _load_one(dir, entry, property_name, logger)
           | let choices: Array[_Choice val] val =>
             result.push(choices)
@@ -113,9 +115,35 @@ primitive _RegressionDb
     logger: _PropertyLogger)
   =>
     """
-    Write a failing choice sequence to disk. Creates the directory if
-    needed. Best-effort — logs on failure.
+    Write a failing choice sequence to the bare (first/only) regression
+    file. Creates the directory if needed. Best-effort — logs on failure.
     """
+    let filename: String val = _encode_name(property_name) + ".choices"
+    _write(dir, filename, property_name, choices, logger)
+
+  fun save_indexed(
+    dir: FilePath,
+    property_name: String,
+    index: USize,
+    choices: Array[_Choice val] val,
+    logger: _PropertyLogger)
+  =>
+    """
+    Write a failing choice sequence to an indexed regression file.
+    `index` is the 1-based index (2, 3, ...) appended as `~N` after
+    encoding the property name.
+    """
+    let filename: String val =
+      _encode_name(property_name) + "~" + index.string() + ".choices"
+    _write(dir, filename, property_name, choices, logger)
+
+  fun _write(
+    dir: FilePath,
+    filename: String val,
+    property_name: String,
+    choices: Array[_Choice val] val,
+    logger: _PropertyLogger)
+  =>
     if not dir.exists() then
       if not dir.mkdir() then
         logger.log(
@@ -125,7 +153,6 @@ primitive _RegressionDb
       end
     end
 
-    let filename: String val = _encode_name(property_name) + ".choices"
     let path =
       try
         dir.join(filename)?
@@ -162,7 +189,7 @@ primitive _RegressionDb
 
     try dir.join(encoded + suffix)?.remove() end
 
-    let prefix: String val = encoded + "%23"
+    let prefix: String val = encoded + "~"
     try
       let d = Directory(dir)?
       let entries = d.entries()?
@@ -175,7 +202,7 @@ primitive _RegressionDb
             entry.substring(
               prefix.size().isize(),
               entry.size().isize() - suffix.size().isize())
-          try mid.usize()? else continue end
+          try mid.usize(10)? else continue end
           try dir.join(entry)?.remove() end
         end
       end
@@ -184,14 +211,15 @@ primitive _RegressionDb
   fun _encode_name(name: String): String =>
     """
     Percent-encode property name for use as a filename.
-    Lowercases [A-Z] to avoid collisions on case-insensitive filesystems.
-    Keeps [a-z0-9._-], encodes everything else.
+    Keeps [a-z0-9._-] literally, encodes everything else as `%XX`.
+    Uppercase letters are encoded (A → `%41`) rather than folded to
+    lowercase, so names differing only in case produce distinct files
+    while avoiding bare uppercase in filenames (safe on case-insensitive
+    filesystems).
     """
     let buf = recover iso String(name.size()) end
     for byte in name.values() do
-      if (byte >= 'A') and (byte <= 'Z') then
-        buf.push(byte + ('a' - 'A'))
-      elseif ((byte >= 'a') and (byte <= 'z')) or
+      if ((byte >= 'a') and (byte <= 'z')) or
         ((byte >= '0') and (byte <= '9')) or
         (byte == '.') or
         (byte == '_') or

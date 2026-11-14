@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix PonyTest regression database collisions between properties ([PR #6530](https://github.com/ponylang/ponyc/pull/6530))
 - Fix MultipartFormData header injection via CR/LF in names and content types ([PR #6523](https://github.com/ponylang/ponyc/pull/6523))
 - Fix C shims that include ponyassert.h ([PR #6495](https://github.com/ponylang/ponyc/pull/6495))
 - Apply runtime tracing category changes to ASIO ([PR #6494](https://github.com/ponylang/ponyc/pull/6494))
@@ -21,6 +22,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- PonyTest regression database encoding has changed ([PR #6530](https://github.com/ponylang/ponyc/pull/6530))
 - MultipartFormData uses WHATWG percent-encoding; file() is now partial ([PR #6523](https://github.com/ponylang/ponyc/pull/6523))
 - Rename `ponyint_futimesat` to `ponyint_utimensat` ([PR #6499](https://github.com/ponylang/ponyc/pull/6499))
 

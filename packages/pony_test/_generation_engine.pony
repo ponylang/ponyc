@@ -398,13 +398,12 @@ class ref _GenerationEngine
     match _regression_dir
     | let dir: FilePath =>
       if choices.size() > 0 then
-        let key =
-          if index == 0 then
-            _name
-          else
-            _name + "#" + (index + 1).string()
-          end
-        _RegressionDb.save(dir, key, choices, logger)
+        if index == 0 then
+          _RegressionDb.save(dir, _name, choices, logger)
+        else
+          _RegressionDb.save_indexed(
+            dir, _name, index + 1, choices, logger)
+        end
       end
     end
 
