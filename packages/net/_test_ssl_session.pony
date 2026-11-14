@@ -3664,6 +3664,10 @@ class \nodoc\ iso _TestMatchNameWildcard is UnitTest
   fun apply(h: TestHelper) =>
     h.assert_true(X509._match_name("foo.example.com", "*.example.com"))
     h.assert_true(X509._match_name("FOO.Example.COM", "*.example.com"))
+    h.assert_true(
+      X509._match_name("longsubdomain.example.com", "*.example.com"))
+    h.assert_true(
+      X509._match_name("bar.foo.example.com", "*.foo.example.com"))
 
 class \nodoc\ iso _TestMatchNameWildcardInsufficientLevels is UnitTest
   fun name(): String =>
@@ -3676,6 +3680,51 @@ class \nodoc\ iso _TestMatchNameWildcardInsufficientLevels is UnitTest
     h.assert_false(X509._match_name("example.com", "*."))
     // Wildcard followed by dot-dot is not valid
     h.assert_false(X509._match_name("foo.example.com", "*..com"))
+
+class \nodoc\ iso _TestMatchNamePrefixRejected is UnitTest
+  fun name(): String => "net/ssl/X509._match_name/prefix_rejected"
+
+  fun apply(h: TestHelper) =>
+    h.assert_false(X509._match_name("example.com", "example.co"))
+    h.assert_false(X509._match_name("example.com.evil.net", "example.com"))
+    h.assert_false(X509._match_name("example.comX", "example.com"))
+    h.assert_false(
+      X509._match_name("api.example.com", "api.example.co"))
+    h.assert_false(X509._match_name("10.0.0.1.nip.io", "10.0.0.1"))
+
+class \nodoc\ iso _TestMatchNameWildcardPrefixRejected is UnitTest
+  fun name(): String =>
+    "net/ssl/X509._match_name/wildcard_prefix_rejected"
+
+  fun apply(h: TestHelper) =>
+    h.assert_false(
+      X509._match_name("foo.example.com.evil.net", "*.example.com"))
+    h.assert_false(
+      X509._match_name("foo.example.com", "*.example.co"))
+    h.assert_false(
+      X509._match_name("foo.example.com", "*.example."))
+
+class \nodoc\ iso _TestMatchNameWildcardSingleLevelRejected is UnitTest
+  fun name(): String =>
+    "net/ssl/X509._match_name/wildcard_single_level_rejected"
+
+  fun apply(h: TestHelper) =>
+    h.assert_false(X509._match_name("foo.com", "*.com"))
+
+class \nodoc\ iso _TestMatchNameWildcardEmptyLabelRejected is UnitTest
+  fun name(): String =>
+    "net/ssl/X509._match_name/wildcard_empty_label_rejected"
+
+  fun apply(h: TestHelper) =>
+    h.assert_false(X509._match_name(".example.com", "*.example.com"))
+
+class \nodoc\ iso _TestMatchNameMultiLevelWildcardRejected is UnitTest
+  fun name(): String =>
+    "net/ssl/X509._match_name/multi_level_wildcard_rejected"
+
+  fun apply(h: TestHelper) =>
+    h.assert_false(
+      X509._match_name("a.b.example.com", "*.example.com"))
 
 primitive \nodoc\ _TestDTLSContext
   fun val apply(

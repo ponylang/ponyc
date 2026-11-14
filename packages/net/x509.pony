@@ -26,6 +26,13 @@ primitive _GeneralName
 primitive _GeneralNameStack
 primitive _Asn1String
 
+primitive _DNSSanTag
+primitive _IpSanTag
+primitive _CommonNameTag
+
+type _CertName is
+  ((_DNSSanTag, String) | (_IpSanTag, String) | (_CommonNameTag, String))
+
 primitive X509
   """
   Reads the names an OpenSSL X509 certificate is valid for, and matches a host
@@ -34,11 +41,36 @@ primitive X509
   """
   fun valid_for_host(cert: Pointer[X509], host: String): Bool =>
     """
-    Checks if an OpenSSL X509 certificate is valid for a given host.
+    Checks whether an OpenSSL X509 certificate is valid for a given host,
+    following RFC 6125. When the certificate has DNS SANs, the common name
+    is not checked. IP hosts are matched only against iPAddress SANs; DNS
+    hosts are matched against DNS SANs (and the CN when no DNS SAN exists).
+
+    IPv6 addresses are compared as strings, so a non-canonical form like
+    `0:0:0:0:0:0:0:1` does not match a canonical `::1` in the certificate.
     """
-    for name in all_names(cert).values() do
-      if _match_name(host, name) then
-        return true
+    let names = _all_typed_names(cert)
+    let is_ip = DNS.is_ip4(host) or DNS.is_ip6(host)
+
+    var has_dns_san = false
+    for n in names.values() do
+      match n
+      | (_DNSSanTag, _) => has_dns_san = true
+      end
+    end
+
+    for n in names.values() do
+      match \exhaustive\ n
+      | (_IpSanTag, let s: String) =>
+        if is_ip and (host == s) then return true end
+      | (_DNSSanTag, let s: String) =>
+        if (not is_ip) and _match_name(host, s) then return true end
+      | (_CommonNameTag, let s: String) =>
+        if
+          (not is_ip) and (not has_dns_san) and _match_name(host, s)
+        then
+          return true
+        end
       end
     end
     false
@@ -71,14 +103,26 @@ primitive X509
     NULL bytes are not included. This includes the common name and all subject
     alternate names.
     """
-    let array = recover Array[String] end
+    let typed = _all_typed_names(cert)
+    let array = recover Array[String](typed.size()) end
+    for entry in typed.values() do
+      match \exhaustive\ entry
+      | (_DNSSanTag, let s: String) => array.push(s)
+      | (_IpSanTag, let s: String) => array.push(s)
+      | (_CommonNameTag, let s: String) => array.push(s)
+      end
+    end
+    array
+
+  fun _all_typed_names(cert: Pointer[X509]): Array[_CertName] val =>
+    let array = recover Array[_CertName] end
 
     if cert.is_null() then
       return array
     end
 
     try
-      array.push(common_name(cert)?)
+      array.push((_CommonNameTag, common_name(cert)?))
     end
 
     let stack =
@@ -104,34 +148,27 @@ primitive X509
 
       match ptype
       | 2 => // GEN_DNS
-        // Check for V_ASN1_IA5STRING
         if @ASN1_STRING_type(value) == 22 then
           try
-            array.push(
-              recover
-                // Build a String from the ASN1 data.
+            let s: String val =
+              recover val
                 let data = @ASN1_STRING_get0_data(value)
                 let len = @ASN1_STRING_length(value)
-                let s = String.copy_cstring(data)
-
-                // If it contains NULL bytes, don't include it.
-                if s.size() != len.usize() then
-                  error
-                end
-
-                s
-              end)
+                let s' = String.copy_cstring(data)
+                if s'.size() != len.usize() then error end
+                s'
+              end
+            array.push((_DNSSanTag, s))
           end
         end
       | 7 => // GEN_IPADD
-        // Turn the IP address into a string.
-        array.push(
-          recover
-            // Build a String from the ASN1 data.
+        let s: String val =
+          recover val
             let data = @ASN1_STRING_get0_data(value)
             let len = @ASN1_STRING_length(value)
             String.from_cstring(@pony_os_ip_string(data, len))
-          end)
+          end
+        array.push((_IpSanTag, s))
       end
 
       @GENERAL_NAME_free(name)
@@ -155,45 +192,46 @@ primitive X509
 
   fun _match_name(host: String, name: String): Bool =>
     """
-    Returns true if the name extracted from the certificate is valid for the
-    given host.
+    Matches a DNS hostname against a single certificate name,
+    case-insensitively. Wildcards of the form `*.domain.tld` match a single
+    non-empty label.
     """
     if DNS.is_ip4(host) or DNS.is_ip6(host) then
-      // If the host is a literal IP address, it must match exactly.
       return host == name
     end
 
-    if (name.size() > 0) and
+    if (name.size() > 0) and (host.size() == name.size()) and
       (host.compare_sub(name, name.size(), 0, 0, true) is Equal)
     then
-      // If the names are the same ignoring case, they match.
       return true
     end
 
     try
       if name(0)? == '*' then
-        // The name has a wildcard. Must be followed by at least two
-        // non-empty domain levels.
         if (name.size() < 3) or (name(1)? != '.') or (name(2)? == '.') then
           return false
         end
 
-        try
-          // Find the second domain level and make sure it's followed by
-          // something other than a dot.
-          let offset = name.find(".", 3)?
-
-          if name.at_offset(offset + 1)? == '.' then
-            return false
-          end
+        // RFC 6125 §6.4.3: at least two non-empty domain levels after *.
+        let offset = name.find(".", 3)?
+        if name.at_offset(offset + 1)? == '.' then
+          return false
         end
 
-        // Get the host domain.
         let domain = host.find(".")?
 
-        // If the host domain is the wildcard domain ignoring case, they match.
+        if domain == 0 then
+          return false
+        end
+
+        let host_tail = host.size() - domain.usize()
+        let name_tail = name.size() - 1
+        if host_tail != name_tail then
+          return false
+        end
+
         return
-          host.compare_sub(name, name.size() - 1, domain, 1, true) is Equal
+          host.compare_sub(name, name_tail, domain, 1, true) is Equal
       end
     end
 
