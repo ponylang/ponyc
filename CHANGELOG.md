@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compilation failure on OpenBSD and DragonFly BSD ([PR #6499](https://github.com/ponylang/ponyc/pull/6499))
 - Fix `FilePath.from` letting `..` escape a `//` base path ([PR #6524](https://github.com/ponylang/ponyc/pull/6524))
 - Fix TLS hostname verification accepting prefix matches ([PR #6528](https://github.com/ponylang/ponyc/pull/6528))
+- Fix set and map generators silently returning fewer than `from` elements ([PR #6529](https://github.com/ponylang/ponyc/pull/6529))
 
 ### Added
 
