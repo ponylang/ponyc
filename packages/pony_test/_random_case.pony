@@ -934,6 +934,54 @@ class \nodoc\ iso _UnicodeBMPStringTest is UnitTest
           " outside [50, 100]")
     end
 
+class \nodoc\ iso _UTF32CodePointStringSurrogateErrorTest is UnitTest
+  fun name(): String => "Gen/utf32_codepoint_string_surrogate_error"
+
+  fun apply(h: TestHelper) =>
+    let gen =
+      Generators.utf32_codepoint_string(
+        Generators.u32(0xD800, 0xDFFF)
+        where from = 1, to = 1)
+    let rnd = Randomness(Time.millis())
+    try
+      gen.generate(rnd)?
+      h.fail("expected error when code-point generator yields only surrogates")
+    end
+
+class \nodoc\ iso _UTF32CodePointStringAboveMaxErrorTest is UnitTest
+  fun name(): String => "Gen/utf32_codepoint_string_above_max_error"
+
+  fun apply(h: TestHelper) =>
+    let gen =
+      Generators.utf32_codepoint_string(
+        Generators.u32(0x110000, U32.max_value())
+        where from = 1, to = 1)
+    let rnd = Randomness(Time.millis())
+    try
+      gen.generate(rnd)?
+      h.fail(
+        "expected error when code-point generator yields only values above" +
+          " 0x10FFFF")
+    end
+
+class \nodoc\ iso _UTF32CodePointStringRetryTest is UnitTest
+  fun name(): String => "Gen/utf32_codepoint_string_retry"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.utf32_codepoint_string(
+        Generators.u32(0, 0xFFFF)
+        where from = 10, to = 20)
+    let rnd = Randomness(Time.millis())
+    for i in Range[USize].till(0, 50) do
+      let sample = gen.generate(rnd)?
+      for cp in sample.runes() do
+        h.assert_true(
+          (cp <= 0xD7FF) or ((cp >= 0xE000) and (cp <= 0xFFFF)),
+          "retry path produced invalid code point")
+      end
+    end
+
 class \nodoc\ iso _SuccessfulIntProperty is IntProperty
   fun name(): String  => "property/int/property"
 

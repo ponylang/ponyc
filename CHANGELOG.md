@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix set and map generators silently returning fewer than `from` elements ([PR #6529](https://github.com/ponylang/ponyc/pull/6529))
 - Fix `Path.rel` producing wrong results for cross-volume `//` paths on non-Windows ([PR #6532](https://github.com/ponylang/ponyc/pull/6532))
 - Reject NaN target scores in pony_test target pool ([PR #6534](https://github.com/ponylang/ponyc/pull/6534))
+- Fix `Generators.utf32_codepoint_string` hanging on all-surrogate code-point generators ([PR #6533](https://github.com/ponylang/ponyc/pull/6533))
 - Fix Generators.f64 and f32 producing NaN with infinite bounds ([PR #6535](https://github.com/ponylang/ponyc/pull/6535))
 - Add missing DEL (0x7F) to PonyCheck ASCII range primitives ([PR #6537](https://github.com/ponylang/ponyc/pull/6537))
 
@@ -27,6 +28,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - PonyTest regression database encoding has changed ([PR #6530](https://github.com/ponylang/ponyc/pull/6530))
 - MultipartFormData uses WHATWG percent-encoding; file() is now partial ([PR #6523](https://github.com/ponylang/ponyc/pull/6523))
+- `Generators.utf32_codepoint_string` now rejects values above 0x10FFFF ([PR #6533](https://github.com/ponylang/ponyc/pull/6533))
 - Rename `ponyint_futimesat` to `ponyint_utimensat` ([PR #6499](https://github.com/ponylang/ponyc/pull/6499))
 
 ## [0.78.2] - 2026-11-12
