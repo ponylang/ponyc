@@ -1,10 +1,18 @@
 class ref _Shrinker
   """
-  Given a failing choice sequence, produces candidate sequences that are
-  shortlex-smaller and attempts to replay the generator against each one.
-  If replay succeeds and the property still fails, the candidate becomes
-  the new baseline. Repeats until no more reductions are found or the
-  budget is exhausted.
+  Given a failing choice sequence, produces candidate sequences and
+  attempts to replay the generator against each one. If replay succeeds
+  and the property still fails, the candidate becomes the new baseline.
+  Repeats until no more reductions are found or the budget is exhausted.
+
+  Each pass applies its own simplification rule — no single ordering
+  covers all passes. The sort pass reorders spans
+  shorter-first even when that makes the raw sequence lexicographically
+  larger; the lower pass moves values toward `shrink_towards`, which for
+  negative values is larger by raw comparison. Acceptance requires only
+  that the candidate differs from the baseline and the property still
+  fails; the result is simpler by the combined effect of the passes, not
+  minimal under a global ordering.
 
   Shrinking passes (in order):
   1. Delete spans — remove entire structural units
@@ -38,6 +46,7 @@ class ref _Shrinker
     choices: Array[_Choice val] val,
     spans: Array[_Span val] val)
   =>
+    if _ChoiceSeqEq(_choices, choices) then return end
     _choices = choices
     _spans = spans
     _reductions = _reductions + 1
@@ -180,9 +189,10 @@ class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
   On acceptance: hi = mid (search lower). On rejection: lo = mid (search
   higher toward the boundary where the property starts failing).
 
-  Float binary search near zero wastes iterations: successive midpoints
-  change by less than F64 can represent, so the search stalls until
-  mid == lo triggers the exit. Inherent to F64 halving.
+  Float binary search stalls when mid converges to lo (near-zero
+  halving) or when mid equals hi (infinity or extreme values where
+  halving the distance rounds back up). Both cases terminate the
+  search for that index.
   """
   let _shrinker: _Shrinker ref
   var _idx: USize = 0
@@ -246,7 +256,7 @@ class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
         _replace_choice(
           _idx,
           _FloatChoice(mid, fc.min, fc.max))?
-      if mid == _lo_f then
+      if (mid == _lo_f) or (mid == _hi_f) then
         _active = false
         _idx = _idx + 1
         _pending_mid_f = None
