@@ -18,7 +18,7 @@ class ref MultipartFormData
   ```pony
   let form = MultipartFormData
     .> field("username", "alice")
-    .> file("avatar", "photo.jpg", "image/jpeg", image_data)
+    .> file("avatar", "photo.jpg", "image/jpeg", image_data)?
   let req = Request.post("/upload")
     .multipart_body(form)
     .build()
@@ -44,8 +44,9 @@ class ref MultipartFormData
     """
     Add a text field to the form.
 
-    `"` and `\` in the name are automatically backslash-escaped in the
-    serialized `Content-Disposition` quoted-string.
+    `"`, CR, and LF in the name are percent-encoded (`%22`, `%0D`, `%0A`)
+    in the serialized `Content-Disposition` quoted-string, following the
+    WHATWG multipart/form-data encoding.
     """
     _parts.push(_MultipartField(name, value))
     this
@@ -55,14 +56,21 @@ class ref MultipartFormData
     filename: String,
     file_content_type: String,
     data: Array[U8] val)
-    : MultipartFormData ref
+    : MultipartFormData ref ?
   =>
     """
     Add a file attachment to the form.
 
-    `"` and `\` in the name and filename are automatically backslash-escaped
-    in the serialized `Content-Disposition` quoted-string.
+    `"`, CR, and LF in the name and filename are percent-encoded (`%22`,
+    `%0D`, `%0A`) in the serialized `Content-Disposition` quoted-string,
+    following the WHATWG multipart/form-data encoding.
+
+    Errors if `file_content_type` contains CR or LF, which would allow
+    header injection.
     """
+    for byte in file_content_type.values() do
+      if (byte == '\r') or (byte == '\n') then error end
+    end
     _parts.push(_MultipartFile(name, filename, file_content_type, data))
     this
 
@@ -84,9 +92,6 @@ class ref MultipartFormData
     `Content-Disposition` header; file parts additionally include a `filename`
     parameter and a `Content-Type` header. The body ends with a closing
     boundary.
-
-    Field names and filenames are backslash-escaped (`"` becomes `\"`, `\`
-    becomes `\\`) within `Content-Disposition` quoted-strings.
     """
     let buf = recover iso Array[U8] end
     for part in _parts.values() do
@@ -96,14 +101,14 @@ class ref MultipartFormData
       match \exhaustive\ part
       | let f: _MultipartField val =>
         buf.append("Content-Disposition: form-data; name=\"")
-        buf.append(_escape_quoted(f.name))
+        buf.append(_escape_name(f.name))
         buf.append("\"\r\n\r\n")
         buf.append(f.value)
       | let f: _MultipartFile val =>
         buf.append("Content-Disposition: form-data; name=\"")
-        buf.append(_escape_quoted(f.name))
+        buf.append(_escape_name(f.name))
         buf.append("\"; filename=\"")
-        buf.append(_escape_quoted(f.filename))
+        buf.append(_escape_name(f.filename))
         buf.append("\"\r\nContent-Type: ")
         buf.append(f.content_type)
         buf.append("\r\n\r\n")
@@ -116,12 +121,17 @@ class ref MultipartFormData
     buf.append("--\r\n")
     consume buf
 
-  fun _escape_quoted(input: String): String iso^ =>
+  fun _escape_name(input: String): String iso^ =>
     let buf = recover iso String(input.size()) end
     for byte in input.values() do
-      if (byte == '"') or (byte == '\\') then
-        buf.push('\\')
+      if byte == '"' then
+        buf.append("%22")
+      elseif byte == '\r' then
+        buf.append("%0D")
+      elseif byte == '\n' then
+        buf.append("%0A")
+      else
+        buf.push(byte)
       end
-      buf.push(byte)
     end
     consume buf

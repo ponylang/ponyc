@@ -40,7 +40,7 @@ primitive Request
   // POST with multipart form data
   let form = MultipartFormData
     .> field("username", "alice")
-    .> file("avatar", "photo.jpg", "image/jpeg", image_data)
+    .> file("avatar", "photo.jpg", "image/jpeg", image_data)?
   let req = Request.post("/upload")
     .multipart_body(form)
     .build()

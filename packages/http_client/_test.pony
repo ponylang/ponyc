@@ -143,14 +143,19 @@ actor \nodoc\ Main is TestList
     test(_TestMultipartBuilderIntegration)
     test(_TestMultipartNonAsciiFilename)
 
-    // Multipart escaping property-based tests
-    test.property(_PropertyMultipartEscapedNamesWellFormed)
+    // Multipart name-encoding property-based tests
+    test.property(_PropertyMultipartEncodedNamesWellFormed)
 
-    // Multipart escaping example-based tests
+    // Multipart name-encoding example-based tests
     test(_TestMultipartFieldNameWithQuote)
     test(_TestMultipartFilenameWithQuote)
     test(_TestMultipartFieldNameWithBackslash)
     test(_TestMultipartFilenameWithBothSpecials)
+    test(_TestMultipartFieldNameWithCRLF)
+    test(_TestMultipartFieldNameWithBareLF)
+    test(_TestMultipartFilenameWithCR)
+    test(_TestMultipartFileContentTypeRejectsCR)
+    test(_TestMultipartFileContentTypeRejectsLF)
 
     // Redirect tests
     test(_TestRedirectCrossOriginStripsCredentials)
