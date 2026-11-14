@@ -15,6 +15,7 @@ class ref Randomness
   Integer methods generate values in the closed interval [min, max].
   Floating-point methods scale onto [min, max]; `min` is always reachable,
   `max` is an approximate upper bound due to floating-point rounding.
+  Infinite bounds are clamped to the largest finite value.
   """
   let _random: Random
   var _mode: _RandomnessMode = _ModePlain
@@ -142,13 +143,19 @@ class ref Randomness
 
   fun ref f32(min: F32 = 0.0, max: F32 = 1.0): F32 =>
     """
-    Generate an F32 in the range from `min` to `max`.
+    Generate an F32 in the range from `min` to `max`. Infinite bounds
+    are clamped to the largest finite value.
     """
-    _draw_float(min.f64(), max.f64()).f32()
+    let cmin: F64 =
+      if min < -F32.max_value() then -F32.max_value().f64() else min.f64() end
+    let cmax: F64 =
+      if max > F32.max_value() then F32.max_value().f64() else max.f64() end
+    _draw_float(cmin, cmax).f32()
 
   fun ref f64(min: F64 = 0.0, max: F64 = 1.0): F64 =>
     """
-    Generate an F64 in the range from `min` to `max`.
+    Generate an F64 in the range from `min` to `max`. Infinite bounds
+    are clamped to the largest finite value.
     """
     _draw_float(min, max)
 
@@ -381,12 +388,16 @@ class ref Randomness
     end
 
   fun ref _draw_float(min: F64, max: F64): F64 =>
+    let cmin: F64 =
+      if min < -F64.max_value() then -F64.max_value() else min end
+    let cmax: F64 =
+      if max > F64.max_value() then F64.max_value() else max end
     match \exhaustive\ _mode
     | _ModePlain =>
-      _float_in_range(_random.real(), min, max)
+      _float_in_range(_random.real(), cmin, cmax)
     | _ModeRecording =>
-      let v = _float_in_range(_random.real(), min, max)
-      _choices.push(_FloatChoice(v, min, max))
+      let v = _float_in_range(_random.real(), cmin, cmax)
+      _choices.push(_FloatChoice(v, cmin, cmax))
       v
     | _ModeReplaying =>
       if _replay_idx < _replay_seq.size() then
@@ -394,15 +405,17 @@ class ref Randomness
           match _replay_seq(_replay_idx)?
           | let fc: _FloatChoice =>
             _replay_idx = _replay_idx + 1
-            return fc.value.max(min).min(max)
+            let raw = fc.value
+            if raw.nan() then return cmin end
+            return raw.max(cmin).min(cmax)
           end
         else
           _Unreachable()
         end
       end
       _replay_exhausted_flag = true
-      let v = _float_in_range(_random.real(), min, max)
-      _choices.push(_FloatChoice(v, min, max))
+      let v = _float_in_range(_random.real(), cmin, cmax)
+      _choices.push(_FloatChoice(v, cmin, cmax))
       v
     end
 

@@ -730,6 +730,113 @@ class \nodoc\ iso _GenF64NaNTest is UnitTest
       h.fail("f64 NaN input should error")
     end
 
+class \nodoc\ iso _GenF32InfTest is UnitTest
+  fun name(): String => "Gen/f32_inf_errors"
+
+  fun apply(h: TestHelper) =>
+    let rnd = Randomness(Time.millis())
+    let inf = F32(1) / F32(0)
+    let gen = Generators.f32(where from = -inf, to = inf)
+    try
+      gen.generate(rnd)?
+      h.fail("f32 infinite input should error")
+    end
+
+class \nodoc\ iso _GenF64InfTest is UnitTest
+  fun name(): String => "Gen/f64_inf_errors"
+
+  fun apply(h: TestHelper) =>
+    let rnd = Randomness(Time.millis())
+    let inf = F64(1) / F64(0)
+    let gen = Generators.f64(where from = 0.0, to = inf)
+    try
+      gen.generate(rnd)?
+      h.fail("f64 infinite input should error")
+    end
+
+class \nodoc\ iso _RandomnessF64InfClampTest is UnitTest
+  """
+  Randomness.f64 with infinite bounds produces finite values.
+  """
+  fun name(): String => "Randomness/f64_inf_clamp"
+
+  fun apply(h: TestHelper) =>
+    let rnd = Randomness(42)
+    let inf = F64(1) / F64(0)
+    for i in Range[USize].till(0, 1000) do
+      let v = rnd.f64(-inf, inf)
+      let s = v.string()
+      h.assert_true(v.finite(), "f64(-inf, inf) produced non-finite: " + s)
+    end
+    for i in Range[USize].till(0, 1000) do
+      let v = rnd.f64(0, inf)
+      let s = v.string()
+      h.assert_true(v.finite(), "f64(0, inf) produced non-finite: " + s)
+      h.assert_true(v >= 0, "f64(0, inf) produced negative: " + s)
+    end
+    for i in Range[USize].till(0, 1000) do
+      let v = rnd.f64(-inf, 0)
+      let s = v.string()
+      h.assert_true(v.finite(), "f64(-inf, 0) produced non-finite: " + s)
+      h.assert_true(v <= 0, "f64(-inf, 0) produced positive: " + s)
+    end
+
+class \nodoc\ iso _RandomnessF32InfClampTest is UnitTest
+  """
+  Randomness.f32 with infinite bounds produces finite values.
+  """
+  fun name(): String => "Randomness/f32_inf_clamp"
+
+  fun apply(h: TestHelper) =>
+    let rnd = Randomness(42)
+    let inf = F32(1) / F32(0)
+    for i in Range[USize].till(0, 1000) do
+      let v = rnd.f32(-inf, inf)
+      let s = v.string()
+      h.assert_true(v.finite(), "f32(-inf, inf) produced non-finite: " + s)
+    end
+    for i in Range[USize].till(0, 1000) do
+      let v = rnd.f32(0, inf)
+      let s = v.string()
+      h.assert_true(v.finite(), "f32(0, inf) produced non-finite: " + s)
+      h.assert_true(v >= 0, "f32(0, inf) produced negative: " + s)
+    end
+    for i in Range[USize].till(0, 1000) do
+      let v = rnd.f32(-inf, 0)
+      let s = v.string()
+      h.assert_true(v.finite(), "f32(-inf, 0) produced non-finite: " + s)
+      h.assert_true(v <= 0, "f32(-inf, 0) produced positive: " + s)
+    end
+
+class \nodoc\ iso _MutatorFloatOverflowTest is UnitTest
+  """
+  _perturb_float with a range that overflows to infinity produces
+  finite values.
+  """
+  fun name(): String => "mutator/float_overflow"
+
+  fun apply(h: TestHelper) =>
+    let choices: Array[_Choice val] val =
+      [_FloatChoice(0.0, -F64.max_value(), F64.max_value())]
+    let rnd = Randomness(42)
+    var i: USize = 0
+    while i < 200 do
+      let mutated = _ChoiceMutator(choices, rnd)
+      try
+        match mutated(0)?
+        | let fc: _FloatChoice =>
+          let s = i.string()
+          h.assert_false(fc.value.nan(), "perturbed float is NaN at " + s)
+          h.assert_true(fc.value.finite(), "perturbed float is inf at " + s)
+        else
+          h.fail("expected FloatChoice at index 0")
+        end
+      else
+        h.fail("index out of bounds in mutated array")
+      end
+      i = i + 1
+    end
+
 class \nodoc\ iso _UTF32CodePointStringTest is UnitTest
   fun name(): String => "Gen/utf32_codepoint_string"
 
