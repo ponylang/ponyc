@@ -332,3 +332,8 @@ actor \nodoc\ Main is TestList
     test(_TestMatchNameIPLiteral)
     test(_TestMatchNameWildcard)
     test(_TestMatchNameWildcardInsufficientLevels)
+    test(_TestMatchNamePrefixRejected)
+    test(_TestMatchNameWildcardPrefixRejected)
+    test(_TestMatchNameWildcardSingleLevelRejected)
+    test(_TestMatchNameWildcardEmptyLabelRejected)
+    test(_TestMatchNameMultiLevelWildcardRejected)
