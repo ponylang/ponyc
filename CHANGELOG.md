@@ -22,6 +22,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix identical NaN property failures reported as distinct ([PR #6538](https://github.com/ponylang/ponyc/pull/6538))
 - Fix `XorOshiro128Plus(0, 0)` and `XorShift128Plus(0, 0)` producing only zeros ([PR #NNNN](https://github.com/ponylang/ponyc/pull/NNNN))
 - Fix pony_test `Randomness` producing degenerate sequences for seed 0 ([PR #NNNN](https://github.com/ponylang/ponyc/pull/NNNN))
+- Fix `XorOshiro128Plus(0, 0)` and `XorShift128Plus(0, 0)` producing only zeros ([PR #6539](https://github.com/ponylang/ponyc/pull/6539))
+- Fix pony_test `Randomness` producing degenerate sequences for seed 0 ([PR #6539](https://github.com/ponylang/ponyc/pull/6539))
 
 ### Added
 
