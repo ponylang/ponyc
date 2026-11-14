@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `Path.rel` producing wrong results for cross-volume `//` paths on non-Windows ([PR #6532](https://github.com/ponylang/ponyc/pull/6532))
 - Reject NaN target scores in pony_test target pool ([PR #6534](https://github.com/ponylang/ponyc/pull/6534))
 - Fix Generators.f64 and f32 producing NaN with infinite bounds ([PR #6535](https://github.com/ponylang/ponyc/pull/6535))
+- Add missing DEL (0x7F) to PonyCheck ASCII range primitives ([PR #6537](https://github.com/ponylang/ponyc/pull/6537))
 
 ### Added
 
