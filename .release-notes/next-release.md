@@ -78,3 +78,9 @@ Existing `.ponytest/` regression files from the old encoding are not migrated. T
 
 `Path.rel` silently returned a wrong relative path when called with two `//` network paths on different volumes (e.g., `Path.rel("//host1/share1/a", "//host2/share2/b")`). Joining the result back produced a path on the first volume, not the second. The call now correctly errors when the two paths have different volumes, matching the existing behavior on Windows.
 
+## Fix NaN target score replacing the best entry in PonyCheck's target pool
+
+`PropertyHelper.target` accepted NaN scores, which silently replaced the best entry in the target pool. Once a NaN was stored, the next score of any value replaced it, losing the original best choice sequence. A scoring function that returned `0/0` or the difference of two infinities was enough to break targeting for that label.
+
+A NaN score now fails the property with a diagnostic message naming the label. Infinite scores are unaffected — they compare normally.
+
