@@ -2725,6 +2725,25 @@ class \nodoc\ iso _DirectSometimesErroringGeneratorTest is UnitTest
       all_passed,
       "sometimes-erroring generator should complete all samples")
 
+class \nodoc\ iso _DirectNaNTargetTest is UnitTest
+  """
+  _PropertyExec.target returns false for a NaN score and true for
+  valid scores.
+  """
+  fun name(): String => "property/direct/nan_target"
+
+  fun apply(h: TestHelper) =>
+    let prop = _SuccessfulProperty
+    let params = PropertyParams(where num_samples' = 10)
+    let exec = _PropertyExec[U8](consume prop, params, h, h.env)
+    let ph = PropertyHelper._create(h, 0)
+    exec.run_sample(ph)
+    exec.sample_passed()
+
+    h.assert_true(exec.target(5.0, "a"), "valid score should return true")
+    h.assert_false(exec.target(F64(0) / F64(0), "a"), "NaN should return false")
+    h.assert_true(exec.target(10.0, "a"), "valid score after NaN should work")
+
 class \nodoc\ iso _DirectFailingStatefulTest is UnitTest
   fun name(): String => "stateful/direct/failing_counter"
 
@@ -4631,6 +4650,58 @@ class \nodoc\ iso _TargetPoolUpdateTest is UnitTest
 
     // Non-existent label returns None
     h.assert_true(engine._target_score("z") is None)
+
+class \nodoc\ iso _TargetPoolNaNTest is UnitTest
+  """
+  observe_target rejects NaN scores: returns false, leaves the pool
+  unchanged.
+  """
+  fun name(): String => "target_pool/nan"
+
+  fun apply(h: TestHelper) =>
+    let params = PropertyParams(where num_samples' = 10)
+    let engine = _GenerationEngine(params, "test", h.env)
+
+    // Establish a valid best score
+    engine.begin_sample()
+    engine.rnd().u8()
+    h.assert_true(engine.observe_target(10.0, "a"))
+    engine.collect_health_metrics()
+    engine.inc_samples_run()
+
+    // NaN must not replace it
+    engine.begin_sample()
+    engine.rnd().u8()
+    let nan = F64(0) / F64(0)
+    h.assert_false(engine.observe_target(nan, "a"))
+    engine.collect_health_metrics()
+    engine.inc_samples_run()
+
+    match engine._target_score("a")
+    | let s: F64 => h.assert_eq[F64](s, 10.0)
+    else h.fail("NaN displaced the best score")
+    end
+
+    // NaN as the first score for a label is also rejected
+    engine.begin_sample()
+    engine.rnd().u8()
+    h.assert_false(engine.observe_target(nan, "b"))
+    engine.collect_health_metrics()
+    engine.inc_samples_run()
+
+    h.assert_true(engine._target_score("b") is None)
+
+    // Valid scores still work after NaN rejection
+    engine.begin_sample()
+    engine.rnd().u8()
+    h.assert_true(engine.observe_target(20.0, "a"))
+    engine.collect_health_metrics()
+    engine.inc_samples_run()
+
+    match engine._target_score("a")
+    | let s: F64 => h.assert_eq[F64](s, 20.0)
+    else h.fail("valid score after NaN rejection failed")
+    end
 
 class \nodoc\ iso _EffectiveChoicesTest is UnitTest
   """

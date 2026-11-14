@@ -112,7 +112,9 @@ class ref _GenerationEngine
       score
     end
 
-  fun ref observe_target(score: F64, label: String) =>
+  fun ref observe_target(score: F64, label: String): Bool =>
+    if score.nan() then return false end
+
     let current_choices = _get_effective_choices()
 
     let dominated =
@@ -139,6 +141,7 @@ class ref _GenerationEngine
         _target_labels.push(label)
       end
     end
+    true
 
   fun ref _get_effective_choices(): Array[_Choice val] val =>
     """

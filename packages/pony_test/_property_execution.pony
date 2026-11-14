@@ -21,7 +21,7 @@ interface ref _PropertyExecution
   fun ref classify(label: String)
   fun ref tabulate(heading: String, label: String)
   fun ref cover(condition: Bool, label: String, min_pct: F64)
-  fun ref target(score: F64, label: String)
+  fun ref target(score: F64, label: String): Bool
   fun ref check_regression(h: PropertyHelper): Bool
   fun ref clear_regression()
   fun ref regression_repr(): String
@@ -285,8 +285,12 @@ class ref _PropertyExec[T] is _PropertyExecution
   fun ref cover(condition: Bool, label: String, min_pct: F64) =>
     if not _shrinking then _engine.cover(condition, label, min_pct) end
 
-  fun ref target(score: F64, label: String) =>
-    if not _shrinking then _engine.observe_target(score, label) end
+  fun ref target(score: F64, label: String): Bool =>
+    if not _shrinking then
+      _engine.observe_target(score, label)
+    else
+      true
+    end
 
   fun ref is_shrinking(): Bool => _shrinking
 

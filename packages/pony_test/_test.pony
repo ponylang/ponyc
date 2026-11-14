@@ -193,6 +193,7 @@ actor \nodoc\ Main is TestList
     test(_DirectErroringPropertyTest)
     test(_DirectErroringGeneratorTest)
     test(_DirectSometimesErroringGeneratorTest)
+    test(_DirectNaNTargetTest)
     test(_DirectFailingStatefulTest)
     test(_DirectStepAlwaysRejectsTest)
     test(_DirectStepRetryTest)
@@ -264,6 +265,7 @@ actor \nodoc\ Main is TestList
 
     // Target pool tests
     test(_TargetPoolUpdateTest)
+    test(_TargetPoolNaNTest)
     test(_EffectiveChoicesTest)
 
     // Targeted property test

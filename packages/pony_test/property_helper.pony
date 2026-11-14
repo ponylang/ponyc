@@ -47,6 +47,8 @@ class val PropertyHelper
     Bias future generation toward inputs that maximize `score`.
     Call with different labels to track multiple independent
     objectives. To minimize, negate the score.
+
+    A NaN score fails the property. Infinite scores order normally.
     """
     _h._property_target(score, label, _sample_id)
 
