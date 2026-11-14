@@ -108,6 +108,8 @@ actor \nodoc\ Main is TestList
     test(_ShrinkerLowerFloatTest)
     test(_ShrinkerDeleteDiscardedSpanTest)
     test(_ShrinkerSortSpansLengthTest)
+    test(_ShrinkerRejectIdenticalTest)
+    test(_ShrinkerLowerFloatStallTest)
 
     // Serializer tests
     test(_SerializerRoundTripAllTypesTest)

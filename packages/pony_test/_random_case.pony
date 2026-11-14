@@ -1943,6 +1943,66 @@ class \nodoc\ iso _ShrinkerSortSpansLengthTest is UnitTest
     else h.fail("expected IntChoice at 2")
     end
 
+class \nodoc\ iso _ShrinkerRejectIdenticalTest is UnitTest
+  fun name(): String => "shrinker/reject_identical"
+
+  fun apply(h: TestHelper) =>
+    let choices: Array[_Choice val] val =
+      [_IntChoice(50, 0, 100, 0); _IntChoice(30, 0, 100, 0)]
+    let spans: Array[_Span val] val =
+      [_Span(0, 1, SpanElement, false); _Span(1, 2, SpanElement, false)]
+    let shrinker = _Shrinker(choices, spans)
+
+    shrinker.accept(choices, spans)
+    h.assert_eq[USize](
+      shrinker.reductions(),
+      0,
+      "identical candidate should not count as a reduction")
+    h.assert_true(
+      _ChoiceSeqEq(shrinker.current_choices(), choices),
+      "baseline should be unchanged after rejecting identical candidate")
+
+    let different: Array[_Choice val] val =
+      [_IntChoice(25, 0, 100, 0); _IntChoice(30, 0, 100, 0)]
+    shrinker.accept(different, spans)
+    h.assert_eq[USize](
+      shrinker.reductions(),
+      1,
+      "different candidate should count as a reduction")
+    h.assert_true(
+      _ChoiceSeqEq(shrinker.current_choices(), different),
+      "baseline should update to the accepted candidate")
+
+class \nodoc\ iso _ShrinkerLowerFloatStallTest is UnitTest
+  fun name(): String => "shrinker/lower_float_stall"
+
+  fun apply(h: TestHelper) =>
+    let inf = F64.from_bits(0x7FF0_0000_0000_0000)
+    let choices: Array[_Choice val] val =
+      [_FloatChoice(inf, 0.0, F64.max_value())]
+    let spans: Array[_Span val] val =
+      [_Span(0, 1, SpanElement, false)]
+    let shrinker = _Shrinker(choices, spans)
+    let iter = _LowerChoicesIter(shrinker)
+
+    var count: USize = 0
+    while iter.has_next() do
+      try
+        iter.next()?
+        count = count + 1
+        if count > 200 then
+          h.fail("lower-float iterator did not terminate")
+          return
+        end
+      else
+        break
+      end
+    end
+    h.assert_eq[USize](
+      count,
+      1,
+      "stalled binary search should produce exactly one candidate")
+
 // --- Serializer tests ---
 class \nodoc\ iso _SerializerRoundTripAllTypesTest is UnitTest
   fun name(): String => "serializer/round_trip_all_types"
