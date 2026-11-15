@@ -128,8 +128,12 @@ from unencoded text — it preserves `ucschar` codepoints as literal UTF-8
 while applying the same ASCII encoding rules.
 
 Use `NormalizeIRI` for IRI-aware normalization (applies `NormalizeURI` then
-decodes `ucschar` sequences back to literal UTF-8). Use `IRIEquivalent`
-to test equivalence across IRI and URI forms.
+decodes `ucschar` sequences back to literal UTF-8). Returns
+`InvalidIRILiteral` if the input contains literal non-ASCII characters that
+are not allowed in an IRI — `iprivate` outside the query, bidi formatting
+characters, or invalid UTF-8. Use `IRIEquivalent` to test equivalence
+across IRI and URI forms; it also returns `InvalidIRILiteral` for the
+same reasons.
 
 """
 

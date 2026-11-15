@@ -218,8 +218,12 @@ class \nodoc\ iso _PropertyNormalizeIRIIdempotent
             " original=" + uri.string())
       | let e: InvalidPercentEncoding val =>
         ph.fail("second normalization failed for: " + once.string())
+      | let e: InvalidIRILiteral val =>
+        ph.fail("second normalization failed for: " + once.string())
       end
     | let e: InvalidPercentEncoding val =>
+      ph.fail("first normalization failed for: " + uri.string())
+    | let e: InvalidIRILiteral val =>
       ph.fail("first normalization failed for: " + uri.string())
     end
 
@@ -240,6 +244,8 @@ class \nodoc\ iso _PropertyIRIEquivalentReflexive
       ph.assert_true(
         result, "not reflexive: " + uri.string())
     | let e: InvalidPercentEncoding val =>
+      ph.fail("equivalence failed for: " + uri.string())
+    | let e: InvalidIRILiteral val =>
       ph.fail("equivalence failed for: " + uri.string())
     end
 
@@ -264,6 +270,8 @@ class \nodoc\ iso _PropertyIRIEquivalentCrossForms
           "IRI and URI form not equivalent: iri=" + iri.string() +
             " uri=" + uri_form.string())
       | let e: InvalidPercentEncoding val =>
+        ph.fail("equivalence failed: " + iri.string())
+      | let e: InvalidIRILiteral val =>
         ph.fail("equivalence failed: " + iri.string())
       end
     | let _: URIParseError val => None
@@ -727,6 +735,8 @@ class \nodoc\ iso _TestNormalizeIRIKnownGood is UnitTest
           "NormalizeIRI(" + input + ")")
       | let e: InvalidPercentEncoding val =>
         h.fail("normalization failed for " + input + ": " + e.string())
+      | let e: InvalidIRILiteral val =>
+        h.fail("normalization failed for " + input + ": " + e.string())
       end
     | let e: URIParseError val =>
       h.fail("parse failed for " + input + ": " + e.string())
@@ -747,6 +757,9 @@ class \nodoc\ iso _TestNormalizeIRIKnownGood is UnitTest
           result,
           "IRIEquivalent(" + a_str + ", " + b_str + ")")
       | let e: InvalidPercentEncoding val =>
+        h.fail("equivalence failed for (" + a_str + ", " + b_str +
+          "): " + e.string())
+      | let e: InvalidIRILiteral val =>
         h.fail("equivalence failed for (" + a_str + ", " + b_str +
           "): " + e.string())
       end
@@ -845,3 +858,132 @@ primitive \nodoc\ _UcscharStringGenerator
         "r\xE9sum\xE9"      // résumé
         "hello"              // pure ASCII
       ])
+
+class \nodoc\ iso _TestNormalizeIRIIllegalLiterals is UnitTest
+  """
+  NormalizeIRI returns InvalidIRILiteral for literal non-ASCII characters
+  that are not allowed in an IRI.
+  """
+  fun name(): String => "uri/normalize_iri/illegal_literals"
+
+  fun ref apply(h: TestHelper) =>
+    // Private-use U+E000 in path — illegal outside query
+    _assert_illegal(h, "http://example.com/ab")
+    // Private-use U+E000 in fragment
+    _assert_illegal(h, "http://example.com/a#")
+    // Private-use U+E000 in host
+    _assert_illegal(h, "http://example.com/")
+    // C1 control U+0080 in path
+    _assert_illegal(h, "http://example.com/a\x80b")
+    // Bidi formatting U+200E (LRM) in path
+    _assert_illegal(h, "http://example.com/a‎b")
+    // Bidi formatting U+202E (RLO) in query
+    _assert_illegal(h, "http://example.com/a?‮")
+    // Noncharacter U+FDD0 in path
+    _assert_illegal(h, "http://example.com/a﷐b")
+    // U+FFFE in path
+    _assert_illegal(h, "http://example.com/a￾b")
+    // C1 control U+0085 in userinfo
+    _assert_illegal(h, "http://u\x85@example.com/")
+    // U+009F (last C1 control) — illegal
+    _assert_illegal(h, "http://example.com/a\xC2\x9Fb")
+    // U+00A0 (first ucschar) — legal
+    _assert_legal(h, "http://example.com/a\xC2\xA0b")
+
+    // Private-use U+E000 in query — legal per RFC 3987
+    _assert_legal(h, "http://example.com/a?q=")
+
+    // Pure ucschar — legal everywhere
+    _assert_legal(h, "http://example.com/caf\xE9")
+    _assert_legal(h, "http://example.com/世")
+
+    // Pure ASCII — always legal
+    _assert_legal(h, "http://example.com/path")
+
+    // Invalid UTF-8 byte 0xFF in path
+    let bad: String val =
+      recover val
+        String
+          .> append("http://example.com/a")
+          .> push(0xFF)
+          .> append("b")
+      end
+    _assert_illegal(h, bad)
+
+  fun _assert_illegal(h: TestHelper, input: String) =>
+    match \exhaustive\ ParseURI(input)
+    | let u: URI val =>
+      match \exhaustive\ NormalizeIRI(u)
+      | let _: URI val =>
+        h.fail("expected InvalidIRILiteral for: " + input)
+      | let _: InvalidPercentEncoding val =>
+        h.fail(
+          "expected InvalidIRILiteral, got InvalidPercentEncoding for: " +
+          input)
+      | let _: InvalidIRILiteral val => None
+      end
+    | let e: URIParseError val =>
+      h.fail("parse failed for: " + input)
+    end
+
+  fun _assert_legal(h: TestHelper, input: String) =>
+    match \exhaustive\ ParseURI(input)
+    | let u: URI val =>
+      match \exhaustive\ NormalizeIRI(u)
+      | let _: URI val => None
+      | let e: InvalidPercentEncoding val =>
+        h.fail("unexpected error for: " + input + ": " + e.string())
+      | let e: InvalidIRILiteral val =>
+        h.fail("unexpected error for: " + input + ": " + e.string())
+      end
+    | let e: URIParseError val =>
+      h.fail("parse failed for: " + input)
+    end
+
+class \nodoc\ iso _TestIRIEquivalentIllegalLiterals is UnitTest
+  """
+  IRIEquivalent returns InvalidIRILiteral when either input contains
+  illegal literal non-ASCII characters.
+  """
+  fun name(): String => "uri/iri_equivalent/illegal_literals"
+
+  fun ref apply(h: TestHelper) =>
+    // Private-use U+E000 in path — IRIEquivalent(x, IRIToURI(x)) errors
+    match \exhaustive\ ParseURI("http://example.com/ab")
+    | let x: URI val =>
+      let u = IRIToURI(x)
+      match \exhaustive\ IRIEquivalent(x, u)
+      | let _: Bool =>
+        h.fail("expected InvalidIRILiteral for private-use in path")
+      | let _: InvalidPercentEncoding val =>
+        h.fail("expected InvalidIRILiteral, got InvalidPercentEncoding")
+      | let _: InvalidIRILiteral val => None
+      end
+
+      // IRIEquivalent(x, x) also errors for invalid IRIs
+      match \exhaustive\ IRIEquivalent(x, x)
+      | let _: Bool =>
+        h.fail("expected InvalidIRILiteral for reflexive case")
+      | let _: InvalidPercentEncoding val =>
+        h.fail("expected InvalidIRILiteral, got InvalidPercentEncoding")
+      | let _: InvalidIRILiteral val => None
+      end
+    | let _: URIParseError val =>
+      h.fail("parse failed")
+    end
+
+    // One valid, one with illegal literal — the illegal one triggers the error
+    match \exhaustive\ (
+      ParseURI("http://example.com/path"),
+      ParseURI("http://example.com/ab"))
+    | (let good: URI val, let bad: URI val) =>
+      match \exhaustive\ IRIEquivalent(good, bad)
+      | let _: Bool =>
+        h.fail("expected InvalidIRILiteral")
+      | let _: InvalidPercentEncoding val =>
+        h.fail("expected InvalidIRILiteral, got InvalidPercentEncoding")
+      | let _: InvalidIRILiteral val => None
+      end
+    else
+      h.fail("parse failed")
+    end
