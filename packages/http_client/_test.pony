@@ -119,6 +119,11 @@ actor \nodoc\ Main is TestList
     test(_TestBuilderBodyNarrows)
     test(_TestBuilderDeleteWithBody)
     test(_TestBuilderNoQueryParams)
+    test(_TestBuilderQueryParamsWithExistingQuery)
+    test(_TestBuilderQueryParamsWithTrailingQuestion)
+    test(_TestBuilderQueryParamsWithTrailingAmpersand)
+    test(_TestBuilderMultipleQueryParamsWithExistingQuery)
+    test(_TestBuilderExistingQueryNoBuilderParams)
 
     // Response JSON example-based tests
     test(_TestResponseJSONValidObject)

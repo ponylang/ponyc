@@ -215,3 +215,55 @@ class \nodoc\ iso _TestBuilderNoQueryParams is UnitTest
   fun apply(h: TestHelper) =>
     let req = Request.get("/users").build()
     h.assert_eq[String val]("/users", req.path)
+
+class \nodoc\ iso _TestBuilderQueryParamsWithExistingQuery is UnitTest
+  """Builder params are appended with `&` when the path has a query."""
+  fun name(): String => "request_builder/query_params_with_existing_query"
+
+  fun apply(h: TestHelper) =>
+    let req = Request.get("/s?x=1")
+      .query("q", "v")
+      .build()
+    h.assert_eq[String val]("/s?x=1&q=v", req.path)
+
+class \nodoc\ iso _TestBuilderQueryParamsWithTrailingQuestion is UnitTest
+  """Builder params follow a trailing `?` without doubling it."""
+  fun name(): String => "request_builder/query_params_with_trailing_question"
+
+  fun apply(h: TestHelper) =>
+    let req = Request.get("/s?")
+      .query("q", "v")
+      .build()
+    h.assert_eq[String val]("/s?q=v", req.path)
+
+class \nodoc\ iso _TestBuilderQueryParamsWithTrailingAmpersand is UnitTest
+  """Builder params follow a trailing `&` without doubling it."""
+  fun name(): String => "request_builder/query_params_with_trailing_ampersand"
+
+  fun apply(h: TestHelper) =>
+    let req = Request.get("/s?x=1&")
+      .query("q", "v")
+      .build()
+    h.assert_eq[String val]("/s?x=1&q=v", req.path)
+
+class \nodoc\ iso _TestBuilderMultipleQueryParamsWithExistingQuery is UnitTest
+  """Multiple builder params merge correctly with an existing query."""
+  fun name(): String =>
+    "request_builder/multiple_query_params_with_existing_query"
+
+  fun apply(h: TestHelper) =>
+    let req = Request.get("/s?x=1")
+      .query("a", "2")
+      .query("b", "3")
+      .build()
+    h.assert_eq[String val]("/s?x=1&a=2&b=3", req.path)
+
+class \nodoc\ iso _TestBuilderExistingQueryNoBuilderParams is UnitTest
+  """
+  A path with a query string is unchanged when no builder params are added.
+  """
+  fun name(): String => "request_builder/existing_query_no_builder_params"
+
+  fun apply(h: TestHelper) =>
+    let req = Request.get("/s?x=1").build()
+    h.assert_eq[String val]("/s?x=1", req.path)
