@@ -137,7 +137,8 @@ class HTTPClientConnection is
     is still in progress.
 
     Auto-sets `Host` and `Content-Length` headers during serialization if
-    they are not already present in the request.
+    they are not already present in the request. `Content-Length` is
+    suppressed when `Transfer-Encoding` is set.
     """
     match _state
     | let _: _Closed => return ConnectionClosed

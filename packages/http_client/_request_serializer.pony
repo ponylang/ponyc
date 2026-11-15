@@ -6,8 +6,9 @@ primitive _RequestSerializer
 
   Auto-sets `Host` from the connection's host/port if not already present.
   Port is omitted for "80" and "443" (standard ports); included otherwise.
-  Auto-sets `Content-Length` from body size if body is present and not already
-  in the request headers. User-explicit headers take precedence.
+  Auto-sets `Content-Length` from body size if body is present and neither
+  `Content-Length` nor `Transfer-Encoding` is already in the request headers
+  (RFC 9112 section 6.2). User-explicit headers take precedence.
   """
 
   fun apply(
@@ -35,10 +36,14 @@ primitive _RequestSerializer
       buf.append("\r\n")
     end
 
-    // Content-Length header (auto-set if body present and not already set)
+    // Content-Length header (auto-set if body present and neither
+    // Content-Length nor Transfer-Encoding is already set)
     match request.body
     | let b: Array[U8] val =>
-      if request.headers.get("content-length") is None then
+      if
+        (request.headers.get("content-length") is None) and
+        (request.headers.get("transfer-encoding") is None)
+      then
         buf .> append("Content-Length: ")
           .> append(b.size().string())
           .> append("\r\n")
