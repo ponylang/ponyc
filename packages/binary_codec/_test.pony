@@ -40,6 +40,10 @@ actor \nodoc\ Main is TestList
     test(_TestSkipBits)
     test(_TestVariableSize)
     test(_TestFrameDecoder)
+    test(_TestFrameDecoderSubByte)
+    test(_TestFrameDecoderNonAligned)
+    test(_TestFrameDecoderSubByteRemainder)
+    test(_TestFrameDecoderOddBits)
     test(_TestSubByteBitFields)
     test(_TestRoundtripU8)
     test(_TestRoundtripU16BE)
@@ -657,7 +661,7 @@ class \nodoc\ iso _TestFrameDecoder is UnitTest
       h.fail("second frame access failed")
     end
 
-class ref _TestFrameCollector is FrameNotify[(U8, U8)]
+class \nodoc\ ref _TestFrameCollector is FrameNotify[(U8, U8)]
   embed frames: Array[(U8, U8)] = Array[(U8, U8)]
   var errors: USize = 0
 
@@ -666,6 +670,130 @@ class ref _TestFrameCollector is FrameNotify[(U8, U8)]
 
   fun ref frame_error(err: MalformedData) =>
     errors = errors + 1
+
+class \nodoc\ ref _TestU8FrameCollector is FrameNotify[U8]
+  embed frames: Array[U8] = Array[U8]
+  var errors: USize = 0
+
+  fun ref frame_received(value: U8) =>
+    frames.push(value)
+
+  fun ref frame_error(err: MalformedData) =>
+    errors = errors + 1
+
+class \nodoc\ iso _TestFrameDecoderSubByte is UnitTest
+  """
+  4-bit frames: two nibbles decoded from a single byte.
+  """
+  fun name(): String => "binary_codec/FrameDecoder/SubByte"
+
+  fun apply(h: TestHelper) =>
+    let framer = FrameDecoder[U8](BitsU8(4))
+    let notify: _TestU8FrameCollector ref = _TestU8FrameCollector
+
+    // 0xAB = 1010 1011 → two 4-bit frames: 0xA (10) then 0xB (11)
+    let chunk: Array[U8] iso = recover [as U8: 0xAB] end
+    framer.received(consume chunk, notify)
+    h.assert_eq[USize](0, notify.errors)
+    h.assert_eq[USize](2, notify.frames.size())
+    try
+      h.assert_eq[U8](0x0A, notify.frames(0)?)
+      h.assert_eq[U8](0x0B, notify.frames(1)?)
+    else
+      h.fail("frame access failed")
+    end
+
+class \nodoc\ iso _TestFrameDecoderNonAligned is UnitTest
+  """
+  12-bit frames from 3 bytes. Seq2(BitsU8(4), BitsU8(8)) is 12 bits
+  per frame. Input AB CD EF → frame 1 at bits 0..11 = (0xA, 0xBC),
+  frame 2 at bits 12..23 = (0xD, 0xEF).
+  """
+  fun name(): String => "binary_codec/FrameDecoder/NonAligned"
+
+  fun apply(h: TestHelper) =>
+    let codec = Seq2[U8, U8](BitsU8(4), BitsU8(8))
+    let framer = FrameDecoder[(U8, U8)](codec)
+    let notify: _TestFrameCollector ref = _TestFrameCollector
+
+    let chunk: Array[U8] iso = recover [as U8: 0xAB; 0xCD; 0xEF] end
+    framer.received(consume chunk, notify)
+    h.assert_eq[USize](0, notify.errors)
+    h.assert_eq[USize](2, notify.frames.size())
+    try
+      h.assert_eq[U8](0x0A, notify.frames(0)?._1)
+      h.assert_eq[U8](0xBC, notify.frames(0)?._2)
+      h.assert_eq[U8](0x0D, notify.frames(1)?._1)
+      h.assert_eq[U8](0xEF, notify.frames(1)?._2)
+    else
+      h.fail("frame access failed")
+    end
+
+class \nodoc\ iso _TestFrameDecoderSubByteRemainder is UnitTest
+  """
+  Sub-byte remainder carried across `received()` calls. Two bytes
+  hold one 12-bit frame with 4 remainder bits; the next byte
+  completes a second frame from those 4 bits plus 8 new ones.
+  """
+  fun name(): String => "binary_codec/FrameDecoder/SubByteRemainder"
+
+  fun apply(h: TestHelper) =>
+    let codec = Seq2[U8, U8](BitsU8(4), BitsU8(8))
+    let framer = FrameDecoder[(U8, U8)](codec)
+    let notify: _TestFrameCollector ref = _TestFrameCollector
+
+    // First call: 2 bytes = 16 bits. One 12-bit frame, 4 bits left over.
+    // 0xAB 0xCD → bits: 1010 1011 1100 1101
+    // Frame 1 (bits 0..11): 4-bit = 1010 (0xA), 8-bit = 1011 1100 (0xBC)
+    // Remainder: 4 bits = 1101
+    let chunk1: Array[U8] iso = recover [as U8: 0xAB; 0xCD] end
+    framer.received(consume chunk1, notify)
+    h.assert_eq[USize](0, notify.errors)
+    h.assert_eq[USize](1, notify.frames.size())
+    try
+      h.assert_eq[U8](0x0A, notify.frames(0)?._1)
+      h.assert_eq[U8](0xBC, notify.frames(0)?._2)
+    else
+      h.fail("first chunk frame access failed")
+    end
+
+    // Second call: 1 byte = 8 bits. Combined with 4 remainder bits = 12.
+    // Remainder bits: 1101, new byte 0xEF = 1110 1111
+    // Frame 2 (bits 0..11): 4-bit = 1101 (0xD), 8-bit = 1110 1111 (0xEF)
+    let chunk2: Array[U8] iso = recover [as U8: 0xEF] end
+    framer.received(consume chunk2, notify)
+    h.assert_eq[USize](0, notify.errors)
+    h.assert_eq[USize](2, notify.frames.size())
+    try
+      h.assert_eq[U8](0x0D, notify.frames(1)?._1)
+      h.assert_eq[U8](0xEF, notify.frames(1)?._2)
+    else
+      h.fail("second chunk frame access failed")
+    end
+
+class \nodoc\ iso _TestFrameDecoderOddBits is UnitTest
+  """
+  3-bit frames from a single byte. The frame size does not evenly
+  divide 8, so the sub-byte offset cycles through values other than
+  0 and 4.
+  """
+  fun name(): String => "binary_codec/FrameDecoder/OddBits"
+
+  fun apply(h: TestHelper) =>
+    let framer = FrameDecoder[U8](BitsU8(3))
+    let notify: _TestU8FrameCollector ref = _TestU8FrameCollector
+
+    // 0xE3 = 111_000_11 → two 3-bit frames: 7 then 0, 2 remainder bits
+    let chunk: Array[U8] iso = recover [as U8: 0xE3] end
+    framer.received(consume chunk, notify)
+    h.assert_eq[USize](0, notify.errors)
+    h.assert_eq[USize](2, notify.frames.size())
+    try
+      h.assert_eq[U8](7, notify.frames(0)?)
+      h.assert_eq[U8](0, notify.frames(1)?)
+    else
+      h.fail("frame access failed")
+    end
 
 class \nodoc\ iso _TestSubByteBitFields is UnitTest
   fun name(): String => "binary_codec/SubByteBitFields"
