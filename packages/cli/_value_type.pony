@@ -553,7 +553,41 @@ primitive _U64Type is _ValueType
 
 primitive _F64Type is _ValueType
   fun string(): String => "F64"
-  fun value_of(s: String): _Value ? => s.f64()?
+
+  fun value_of(s: String): _Value ? =>
+    _DecimalFloat.check(s)?
+    s.f64()?
+
+primitive _DecimalFloat
+  fun check(s: String) ? =>
+    """
+    Errors if `s` does not match `['-'] digit+ ['.' digit+]`.
+    """
+    var i: ISize = 0
+    let n = s.size().isize()
+    if n == 0 then error end
+    if s(0)? == '-' then
+      i = 1
+    end
+    let start = i
+    if start == n then error end
+    while i < n do
+      let c = s(i.usize())?
+      if (c < '0') or (c > '9') then break end
+      i = i + 1
+    end
+    if i == start then error end
+    if i < n then
+      if s(i.usize())? != '.' then error end
+      i = i + 1
+      let dot = i
+      while i < n do
+        let c = s(i.usize())?
+        if (c < '0') or (c > '9') then error end
+        i = i + 1
+      end
+      if i == dot then error end
+    end
 
 primitive _StringSeqType is _ValueType
   fun string(): String => "ReadSeq[String]"

@@ -13,6 +13,7 @@ actor \nodoc\ Main is TestList
     test(_TestDefaultWithSub)
     test(_TestDuplicate)
     test(_TestEnvs)
+    test(_TestFloatFormat)
     test(_TestHelp)
     test(_TestHelpCommand)
     test(_TestHelpFalse)
@@ -484,6 +485,93 @@ class \nodoc\ iso _TestEnvs is UnitTest
     h.assert_eq[I64](42, cmd.option("intr").i64())
     h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
+
+class \nodoc\ iso _TestFloatFormat is UnitTest
+  fun name(): String => "cli/float_format"
+
+  fun apply(h: TestHelper) ? =>
+    let f64_opt_spec =
+      CommandSpec.leaf("app", "",
+        [OptionSpec.f64("floatr", "" where short' = 'F', default' = 0)])?
+    let f64_arg_spec =
+      CommandSpec.leaf("app", "", Array[OptionSpec](),
+        [ArgSpec.f64("f", "" where default' = 0)])?
+
+    let bad_inputs: Array[String] =
+      [ "Inf"; "-Inf"; "NaN"; "nan"; "infinity"
+        "1e5"; "1.5e-3"; "0x1.0p10"
+        "  42"; "42 "; "42.0 "
+        ".5"; "5."; "+1.5"; "-.5"
+        "1_000.0"; "1.2.3"
+      ]
+
+    for input in bad_inputs.values() do
+      match CommandParser(f64_opt_spec).parse(["app"; "--floatr=" + input])
+      | let se: SyntaxError => None
+      else
+        h.fail("F64 option should reject: " + input)
+      end
+
+      match CommandParser(f64_arg_spec).parse(["app"; input])
+      | let se: SyntaxError => None
+      else
+        h.fail("F64 positional arg should reject: " + input)
+      end
+    end
+
+    // Valid inputs must still work
+    let cmd1 =
+      CommandParser(f64_opt_spec).parse(["app"; "-F=42.0"]) as Command
+    h.assert_eq[F64](42.0, cmd1.option("floatr").f64())
+
+    let cmd2 =
+      CommandParser(f64_arg_spec).parse(["app"; "42.0"]) as Command
+    h.assert_eq[F64](42.0, cmd2.arg("f").f64())
+
+    let cmd3 =
+      CommandParser(f64_arg_spec).parse(["app"; "-1.5"]) as Command
+    h.assert_eq[F64](-1.5, cmd3.arg("f").f64())
+
+    let cmd4 =
+      CommandParser(f64_arg_spec).parse(["app"; "0"]) as Command
+    h.assert_eq[F64](0.0, cmd4.arg("f").f64())
+
+    let cmd5 =
+      CommandParser(f64_arg_spec).parse(["app"; "0.0"]) as Command
+    h.assert_eq[F64](0.0, cmd5.arg("f").f64())
+
+    let cmd6 =
+      CommandParser(f64_arg_spec).parse(["app"; "42"]) as Command
+    h.assert_eq[F64](42.0, cmd6.arg("f").f64())
+
+    let cmd7 =
+      CommandParser(f64_arg_spec).parse(["app"; "-5"]) as Command
+    h.assert_eq[F64](-5.0, cmd7.arg("f").f64())
+
+    let cmd8 =
+      CommandParser(f64_arg_spec).parse(["app"; "123.456"]) as Command
+    h.assert_eq[F64](123.456, cmd8.arg("f").f64())
+
+    let cmd9 =
+      CommandParser(f64_arg_spec).parse(["app"; "-0.0"]) as Command
+    h.assert_eq[F64](0.0, cmd9.arg("f").f64())
+
+    // Env vars with bad input should also be rejected
+    let env_spec =
+      CommandSpec.leaf("app", "",
+        [OptionSpec.f64("floatr", "" where short' = 'F', default' = 0)])?
+
+    match CommandParser(env_spec).parse(["app"], ["APP_FLOATR=Inf"])
+    | let se: SyntaxError => None
+    else
+      h.fail("F64 env var should reject Inf")
+    end
+
+    match CommandParser(env_spec).parse(["app"], ["APP_FLOATR=1e5"])
+    | let se: SyntaxError => None
+    else
+      h.fail("F64 env var should reject scientific notation")
+    end
 
 class \nodoc\ iso _TestNegativeNumArg is UnitTest
   fun name(): String => "cli/negative_num_arg"
