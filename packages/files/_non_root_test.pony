@@ -553,20 +553,59 @@ class \nodoc\ iso _TestPathSplit is UnitTest
   fun name(): String => "files/Path.split"
 
   fun apply(h: TestHelper) =>
-    var path = "/foo/bar/dir/"
-    let expect =
+    // Multi-component absolute path
+    var r = Path.split("/foo/bar/dir/")
+    h.assert_eq[String](r._1, "/foo/bar/dir")
+    h.assert_eq[String](r._2, "")
+
+    r = Path.split("/foo/bar/dir")
+    h.assert_eq[String](r._1, "/foo/bar")
+    h.assert_eq[String](r._2, "dir")
+
+    r = Path.split("/foo/bar")
+    h.assert_eq[String](r._1, "/foo")
+    h.assert_eq[String](r._2, "bar")
+
+    r = Path.split("/foo")
+    h.assert_eq[String](r._1, "/")
+    h.assert_eq[String](r._2, "foo")
+
+    // Root
+    r = Path.split("/")
+    h.assert_eq[String](r._1, "/")
+    h.assert_eq[String](r._2, "")
+
+    // Relative paths
+    r = Path.split("foo/bar")
+    h.assert_eq[String](r._1, "foo")
+    h.assert_eq[String](r._2, "bar")
+
+    r = Path.split("foo")
+    h.assert_eq[String](r._1, "")
+    h.assert_eq[String](r._2, "foo")
+
+    // Empty
+    r = Path.split("")
+    h.assert_eq[String](r._1, "")
+    h.assert_eq[String](r._2, "")
+
+    // Network paths
+    r = Path.split("//h/s/a")
+    h.assert_eq[String](r._1, "//h/s")
+    h.assert_eq[String](r._2, "a")
+
+    r = Path.split("//h/s")
+    h.assert_eq[String](r._1, "//h/s")
+    h.assert_eq[String](r._2, "")
+
+    // join(head, tail) round-trips
+    let paths: Array[String] val =
       [
-        ("/foo/bar/dir", "")
-        ("/foo/bar", "dir")
-        ("/foo", "bar")
-        (".", "foo")
-        ("", ".")
+        "/a"; "/"; "/a/b"; "a"; "a/b"; "//h/s/a"; "//h/s"; ""
       ]
-    for parts in expect.values() do
-      let res = Path.split(path)
-      h.assert_eq[String](res._1, parts._1)
-      h.assert_eq[String](res._2, parts._2)
-      path = parts._1
+    for p in paths.values() do
+      (let head, let tail) = Path.split(p)
+      h.assert_eq[String](Path.join(head, tail), Path.clean(p))
     end
 
     ifdef windows then
@@ -579,10 +618,12 @@ class \nodoc\ iso _TestPathDir is UnitTest
   fun name(): String => "files/Path.dir"
 
   fun apply(h: TestHelper) =>
-    let res1 = Path.dir("/foo/bar/dir/base.ext")
-    let res2 = Path.dir("/foo/bar/dir/")
-    h.assert_eq[String](res1, "/foo/bar/dir")
-    h.assert_eq[String](res2, "/foo/bar/dir")
+    h.assert_eq[String](Path.dir("/foo/bar/dir/base.ext"), "/foo/bar/dir")
+    h.assert_eq[String](Path.dir("/foo/bar/dir/"), "/foo/bar/dir")
+    h.assert_eq[String](Path.dir("/a"), "/")
+    h.assert_eq[String](Path.dir("/"), "/")
+    h.assert_eq[String](Path.dir("//h/s/a"), "//h/s")
+    h.assert_eq[String](Path.dir("//h/s"), "//h/s")
 
 class \nodoc\ iso _TestPathBase is UnitTest
   fun name(): String => "files/Path.base"
