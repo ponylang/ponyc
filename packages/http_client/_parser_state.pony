@@ -556,22 +556,46 @@ class _ExpectChunkHeader is _ParserState
         return InvalidChunk
       end
 
-      // Find optional chunk extension (semicolon)
-      let size_end =
+      // Find optional chunk extension (semicolon).
+      // RFC 9112 §7.1.1 allows BWS before the semicolon, so strip
+      // trailing SP/HTAB from the size portion when one is present.
+      var size_end =
         match \exhaustive\ _BufferScan.find_byte(p.buf, ';', p.pos, crlf)
-        | let i: USize => i
+        | let i: USize =>
+          var se = i
+          try
+            while (se > p.pos) and
+              ((p.buf(se - 1)? == ' ') or (p.buf(se - 1)? == '\t'))
+            do
+              se = se - 1
+            end
+          else
+            _Unreachable()
+          end
+          se
         | None => crlf
         end
 
-      // Parse hex chunk size — must consume entire string
+      // RFC 9112 §7.1: chunk-size = 1*HEXDIG
       let size_str: String val = p.extract_string(p.pos, size_end)
+      if size_str.size() == 0 then
+        return InvalidChunk
+      end
       let chunk_size =
         try
-          (let cs, let consumed) = size_str.read_int[USize](0, 16)?
-          if consumed.usize() != size_str.size() then
-            return InvalidChunk
+          var i: USize = 0
+          while i < size_str.size() do
+            let ch = size_str(i)?
+            let is_hex =
+              ((ch >= '0') and (ch <= '9')) or
+              ((ch >= 'a') and (ch <= 'f')) or
+              ((ch >= 'A') and (ch <= 'F'))
+            if not is_hex then
+              return InvalidChunk
+            end
+            i = i + 1
           end
-          cs
+          size_str.read_int[USize](0, 16)?._1
         else
           return InvalidChunk
         end

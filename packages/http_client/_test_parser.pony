@@ -624,6 +624,136 @@ class \nodoc\ iso _TestInvalidChunkSize is UnitTest
         "should be InvalidChunk")
     end
 
+class \nodoc\ iso _TestChunkSizeNonHexRejected is UnitTest
+  """Chunk sizes with non-hex characters are rejected per RFC 9112 §7.1."""
+  fun name(): String => "parser/chunk_size_non_hex_rejected"
+
+  fun apply(h: TestHelper) =>
+    let head: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: chunked\r\n\r\n"
+    let nul = recover val String .> push(0) .> append("10") end
+    let high = recover val String .> push(0x80) .> append("10") end
+    let sizes: Array[String val] val =
+      ["1_0"; "_10"; "10_"; "0_"; "_0"; "_"; nul; high]
+    for size in sizes.values() do
+      let raw: String val =
+        head + size + "\r\nabcdefghijklmnop\r\n0\r\n\r\n"
+      let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+      let parser = _ResponseParser(notify)
+      parser.parse(recover raw.array().clone() end)
+
+      h.assert_true(
+        notify.errors.size() > 0,
+        "size '" + size + "' should produce an error")
+      try
+        h.assert_true(
+          notify.errors(0)? is InvalidChunk,
+          "size '" + size + "' should be InvalidChunk")
+      end
+    end
+
+class \nodoc\ iso _TestChunkSizeEmptyBeforeExtRejected is UnitTest
+  """Empty chunk size before a chunk extension is rejected."""
+  fun name(): String => "parser/chunk_size_empty_before_ext_rejected"
+
+  fun apply(h: TestHelper) =>
+    let head: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: chunked\r\n\r\n"
+    // ";ext" has no size at all; " ;ext" and "\t;ext" have only BWS
+    // before the semicolon, so BWS stripping produces an empty size.
+    let sizes: Array[String val] val = [";ext"; " ;ext"; "\t;ext"]
+    for size in sizes.values() do
+      let raw: String val =
+        head + size + "\r\nabcdefghijklmnop\r\n0\r\n\r\n"
+      let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+      let parser = _ResponseParser(notify)
+      parser.parse(recover raw.array().clone() end)
+
+      h.assert_true(
+        notify.errors.size() > 0,
+        "size '" + size + "' should produce an error")
+      try
+        h.assert_true(
+          notify.errors(0)? is InvalidChunk,
+          "size '" + size + "' should be InvalidChunk")
+      end
+    end
+
+class \nodoc\ iso _TestChunkSizeBWSBeforeSemicolon is UnitTest
+  """BWS (SP/HTAB) before the chunk extension semicolon is accepted."""
+  fun name(): String => "parser/chunk_size_bws_before_semicolon"
+
+  fun apply(h: TestHelper) =>
+    let head: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: chunked\r\n\r\n"
+    let sizes: Array[String val] val = ["5 ;ext"; "5\t;ext"; "5 \t;ext"]
+    for size in sizes.values() do
+      let raw: String val =
+        head + size + "\r\nHello\r\n0\r\n\r\n"
+      let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+      let parser = _ResponseParser(notify)
+      parser.parse(recover raw.array().clone() end)
+
+      h.assert_eq[USize](
+        1, notify.responses.size(), "size '" + size + "': 1 response")
+      h.assert_eq[USize](
+        1, notify.completed, "size '" + size + "': 1 completion")
+      h.assert_eq[USize](
+        0, notify.errors.size(), "size '" + size + "': 0 errors")
+      h.assert_eq[String val](
+        "Hello",
+        notify.collected_body_string(),
+        "size '" + size + "': body mismatch")
+    end
+
+class \nodoc\ iso _TestChunkSizeUppercaseHex is UnitTest
+  """Uppercase hex digits in chunk sizes are accepted."""
+  fun name(): String => "parser/chunk_size_uppercase_hex"
+
+  fun apply(h: TestHelper) =>
+    let raw: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: chunked\r\n\r\n" +
+      "A\r\nHelloWorld\r\n0\r\n\r\n"
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](1, notify.responses.size(), "1 response")
+    h.assert_eq[USize](1, notify.completed, "1 completion")
+    h.assert_eq[USize](0, notify.errors.size(), "0 errors")
+    h.assert_eq[String val](
+      "HelloWorld", notify.collected_body_string())
+
+class \nodoc\ iso _TestChunkSizeTrailingSpaceRejected is UnitTest
+  """Trailing whitespace without a semicolon is rejected."""
+  fun name(): String => "parser/chunk_size_trailing_space_rejected"
+
+  fun apply(h: TestHelper) =>
+    let head: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: chunked\r\n\r\n"
+    let sizes: Array[String val] val = ["5 "; "5\t"; "5 \t"]
+    for size in sizes.values() do
+      let raw: String val =
+        head + size + "\r\nHello\r\n0\r\n\r\n"
+      let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+      let parser = _ResponseParser(notify)
+      parser.parse(recover raw.array().clone() end)
+
+      h.assert_true(
+        notify.errors.size() > 0,
+        "size '" + size + "' should produce an error")
+      try
+        h.assert_true(
+          notify.errors(0)? is InvalidChunk,
+          "size '" + size + "' should be InvalidChunk")
+      end
+    end
+
 class \nodoc\ iso _TestChunkedWithTrailers is UnitTest
   """Chunked response with trailer headers -> trailers skipped, completes."""
   fun name(): String => "parser/chunked_with_trailers"
