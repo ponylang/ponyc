@@ -38,6 +38,7 @@ actor \nodoc\ Main is TestList
     then
       test(_TestPbkdf2Sha256Rfc7914)
       test(_TestPbkdf2Sha256Scram)
+      test(_TestPbkdf2Sha256EmptyPassword)
       test.property(_TestPbkdf2Sha256OutputLength)
       test.property(_TestPbkdf2Sha256Deterministic)
     end
@@ -541,6 +542,39 @@ class \nodoc\ iso _TestPbkdf2Sha256Scram is UnitTest
       h.assert_eq[String](
         "c4a49510323ab4f952cac1fa99441939e78ea74d6be81ddf7096e87513dc615d",
         ToHexString(Pbkdf2Sha256("pencil", salt, 4096, 32)?))
+    end
+
+class \nodoc\ iso _TestPbkdf2Sha256EmptyPassword is UnitTest
+  """
+  An empty `Array[U8]` password or salt produces the same key as `""`.
+
+  An empty `Array[U8]` has a null pointer, and LibreSSL's
+  `PKCS5_PBKDF2_HMAC` rejects a null password. `Pbkdf2Sha256` substitutes a
+  non-null pointer for an empty input so the derivation succeeds on every
+  backend.
+  """
+  fun name(): String => "crypto/Pbkdf2Sha256/empty_password"
+
+  fun apply(h: TestHelper) ? =>
+    ifdef
+      "openssl_1.1.x" or "openssl_3.0.x" or "openssl_4.0.x" or "libressl"
+    then
+      let empty = recover val Array[U8] end
+      let expected =
+        "f7ce0b653d2d72a4108cf5abe912ffdd777616dbbb27a70e8204f3ae2d0f6fad"
+
+      h.assert_eq[String](
+        expected,
+        ToHexString(Pbkdf2Sha256(empty, "", 1, 32)?),
+        "empty Array[U8] password")
+      h.assert_eq[String](
+        expected,
+        ToHexString(Pbkdf2Sha256("", empty, 1, 32)?),
+        "empty Array[U8] salt")
+      h.assert_eq[String](
+        expected,
+        ToHexString(Pbkdf2Sha256(empty, empty, 1, 32)?),
+        "empty Array[U8] password and salt")
     end
 
 class \nodoc\ iso _TestRandBytes is UnitTest

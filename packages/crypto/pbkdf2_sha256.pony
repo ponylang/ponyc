@@ -47,11 +47,25 @@ primitive Pbkdf2Sha256
     then
       recover
         let arr = Array[U8].init(0, key_length)
+
+        // An empty `Array[U8]` has a null pointer. LibreSSL's
+        // `PKCS5_PBKDF2_HMAC` rejects a null password, so hand it a pointer
+        // to bytes it will not read.
+        let pass_ptr =
+          if password.size() == 0 then arr.cpointer()
+          else password.cpointer()
+          end
+
+        let salt_ptr =
+          if salt.size() == 0 then arr.cpointer()
+          else salt.cpointer()
+          end
+
         let rc =
           @PKCS5_PBKDF2_HMAC(
-            password.cpointer(),
+            pass_ptr,
             password.size().i32(),
-            salt.cpointer(),
+            salt_ptr,
             salt.size().i32(),
             iterations.i32(),
             @EVP_sha256(),
