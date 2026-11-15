@@ -48,6 +48,14 @@ actor \nodoc\ Main is TestList
     test(_TestVariableSizeOverflow)
     test(_TestVariableSizeU32)
     test(_TestVariableSizeDecodeOverflow)
+    test(_TestVariableSizeTrailing)
+    test(_TestVariableSizeTrailingMany)
+    test(_TestVariableSizeTrailingFixedBody)
+    test(_TestVariableSizePartialBody)
+    test(_TestVariableSizeFrameDecoderMultiple)
+    test(_TestVariableSizeFrameDecoderPartial)
+    test(_TestVariableSizeUnalignedTrailing)
+    test(_TestVariableSizeZeroBody)
     test(_TestFrameDecoder)
     test(_TestFrameDecoderSubByte)
     test(_TestFrameDecoderNonAligned)
@@ -859,6 +867,216 @@ class \nodoc\ iso _TestVariableSizeDecodeOverflow is UnitTest
       h.fail("expected MalformedData for size exceeding USize")
     | let _: MalformedData => None
     | InsufficientData => h.fail("expected MalformedData, got InsufficientData")
+    end
+
+class \nodoc\ iso _TestVariableSizeTrailing is UnitTest
+  """
+  VariableSize with BytesRest body followed by another field. The body
+  must read only the declared bytes, leaving the trailing field intact.
+  """
+  fun name(): String => "binary_codec/VariableSize/trailing"
+
+  fun apply(h: TestHelper) =>
+    let codec =
+      Seq2[Array[U8] val, U8](
+        VariableSize[Array[U8] val, U16](U16BE, BytesRest), U8Codec)
+    let value: (Array[U8] val, U8) = ([as U8: 1; 2; 3], 9)
+    match \exhaustive\ codec.encode(value)
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](6, encoded.size())
+      match \exhaustive\ codec.decode(encoded, 0)
+      | ((let body: Array[U8] val, let trail: U8), _) =>
+        h.assert_eq[USize](3, body.size())
+        h.assert_eq[U8](9, trail)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestVariableSizeTrailingMany is UnitTest
+  """
+  VariableSize with Many body followed by another field. Many reads
+  until input is exhausted, so the body must be scoped to the declared
+  size.
+  """
+  fun name(): String => "binary_codec/VariableSize/trailing_many"
+
+  fun apply(h: TestHelper) =>
+    let codec =
+      Seq2[Array[U8] val, U8](
+        VariableSize[Array[U8] val, U16](U16BE, Many[U8](U8Codec)),
+        U8Codec)
+    let value: (Array[U8] val, U8) = ([as U8: 1; 2; 3], 9)
+    match \exhaustive\ codec.encode(value)
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](6, encoded.size())
+      match \exhaustive\ codec.decode(encoded, 0)
+      | ((let body: Array[U8] val, let trail: U8), _) =>
+        h.assert_eq[USize](3, body.size())
+        h.assert_eq[U8](9, trail)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestVariableSizeTrailingFixedBody is UnitTest
+  """
+  VariableSize with a non-greedy body (Bytes) and trailing data. The
+  body under-consumes the scoped window, so the mismatch check fires.
+  """
+  fun name(): String => "binary_codec/VariableSize/trailing_fixed_body"
+
+  fun apply(h: TestHelper) =>
+    // Size field says 3 bytes, body codec reads only 2
+    let codec =
+      VariableSize[Array[U8] val, U8](U8Codec, Bytes(2))
+    let data: Array[U8] val = [0x03; 0xAA; 0xBB; 0xCC; 0xDD]
+    match \exhaustive\ codec.decode(data, 0)
+    | (let _: Array[U8] val, _) =>
+      h.fail("expected MalformedData for under-consuming body")
+    | let _: MalformedData => None
+    | InsufficientData =>
+      h.fail("expected MalformedData, got InsufficientData")
+    end
+
+class \nodoc\ iso _TestVariableSizePartialBody is UnitTest
+  """
+  Buffer has the size field but not enough bytes for the body. Must
+  return InsufficientData, not MalformedData.
+  """
+  fun name(): String => "binary_codec/VariableSize/partial_body"
+
+  fun apply(h: TestHelper) =>
+    let codec = VariableSize[Array[U8] val, U16](U16BE, BytesRest)
+    // Size = 3, but only 1 body byte present
+    let data: Array[U8] val = [0x00; 0x03; 0xAA]
+    match \exhaustive\ codec.decode(data, 0)
+    | (let _: Array[U8] val, _) =>
+      h.fail("expected InsufficientData")
+    | let _: MalformedData =>
+      h.fail("expected InsufficientData, got MalformedData")
+    | InsufficientData => None
+    end
+
+class \nodoc\ ref _TestVariableSizeFrameCollector
+  is FrameNotify[Array[U8] val]
+  embed frames: Array[Array[U8] val] = Array[Array[U8] val]
+  var errors: USize = 0
+
+  fun ref frame_received(value: Array[U8] val) =>
+    frames.push(value)
+
+  fun ref frame_error(err: MalformedData) =>
+    errors = errors + 1
+
+class \nodoc\ iso _TestVariableSizeFrameDecoderMultiple is UnitTest
+  """
+  Two complete length-prefixed frames in a single chunk.
+  """
+  fun name(): String => "binary_codec/VariableSize/FrameDecoder/multiple"
+
+  fun apply(h: TestHelper) =>
+    let codec = VariableSize[Array[U8] val, U16](U16BE, BytesRest)
+    let framer = FrameDecoder[Array[U8] val](codec)
+    let notify: _TestVariableSizeFrameCollector ref =
+      _TestVariableSizeFrameCollector
+
+    // Two frames: [size=1, 0xAA] [size=1, 0xBB]
+    let chunk: Array[U8] iso =
+      recover [as U8: 0; 1; 0xAA; 0; 1; 0xBB] end
+    framer.received(consume chunk, notify)
+    h.assert_eq[USize](0, notify.errors)
+    h.assert_eq[USize](2, notify.frames.size())
+    try
+      h.assert_eq[USize](1, notify.frames(0)?.size())
+      h.assert_eq[U8](0xAA, notify.frames(0)?(0)?)
+      h.assert_eq[USize](1, notify.frames(1)?.size())
+      h.assert_eq[U8](0xBB, notify.frames(1)?(0)?)
+    else
+      h.fail("frame access failed")
+    end
+
+class \nodoc\ iso _TestVariableSizeFrameDecoderPartial is UnitTest
+  """
+  A partial length-prefixed frame is completed by the next chunk.
+  """
+  fun name(): String => "binary_codec/VariableSize/FrameDecoder/partial"
+
+  fun apply(h: TestHelper) =>
+    let codec = VariableSize[Array[U8] val, U16](U16BE, BytesRest)
+    let framer = FrameDecoder[Array[U8] val](codec)
+    let notify: _TestVariableSizeFrameCollector ref =
+      _TestVariableSizeFrameCollector
+
+    // Partial: size says 3, only 1 body byte
+    framer.received(recover [as U8: 0; 3; 0xAA] end, notify)
+    h.assert_eq[USize](0, notify.errors)
+    h.assert_eq[USize](0, notify.frames.size())
+
+    // Complete the frame with remaining 2 bytes
+    framer.received(recover [as U8: 0xBB; 0xCC] end, notify)
+    h.assert_eq[USize](0, notify.errors)
+    h.assert_eq[USize](1, notify.frames.size())
+    try
+      h.assert_eq[USize](3, notify.frames(0)?.size())
+      h.assert_eq[U8](0xAA, notify.frames(0)?(0)?)
+      h.assert_eq[U8](0xBB, notify.frames(0)?(1)?)
+      h.assert_eq[U8](0xCC, notify.frames(0)?(2)?)
+    else
+      h.fail("frame access failed")
+    end
+
+class \nodoc\ iso _TestVariableSizeUnalignedTrailing is UnitTest
+  """
+  VariableSize at a non-byte-aligned bit offset with trailing data.
+  Exercises the ceiling division in end_byte computation.
+  """
+  fun name(): String => "binary_codec/VariableSize/unaligned_trailing"
+
+  fun apply(h: TestHelper) =>
+    // 4-bit prefix, then VariableSize (8-bit size + BytesRest body),
+    // then 4-bit suffix. Body starts at bit 12.
+    let codec =
+      Seq3[U8, Array[U8] val, U8](
+        BitsU8(4),
+        VariableSize[Array[U8] val, U8](BitsU8(8), BytesRest),
+        BitsU8(4))
+    // Manually build data: nibble=0xA, size=2, body=[0xBB, 0xCC], trail=0xD
+    // Bit layout: AAAA SSSS SSSS BBBB BBBB CCCC CCCC DDDD
+    // 0xA=1010, size=2=00000010, 0xBB=10111011, 0xCC=11001100, 0xD=1101
+    // Byte 0: 1010_0000 = 0xA0  (nibble + top 4 of size)
+    // Byte 1: 0010_1011 = 0x2B  (bottom 4 of size + top 4 of 0xBB)
+    // Byte 2: 1011_1100 = 0xBC  (bottom 4 of 0xBB + top 4 of 0xCC)
+    // Byte 3: 1100_1101 = 0xCD  (bottom 4 of 0xCC + trail nibble 0xD)
+    let data: Array[U8] val = [0xA0; 0x2B; 0xBC; 0xCD]
+    match \exhaustive\ codec.decode(data, 0)
+    | ((let pre: U8, let body: Array[U8] val, let post: U8), _) =>
+      h.assert_eq[U8](0x0A, pre)
+      h.assert_eq[USize](2, body.size())
+      h.assert_eq[U8](0xBB, try body(0)? else 0 end)
+      h.assert_eq[U8](0xCC, try body(1)? else 0 end)
+      h.assert_eq[U8](0x0D, post)
+    else h.fail("decode failed")
+    end
+
+class \nodoc\ iso _TestVariableSizeZeroBody is UnitTest
+  """
+  Zero-length body with trailing data. Size field = 0, body is empty,
+  trailing byte must be preserved.
+  """
+  fun name(): String => "binary_codec/VariableSize/zero_body"
+
+  fun apply(h: TestHelper) =>
+    let codec =
+      Seq2[Array[U8] val, U8](
+        VariableSize[Array[U8] val, U16](U16BE, BytesRest), U8Codec)
+    // Size = 0, trailing byte = 0xFF
+    let data: Array[U8] val = [0x00; 0x00; 0xFF]
+    match \exhaustive\ codec.decode(data, 0)
+    | ((let body: Array[U8] val, let trail: U8), _) =>
+      h.assert_eq[USize](0, body.size())
+      h.assert_eq[U8](0xFF, trail)
+    else h.fail("decode failed")
     end
 
 class \nodoc\ iso _TestFrameDecoder is UnitTest

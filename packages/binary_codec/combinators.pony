@@ -130,14 +130,23 @@ class val VariableSize[A: Any val, L: UnsignedInteger[L] val] is Codec[A]
             USize.max_value().string(),
           offset)
       end
-      match \exhaustive\ _body_codec.decode(data, offset + cs)
+      if size_usize > (USize.max_value() / 8) then
+        return InsufficientData
+      end
+      let body_start = offset + cs
+      let expected_bits = size_usize * 8
+      if (data.size() * 8) < (body_start + expected_bits) then
+        return InsufficientData
+      end
+      let end_byte = (body_start + expected_bits + 7) / 8
+      let scoped = data.trim(0, end_byte)
+      match \exhaustive\ _body_codec.decode(scoped, body_start)
       | (let v: A, let cb: USize) =>
-        let expected_bits = size_usize * 8
         if cb != expected_bits then
           MalformedData(
             "VariableSize body consumed " + cb.string() +
               " bits, expected " + expected_bits.string(),
-            offset + cs)
+            body_start)
         else
           (v, cs + cb)
         end
