@@ -1,3 +1,33 @@
+## Fix Count and VariableSize silently truncating lengths above 65535
+
+`Count` and `VariableSize` in `binary_codec` hard-coded `U16` as the wire type for their length and count fields. Encoding an array longer than 65535 elements or a body larger than 65535 bytes silently truncated the value via `.u16()`, producing a valid-looking message with the wrong count or size on the wire.
+
+Both codecs now guard against overflow on encode and decode, returning `EncodeViolation` or `MalformedData` instead of silently truncating.
+
+## Generalize Count and VariableSize length type parameter
+
+`Count` and `VariableSize` in `binary_codec` now take a second type parameter `L: UnsignedInteger[L] val` for the wire width of the count or size field. Previously both hard-coded `U16`.
+
+Before:
+
+```pony
+let codec = Count[U32](U16BE, U32BE)
+let codec2 = VariableSize[Array[U8] val](U16BE, BytesRest)
+```
+
+After:
+
+```pony
+let codec = Count[U32, U16](U16BE, U32BE)
+let codec2 = VariableSize[Array[U8] val, U16](U16BE, BytesRest)
+```
+
+Use a wider type when the protocol's count or size field exceeds 16 bits:
+
+```pony
+let codec = Count[U32, U32](U32BE, U32BE)
+```
+
 ## Fix C shims that include ponyassert.h
 
 C shims that include `ponyassert.h` now compile with an installed compiler. Compilation previously failed because a required header was missing from the installation.

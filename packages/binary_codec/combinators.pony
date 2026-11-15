@@ -100,7 +100,7 @@ class val FlatZip[A: Any val, B: Any val] is Codec[(A, B)]
     | let e: EncodeError => e
     end
 
-class val VariableSize[A: Any val] is Codec[A]
+class val VariableSize[A: Any val, L: UnsignedInteger[L] val] is Codec[A]
   """
   Length-prefixed data: a size codec determines how many bytes the body
   codec reads from. The size field is structural — it does not appear in
@@ -110,10 +110,10 @@ class val VariableSize[A: Any val] is Codec[A]
   bytes. On encode: encode the body, measure it, write the size, then the
   body.
   """
-  let _size_codec: Codec[U16]
+  let _size_codec: Codec[L]
   let _body_codec: Codec[A]
 
-  new val create(size_codec: Codec[U16], body_codec: Codec[A]) =>
+  new val create(size_codec: Codec[L], body_codec: Codec[A]) =>
     _size_codec = size_codec
     _body_codec = body_codec
 
@@ -121,10 +121,18 @@ class val VariableSize[A: Any val] is Codec[A]
     : ((A, USize) | DecodeError)
   =>
     match \exhaustive\ _size_codec.decode(data, offset)
-    | (let size: U16, let cs: USize) =>
+    | (let size: L, let cs: USize) =>
+      let size_usize = size.usize()
+      if L.from[USize](size_usize) != size then
+        return MalformedData(
+          "size field " + size.string() +
+            " exceeds platform maximum of " +
+            USize.max_value().string(),
+          offset)
+      end
       match \exhaustive\ _body_codec.decode(data, offset + cs)
       | (let v: A, let cb: USize) =>
-        let expected_bits = size.usize() * 8
+        let expected_bits = size_usize * 8
         if cb != expected_bits then
           MalformedData(
             "VariableSize body consumed " + cb.string() +
@@ -146,7 +154,13 @@ class val VariableSize[A: Any val] is Codec[A]
     | let bw: _BitWriter ref =>
       try
         let body_bytes = bw.done()?
-        let size = body_bytes.size().u16()
+        let byte_count = body_bytes.size()
+        let size = L.from[USize](byte_count)
+        if size.usize() != byte_count then
+          return EncodeViolation(
+            byte_count.string() + " bytes exceed maximum size of " +
+              L.max_value().string())
+        end
         match \exhaustive\ _size_codec._encode_bits(size, writer)
         | let w: _BitWriter ref =>
           w.write_bytes(body_bytes)
