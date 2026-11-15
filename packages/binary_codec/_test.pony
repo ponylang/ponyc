@@ -44,6 +44,9 @@ actor \nodoc\ Main is TestList
     test(_TestFrameDecoderNonAligned)
     test(_TestFrameDecoderSubByteRemainder)
     test(_TestFrameDecoderOddBits)
+    test(_TestFrameDecoderMalformedRecovery)
+    test(_TestFrameDecoderMalformedAfterGood)
+    test(_TestFrameDecoderMalformedConsecutive)
     test(_TestSubByteBitFields)
     test(_TestRoundtripU8)
     test(_TestRoundtripU16BE)
@@ -793,6 +796,103 @@ class \nodoc\ iso _TestFrameDecoderOddBits is UnitTest
       h.assert_eq[U8](0, notify.frames(1)?)
     else
       h.fail("frame access failed")
+    end
+
+class \nodoc\ iso _TestFrameDecoderMalformedRecovery is UnitTest
+  """
+  After MalformedData the decoder discards its buffer, so the next
+  received() starts fresh and decodes valid data normally.
+  """
+  fun name(): String => "binary_codec/FrameDecoder/MalformedRecovery"
+
+  fun apply(h: TestHelper) =>
+    let codec =
+      ConstThen[U8](
+        Literal(recover val [as U8: 0xFF] end), U8Codec)
+    let framer = FrameDecoder[U8](codec)
+    let notify: _TestU8FrameCollector ref = _TestU8FrameCollector
+
+    // Bad sync byte triggers MalformedData
+    framer.received(recover [as U8: 0x00; 0x42] end, notify)
+    h.assert_eq[USize](1, notify.errors)
+    h.assert_eq[USize](0, notify.frames.size())
+
+    // Valid frame decodes from the fresh buffer
+    framer.received(recover [as U8: 0xFF; 0x42] end, notify)
+    h.assert_eq[USize](1, notify.errors)
+    h.assert_eq[USize](1, notify.frames.size())
+    try
+      h.assert_eq[U8](0x42, notify.frames(0)?)
+    else
+      h.fail("frame access failed")
+    end
+
+class \nodoc\ iso _TestFrameDecoderMalformedAfterGood is UnitTest
+  """
+  Good frames decoded before MalformedData are delivered normally.
+  The decoder discards its buffer after the error, so the next
+  received() recovers.
+  """
+  fun name(): String => "binary_codec/FrameDecoder/MalformedAfterGood"
+
+  fun apply(h: TestHelper) =>
+    let codec =
+      ConstThen[U8](
+        Literal(recover val [as U8: 0xFF] end), U8Codec)
+    let framer = FrameDecoder[U8](codec)
+    let notify: _TestU8FrameCollector ref = _TestU8FrameCollector
+
+    // One valid frame then bad sync in the same chunk
+    framer.received(
+      recover [as U8: 0xFF; 0x42; 0x00; 0xBB] end, notify)
+    h.assert_eq[USize](1, notify.frames.size())
+    h.assert_eq[USize](1, notify.errors)
+    try
+      h.assert_eq[U8](0x42, notify.frames(0)?)
+    else
+      h.fail("frame access failed")
+    end
+
+    // Recovery: valid frame decodes from fresh buffer
+    framer.received(recover [as U8: 0xFF; 0x99] end, notify)
+    h.assert_eq[USize](2, notify.frames.size())
+    h.assert_eq[USize](1, notify.errors)
+    try
+      h.assert_eq[U8](0x99, notify.frames(1)?)
+    else
+      h.fail("recovery frame access failed")
+    end
+
+class \nodoc\ iso _TestFrameDecoderMalformedConsecutive is UnitTest
+  """
+  Two consecutive chunks of bad data produce two distinct errors,
+  and the decoder still recovers when valid data arrives.
+  """
+  fun name(): String => "binary_codec/FrameDecoder/MalformedConsecutive"
+
+  fun apply(h: TestHelper) =>
+    let codec =
+      ConstThen[U8](
+        Literal(recover val [as U8: 0xFF] end), U8Codec)
+    let framer = FrameDecoder[U8](codec)
+    let notify: _TestU8FrameCollector ref = _TestU8FrameCollector
+
+    // First bad data
+    framer.received(recover [as U8: 0x00; 0x42] end, notify)
+    h.assert_eq[USize](1, notify.errors)
+
+    // Second bad data — a new error, not the first repeated
+    framer.received(recover [as U8: 0x01; 0x99] end, notify)
+    h.assert_eq[USize](2, notify.errors)
+
+    // Recovery: valid frame still works
+    framer.received(recover [as U8: 0xFF; 0xAA] end, notify)
+    h.assert_eq[USize](2, notify.errors)
+    h.assert_eq[USize](1, notify.frames.size())
+    try
+      h.assert_eq[U8](0xAA, notify.frames(0)?)
+    else
+      h.fail("recovery frame access failed")
     end
 
 class \nodoc\ iso _TestSubByteBitFields is UnitTest
