@@ -16,7 +16,7 @@ The general EBNF of a command line is:
   shortoptionset := '-'alphachar[alphachar]...['='arg | ' 'arg]
   arg := boolarg | intarg | floatarg | stringarg
   boolarg := 'true' | 'false'
-  intarg> := ['-'] numchar...
+  intarg := ['-'] numchar...
   floatarg ::= ['-'] numchar... ['.' numchar...]
   stringarg ::= anychar
 ```
