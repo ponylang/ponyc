@@ -185,29 +185,25 @@ class _ExpectStatusLine is _ParserState
           return InvalidStatusLine
         end
 
-      // Reason phrase: everything after status code to CRLF
-      // May be empty. If present, a space separates status from reason.
+      // RFC 9112 §4 requires SP or end-of-line after the three status
+      // digits. Anything else — a fourth digit, a letter, a tab — is
+      // not a valid status line.
       let after_status = status_start + 3
       let reason: String val =
-        if after_status < crlf then
-          // Skip the space between status and reason
-          let reason_start =
-            if
-              try
-                p.buf(after_status)? == ' '
-              else
-                _Unreachable()
-                false
-              end
-            then
-              after_status + 1
-            else
-              after_status
-            end
-          _BufferScan.sanitize_field_value(
-            p.extract_string(reason_start, crlf))
-        else
+        if after_status == crlf then
           ""
+        elseif
+          try
+            p.buf(after_status)? == ' '
+          else
+            _Unreachable()
+            false
+          end
+        then
+          _BufferScan.sanitize_field_value(
+            p.extract_string(after_status + 1, crlf))
+        else
+          return InvalidStatusLine
         end
 
       // Advance past the status line
