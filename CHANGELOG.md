@@ -61,6 +61,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix http_client accepting underscores and empty chunk sizes in chunked responses ([PR #6635](https://github.com/ponylang/ponyc/pull/6635))
 - Fix Path.abs and Path.rel not resolving drive-relative paths on Windows ([PR #6636](https://github.com/ponylang/ponyc/pull/6636))
 - Fix binary_codec Conditional encoding None as empty when flag is true ([PR #6638](https://github.com/ponylang/ponyc/pull/6638))
+- Fix undefined memory read for overlong paths on Windows ([PR #6639](https://github.com/ponylang/ponyc/pull/6639))
 
 ### Added
 
