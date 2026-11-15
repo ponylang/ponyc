@@ -48,6 +48,13 @@ actor \nodoc\ Main is TestList
     test(_TestDataAfterError)
     test(_Test1xxSkipped)
     test(_TestMultiple1xx)
+    test(_TestHeaderValueBareLFSanitized)
+    test(_TestHeaderValueBareCRSanitized)
+    test(_TestHeaderValueNulSanitized)
+    test(_TestHeaderValueMultipleControlCharsSanitized)
+    test(_TestHeaderValueLocationLFSanitized)
+    test(_TestHeaderNameBareLFSanitized)
+    test(_TestReasonPhraseBareLFSanitized)
 
     // Serializer property-based tests
     test.property(_PropertySerializerContainsMethod)
