@@ -31,6 +31,7 @@ actor \nodoc\ Main is TestList
     test(_TestListsTake)
     test(_TestListsTakeWhile)
     test(_TestMap)
+    test(_TestMapChurn)
     test(_TestMapInsertIfAbsent)
     test(_TestMapHashFunc)
     test(_TestMapRemove)
@@ -157,6 +158,76 @@ class \nodoc\ iso _TestMap is UnitTest
 
     let e = d + ("a", 1)
     h.assert_eq[U32](1, e("a")?)
+
+class \nodoc\ iso _TestMapChurn is UnitTest
+  """
+  Exercises insert-remove churn to verify that accumulated deleted slots
+  don't break lookups or corrupt map state.
+  """
+  fun name(): String => "collections/Map.churn"
+
+  fun apply(h: TestHelper) ? =>
+    let m = Map[USize, USize]
+    var k: USize = 0
+    while k < 1000 do
+      m(k) = k * 10
+      k = k + 1
+    end
+
+    let space_after_fill = m.space()
+    h.assert_true(
+      space_after_fill > 8, "table should have grown past default size")
+
+    // Churn: insert a fresh key and immediately remove it, 10000 times.
+    // Each cycle adds one deleted slot to the table.
+    var fresh: USize = 1_000_000
+    var i: USize = 0
+    while i < 10000 do
+      m(fresh) = fresh
+      try m.remove(fresh)? end
+      fresh = fresh + 1
+      i = i + 1
+    end
+
+    h.assert_eq[USize](1000, m.size())
+    h.assert_eq[USize](space_after_fill, m.space())
+
+    // Every original entry is still present with the right value.
+    k = 0
+    while k < 1000 do
+      h.assert_eq[USize](k * 10, m(k)?)
+      k = k + 1
+    end
+
+    // Churned keys are gone.
+    h.assert_false(m.contains(1_000_000))
+    h.assert_false(m.contains(1_005_000))
+    h.assert_false(m.contains(1_009_999))
+
+    // New inserts still work after churn.
+    m(2_000_000) = 42
+    h.assert_eq[USize](42, m(2_000_000)?)
+    h.assert_eq[USize](1001, m.size())
+
+    // Clear after churn resets internal tombstone state.
+    m.clear()
+    h.assert_eq[USize](0, m.size())
+    k = 0
+    while k < 500 do
+      m(k) = k
+      k = k + 1
+    end
+    h.assert_eq[USize](500, m.size())
+
+    fresh = 2_000_000
+    i = 0
+    while i < 5000 do
+      m(fresh) = fresh
+      try m.remove(fresh)? end
+      fresh = fresh + 1
+      i = i + 1
+    end
+    h.assert_eq[USize](500, m.size())
 
 class \nodoc\ iso _TestMapInsertIfAbsent is UnitTest
   fun name(): String => "collections/Map.insert_if_absent"

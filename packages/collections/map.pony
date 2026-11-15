@@ -14,11 +14,15 @@ type MapIs[K, V] is HashMap[K, V, HashIs[K]]
 
 class HashMap[K, V, H: HashFunction[K] val]
   """
-  A quadratic probing hash map. Resize occurs at a load factor of 0.75. A
-  resized map has 2 times the space. The hash function can be plugged in to the
-  type to create different kinds of maps.
+  A quadratic probing hash map. Resize occurs when the number of occupied slots
+  (live entries plus deleted slots) exceeds 75% of the table capacity. When the
+  resize is triggered by deleted slots rather than live entries, the table is
+  rehashed at the same capacity to reclaim the deleted slots without growing.
+  The hash function can be plugged in to the type to create different kinds of
+  maps.
   """
   var _size: USize = 0
+  var _deletes: USize = 0
   var _array: Array[((K, V) | _MapEmpty | _MapDeleted)]
 
   new create(prealloc: USize = 6) =>
@@ -38,8 +42,8 @@ class HashMap[K, V, H: HashFunction[K] val]
 
   fun space(): USize =>
     """
-    The available space in the map. Resize will happen when
-    size / space >= 0.75.
+    The available space in the map. Resize will happen when the number of
+    occupied slots (live entries plus deleted slots) exceeds 75% of this value.
     """
     _array.space()
 
@@ -68,10 +72,7 @@ class HashMap[K, V, H: HashFunction[K] val]
         return consume v
       else
         _size = _size + 1
-
-        if (_size * 4) > (_array.size() * 3) then
-          _resize(_array.size() * 2)
-        end
+        _resize_if_needed()
       end
     end
 
@@ -117,10 +118,7 @@ class HashMap[K, V, H: HashFunction[K] val]
 
         _array(i)? = (consume key, consume value)
         _size = _size + 1
-
-        if (_size * 4) > (_array.size() * 3) then
-          _resize(_array.size() * 2)
-        end
+        _resize_if_needed()
       end
 
       value'
@@ -141,10 +139,7 @@ class HashMap[K, V, H: HashFunction[K] val]
 
       if not found then
         _size = _size + 1
-
-        if (_size * 4) > (_array.size() * 3) then
-          _resize(_array.size() * 2)
-        end
+        _resize_if_needed()
       end
 
       value'
@@ -177,12 +172,8 @@ class HashMap[K, V, H: HashFunction[K] val]
         _array(i)? as (_, V)
       else
         _array(i)? = (consume key, consume value)
-
         _size = _size + 1
-
-        if (_size * 4) > (_array.size() * 3) then
-          _resize(_array.size() * 2)
-        end
+        _resize_if_needed()
         value'
       end
     else
@@ -200,9 +191,11 @@ class HashMap[K, V, H: HashFunction[K] val]
 
       if found then
         _size = _size - 1
+        _deletes = _deletes + 1
 
         match _array(i)? = _MapDeleted
         | (let k: K, let v: V) =>
+          _resize_if_needed()
           return (consume k, consume v)
         end
       end
@@ -324,6 +317,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     Remove all entries.
     """
     _size = 0
+    _deletes = 0
     // Our default prealloc of 6 corresponds to an array alloc size of 8.
     let n: USize = 8
     _array = _array.init(_MapEmpty, n)
@@ -364,15 +358,25 @@ class HashMap[K, V, H: HashFunction[K] val]
 
     (idx_del, false)
 
+  fun ref _resize_if_needed() =>
+    if ((_size + _deletes) * 4) > (_array.size() * 3) then
+      if (_size * 4) > (_array.size() * 3) then
+        _resize(_array.size() * 2)
+      else
+        _resize(_array.size())
+      end
+    end
+
   fun ref _resize(len: USize) =>
     """
-    Change the available space.
+    Rehash into a table of the given size.
     """
     let old = _array
     let old_len = old.size()
 
     _array = _array.init(_MapEmpty, len)
     _size = 0
+    _deletes = 0
 
     try
       for i in Range[USize].till(0, old_len) do
