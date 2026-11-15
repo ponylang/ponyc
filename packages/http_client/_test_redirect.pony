@@ -390,6 +390,85 @@ class \nodoc\ iso _TestRedirectIPv6Origin is UnitTest
     | _NotARedirect => h.fail("expected Redirect")
     end
 
+class \nodoc\ iso _TestRedirectFromIPv6OriginRelative is UnitTest
+  """A redirect from an IPv6 origin with a relative Location succeeds."""
+  fun name(): String => "redirect/from_ipv6_origin_relative"
+
+  fun apply(h: TestHelper) =>
+    let origin = Origin(false, "::1", "8080")
+    let sent = HTTPRequest(GET, "/a")
+    let response =
+      _RedirectTestKit.response(302, "/b")
+    match \exhaustive\ _RedirectDecision(sent, origin, response, 5)
+    | let r: Redirect =>
+      h.assert_eq[String val]("/b", r.request().path)
+      let target_origin = Origin.from_uri(r.target())
+      h.assert_eq[String val]("::1", target_origin.host)
+      h.assert_eq[String val]("8080", target_origin.port)
+    | let _: RedirectError => h.fail("expected Redirect, got a RedirectError")
+    | _NotARedirect => h.fail("expected Redirect")
+    end
+
+class \nodoc\ iso _TestRedirectFromIPv6OriginAbsolute is UnitTest
+  """
+  A redirect from an IPv6 origin with an absolute Location to another host
+  succeeds.
+  """
+  fun name(): String => "redirect/from_ipv6_origin_absolute"
+
+  fun apply(h: TestHelper) =>
+    let origin = Origin(false, "::1", "8080")
+    let sent = HTTPRequest(GET, "/a")
+    let response =
+      _RedirectTestKit.response(302, "http://example.com/b")
+    match \exhaustive\ _RedirectDecision(sent, origin, response, 5)
+    | let r: Redirect =>
+      h.assert_eq[String val]("/b", r.request().path)
+      let target_origin = Origin.from_uri(r.target())
+      h.assert_eq[String val]("example.com", target_origin.host)
+    | let _: RedirectError => h.fail("expected Redirect, got a RedirectError")
+    | _NotARedirect => h.fail("expected Redirect")
+    end
+
+class \nodoc\ iso _TestRedirectFromIPv6OriginSameOrigin is UnitTest
+  """
+  A redirect from an IPv6 origin to the same IPv6 host is same-origin:
+  credentials survive.
+  """
+  fun name(): String => "redirect/from_ipv6_origin_same_origin"
+
+  fun apply(h: TestHelper) =>
+    let origin = Origin(false, "::1", "8080")
+    let sent =
+      HTTPRequest(
+        GET,
+        "/a",
+        recover val Headers .> set("authorization", "Bearer secret") end)
+    let response =
+      _RedirectTestKit.response(302, "http://[::1]:8080/b")
+    match \exhaustive\ _RedirectDecision(sent, origin, response, 5)
+    | let r: Redirect =>
+      match \exhaustive\ r.request().headers.get("authorization")
+      | let v: String => h.assert_eq[String val]("Bearer secret", v)
+      | None => h.fail("authorization must survive a same-origin IPv6 hop")
+      end
+    | let _: RedirectError => h.fail("expected Redirect, got a RedirectError")
+    | _NotARedirect => h.fail("expected Redirect")
+    end
+
+class \nodoc\ iso _TestOriginBracketNormalization is UnitTest
+  """
+  Origin.create strips brackets from an IPv6 host so it compares equal
+  to what Origin.from_uri produces.
+  """
+  fun name(): String => "origin/bracket_normalization"
+
+  fun apply(h: TestHelper) =>
+    let bracketed = Origin(false, "[::1]", "8080")
+    let bare = Origin(false, "::1", "8080")
+    h.assert_eq[String val](bare.host, bracketed.host)
+    h.assert_true(bare == bracketed)
+
 class \nodoc\ iso _TestRedirectEmptyPathDefaultsToSlash is UnitTest
   """A Location with no path defaults to "/" in the request target."""
   fun name(): String => "redirect/empty_path_defaults_to_slash"

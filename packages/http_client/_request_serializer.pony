@@ -27,11 +27,18 @@ primitive _RequestSerializer
       .> append(request.path)
       .> append(" HTTP/1.1\r\n")
 
-    // Host header (auto-set if not present)
+    // Host header (auto-set if not present).
+    // IPv6 addresses are bracketed per RFC 9110 section 7.2.
     let default_port: String = if secure then "443" else "80" end
     if request.headers.get("host") is None then
       buf.append("Host: ")
-      buf.append(host)
+      if host.contains(":") then
+        buf .> push('[')
+          .> append(host)
+          .> push(']')
+      else
+        buf.append(host)
+      end
       if (port != default_port) and (port != "") then
         buf .> push(':')
           .> append(port)

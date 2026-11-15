@@ -309,3 +309,34 @@ class \nodoc\ iso _TestSerializerNoBody is UnitTest
     h.assert_false(
       serialized.contains("Content-Length"),
       "GET with no body should not have Content-Length")
+
+class \nodoc\ iso _TestSerializerIPv6Host is UnitTest
+  """IPv6 host is bracketed in Host header per RFC 9110 section 7.2."""
+  fun name(): String => "serializer/ipv6_host"
+
+  fun apply(h: TestHelper) =>
+    let request = HTTPRequest(GET, "/")
+
+    let s: String val =
+      String.from_iso_array(
+        _RequestSerializer(request, "::1", "8080", false))
+    h.assert_true(
+      s.contains("Host: [::1]:8080\r\n"),
+      "IPv6 host must be bracketed with non-default port")
+
+    let s2: String val =
+      String.from_iso_array(
+        _RequestSerializer(request, "::1", "80", false))
+    h.assert_true(
+      s2.contains("Host: [::1]\r\n"),
+      "IPv6 host must be bracketed with default port omitted")
+    h.assert_false(
+      s2.contains("Host: [::1]:"),
+      "default port must be omitted for IPv6 host")
+
+    let s3: String val =
+      String.from_iso_array(
+        _RequestSerializer(request, "::1", "443", true))
+    h.assert_true(
+      s3.contains("Host: [::1]\r\n"),
+      "IPv6 host must be bracketed with default https port omitted")
