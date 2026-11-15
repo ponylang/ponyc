@@ -296,3 +296,11 @@ When Transfer-Encoding is present but the final coding is not `chunked`, Content
 
 When the path passed to `Request.get` (or any other request method) already contained a query string, calling `.query()` produced a malformed path with two `?` markers. For example, `Request.get("/s?x=1").query("q", "v")` built the path `/s?x=1?q=v` instead of `/s?x=1&q=v`. Builder parameters are now appended with `&` when the path already contains a query string.
 
+## Fix Path.clean stripping trailing separator from volume roots
+
+`Path.clean` stripped the trailing separator from Windows drive roots and network share roots. `clean("C:/")` produced `"C:"` and `clean("//host/share/")` produced `"//host/share"`, even though both are root directories whose trailing separator should be preserved.
+
+`Path.split`, `Path.dir`, and `Path.join` all call `clean` internally, so the same stripping affected round-trips through those functions. `Path.join(Path.split("C:/a"))` produced `"C:a"` instead of `"C:/a"` because `split` returned `("C:", "a")` as the head.
+
+Root directories now keep their trailing separator, matching the documented behavior: "The result will have no trailing slash unless it is a root directory."
+
