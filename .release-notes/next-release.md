@@ -162,3 +162,7 @@ The response parser in `http_client` kept bare CR, bare LF, and NUL bytes inside
 
 The parser now replaces bare CR, bare LF, and NUL with SP in header field values, header names, and the status line reason phrase.
 
+## Fix Format.int with FormatUTF32 ignoring width, fill, and align
+
+`Format.int` with `FormatUTF32` returned the bare character and ignored `width`, `fill`, and `align`. Padding and alignment are now applied.
+
