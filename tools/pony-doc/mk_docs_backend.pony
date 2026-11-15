@@ -714,6 +714,7 @@ primitive MkDocsBackend is Backend
     let path = dir.join(name)?
     match CreateFile(path)
     | let file: File =>
+      file.set_length(0)
       file.write(content)
       file.dispose()
     else
@@ -733,6 +734,7 @@ primitive MkDocsBackend is Backend
     let path = dir.join(name)?
     match CreateFile(path)
     | let file: File =>
+      file.set_length(0)
       file.write(data)
       file.dispose()
     else

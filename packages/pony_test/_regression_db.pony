@@ -165,6 +165,7 @@ primitive _RegressionDb
 
     try
       let file = CreateFile(path) as File
+      file.set_length(0)
       let data = _ChoiceSerializer.serialize(choices)
       if not file.write(consume data) then
         logger.log(

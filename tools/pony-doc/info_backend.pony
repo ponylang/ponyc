@@ -196,6 +196,7 @@ primitive InfoBackend is Backend
     let path = output_dir.join(file_name)?
     match CreateFile(path)
     | let file: File =>
+      file.set_length(0)
       file.write(consume output)
       file.dispose()
     else
