@@ -32,4 +32,24 @@ PONY_API char* pony_os_realpath(const char* path)
   return cstring;
 }
 
+#ifdef PLATFORM_IS_WINDOWS
+PONY_API char* pony_os_abs_path(const char* path)
+{
+  char resolved[FILENAME_MAX];
+
+  if(GetFullPathName(path, FILENAME_MAX, resolved, NULL) == 0)
+    return NULL;
+
+  size_t len = strlen(resolved) + 1;
+
+  for(size_t i = 0; i < len - 1; i++)
+    if(resolved[i] == '\\')
+      resolved[i] = '/';
+
+  char* cstring = (char*)pony_alloc(pony_ctx(), len);
+  memcpy(cstring, resolved, len);
+  return cstring;
+}
+#endif
+
 PONY_EXTERN_C_END
