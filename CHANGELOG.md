@@ -33,6 +33,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `Path.rel` returning wrong results when the base is `"."` or `""` ([PR #6578](https://github.com/ponylang/ponyc/pull/6578))
 - Fix JSONPath parser accepting integers outside RFC 9535 range ([PR #6581](https://github.com/ponylang/ponyc/pull/6581))
 - Fix Format AlignCenter with a multibyte fill character dropping right-hand padding ([PR #6584](https://github.com/ponylang/ponyc/pull/6584))
+- Fix Random.int and Random.int_unbiased for U128 bounds above 2^64 ([PR #6582](https://github.com/ponylang/ponyc/pull/6582))
 
 ### Added
 
