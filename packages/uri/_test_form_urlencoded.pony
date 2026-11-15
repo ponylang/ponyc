@@ -152,6 +152,24 @@ class \nodoc\ iso _TestFormURLEncodedKnownGood is UnitTest
     _assert_params(
       h, "a=1&b&c=3", [("a", "1"); ("b", ""); ("c", "3")])
 
+    // Empty sequences from leading, trailing, or doubled & are skipped
+    _assert_params(
+      h, "a=1&", [("a", "1")])
+    _assert_params(
+      h, "&a=1", [("a", "1")])
+    _assert_params(
+      h, "a=1&&b=2", [("a", "1"); ("b", "2")])
+    _assert_params(
+      h, "&&", Array[(String val, String val)](0))
+    _assert_params(
+      h, "&", Array[(String val, String val)](0))
+
+    // Bare = gives empty key and empty value
+    _assert_params(
+      h, "=", [("", "")])
+    _assert_params(
+      h, "&=&", [("", "")])
+
   fun _assert_params(
     h: TestHelper,
     input: String val,
