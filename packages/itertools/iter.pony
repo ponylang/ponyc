@@ -493,7 +493,9 @@ class Iter[A] is Iterator[A]
 
   fun ref find(f: {(A!): Bool ?} box, n: USize = 1): A! ? =>
     """
-    Return the nth value in the iterator that satisfies the predicate `f`.
+    Return the nth value in the iterator that satisfies the predicate `f`,
+    counting from 1. Errors if `n` is 0 or if fewer than `n` values
+    satisfy `f`.
 
     #### Examples
 
@@ -509,6 +511,7 @@ class Iter[A] is Iterator[A]
     ```
     `4`
     """
+    if n == 0 then error end
     var c = n
     for x in _iter do
       if try f(x)? else false end then
@@ -753,7 +756,8 @@ class Iter[A] is Iterator[A]
 
   fun ref nth(n: USize): A ? =>
     """
-    Return the nth value of the iterator.
+    Return the nth value of the iterator, counting from 1. Errors if `n`
+    is 0 or if the iterator has fewer than `n` values.
 
     #### Example
 
@@ -763,6 +767,7 @@ class Iter[A] is Iterator[A]
     ```
     `2`
     """
+    if n == 0 then error end
     var c = n
     while _iter.has_next() and (c > 1) do
       _iter.next()?
