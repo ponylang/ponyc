@@ -222,3 +222,7 @@ Both methods now return correct results for U128 bounds that exceed U64 range.
 
 When a request had a body and the caller set `Transfer-Encoding`, the library still added a `Content-Length` header. RFC 9112 section 6.2 forbids sending both. The automatic `Content-Length` is now suppressed when `Transfer-Encoding` is already present.
 
+## Fix `Path.split` and `Path.dir` dropping the root from absolute paths
+
+`Path.split("/a")` returned `(".", "a")` instead of `("/", "a")`, and `Path.dir("/a")` returned `"."` instead of `"/"`. The root separator was lost from any path whose last component sat directly under the root — `/a`, `/`, and the volume root of `//host/share` paths. `Path.split("//h/s")` returned `("/h", "s")` instead of `("//h/s", "")`.
+
