@@ -82,7 +82,7 @@ primitive \nodoc\ _FileHelper
           "tmp._FileHelper.")?)?
     for f in files.values() do
       try
-        let dir_head = Path.split(f, "/")
+        let dir_head = Path.split(f)
         let fp = FilePath.from(top.path, dir_head._1)?
         let r = fp.mkdir()
         if dir_head._2 != "" then
