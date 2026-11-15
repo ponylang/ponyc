@@ -2,6 +2,10 @@ use "pony_test"
 use "random"
 use "time"
 
+primitive \nodoc\ _ConstantHash is HashFunction[USize]
+  fun hash(x: box->USize!): USize => 0
+  fun eq(x: box->USize!, y: box->USize!): Bool => x == y
+
 actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
@@ -12,6 +16,7 @@ actor \nodoc\ Main is TestList
     test(_TestFlagsMultiBit)
     test(_TestHashSetContains)
     test(_TestHashSetIntersect)
+    test(_TestHashSetCollisionIntersect)
     test(_TestHeap)
     test(_TestList)
     test(_TestListsContains)
@@ -35,6 +40,12 @@ actor \nodoc\ Main is TestList
     test(_TestMapHashFunc)
     test(_TestMapRemove)
     test(_TestMapUpsert)
+    test(_TestMapChurn)
+    test(_TestMapBackwardShift)
+    test(_TestMapRemoveReinsert)
+    test(_TestMapIterateAfterRemove)
+    test(_TestMapCollisionInsert)
+    test(_TestMapCollisionRemove)
     test(_TestRange)
     test.property[(U8, U8, U8)](_TestRangeMonotonicity)
     test.property[(U8, U8, U8)](_TestRangeThroughGeTill)
@@ -139,6 +150,8 @@ class \nodoc\ iso _TestMap is UnitTest
     a.compact()
     h.assert_eq[USize](6, a.size())
     h.assert_eq[USize](8, a.space())
+    h.assert_eq[U32](0, a("0")?)
+    h.assert_eq[U32](2, a("2")?)
 
     b.clear()
     h.assert_eq[USize](0, b.size())
@@ -280,6 +293,208 @@ class \nodoc\ iso _TestMapHashFunc is UnitTest
       h.assert_eq[USize](h1, 13698363685738975395)
       h.assert_eq[USize](h2, 17028932028986796913)
     end
+
+class \nodoc\ iso _TestMapChurn is UnitTest
+  fun name(): String => "collections/Map.churn"
+
+  fun apply(h: TestHelper) ? =>
+    let live: USize = 1000
+    let cycles: USize = 10000
+    let m = Map[USize, USize]
+
+    var k: USize = 0
+    while k < live do
+      m(k) = k
+      k = k + 1
+    end
+    h.assert_eq[USize](live, m.size())
+
+    var fresh: USize = 1_000_000
+    var i: USize = 0
+    while i < cycles do
+      m(fresh) = fresh
+      m.remove(fresh)?
+      fresh = fresh + 1
+      i = i + 1
+    end
+
+    h.assert_eq[USize](live, m.size())
+    k = 0
+    while k < live do
+      h.assert_eq[USize](
+        k,
+        m(k)?,
+        "key " + k.string() + " has wrong value after churn")
+      k = k + 1
+    end
+
+    h.assert_false(m.contains(USize.max_value()))
+
+class \nodoc\ iso _TestMapBackwardShift is UnitTest
+  fun name(): String => "collections/Map.backward_shift"
+
+  fun apply(h: TestHelper) ? =>
+    let m = Map[USize, USize]
+
+    var k: USize = 0
+    while k < 100 do
+      m(k) = k
+      k = k + 1
+    end
+
+    k = 0
+    while k < 100 do
+      m.remove(k)?
+      k = k + 2
+    end
+
+    k = 1
+    while k < 100 do
+      h.assert_eq[USize](
+        k,
+        m(k)?,
+        "key " + k.string() + " has wrong value after removals")
+      k = k + 2
+    end
+
+    h.assert_eq[USize](50, m.size())
+
+    k = 0
+    while k < 100 do
+      h.assert_false(m.contains(k))
+      k = k + 2
+    end
+
+class \nodoc\ iso _TestMapRemoveReinsert is UnitTest
+  fun name(): String => "collections/Map.remove_reinsert"
+
+  fun apply(h: TestHelper) ? =>
+    let m = Map[USize, USize]
+    m(1) = 10
+    m(2) = 20
+    m(3) = 30
+
+    m.remove(2)?
+    h.assert_eq[USize](2, m.size())
+    h.assert_false(m.contains(2))
+    h.assert_eq[USize](10, m(1)?)
+    h.assert_eq[USize](30, m(3)?)
+
+    m(2) = 200
+    h.assert_eq[USize](3, m.size())
+    h.assert_eq[USize](200, m(2)?)
+    h.assert_eq[USize](10, m(1)?)
+    h.assert_eq[USize](30, m(3)?)
+
+class \nodoc\ iso _TestMapIterateAfterRemove is UnitTest
+  fun name(): String => "collections/Map.iterate_after_remove"
+
+  fun apply(h: TestHelper) ? =>
+    let m = Map[USize, USize]
+
+    var k: USize = 0
+    while k < 50 do
+      m(k) = k * 10
+      k = k + 1
+    end
+
+    k = 0
+    while k < 50 do
+      m.remove(k)?
+      k = k + 3
+    end
+
+    let remaining = Set[USize]
+    for (mk, mv) in m.pairs() do
+      h.assert_eq[USize](mk * 10, mv)
+      remaining.set(mk)
+    end
+
+    h.assert_eq[USize](m.size(), remaining.size())
+
+    k = 0
+    while k < 50 do
+      if (k % 3) == 0 then
+        h.assert_false(remaining.contains(k))
+      else
+        h.assert_true(
+          remaining.contains(k),
+          "key " + k.string() + " missing from iteration")
+      end
+      k = k + 1
+    end
+
+class \nodoc\ iso _TestMapCollisionInsert is UnitTest
+  fun name(): String => "collections/Map.collision_insert"
+
+  fun apply(h: TestHelper) ? =>
+    let m = HashMap[USize, USize, _ConstantHash]
+
+    var k: USize = 0
+    while k < 6 do
+      m(k) = k * 10
+      k = k + 1
+    end
+
+    h.assert_eq[USize](6, m.size())
+
+    k = 0
+    while k < 6 do
+      h.assert_true(m.contains(k))
+      h.assert_eq[USize](k * 10, m(k)?)
+      k = k + 1
+    end
+
+    h.assert_false(m.contains(99))
+
+    m(3) = 999
+    h.assert_eq[USize](999, m(3)?)
+    h.assert_eq[USize](6, m.size())
+
+class \nodoc\ iso _TestMapCollisionRemove is UnitTest
+  fun name(): String => "collections/Map.collision_remove"
+
+  fun apply(h: TestHelper) ? =>
+    let m = HashMap[USize, USize, _ConstantHash]
+
+    var k: USize = 0
+    while k < 6 do
+      m(k) = k * 10
+      k = k + 1
+    end
+
+    // Remove from the middle of the chain
+    m.remove(2)?
+    h.assert_eq[USize](5, m.size())
+    h.assert_false(m.contains(2))
+    h.assert_eq[USize](0, m(0)?)
+    h.assert_eq[USize](10, m(1)?)
+    h.assert_eq[USize](30, m(3)?)
+    h.assert_eq[USize](40, m(4)?)
+    h.assert_eq[USize](50, m(5)?)
+
+    // Remove from the front of the chain
+    m.remove(0)?
+    h.assert_eq[USize](4, m.size())
+    h.assert_false(m.contains(0))
+    h.assert_eq[USize](10, m(1)?)
+    h.assert_eq[USize](30, m(3)?)
+    h.assert_eq[USize](40, m(4)?)
+    h.assert_eq[USize](50, m(5)?)
+
+    // Remove from the end of the chain
+    m.remove(5)?
+    h.assert_eq[USize](3, m.size())
+    h.assert_false(m.contains(5))
+    h.assert_eq[USize](10, m(1)?)
+    h.assert_eq[USize](30, m(3)?)
+    h.assert_eq[USize](40, m(4)?)
+
+    // Remove all remaining
+    m.remove(1)?
+    m.remove(3)?
+    m.remove(4)?
+    h.assert_eq[USize](0, m.size())
 
 class \nodoc\ iso _TestRing is UnitTest
   fun name(): String => "collections/RingBuffer"
@@ -700,6 +915,8 @@ class \nodoc\ iso _TestHashSetIntersect is UnitTest
         ([1; 2; 3], [], [])
         ([], [1; 2], [])
         ([], [], [])
+        ([as U32: 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12],
+          [3; 7; 11], [3; 7; 11])
       ]
 
     for test in tests.values() do
@@ -711,6 +928,32 @@ class \nodoc\ iso _TestHashSetIntersect is UnitTest
         h.assert_true(intersect.contains(v))
       end
     end
+
+class \nodoc\ iso _TestHashSetCollisionIntersect is UnitTest
+  fun name(): String => "collections/HashSet/collision_intersect()"
+
+  fun apply(h: TestHelper) =>
+    let sa = HashSet[USize, _ConstantHash]
+    var k: USize = 0
+    while k < 6 do
+      sa.set(k)
+      k = k + 1
+    end
+
+    let sb = HashSet[USize, _ConstantHash]
+    sb.set(1)
+    sb.set(3)
+    sb.set(5)
+
+    sa.intersect(sb)
+
+    h.assert_eq[USize](3, sa.size())
+    h.assert_true(sa.contains(1))
+    h.assert_true(sa.contains(3))
+    h.assert_true(sa.contains(5))
+    h.assert_false(sa.contains(0))
+    h.assert_false(sa.contains(2))
+    h.assert_false(sa.contains(4))
 
 class \nodoc\ iso _TestSort is UnitTest
   fun name(): String => "collections/Sort"

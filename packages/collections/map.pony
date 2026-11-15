@@ -1,5 +1,4 @@
 primitive _MapEmpty
-primitive _MapDeleted
 
 type Map[K: (Hashable #read & Equatable[K] #read), V] is
   HashMap[K, V, HashEq[K]]
@@ -14,12 +13,12 @@ type MapIs[K, V] is HashMap[K, V, HashIs[K]]
 
 class HashMap[K, V, H: HashFunction[K] val]
   """
-  A quadratic probing hash map. Resize occurs at a load factor of 0.75. A
-  resized map has 2 times the space. The hash function can be plugged in to the
-  type to create different kinds of maps.
+  A Robin Hood linear probing hash map. Resize occurs at a load factor of
+  0.75. A resized map has 2 times the space. The hash function can be plugged
+  in to the type to create different kinds of maps.
   """
   var _size: USize = 0
-  var _array: Array[((K, V) | _MapEmpty | _MapDeleted)]
+  var _array: Array[((K, V) | _MapEmpty)]
 
   new create(prealloc: USize = 6) =>
     """
@@ -60,20 +59,13 @@ class HashMap[K, V, H: HashFunction[K] val]
     Sets a value in the map. Returns the old value if there was one, otherwise
     returns None. If there was no previous value, this may trigger a resize.
     """
-    try
-      (let i, let found) = _search(key)
+    let result = _put(consume key, consume value)
 
-      match _array(i)? = (consume key, consume value)
-      | (_, let v: V) =>
-        return consume v
-      else
-        _size = _size + 1
-
-        if (_size * 4) > (_array.size() * 3) then
-          _resize(_array.size() * 2)
-        end
-      end
+    if (_size * 4) > (_array.size() * 3) then
+      _resize(_array.size() * 2)
     end
+
+    result
 
   fun ref upsert(key: K, value: V, f: {(V, V): V^} box): V! =>
     """
@@ -113,9 +105,8 @@ class HashMap[K, V, H: HashFunction[K] val]
 
         return _array(i)? as (_, V)
       else
-        let key' = key
-
-        _array(i)? = (consume key, consume value)
+        let h = H.hash(key).usize()
+        _robin_insert(h, consume key, consume value, 0)
         _size = _size + 1
 
         if (_size * 4) > (_array.size() * 3) then
@@ -125,7 +116,7 @@ class HashMap[K, V, H: HashFunction[K] val]
 
       value'
     else
-      // This is unreachable, since index will never be out-of-bounds
+      _Unreachable()
       value'
     end
 
@@ -134,24 +125,25 @@ class HashMap[K, V, H: HashFunction[K] val]
     Set a value in the map. Returns the new value, allowing reuse.
     """
     let value' = value
-    try
-      (let i, let found) = _search(key)
-      let key' = key
-      _array(i)? = (consume key, consume value)
 
-      if not found then
-        _size = _size + 1
-
-        if (_size * 4) > (_array.size() * 3) then
-          _resize(_array.size() * 2)
-        end
+    (let i, let found) = _search(key)
+    if found then
+      try
+        _array(i)? = (consume key, consume value)
+      else
+        _Unreachable()
       end
-
-      value'
     else
-      // This is unreachable, since index will never be out-of-bounds.
-      value'
+      let h = H.hash(key).usize()
+      _robin_insert(h, consume key, consume value, 0)
+      _size = _size + 1
+
+      if (_size * 4) > (_array.size() * 3) then
+        _resize(_array.size() * 2)
+      end
     end
+
+    value'
 
   fun ref insert_if_absent(key: K, value: V): V! =>
     """
@@ -171,13 +163,12 @@ class HashMap[K, V, H: HashFunction[K] val]
 
     try
       (let i, let found) = _search(key)
-      let key' = key
 
       if found then
         _array(i)? as (_, V)
       else
-        _array(i)? = (consume key, consume value)
-
+        let h = H.hash(key).usize()
+        _robin_insert(h, consume key, consume value, 0)
         _size = _size + 1
 
         if (_size * 4) > (_array.size() * 3) then
@@ -186,7 +177,7 @@ class HashMap[K, V, H: HashFunction[K] val]
         value'
       end
     else
-      // This is unreachable, since index will never be out-of-bounds.
+      _Unreachable()
       value'
     end
 
@@ -201,8 +192,9 @@ class HashMap[K, V, H: HashFunction[K] val]
       if found then
         _size = _size - 1
 
-        match _array(i)? = _MapDeleted
+        match _array(i)? = _MapEmpty
         | (let k: K, let v: V) =>
+          _backward_shift(i)
           return (consume k, consume v)
         end
       end
@@ -220,8 +212,7 @@ class HashMap[K, V, H: HashFunction[K] val]
       try
         _array(i)? as (_, this->V)
       else
-        // This should never happen as we have already
-        // proven that _array(i) exists
+        _Unreachable()
         consume alt
       end
     else
@@ -330,39 +321,131 @@ class HashMap[K, V, H: HashFunction[K] val]
 
   fun _search(key: box->K!): (USize, Bool) =>
     """
-    Return a slot number and whether or not it's currently occupied.
+    Search for a key using linear probing. Returns (index, true) if the
+    key is found, or (index, false) if it is not.
     """
-    var idx_del = _array.size()
-    let mask = idx_del - 1
+    let mask = _array.size() - 1
     let h = H.hash(key).usize()
     var idx = h and mask
 
     try
       for i in Range[USize].till(0, _array.size()) do
-        let entry = _array(idx)?
-
-        match \exhaustive\ entry
+        match \exhaustive\ _array(idx)?
         | (let k: this->K!, _) =>
           if H.eq(k, key) then
             return (idx, true)
           end
         | _MapEmpty =>
-          if idx_del <= mask then
-            return (idx_del, false)
-          else
-            return (idx, false)
-          end
-        | _MapDeleted =>
-          if idx_del > mask then
-            idx_del = idx
-          end
+          return (idx, false)
         end
 
-        idx = (h + ((i + (i * i)) / 2)) and mask
+        idx = (idx + 1) and mask
       end
     end
 
-    (idx_del, false)
+    _Unreachable()
+    (0, false)
+
+  fun ref _put(key: K, value: V): (V^ | None) =>
+    """
+    Insert or update an entry using Robin Hood linear probing. If the key
+    already exists, the value is replaced and the old value is returned. If
+    the key is new, returns None and increments the size.
+    """
+    (let idx, let found) = _search(key)
+    if found then
+      try
+        match _array(idx)? = (consume key, consume value)
+        | (_, let old_v: V) => consume old_v
+        end
+      else
+        _Unreachable()
+        None
+      end
+    else
+      let h = H.hash(key).usize()
+      _robin_insert(h, consume key, consume value, 0)
+      _size = _size + 1
+      None
+    end
+
+  fun ref _robin_insert(h: USize, key: K, value: V, dist: USize) =>
+    """
+    Place an entry that is known not to exist in the table, using Robin Hood
+    displacement. When the entry being placed has a longer probe distance than
+    the resident, the resident is displaced and re-inserted further along the
+    probe sequence.
+    """
+    var cur_h: USize = h
+    var cur_key: K = consume key
+    var cur_val: V = consume value
+    var cur_dist: USize = dist
+    let mask = _array.size() - 1
+
+    try
+      for i in Range[USize].till(0, _array.size()) do
+        let idx = (((cur_h and mask) + cur_dist) and mask)
+        match \exhaustive\ _array(idx)? = _MapEmpty
+        | _MapEmpty =>
+          _array(idx)? = (consume cur_key, consume cur_val)
+          return
+        | (let rk: K, let rv: V) =>
+          let rh = H.hash(rk).usize()
+          let rdist = _probe_dist(rh, idx)
+          if rdist < cur_dist then
+            let swap_key: K = cur_key = consume rk
+            let swap_val: V = cur_val = consume rv
+            _array(idx)? = (consume swap_key, consume swap_val)
+            cur_h = rh
+            cur_dist = rdist + 1
+          else
+            _array(idx)? = (consume rk, consume rv)
+            cur_dist = cur_dist + 1
+          end
+        end
+      end
+    else
+      _Unreachable()
+    end
+    _Unreachable()
+
+  fun ref _backward_shift(gap: USize) =>
+    """
+    After removing an entry, shift subsequent entries backward to fill the
+    gap. Each entry whose probe distance is greater than zero is moved one
+    slot closer to its ideal position. The shift stops at an empty slot or
+    an entry already at its ideal position (probe distance zero).
+    """
+    let mask = _array.size() - 1
+    var g = gap
+    var idx = (g + 1) and mask
+
+    try
+      for i in Range[USize].till(0, _array.size()) do
+        match \exhaustive\ _array(idx)? = _MapEmpty
+        | _MapEmpty =>
+          return
+        | (let rk: K, let rv: V) =>
+          if _probe_dist(H.hash(rk).usize(), idx) == 0 then
+            _array(idx)? = (consume rk, consume rv)
+            return
+          end
+          _array(g)? = (consume rk, consume rv)
+          g = idx
+          idx = (idx + 1) and mask
+        end
+      end
+    else
+      _Unreachable()
+    end
+    _Unreachable()
+
+  fun _probe_dist(h: USize, idx: USize): USize =>
+    """
+    The number of steps from the ideal slot for hash h to the actual slot idx.
+    """
+    let mask = _array.size() - 1
+    ((idx + _array.size()) - (h and mask)) and mask
 
   fun ref _resize(len: USize) =>
     """
@@ -376,11 +459,15 @@ class HashMap[K, V, H: HashFunction[K] val]
 
     try
       for i in Range[USize].till(0, old_len) do
-        match old(i)? = _MapDeleted
+        match old(i)? = _MapEmpty
         | (let k: K, let v: V) =>
-          this(consume k) = consume v
+          let h = H.hash(k).usize()
+          _robin_insert(h, consume k, consume v, 0)
+          _size = _size + 1
         end
       end
+    else
+      _Unreachable()
     end
 
   fun keys(): MapKeys[K, V, H, this->HashMap[K, V, H]]^ =>

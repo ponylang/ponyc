@@ -87,6 +87,9 @@ class HashSet[A, H: HashFunction[A!] val] is Equatable[HashSet[A, H] box]
         i = next_index(i)?
         if not that.contains(index(i)?) then
           unset(index(i)?)
+          // HashMap.remove uses backward-shift deletion, which may move an
+          // entry into position i. Without this decrement, next_index skips it.
+          i = i - 1
         end
       end
       seen = seen + 1
