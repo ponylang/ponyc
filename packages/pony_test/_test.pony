@@ -106,6 +106,9 @@ actor \nodoc\ Main is TestList
     test(_ShrinkerForcedBoolSkipTest)
     test(_ShrinkerLowerU128Test)
     test(_ShrinkerLowerFloatTest)
+    test(_ShrinkerLowerFloatNaNTest)
+    test(_ShrinkerLowerFloatInfTest)
+    test(_ShrinkerLowerFloatNonZeroTargetTest)
     test(_ShrinkerDeleteDiscardedSpanTest)
     test(_ShrinkerSortSpansLengthTest)
     test(_ShrinkerRejectIdenticalTest)
@@ -220,6 +223,7 @@ actor \nodoc\ Main is TestList
     test(_DirectShrinkArrayToMinTest)
     test(_DirectShrinkFilterPreservationTest)
     test(_DirectShrinkFlatMapTest)
+    test(_DirectShrinkFloatToTargetTest)
 
     // Meta-tests (run a sub-PonyTest and verify its output)
     test(_AssertionOnlyFailTest)
