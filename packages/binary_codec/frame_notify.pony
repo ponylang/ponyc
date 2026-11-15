@@ -12,4 +12,6 @@ interface ref FrameNotify[A: Any val]
   fun ref frame_error(err: MalformedData)
     """
     Called when the decoder encounters structurally invalid data.
+    The decoder discards its buffer after this call, so the next
+    `received()` starts fresh.
     """

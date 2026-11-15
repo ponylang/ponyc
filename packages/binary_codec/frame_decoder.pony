@@ -11,7 +11,10 @@ class ref FrameDecoder[A: Any val]
 
   `InsufficientData` means "wait for more bytes" — normal in streaming.
   `MalformedData` means "this data is wrong" — reported as an error via
-  `FrameNotify.frame_error`.
+  `FrameNotify.frame_error`, and then the buffer is discarded so the next
+  `received()` starts fresh. There is no protocol-independent way to find
+  the next valid frame after malformed data, so the decoder does not attempt
+  to resync — callers that need resync should implement it above this layer.
   """
   let _codec: Codec[A]
   var _remainder: Array[U8] val
@@ -47,7 +50,9 @@ class ref FrameDecoder[A: Any val]
       | InsufficientData => continue' = false
       | let m: MalformedData =>
         notify.frame_error(m)
-        continue' = false
+        _remainder = recover val Array[U8] end
+        _bit_offset = 0
+        return
       end
     end
     _remainder = buf.trim(bit_pos / 8)
