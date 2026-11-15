@@ -328,6 +328,9 @@ class \nodoc\ iso _TestIterFind is UnitTest
   fun apply(h: TestHelper) ? =>
     let input = [as I64: 1; 2; 3; -4; 5]
     h.assert_error({() ? =>
+      Iter[I64](input.values()).find({(x) => true }, 0)?
+    })
+    h.assert_error({() ? =>
       Iter[I64](input.values()).find({(x: I64): Bool => x == 0 })?
     })
     h.assert_eq[I64](-4, Iter[I64](input.values()).find({(x) => x < 0 })?)
@@ -493,6 +496,7 @@ class \nodoc\ iso _TestIterNth is UnitTest
     h.assert_eq[USize](
       3,
       Iter[USize](input.values()).nth(3)?)
+    h.assert_error({()? => Iter[USize](input.values()).nth(0)? })
     h.assert_error({()? => Iter[USize](input.values()).nth(4)? })
     h.assert_error({()? =>
         Iter[U8](
