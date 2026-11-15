@@ -43,17 +43,26 @@ class ref _BitWriter
 
   fun ref write_bytes(data: Array[U8] box) =>
     """
-    Write whole bytes. Must be byte-aligned.
+    Write whole bytes. Works at any bit offset.
     """
     if _bit_pos == 0 then
       for b in data.values() do
         _buffer.push(b)
       end
+    else
+      for b in data.values() do
+        write_bits(b.u64(), 8)
+      end
     end
 
   fun ref write_byte(value: U8) =>
+    """
+    Write a single byte. Works at any bit offset.
+    """
     if _bit_pos == 0 then
       _buffer.push(value)
+    else
+      write_bits(value.u64(), 8)
     end
 
   fun ref done(): Array[U8] val ? =>

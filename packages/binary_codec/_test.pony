@@ -52,6 +52,17 @@ actor \nodoc\ Main is TestList
     test(_TestRoundtripU16BE)
     test(_TestRoundtripSeq2)
     test(_TestRoundtripBits)
+    test(_TestUnalignedU8Codec)
+    test(_TestUnalignedI8Codec)
+    test(_TestUnalignedU16LE)
+    test(_TestUnalignedU32LE)
+    test(_TestUnalignedU64LE)
+    test(_TestUnalignedU128BE)
+    test(_TestUnalignedU128LE)
+    test(_TestUnalignedBytes)
+    test(_TestUnalignedBytesRest)
+    test(_TestUnalignedLiteral)
+    test(_TestUnalignedVariableSize)
     test(_TestDiscriminated)
 
 class \nodoc\ iso _TestU8Codec is UnitTest
@@ -973,6 +984,228 @@ class \nodoc\ iso _TestRoundtripBits is UnitTest
       | ((let a: U8, let b: U8), _) =>
         h.assert_eq[U8](4, a)
         h.assert_eq[U8](5, b)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestUnalignedU8Codec is UnitTest
+  fun name(): String => "binary_codec/unaligned/U8Codec"
+
+  fun apply(h: TestHelper) =>
+    let codec = Seq3[U8, U8, U8](BitsU8(4), U8Codec, BitsU8(4))
+    match \exhaustive\ codec.encode((1, 0x77, 2))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](2, encoded.size())
+      match codec.decode(encoded, 0)
+      | ((let a: U8, let b: U8, let c: U8), _) =>
+        h.assert_eq[U8](1, a)
+        h.assert_eq[U8](0x77, b)
+        h.assert_eq[U8](2, c)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestUnalignedI8Codec is UnitTest
+  fun name(): String => "binary_codec/unaligned/I8Codec"
+
+  fun apply(h: TestHelper) =>
+    let codec = Seq3[U8, I8, U8](BitsU8(4), I8Codec, BitsU8(4))
+    match \exhaustive\ codec.encode((1, -5, 2))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](2, encoded.size())
+      match codec.decode(encoded, 0)
+      | ((let a: U8, let b: I8, let c: U8), _) =>
+        h.assert_eq[U8](1, a)
+        h.assert_eq[I8](-5, b)
+        h.assert_eq[U8](2, c)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestUnalignedU16LE is UnitTest
+  fun name(): String => "binary_codec/unaligned/U16LE"
+
+  fun apply(h: TestHelper) =>
+    let codec = Seq3[U8, U16, U8](BitsU8(4), U16LE, BitsU8(4))
+    match \exhaustive\ codec.encode((1, 0x1234, 2))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](3, encoded.size())
+      try
+        h.assert_eq[U8](0x13, encoded(0)?)
+        h.assert_eq[U8](0x41, encoded(1)?)
+        h.assert_eq[U8](0x22, encoded(2)?)
+      else
+        h.fail("byte access failed")
+      end
+      match codec.decode(encoded, 0)
+      | ((let a: U8, let b: U16, let c: U8), _) =>
+        h.assert_eq[U8](1, a)
+        h.assert_eq[U16](0x1234, b)
+        h.assert_eq[U8](2, c)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestUnalignedU32LE is UnitTest
+  fun name(): String => "binary_codec/unaligned/U32LE"
+
+  fun apply(h: TestHelper) =>
+    let codec = Seq3[U8, U32, U8](BitsU8(4), U32LE, BitsU8(4))
+    match \exhaustive\ codec.encode((1, 0x12345678, 2))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](5, encoded.size())
+      match codec.decode(encoded, 0)
+      | ((let a: U8, let b: U32, let c: U8), _) =>
+        h.assert_eq[U8](1, a)
+        h.assert_eq[U32](0x12345678, b)
+        h.assert_eq[U8](2, c)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestUnalignedU64LE is UnitTest
+  fun name(): String => "binary_codec/unaligned/U64LE"
+
+  fun apply(h: TestHelper) =>
+    let codec = Seq3[U8, U64, U8](BitsU8(4), U64LE, BitsU8(4))
+    match \exhaustive\ codec.encode((1, 0x123456789ABCDEF0, 2))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](9, encoded.size())
+      match codec.decode(encoded, 0)
+      | ((let a: U8, let b: U64, let c: U8), _) =>
+        h.assert_eq[U8](1, a)
+        h.assert_eq[U64](0x123456789ABCDEF0, b)
+        h.assert_eq[U8](2, c)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestUnalignedU128BE is UnitTest
+  fun name(): String => "binary_codec/unaligned/U128BE"
+
+  fun apply(h: TestHelper) =>
+    let val128: U128 =
+      (U128(0x0102030405060708) << 64) or 0x090A0B0C0D0E0F10
+    let codec = Seq3[U8, U128, U8](BitsU8(4), U128BE, BitsU8(4))
+    match \exhaustive\ codec.encode((1, val128, 2))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](17, encoded.size())
+      match codec.decode(encoded, 0)
+      | ((let a: U8, let b: U128, let c: U8), _) =>
+        h.assert_eq[U8](1, a)
+        h.assert_eq[U128](val128, b)
+        h.assert_eq[U8](2, c)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestUnalignedU128LE is UnitTest
+  fun name(): String => "binary_codec/unaligned/U128LE"
+
+  fun apply(h: TestHelper) =>
+    let val128: U128 =
+      (U128(0x0102030405060708) << 64) or 0x090A0B0C0D0E0F10
+    let codec = Seq3[U8, U128, U8](BitsU8(4), U128LE, BitsU8(4))
+    match \exhaustive\ codec.encode((1, val128, 2))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](17, encoded.size())
+      match codec.decode(encoded, 0)
+      | ((let a: U8, let b: U128, let c: U8), _) =>
+        h.assert_eq[U8](1, a)
+        h.assert_eq[U128](val128, b)
+        h.assert_eq[U8](2, c)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestUnalignedBytes is UnitTest
+  fun name(): String => "binary_codec/unaligned/Bytes"
+
+  fun apply(h: TestHelper) =>
+    let codec =
+      Seq3[U8, Array[U8] val, U8](BitsU8(4), Bytes(2), BitsU8(4))
+    match \exhaustive\ codec.encode((1, [as U8: 0xAA; 0xBB], 2))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](3, encoded.size())
+      match codec.decode(encoded, 0)
+      | ((let a: U8, let b: Array[U8] val, let c: U8), _) =>
+        h.assert_eq[U8](1, a)
+        h.assert_eq[USize](2, b.size())
+        try
+          h.assert_eq[U8](0xAA, b(0)?)
+          h.assert_eq[U8](0xBB, b(1)?)
+        else
+          h.fail("byte content access failed")
+        end
+        h.assert_eq[U8](2, c)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestUnalignedBytesRest is UnitTest
+  fun name(): String => "binary_codec/unaligned/BytesRest"
+
+  fun apply(h: TestHelper) =>
+    let codec = Seq2[U8, Array[U8] val](BitsU8(4), BytesRest)
+    let data: Array[U8] val = [0x1A; 0xAB; 0xB0]
+    match codec.decode(data, 0)
+    | ((let a: U8, let b: Array[U8] val), let c: USize) =>
+      h.assert_eq[U8](1, a)
+      h.assert_eq[USize](2, b.size())
+      try
+        h.assert_eq[U8](0xAA, b(0)?)
+        h.assert_eq[U8](0xBB, b(1)?)
+      else
+        h.fail("byte content access failed")
+      end
+      h.assert_eq[USize](20, c)
+    else h.fail("decode failed")
+    end
+
+class \nodoc\ iso _TestUnalignedLiteral is UnitTest
+  fun name(): String => "binary_codec/unaligned/Literal"
+
+  fun apply(h: TestHelper) =>
+    let codec =
+      Seq3[U8, None, U8](BitsU8(4), Literal([as U8: 0xAA]), BitsU8(4))
+    match \exhaustive\ codec.encode((1, None, 2))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](2, encoded.size())
+      match codec.decode(encoded, 0)
+      | ((let a: U8, _, let c: U8), _) =>
+        h.assert_eq[U8](1, a)
+        h.assert_eq[U8](2, c)
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestUnalignedVariableSize is UnitTest
+  fun name(): String => "binary_codec/unaligned/VariableSize"
+
+  fun apply(h: TestHelper) =>
+    let codec =
+      Seq3[U8, U8, U8](
+        BitsU8(4),
+        VariableSize[U8](BitsU16(8), U8Codec),
+        BitsU8(4))
+    match \exhaustive\ codec.encode((1, 0x77, 2))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](3, encoded.size())
+      match codec.decode(encoded, 0)
+      | ((let a: U8, let b: U8, let c: U8), _) =>
+        h.assert_eq[U8](1, a)
+        h.assert_eq[U8](0x77, b)
+        h.assert_eq[U8](2, c)
       else h.fail("decode failed")
       end
     | let e: EncodeError => h.fail("encode failed: " + e.string())
