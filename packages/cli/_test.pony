@@ -18,6 +18,7 @@ actor \nodoc\ Main is TestList
     test(_TestHelpFalse)
     test(_TestHelpMultipleArgs)
     test(_TestHyphenArg)
+    test(_TestIntegerFormat)
     test(_TestInvalidOptionFormat)
     test(_TestLongsEq)
     test(_TestLongsNext)
@@ -207,6 +208,162 @@ class \nodoc\ iso _TestHyphenArg is UnitTest
 
     h.assert_eq[String]("minimal", cmd.fullname())
     h.assert_eq[String]("-", cmd.arg("name").string())
+
+class \nodoc\ iso _TestIntegerFormat is UnitTest
+  fun name(): String => "cli/integer_format"
+
+  fun apply(h: TestHelper) ? =>
+    // Separate specs so each test targets exactly one conversion.
+    // All options and args have defaults so a missing value is never
+    // the error source.
+    let i64_opt_spec =
+      CommandSpec.leaf(
+        "app",
+        "",
+        [OptionSpec.i64("intr", "" where short' = 'I', default' = 0)])?
+    let u64_opt_spec =
+      CommandSpec.leaf(
+        "app",
+        "",
+        [OptionSpec.u64("uintr", "" where short' = 'U', default' = 0)])?
+    let i64_arg_spec =
+      CommandSpec.leaf(
+        "app",
+        "",
+        Array[OptionSpec](),
+        [ArgSpec.i64("n", "" where default' = 0)])?
+    let u64_arg_spec =
+      CommandSpec.leaf(
+        "app",
+        "",
+        Array[OptionSpec](),
+        [ArgSpec.u64("u", "" where default' = 0)])?
+
+    // Inputs outside the documented grammar. Each must produce a SyntaxError.
+    let bad_inputs: Array[String] =
+      [ "0x10"; "0X10"; "0xff"; "0b101"; "0B101"
+        "1_000"; "_1"; "1_"; "1__0"; "0x_10"
+      ]
+
+    for input in bad_inputs.values() do
+      match CommandParser(i64_opt_spec).parse(["app"; "--intr=" + input])
+      | let se: SyntaxError => None
+      else
+        h.fail("I64 option should reject: " + input)
+      end
+
+      match CommandParser(u64_opt_spec).parse(["app"; "--uintr=" + input])
+      | let se: SyntaxError => None
+      else
+        h.fail("U64 option should reject: " + input)
+      end
+
+      match CommandParser(i64_arg_spec).parse(["app"; input])
+      | let se: SyntaxError => None
+      else
+        h.fail("I64 positional arg should reject: " + input)
+      end
+
+      match CommandParser(u64_arg_spec).parse(["app"; input])
+      | let se: SyntaxError => None
+      else
+        h.fail("U64 positional arg should reject: " + input)
+      end
+    end
+
+    // Negative non-decimal inputs
+    let signed_bad: Array[String] = ["-0x10"; "-0b11"; "-_5"]
+    for input in signed_bad.values() do
+      match CommandParser(i64_opt_spec).parse(["app"; "--intr=" + input])
+      | let se: SyntaxError => None
+      else
+        h.fail("I64 option should reject: " + input)
+      end
+
+      match CommandParser(i64_arg_spec).parse(["app"; input])
+      | let se: SyntaxError => None
+      else
+        h.fail("I64 positional arg should reject: " + input)
+      end
+    end
+
+    // U64 rejects negative values
+    match CommandParser(u64_opt_spec).parse(["app"; "--uintr=-5"])
+    | let se: SyntaxError => None
+    else
+      h.fail("U64 option should reject: -5")
+    end
+
+    match CommandParser(u64_arg_spec).parse(["app"; "-5"])
+    | let se: SyntaxError => None
+    else
+      h.fail("U64 positional arg should reject: -5")
+    end
+
+    // Valid decimal inputs must still work
+    let cmd1 =
+      CommandParser(i64_opt_spec).parse(["app"; "-I=42"]) as Command
+    h.assert_eq[I64](42, cmd1.option("intr").i64())
+
+    let cmd2 =
+      CommandParser(u64_opt_spec).parse(["app"; "-U=47"]) as Command
+    h.assert_eq[U64](47, cmd2.option("uintr").u64())
+
+    let cmd3 =
+      CommandParser(i64_arg_spec).parse(["app"; "5"]) as Command
+    h.assert_eq[I64](5, cmd3.arg("n").i64())
+
+    let cmd4 =
+      CommandParser(u64_arg_spec).parse(["app"; "10"]) as Command
+    h.assert_eq[U64](10, cmd4.arg("u").u64())
+
+    // Negative I64 still works
+    let cmd5 =
+      CommandParser(i64_opt_spec).parse(["app"; "-I=-5"]) as Command
+    h.assert_eq[I64](-5, cmd5.option("intr").i64())
+
+    let cmd6 =
+      CommandParser(i64_arg_spec).parse(["app"; "-5"]) as Command
+    h.assert_eq[I64](-5, cmd6.arg("n").i64())
+
+    // Zero is valid for both
+    let cmd7 =
+      CommandParser(i64_opt_spec).parse(["app"; "-I=0"]) as Command
+    h.assert_eq[I64](0, cmd7.option("intr").i64())
+
+    let cmd8 =
+      CommandParser(u64_opt_spec).parse(["app"; "-U=0"]) as Command
+    h.assert_eq[U64](0, cmd8.option("uintr").u64())
+
+    // Leading zeros are decimal, not octal
+    let cmd9 =
+      CommandParser(i64_opt_spec).parse(["app"; "-I=007"]) as Command
+    h.assert_eq[I64](7, cmd9.option("intr").i64())
+
+    let cmd10 =
+      CommandParser(u64_opt_spec).parse(["app"; "-U=007"]) as Command
+    h.assert_eq[U64](7, cmd10.option("uintr").u64())
+
+    // Env vars with bad input should also be rejected
+    let env_spec =
+      CommandSpec.leaf(
+        "app",
+        "",
+        [ OptionSpec.i64("intr", "" where short' = 'I', default' = 0)
+          OptionSpec.u64("uintr", "" where short' = 'U', default' = 0)
+        ])?
+
+    match CommandParser(env_spec).parse(["app"], ["APP_INTR=0x10"])
+    | let se: SyntaxError => None
+    else
+      h.fail("I64 env var should reject hex")
+    end
+
+    match CommandParser(env_spec).parse(["app"], ["APP_UINTR=1_000"])
+    | let se: SyntaxError => None
+    else
+      h.fail("U64 env var should reject underscores")
+    end
 
 class \nodoc\ iso _TestInvalidOptionFormat is UnitTest
   fun name(): String => "cli/invalid_option_format"

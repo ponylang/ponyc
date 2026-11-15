@@ -545,11 +545,36 @@ primitive _StringType is _ValueType
 
 primitive _I64Type is _ValueType
   fun string(): String => "I64"
-  fun value_of(s: String): _Value ? => s.i64()?
+
+  fun value_of(s: String): _Value ? =>
+    _DecimalInt.check(s where signed = true)?
+    s.i64(10)?
 
 primitive _U64Type is _ValueType
   fun string(): String => "U64"
-  fun value_of(s: String): _Value ? => s.u64()?
+
+  fun value_of(s: String): _Value ? =>
+    _DecimalInt.check(s where signed = false)?
+    s.u64(10)?
+
+primitive _DecimalInt
+  fun check(s: String, signed: Bool = true) ? =>
+    """
+    Errors if `s` does not match `['-'] digit+` (when `signed` is true) or
+    `digit+` (when false).
+    """
+    var i: ISize = 0
+    let n = s.size().isize()
+    if n == 0 then error end
+    if signed and (s(0)? == '-') then
+      i = 1
+    end
+    if i == n then error end
+    while i < n do
+      let c = s(i.usize())?
+      if (c < '0') or (c > '9') then error end
+      i = i + 1
+    end
 
 primitive _F64Type is _ValueType
   fun string(): String => "F64"
