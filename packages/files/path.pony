@@ -345,7 +345,7 @@ primitive Path
       target_clean.trim(target_0.usize())
     end
 
-  fun split(path: String, separator: String = Path.sep()): (String, String) =>
+  fun split(path: String): (String, String) =>
     """
     Splits the path into a pair, (head, tail) where tail is the last pathname
     component and head is everything leading up to that. The tail part will
