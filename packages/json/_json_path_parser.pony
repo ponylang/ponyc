@@ -144,19 +144,19 @@ class ref _JSONPathParser
     it's a slice; otherwise it's an index. A second ':' introduces
     the optional step value.
     """
-    let first: (I64 | None) = _try_parse_int()
+    let first: (I64 | None) = _try_parse_int()?
 
     _skip_whitespace()
     if _looking_at(':') then
       _advance(1)
       _skip_whitespace()
-      let end_val: (I64 | None) = _try_parse_int()
+      let end_val: (I64 | None) = _try_parse_int()?
       _skip_whitespace()
       let step_val: (I64 | None) =
         if _looking_at(':') then
           _advance(1)
           _skip_whitespace()
-          _try_parse_int()
+          _try_parse_int()?
         else
           None
         end
@@ -291,34 +291,26 @@ class ref _JSONPathParser
     end
     result
 
-  fun ref _try_parse_int(): (I64 | None) =>
+  fun ref _try_parse_int(): (I64 | None) ? =>
     """
     Try to parse an integer. Returns None if not at a digit or '-'.
-    Restores offset on failure so no characters are consumed.
+    Raises when the text starts with a digit or '-' but the integer
+    is invalid (negative zero, leading zeros, out of range).
     """
     if _offset >= _source.size() then return None end
-    try
-      let c = _source(_offset)?
-      if _is_digit(c) or (c == '-') then
-        let saved = _offset
-        try
-          _parse_int()?
-        else
-          _offset = saved
-          error
-        end
-      else
-        None
-      end
+    let c = try _source(_offset)? else return None end
+    if _is_digit(c) or (c == '-') then
+      _parse_int()?
     else
       None
     end
 
   fun ref _parse_int(): I64 ? =>
     """
-    Integer per RFC 9535 2.3.3.1:
+    Integer per RFC 9535 §2.3.3.1:
     int = "0" / (["-"] DIGIT1 *DIGIT)
-    Rejects negative zero and leading zeros.
+    Rejects negative zero, leading zeros, and values outside the
+    ±(2^53-1) range required by RFC 9535 §2.1.
     """
     var negative = false
     if _looking_at('-') then
@@ -346,7 +338,18 @@ class ref _JSONPathParser
       _fail("Leading zeros are not valid (RFC 9535 2.3.3.1)")
       error
     end
-    let abs_val = num_str.i64()?
+    let abs_val =
+      try num_str.i64()?
+      else
+        _fail(
+          "Integer out of range (RFC 9535 limits to +/-(2^53-1))")
+        error
+      end
+    if abs_val > 9007199254740991 then
+      _fail(
+        "Integer out of range (RFC 9535 limits to +/-(2^53-1))")
+      error
+    end
     if negative then -abs_val else abs_val end
 
   // --- Filter expression parsing ---
@@ -643,24 +646,36 @@ class ref _JSONPathParser
     _advance(1) // consume @ or $
     let segments_start = _offset
 
-    // Try parsing as singular query + comparison op
-    try
-      let singular_segs = _parse_singular_segments()?
-      _skip_whitespace()
-      if _looking_at_comparison_op() then
-        // It's a comparison
-        let query: _SingularQuery =
-          if is_rel then
-            _RelSingularQuery(singular_segs)
-          else
-            _AbsSingularQuery(singular_segs)
-          end
-        let left: _Comparable = query
-        let op = _parse_comparison_op()?
+    // Try parsing as singular query + comparison op. The try covers
+    // only disambiguation: if singular segments can't be parsed or no
+    // comparison operator follows, fall through to existence-test
+    // parsing. Once a comparison operator is confirmed, errors in the
+    // right-hand side propagate — they are real parse failures, not
+    // disambiguation misses.
+    let is_comparison =
+      try
+        let singular_segs = _parse_singular_segments()?
         _skip_whitespace()
-        let right = _parse_comparable()?
-        return _ComparisonExpr(left, op, right)
+        if _looking_at_comparison_op() then
+          (true, singular_segs)
+        else
+          error
+        end
+      else
+        (false, recover val Array[_SingularSegment] end)
       end
+    if is_comparison._1 then
+      let query: _SingularQuery =
+        if is_rel then
+          _RelSingularQuery(is_comparison._2)
+        else
+          _AbsSingularQuery(is_comparison._2)
+        end
+      let left: _Comparable = query
+      let op = _parse_comparison_op()?
+      _skip_whitespace()
+      let right = _parse_comparable()?
+      return _ComparisonExpr(left, op, right)
     end
 
     // Not a comparison — re-parse as general filter query for existence test
@@ -800,7 +815,15 @@ class ref _JSONPathParser
       let v: _LiteralValue = num_str.f64()?
       v
     else
-      let v: _LiteralValue = num_str.i64()?
+      // RFC 9535 §2.1 scopes the ±(2^53-1) range to integers used for path
+      // processing (indices and steps). Comparison literals are compared
+      // against JSON data, so only I64 overflow is rejected here.
+      let v: _LiteralValue =
+        try num_str.i64()?
+        else
+          _fail("Integer overflow in filter literal")
+          error
+        end
       v
     end
 

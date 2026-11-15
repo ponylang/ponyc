@@ -1580,6 +1580,8 @@ class \nodoc\ iso _TestJSONPathParse is UnitTest
         "$['a\\u0001b']" // escaped control char is valid
         "$['\\'']"       // \' escape in single-quoted string is valid
         "$[\"\\\"\"]"    // \" escape in double-quoted string is valid
+        "$[9007199254740991]"  // exactly 2^53-1 (RFC 9535 max)
+        "$[-9007199254740991]" // exactly -(2^53-1) (RFC 9535 min)
       ]
     for path_str in valid.values() do
       match \exhaustive\ JSONPathParser.parse(path_str)
@@ -1628,6 +1630,17 @@ class \nodoc\ iso _TestJSONPathParseErrors is UnitTest
         "$['a\nb']"    // raw newline in single-quoted string
         "$[\"\\'\"]"   // \' escape in double-quoted string
         "$['\\\"']"    // \" escape in single-quoted string
+        "$[9007199254740992]"       // just over 2^53-1
+        "$[-9007199254740992]"      // one past -(2^53-1)
+        "$[9007199254740992:]"      // out-of-range slice start
+        "$[:9007199254740992]"      // out-of-range slice end
+        "$[::9007199254740992]"     // out-of-range slice step
+        "$[::-9007199254740992]"    // out-of-range negative slice step
+        "$[?@[9007199254740992]]"   // out-of-range filter singular query
+        "$[9223372036854775808]"    // overflows I64
+        "$[0:99999999999999999999]" // overflows I64 in slice end
+        "$[?@.a==99999999999999999999]" // overflows I64 in filter literal
+        "$[?@.a==@[9007199254740992]]" // out-of-range in comparison RHS
       ]
     for path_str in invalid.values() do
       match \exhaustive\ JSONPathParser.parse(path_str)
