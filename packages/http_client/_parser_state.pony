@@ -232,7 +232,7 @@ class _ExpectHeaders is _ParserState
 
   Loops through header lines until an empty line (CRLF) marks the end
   of headers. Tracks Content-Length and Transfer-Encoding for body handling.
-  Determines body framing per RFC 7230 §3.3.3 for responses.
+  Determines body framing per RFC 9112 §6.3 for responses.
   """
   let _status: U16
   let _reason: String val
@@ -240,7 +240,8 @@ class _ExpectHeaders is _ParserState
   let _config: _ParserConfig
   var _headers: Headers iso = recover iso Headers end
   var _content_length: (USize | None) = None
-  var _chunked: Bool = false
+  var _te_present: Bool = false
+  var _te_chunked_final: Bool = false
   var _total_header_bytes: USize = 0
 
   new create(
@@ -273,7 +274,7 @@ class _ExpectHeaders is _ParserState
             (_headers = recover iso Headers end)
           p.handler.response_received(_status, _reason, _version, headers)
 
-          // Body determination per RFC 7230 §3.3.3:
+          // Body determination per RFC 9112 §6.3:
           // HEAD responses and 204/304 have no body regardless of headers
           if (p.method is HEAD) or (_status == 204) or (_status == 304) then
             p.handler.response_complete()
@@ -281,15 +282,22 @@ class _ExpectHeaders is _ParserState
             return _ParseContinue
           end
 
-          // Transfer-Encoding: chunked takes precedence over Content-Length
-          if _chunked then
-            p.state = _ExpectChunkHeader(0, _config)
+          // When Transfer-Encoding is present, Content-Length is ignored
+          // (RFC 9112 §6.3 item 3).
+          if _te_present then
+            if _te_chunked_final and (_version is HTTP11) then
+              // HTTP/1.1 with chunked as the final coding
+              p.state = _ExpectChunkHeader(0, _config)
+            else
+              // Final coding is not chunked, or HTTP/1.0 with TE
+              // (§6.3 item 4 / §6.1): read until close.
+              p.state = _ExpectCloseDelimitedBody(_config)
+            end
             return _ParseContinue
           end
 
           match \exhaustive\ _content_length
           | let cl: USize if cl > 0 =>
-            // Check body size limit before entering body state
             if cl > _config.max_body_size then
               return BodyTooLarge
             end
@@ -301,7 +309,7 @@ class _ExpectHeaders is _ParserState
             p.state = _ExpectStatusLine(_config)
             return _ParseContinue
           else
-            // No Content-Length, no chunked: close-delimited body
+            // No Content-Length, no Transfer-Encoding: close-delimited
             p.state = _ExpectCloseDelimitedBody(_config)
             return _ParseContinue
           end
@@ -383,9 +391,8 @@ class _ExpectHeaders is _ParserState
           | InvalidContentLength => return InvalidContentLength
           end
         elseif lower_name == "transfer-encoding" then
-          if value.lower().contains("chunked") then
-            _chunked = true
-          end
+          _te_present = true
+          _te_chunked_final = _is_chunked_final(value)
         end
 
         _headers.add(name, value)
@@ -426,6 +433,79 @@ class _ExpectHeaders is _ParserState
     else
       InvalidContentLength
     end
+
+  fun _is_chunked_final(value: String val): Bool =>
+    """
+    Determine whether the last coding in a Transfer-Encoding header value
+    is "chunked" (case-insensitive). The value is a comma-separated list
+    of transfer codings per RFC 9112 §6.1.
+    """
+    let lower: String val = value.lower()
+    var last_start: USize = 0
+    var last_end: USize = 0
+    var found = false
+    var i: USize = 0
+    try
+      while i < lower.size() do
+        let c = lower(i)?
+        if c == ',' then
+          let trimmed = _trim_ows(lower, last_start, i)
+          if trimmed._1 < trimmed._2 then
+            last_start = trimmed._1
+            last_end = trimmed._2
+            found = true
+          end
+          last_start = i + 1
+          last_end = i + 1
+        end
+        i = i + 1
+      end
+    else
+      _Unreachable()
+    end
+    let trimmed = _trim_ows(lower, last_start, lower.size())
+    if trimmed._1 < trimmed._2 then
+      last_start = trimmed._1
+      last_end = trimmed._2
+      found = true
+    end
+    if not found then return false end
+    let len = last_end - last_start
+    if len != 7 then return false end
+    try
+      (lower(last_start)? == 'c') and
+      (lower(last_start + 1)? == 'h') and
+      (lower(last_start + 2)? == 'u') and
+      (lower(last_start + 3)? == 'n') and
+      (lower(last_start + 4)? == 'k') and
+      (lower(last_start + 5)? == 'e') and
+      (lower(last_start + 6)? == 'd')
+    else
+      _Unreachable()
+      false
+    end
+
+  fun _trim_ows(s: String box, from: USize, to: USize): (USize, USize) =>
+    """
+    Return (start, end) indices with leading/trailing OWS (SP, HTAB) removed.
+    """
+    var start = from
+    var stop = to
+    try
+      while (start < stop) and
+        ((s(start)? == ' ') or (s(start)? == '\t'))
+      do
+        start = start + 1
+      end
+      while (stop > start) and
+        ((s(stop - 1)? == ' ') or (s(stop - 1)? == '\t'))
+      do
+        stop = stop - 1
+      end
+    else
+      _Unreachable()
+    end
+    (start, stop)
 
 class _ExpectFixedBody is _ParserState
   """
@@ -629,11 +709,12 @@ class _ExpectCloseDelimitedBody is _ParserState
   """
   Reading a response body delimited by connection close.
 
-  Used when the response has neither Content-Length nor Transfer-Encoding:
-  chunked. Delivers all available data via `body_chunk()` and tracks total
-  bytes received. Returns `_ParseNeedMore` to request more data. Completion
-  is triggered externally by `_ResponseParser.connection_closed()`, not by
-  `parse()`.
+  Used when body length cannot be determined from headers: no Content-Length
+  and no chunked final coding, or Transfer-Encoding present on HTTP/1.0
+  (RFC 9112 §6.1). Delivers all available data via `body_chunk()` and tracks
+  total bytes received. Returns `_ParseNeedMore` to request more data.
+  Completion is triggered externally by `_ResponseParser.connection_closed()`,
+  not by `parse()`.
   """
   let _config: _ParserConfig
   var _total_received: USize = 0
