@@ -68,11 +68,20 @@ class ref _BitCursor
 
   fun ref read_bytes(count: USize): Array[U8] val ? =>
     """
-    Read `count` bytes starting at the current position.
-    Errors if not byte-aligned or if insufficient data is available.
+    Read `count` bytes starting at the current position. Works at any
+    bit offset.
     """
-    if not is_byte_aligned() then error end
     if (available_bits() / 8) < count then error end
-    let result = _data.trim(_byte_offset, _byte_offset + count)
-    _byte_offset = _byte_offset + count
-    result
+    if is_byte_aligned() then
+      let result = _data.trim(_byte_offset, _byte_offset + count)
+      _byte_offset = _byte_offset + count
+      result
+    else
+      let result = recover iso Array[U8](count) end
+      var i: USize = 0
+      while i < count do
+        result.push(read_bits(8)?.u8())
+        i = i + 1
+      end
+      consume result
+    end

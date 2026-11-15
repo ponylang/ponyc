@@ -8,13 +8,10 @@ primitive U8Codec is Codec[U8]
     """
     Decode a single unsigned byte at the given bit offset.
     """
-    let byte_offset = offset / 8
-    if (offset % 8) != 0 then
-      return MalformedData("U8Codec requires byte alignment", offset)
-    end
-    if byte_offset >= data.size() then return InsufficientData end
+    let cursor = _BitCursor(data, offset / 8, (offset % 8).u8())
+    if cursor.available_bits() < 8 then return InsufficientData end
     try
-      (data(byte_offset)?, 8)
+      (cursor.read_bits(8)?.u8(), 8)
     else
       MalformedData("Failed to read U8", offset)
     end
@@ -35,13 +32,10 @@ primitive I8Codec is Codec[I8]
     """
     Decode a single signed byte at the given bit offset.
     """
-    let byte_offset = offset / 8
-    if (offset % 8) != 0 then
-      return MalformedData("I8Codec requires byte alignment", offset)
-    end
-    if byte_offset >= data.size() then return InsufficientData end
+    let cursor = _BitCursor(data, offset / 8, (offset % 8).u8())
+    if cursor.available_bits() < 8 then return InsufficientData end
     try
-      (data(byte_offset)?.i8(), 8)
+      (cursor.read_bits(8)?.u8().i8(), 8)
     else
       MalformedData("Failed to read I8", offset)
     end
@@ -104,14 +98,11 @@ primitive U16LE is Codec[U16]
     """
     Decode a 16-bit unsigned integer in little-endian byte order.
     """
-    if (offset % 8) != 0 then
-      return MalformedData("U16LE requires byte alignment", offset)
-    end
-    let byte_offset = offset / 8
-    if (data.size() - byte_offset) < 2 then return InsufficientData end
+    let cursor = _BitCursor(data, offset / 8, (offset % 8).u8())
+    if cursor.available_bits() < 16 then return InsufficientData end
     try
-      let lo = data(byte_offset)?.u16()
-      let hi = data(byte_offset + 1)?.u16()
+      let lo = cursor.read_bits(8)?.u16()
+      let hi = cursor.read_bits(8)?.u16()
       ((hi << 8) or lo, 16)
     else
       MalformedData("Failed to read U16LE", offset)
@@ -189,17 +180,16 @@ primitive U32LE is Codec[U32]
     """
     Decode a 32-bit unsigned integer in little-endian byte order.
     """
-    if (offset % 8) != 0 then
-      return MalformedData("U32LE requires byte alignment", offset)
-    end
-    let byte_offset = offset / 8
-    if (data.size() - byte_offset) < 4 then return InsufficientData end
+    let cursor = _BitCursor(data, offset / 8, (offset % 8).u8())
+    if cursor.available_bits() < 32 then return InsufficientData end
     try
-      let b0 = data(byte_offset)?.u32()
-      let b1 = data(byte_offset + 1)?.u32()
-      let b2 = data(byte_offset + 2)?.u32()
-      let b3 = data(byte_offset + 3)?.u32()
-      ((b3 << 24) or (b2 << 16) or (b1 << 8) or b0, 32)
+      var result: U32 = 0
+      var i: U32 = 0
+      while i < 4 do
+        result = result or (cursor.read_bits(8)?.u32() << (i * 8))
+        i = i + 1
+      end
+      (result, 32)
     else
       MalformedData("Failed to read U32LE", offset)
     end
@@ -278,16 +268,13 @@ primitive U64LE is Codec[U64]
     """
     Decode a 64-bit unsigned integer in little-endian byte order.
     """
-    if (offset % 8) != 0 then
-      return MalformedData("U64LE requires byte alignment", offset)
-    end
-    let byte_offset = offset / 8
-    if (data.size() - byte_offset) < 8 then return InsufficientData end
+    let cursor = _BitCursor(data, offset / 8, (offset % 8).u8())
+    if cursor.available_bits() < 64 then return InsufficientData end
     try
       var result: U64 = 0
-      var i: USize = 0
+      var i: U64 = 0
       while i < 8 do
-        result = result or (data(byte_offset + i)?.u64() << (i.u64() * 8))
+        result = result or (cursor.read_bits(8)?.u64() << (i * 8))
         i = i + 1
       end
       (result, 64)
@@ -417,19 +404,12 @@ primitive U128BE is Codec[U128]
     """
     Decode a 128-bit unsigned integer in big-endian byte order.
     """
-    if (offset % 8) != 0 then
-      return MalformedData("U128BE requires byte alignment", offset)
-    end
-    let byte_offset = offset / 8
-    if (data.size() - byte_offset) < 16 then return InsufficientData end
+    let cursor = _BitCursor(data, offset / 8, (offset % 8).u8())
+    if cursor.available_bits() < 128 then return InsufficientData end
     try
-      var result: U128 = 0
-      var i: USize = 0
-      while i < 16 do
-        result = (result << 8) or data(byte_offset + i)?.u128()
-        i = i + 1
-      end
-      (result, 128)
+      let hi = cursor.read_bits(64)?
+      let lo = cursor.read_bits(64)?
+      ((hi.u128() << 64) or lo.u128(), 128)
     else
       MalformedData("Failed to read U128BE", offset)
     end
@@ -451,16 +431,13 @@ primitive U128LE is Codec[U128]
     """
     Decode a 128-bit unsigned integer in little-endian byte order.
     """
-    if (offset % 8) != 0 then
-      return MalformedData("U128LE requires byte alignment", offset)
-    end
-    let byte_offset = offset / 8
-    if (data.size() - byte_offset) < 16 then return InsufficientData end
+    let cursor = _BitCursor(data, offset / 8, (offset % 8).u8())
+    if cursor.available_bits() < 128 then return InsufficientData end
     try
       var result: U128 = 0
-      var i: USize = 0
+      var i: U128 = 0
       while i < 16 do
-        result = result or (data(byte_offset + i)?.u128() << (i.u128() * 8))
+        result = result or (cursor.read_bits(8)?.u128() << (i * 8))
         i = i + 1
       end
       (result, 128)
