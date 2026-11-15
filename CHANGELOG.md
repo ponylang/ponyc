@@ -49,6 +49,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `ParseFormURLEncoded` producing spurious pairs from empty `&`-separated sequences ([PR #6609](https://github.com/ponylang/ponyc/pull/6609))
 - Fix http_client omitting port from Host header regardless of scheme ([PR #6618](https://github.com/ponylang/ponyc/pull/6618))
 - Fix FrameDecoder repeating the same MalformedData error on every received() call ([PR #6620](https://github.com/ponylang/ponyc/pull/6620))
+- Fix binary_codec silently dropping fields at non-byte-aligned positions ([PR #6625](https://github.com/ponylang/ponyc/pull/6625))
 
 ### Added
 
