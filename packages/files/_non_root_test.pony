@@ -55,6 +55,7 @@ actor \nodoc\ Main is TestList
     test(_TestPathBackslashDirBaseExt)
     test(_TestPathDir)
     test(_TestPathExt)
+    test(_TestPathIsAbs)
     test(_TestPathJoin)
     test(_TestPathRel)
     test(_TestPathSplit)
@@ -481,6 +482,30 @@ class \nodoc\ iso _TestPathBackslashDirBaseExt is UnitTest
       h.assert_eq[String](Path.base("C:\\foo\\bar.ext", false), "bar")
       h.assert_eq[String](Path.ext("C:\\foo\\bar.ext"), "ext")
       h.assert_eq[String](Path.ext("C:\\foo\\.hidden"), "hidden")
+    end
+
+class \nodoc\ iso _TestPathIsAbs is UnitTest
+  fun name(): String => "files/Path.is_abs"
+
+  fun apply(h: TestHelper) =>
+    h.assert_true(Path.is_abs("/foo"))
+    h.assert_true(Path.is_abs("/"))
+    h.assert_false(Path.is_abs("foo"))
+    h.assert_false(Path.is_abs(""))
+    h.assert_false(Path.is_abs("./foo"))
+    h.assert_false(Path.is_abs("../foo"))
+
+    h.assert_true(Path.is_abs("//h/s/foo"))
+
+    ifdef windows then
+      h.assert_true(Path.is_abs("C:/foo"))
+      h.assert_true(Path.is_abs("C:/"))
+      h.assert_true(Path.is_abs("C:\\foo"))
+      h.assert_true(Path.is_abs("C:\\"))
+      h.assert_false(Path.is_abs("C:"))
+      h.assert_false(Path.is_abs("C:foo"))
+
+      h.assert_eq[String](Path.join("/base", "C:"), "/base/C:")
     end
 
 class \nodoc\ iso _TestPathJoin is UnitTest

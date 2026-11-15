@@ -39,10 +39,20 @@ primitive Path
   fun is_abs(path: String): Bool =>
     """
     Return true if the path is an absolute path.
+
+    On Windows, a drive letter alone (`C:`) is drive-relative, not absolute.
+    A path is absolute only when the remainder after any volume prefix begins
+    with a separator: `C:/foo`, `C:/`, `//host/share/foo`, or `/foo`.
     """
     try
       ifdef windows then
-        is_sep(path(0)?) or _drive_letter(path)
+        if is_sep(path(0)?) then
+          true
+        elseif _drive_letter(path) then
+          try is_sep(path(2)?) else false end
+        else
+          false
+        end
       else
         is_sep(path(0)?)
       end
