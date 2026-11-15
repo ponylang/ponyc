@@ -1,6 +1,7 @@
 use "time"
 use @pony_os_realpath[Pointer[U8] iso^](path: Pointer[U8] tag)
 use @pony_os_cwd[Pointer[U8]]()
+use @pony_os_abs_path[Pointer[U8] iso^](path: Pointer[U8] tag) if windows
 
 primitive _PathSep
 primitive _PathDot
@@ -253,10 +254,22 @@ primitive Path
   fun abs(path: String): String =>
     """
     Returns a cleaned, absolute path.
+
+    On Windows, a drive-relative path like `C:foo` is resolved using the
+    per-drive current directory from the OS rather than being joined to
+    the process CWD.
     """
     if is_abs(path) then
       clean(path)
     else
+      ifdef windows then
+        if _drive_letter(path) then
+          let cstring = @pony_os_abs_path(path.cstring())
+          if not cstring.is_null() then
+            return clean(recover String.from_cstring(consume cstring) end)
+          end
+        end
+      end
       join(cwd(), path)
     end
 

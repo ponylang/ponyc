@@ -46,6 +46,7 @@ actor \nodoc\ Main is TestList
     test(_TestFileWritev)
     test(_TestFileWritevLarge)
     test(_TestMkdtemp)
+    test(_TestPathAbs)
     test(_TestPathBase)
     test(_TestPathClean)
     test(_TestPathCleanBackslash)
@@ -526,6 +527,51 @@ class \nodoc\ iso _TestPathIsAbs is UnitTest
       h.assert_eq[String](Path.join("/base", "C:"), "/base/C:")
     end
 
+class \nodoc\ iso _TestPathAbs is UnitTest
+  fun name(): String => "files/Path.abs"
+
+  fun apply(h: TestHelper) =>
+    // A plain relative path resolves against the CWD.
+    let cwd_path = Path.cwd()
+    h.assert_eq[String](Path.abs("foo"), Path.join(cwd_path, "foo"))
+
+    // An already-absolute path is returned cleaned.
+    h.assert_eq[String](Path.abs("/a/b/../c"), "/a/c")
+
+    ifdef windows then
+      // Drive-relative paths are resolved to absolute paths, not
+      // concatenated literally onto the CWD.
+      let abs_dr = Path.abs("C:foo")
+      h.assert_true(
+        Path.is_abs(abs_dr),
+        "Path.abs(\"C:foo\") must be absolute, got: " + abs_dr)
+
+      // The result must not contain the drive-relative form as a literal
+      // component.
+      h.assert_false(
+        abs_dr.contains("C:foo"),
+        "Path.abs(\"C:foo\") must not contain literal \"C:foo\", got: " +
+        abs_dr)
+
+      // A bare drive letter resolves to the CWD on that drive.
+      let abs_bare = Path.abs("C:")
+      h.assert_true(
+        Path.is_abs(abs_bare),
+        "Path.abs(\"C:\") must be absolute, got: " + abs_bare)
+
+      let drive = cwd_path.trim(0, 1).upper()
+
+      // When CWD is on C, the bare drive resolves to the CWD itself.
+      if drive == "C" then
+        h.assert_eq[String](abs_bare, cwd_path)
+      end
+
+      // When the CWD is on the same drive, drive-relative resolution
+      // matches joining with the CWD.
+      let abs_same = Path.abs(drive + ":foo")
+      h.assert_eq[String](abs_same, Path.join(cwd_path, "foo"))
+    end
+
 class \nodoc\ iso _TestPathJoin is UnitTest
   fun name(): String => "files/Path.join"
 
@@ -618,6 +664,19 @@ class \nodoc\ iso _TestPathRel is UnitTest
     let rt2 = Path.rel("/a", "/a/b/")?
     h.assert_eq[String](
       Path.join("/a", rt2), Path.clean("/a/b/"))
+
+    ifdef windows then
+      // Same-drive drive-relative paths produce a meaningful result.
+      let cwd_path = Path.cwd()
+      let drive = cwd_path.trim(0, 1).upper()
+
+      // rel from the CWD drive-relative to an absolute path on same drive
+      let rdr1 = Path.rel(drive + ":", cwd_path + "/sub")?
+      h.assert_eq[String](rdr1, "sub")
+
+      // Different drives must error.
+      h.assert_error({()? => Path.rel("C:foo", "D:bar")? })
+    end
 
 class \nodoc\ iso _TestPathSplit is UnitTest
   fun name(): String => "files/Path.split"
