@@ -44,6 +44,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `Pbkdf2Sha256` raising on LibreSSL when the password is an empty `Array[U8]` ([PR #6603](https://github.com/ponylang/ponyc/pull/6603))
 - Fix FrameDecoder looping forever on sub-byte frames and misplacing non-byte-aligned frames ([PR #6604](https://github.com/ponylang/ponyc/pull/6604))
 - Fix http_client treating partial Transfer-Encoding matches as chunked ([PR #6614](https://github.com/ponylang/ponyc/pull/6614))
+- Fix http_client request builder appending a second `?` when the path already has a query string ([PR #6601](https://github.com/ponylang/ponyc/pull/6601))
 
 ### Added
 
