@@ -316,7 +316,7 @@ class \nodoc\ iso _TestFilePathFromNetworkEscape is UnitTest
 
     // .. at the volume root resolves to the base itself
     let p_self = FilePath.from(base2, "..")?
-    h.assert_eq[String](p_self.path, "//usr/share")
+    h.assert_eq[String](p_self.path, "//usr/share/")
 
     // With a three-component // base, .. past the volume root lands outside
     // the base text and fails the containment check.
@@ -388,7 +388,7 @@ class \nodoc\ iso _TestPathClean is UnitTest
     let res6 = Path.clean("/foo/bar/baz/..")
     let res7 = Path.clean("/foo/bar/baz/../../qux")
 
-    h.assert_eq[String](res1, "//foo/bar")
+    h.assert_eq[String](res1, "//foo/bar/")
     h.assert_eq[String](res2, "foo/bar")
     h.assert_eq[String](res3, "foo")
     h.assert_eq[String](res4, "/foo/bar/base.ext")
@@ -433,7 +433,7 @@ class \nodoc\ iso _TestPathCleanRootBoundary is UnitTest
     h.assert_eq[String](
       Path.clean("//srv/share/../foo"), "//srv/share/foo")
     h.assert_eq[String](
-      Path.clean("//srv/share/.."), "//srv/share")
+      Path.clean("//srv/share/.."), "//srv/share/")
 
     // Multiple components above a volume backtrack correctly, then stop
     h.assert_eq[String](
@@ -445,6 +445,15 @@ class \nodoc\ iso _TestPathCleanRootBoundary is UnitTest
     h.assert_eq[String](Path.clean("../foo"), "../foo")
     h.assert_eq[String](Path.clean("../../foo"), "../../foo")
     h.assert_eq[String](Path.clean("../.."), "../..")
+
+    // Root directory retains its trailing separator
+    h.assert_eq[String](Path.clean("//srv/share/"), "//srv/share/")
+    // Bare volume without trailing separator stays unchanged
+    h.assert_eq[String](Path.clean("//srv/share"), "//srv/share")
+    ifdef windows then
+      h.assert_eq[String](Path.clean("C:/"), "C:/")
+      h.assert_eq[String](Path.clean("C:\\"), "C:/")
+    end
 
     // Incomplete // paths collapse to / (empty share rejected)
     h.assert_eq[String](Path.clean("//"), "/")
@@ -591,7 +600,7 @@ class \nodoc\ iso _TestPathSplit is UnitTest
 
     // Network paths
     r = Path.split("//h/s/a")
-    h.assert_eq[String](r._1, "//h/s")
+    h.assert_eq[String](r._1, "//h/s/")
     h.assert_eq[String](r._2, "a")
 
     r = Path.split("//h/s")
@@ -601,7 +610,7 @@ class \nodoc\ iso _TestPathSplit is UnitTest
     // join(head, tail) round-trips
     let paths: Array[String] val =
       [
-        "/a"; "/"; "/a/b"; "a"; "a/b"; "//h/s/a"; "//h/s"; ""
+        "/a"; "/"; "/a/b"; "a"; "a/b"; "//h/s/a"; "//h/s/"; "//h/s"; ""
       ]
     for p in paths.values() do
       (let head, let tail) = Path.split(p)
@@ -612,6 +621,12 @@ class \nodoc\ iso _TestPathSplit is UnitTest
       let bs = Path.split("C:\\foo\\bar")
       h.assert_eq[String](bs._1, "C:/foo")
       h.assert_eq[String](bs._2, "bar")
+
+      // Drive-root round-trip
+      (let dh, let dt) = Path.split("C:/a")
+      h.assert_eq[String](dh, "C:/")
+      h.assert_eq[String](dt, "a")
+      h.assert_eq[String](Path.join(dh, dt), "C:/a")
     end
 
 class \nodoc\ iso _TestPathDir is UnitTest
@@ -622,7 +637,7 @@ class \nodoc\ iso _TestPathDir is UnitTest
     h.assert_eq[String](Path.dir("/foo/bar/dir/"), "/foo/bar/dir")
     h.assert_eq[String](Path.dir("/a"), "/")
     h.assert_eq[String](Path.dir("/"), "/")
-    h.assert_eq[String](Path.dir("//h/s/a"), "//h/s")
+    h.assert_eq[String](Path.dir("//h/s/a"), "//h/s/")
     h.assert_eq[String](Path.dir("//h/s"), "//h/s")
 
 class \nodoc\ iso _TestPathBase is UnitTest
