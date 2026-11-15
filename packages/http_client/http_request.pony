@@ -4,8 +4,9 @@ class val HTTPRequest
 
   Holds the method, path, headers, and optional body. The connection layer
   auto-sets `Host` and `Content-Length` headers during serialization if they
-  are not already present — callers only need to set them explicitly when
-  overriding the defaults.
+  are not already present. `Content-Length` is suppressed when
+  `Transfer-Encoding` is set. Callers only need to set `Host` or
+  `Content-Length` explicitly when overriding the defaults.
 
   No validation is performed on the request — the client sends whatever the
   caller asks for.

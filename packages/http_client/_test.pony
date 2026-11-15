@@ -68,6 +68,8 @@ actor \nodoc\ Main is TestList
     test(_TestSerializerHostDefaultPort)
     test(_TestSerializerUserHostTakesPrecedence)
     test(_TestSerializerUserContentLengthTakesPrecedence)
+    test(_TestSerializerTransferEncodingSuppressesContentLength)
+    test(_TestSerializerTransferEncodingNoBodyNoContentLength)
     test(_TestSerializerNoBody)
 
     // Response collector property-based tests

@@ -195,6 +195,60 @@ class \nodoc\ iso _TestSerializerUserContentLengthTakesPrecedence
       serialized.contains("content-length: 999\r\n"),
       "should use user-provided Content-Length")
 
+class \nodoc\ iso _TestSerializerTransferEncodingSuppressesContentLength
+  is UnitTest
+  """
+  Auto Content-Length not added when Transfer-Encoding is present
+  (RFC 9112 §6.2).
+  """
+  fun name(): String => "serializer/transfer_encoding_suppresses_content_length"
+
+  fun apply(h: TestHelper) =>
+    let body: Array[U8] val = [as U8: '0'; '\r'; '\n'; '\r'; '\n']
+    let hdrs =
+      recover val
+        Headers
+          .> set("Transfer-Encoding", "chunked")
+      end
+    let request =
+      HTTPRequest(
+        POST, "/upload"
+        where headers' = hdrs, body' = body)
+    let serialized: String val =
+      String.from_iso_array(
+        _RequestSerializer(request, "example.com", "80"))
+    h.assert_true(
+      serialized.contains("transfer-encoding: chunked\r\n"),
+      "should contain Transfer-Encoding")
+    h.assert_false(
+      serialized.contains("Content-Length"),
+      "Content-Length must not appear when Transfer-Encoding is set")
+
+class \nodoc\ iso _TestSerializerTransferEncodingNoBodyNoContentLength
+  is UnitTest
+  """
+  No Content-Length added when Transfer-Encoding is set and no body
+  is present.
+  """
+  fun name(): String => "serializer/transfer_encoding_no_body"
+
+  fun apply(h: TestHelper) =>
+    let hdrs =
+      recover val
+        Headers
+          .> set("Transfer-Encoding", "chunked")
+      end
+    let request = HTTPRequest(POST, "/stream" where headers' = hdrs)
+    let serialized: String val =
+      String.from_iso_array(
+        _RequestSerializer(request, "example.com", "80"))
+    h.assert_true(
+      serialized.contains("transfer-encoding: chunked\r\n"),
+      "should contain Transfer-Encoding")
+    h.assert_false(
+      serialized.contains("Content-Length"),
+      "Content-Length must not appear when Transfer-Encoding is set")
+
 class \nodoc\ iso _TestSerializerNoBody is UnitTest
   """No body -> no Content-Length."""
   fun name(): String => "serializer/no_body"
