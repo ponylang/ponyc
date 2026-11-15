@@ -53,6 +53,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Rename `ponyint_futimesat` to `ponyint_utimensat` ([PR #6499](https://github.com/ponylang/ponyc/pull/6499))
 - cli `CommandSpec` now requires command names to start with a letter ([PR #6594](https://github.com/ponylang/ponyc/pull/6594))
 - Reject dot segments in URIBuilder.append_path_segment ([PR #6579](https://github.com/ponylang/ponyc/pull/6579))
+- Remove unused `separator` parameter from `Path.split` ([PR #6600](https://github.com/ponylang/ponyc/pull/6600))
 
 ## [0.78.2] - 2026-11-12
 
