@@ -65,6 +65,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix http_client rejecting at-limit status lines and chunk sizes on split reads ([PR #6640](https://github.com/ponylang/ponyc/pull/6640))
 - Fix http_client IPv6 host handling in redirects and Host header ([PR #6642](https://github.com/ponylang/ponyc/pull/6642))
 - Fix VariableSize body codec seeing the full buffer instead of the declared size ([PR #6641](https://github.com/ponylang/ponyc/pull/6641))
+- Fix SkipBits encoding the wrong number of padding bits for counts above 255 ([PR #6643](https://github.com/ponylang/ponyc/pull/6643))
 
 ### Added
 
