@@ -90,11 +90,12 @@ primitive Path
     On Windows, normalize `\` to `/`.
     Remove instances of `.` from the path.
     Remove instances of `..` and the preceding path element from the path.
-    A `..` that would climb above the root of an absolute path or above a
-    volume prefix is discarded: `clean("/../../a")` is `"/a"` and
-    `clean("//h/s/../../../a")` is `"//h/s/a"`.
-    In a relative path, leading `..` components that cannot be resolved are
-    kept: `clean("../../a")` is `"../../a"`.
+    A `..` that would climb above a rooted path's root is discarded:
+    `clean("/../../a")` is `"/a"` and `clean("//h/s/../../../a")` is
+    `"//h/s/a"`. A drive-relative path (`C:foo`) is not rooted, so
+    leading `..` is preserved: `clean("C:../foo")` is `"C:../foo"`.
+    In any non-rooted path, leading `..` components that cannot be resolved
+    are kept: `clean("../../a")` is `"../../a"`.
     A leading `//` (exactly two separators) is preserved as a network path
     prefix per POSIX; three or more leading separators collapse to one.
     The result will have no trailing slash unless it is a root directory.
@@ -116,9 +117,8 @@ primitive Path
     let vol_end = vol.size().isize()
     let n = path.size()
 
-    // A path is rooted when it has a volume or starts with a separator.
-    // `..` that would climb above the root is discarded rather than kept.
-    var is_rooted = vol.size() > 0
+    // A bare drive letter (`C:`) is drive-relative, not rooted.
+    var is_rooted = try is_sep(vol(0)?) else false end
 
     try
       var c = path(i)?
@@ -164,11 +164,10 @@ primitive Path
                 backtrack = -1
               end
 
-              // For bare / paths (vol_end=0), rfind finds the root / and
-              // gives backtrack=1, which equals s.size() when every component
-              // has been consumed. Detect that here instead of relying on
-              // s.delete(1,-1) being a no-op on a 1-char string.
-              if is_rooted and (backtrack >= s.size().isize()) then
+              // When every component after the volume has been consumed,
+              // backtrack lands at s.size(). Reset to -1 so the next ..
+              // either emits (non-rooted) or is discarded (rooted).
+              if backtrack >= s.size().isize() then
                 backtrack = -1
               end
             end
@@ -211,7 +210,7 @@ primitive Path
     match state
     | _PathDot2 =>
       if (backtrack == -1) or (is_rooted and (backtrack <= vol_end)) or
-        (is_rooted and (backtrack >= s.size().isize()))
+        (backtrack >= s.size().isize())
       then
         if not is_rooted then
           s.append("..")
