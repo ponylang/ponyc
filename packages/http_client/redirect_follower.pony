@@ -13,7 +13,8 @@ class RedirectFollower is HTTPClientLifecycleEventReceiver
   The user's callback code sees only the final non-redirect response.
 
   Same-origin redirects reuse the existing TCP connection. Cross-origin
-  redirects use a RedirectConnectionFactory to create a new one.
+  redirects hard-close the old connection and use a
+  RedirectConnectionFactory to create a new one.
 
   Use `none()` as the field default so that `this` is `ref` in the actor
   constructor body, then replace with `create()`:
@@ -182,7 +183,7 @@ class RedirectFollower is HTTPClientLifecycleEventReceiver
         _pending = r
         _origin = target_origin
         _remaining = r.remaining()
-        _conn.close()
+        _conn._hard_close()
         _conn = _factory(r.target())
         _conn._set_lifecycle_receiver(this)
       end

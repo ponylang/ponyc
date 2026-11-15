@@ -376,3 +376,22 @@ class HTTPClientConnection is
       _state = _Closed
       _tcp_connection.close()
     end
+
+  fun ref _hard_close() =>
+    """
+    Close the connection immediately, unsubscribing the socket event so no
+    further ASIO notifications arrive. A graceful close leaves the socket
+    subscribed until the peer closes; if the owning actor replaces the
+    connection before that happens, late events reach the new connection.
+    """
+    match _state
+    | let _: _Active =>
+      match _parser
+      | let p: _ResponseParser => p.stop()
+      end
+      match _lifecycle_event_receiver
+      | let r: HTTPClientLifecycleEventReceiver ref => r.on_closed()
+      end
+      _state = _Closed
+      _tcp_connection.hard_close()
+    end

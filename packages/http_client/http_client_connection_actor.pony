@@ -46,8 +46,8 @@ trait tag HTTPClientConnectionActor is
     """
     Return the protocol instance owned by this actor.
 
-    Called by the default implementation of `_connection()`. Must return
-    the same instance every time.
+    Called by the default implementation of `_connection()`. The instance
+    changes after a cross-origin redirect when using `RedirectFollower`.
     """
 
   fun ref _connection(): TCPConnection =>

@@ -211,3 +211,6 @@ actor \nodoc\ Main is TestList
     test(_TestFollowerCrossOriginRedirectSetsUpFactory)
     test(_TestFollowerCompleteForwardsWithoutRedirect)
     test(_TestFollowerErrorSuppressesBodyAndComplete)
+
+    // Cross-origin redirect integration tests
+    test(_TestCrossOriginRedirectHTTP)
