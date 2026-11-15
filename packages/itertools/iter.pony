@@ -696,7 +696,7 @@ class Iter[A] is Iterator[A]
   fun ref intersperse(value: A, n: USize = 1): Iter[A!] =>
     """
     Return an iterator that yields the value after every `n` elements of the
-    original iterator.
+    original iterator. `n == 0` is treated as `n == 1`.
 
     #### Example
     ```pony
@@ -708,13 +708,14 @@ class Iter[A] is Iterator[A]
     Iter[A!](
       object is Iterator[A!]
         var _count: USize = 0
+        let _n: USize = if n == 0 then 1 else n end
         let _v: A = consume value
 
         fun ref has_next(): Bool =>
           _iter.has_next()
 
         fun ref next(): A! ? =>
-          if (_count == n) then
+          if (_count == _n) then
             _count = 0
             _v
           else

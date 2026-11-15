@@ -39,6 +39,7 @@ actor \nodoc\ Main is TestList
     test(_TestIterInterleave)
     test(_TestIterInterleaveShortest)
     test(_TestIterIntersperse)
+    test(_TestIterIntersperseZero)
     test(_TestIterLast)
     test(_TestIterMaybeNoneElement)
     test(_TestIterMap)
@@ -429,6 +430,14 @@ class \nodoc\ iso _TestIterIntersperse is UnitTest
       h.assert_eq[USize](v, expected(i)?)
       i = i + 1
     end
+
+class \nodoc\ iso _TestIterIntersperseZero is UnitTest
+  fun name(): String => "itertools/Iter.intersperse/zero"
+
+  fun apply(h: TestHelper) =>
+    let result = Iter[USize](Range[USize].till(0, 3))
+      .intersperse(8, 0).collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 0; 8; 1; 8; 2], result)
 
 class \nodoc\ iso _TestIterLast is UnitTest
   fun name(): String => "itertools/Iter.last"
