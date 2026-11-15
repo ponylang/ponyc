@@ -48,6 +48,7 @@ actor \nodoc\ Main is TestList
     test(_TestDataAfterError)
     test(_Test1xxSkipped)
     test(_TestMultiple1xx)
+    test(_TestTransferEncodingParsing)
     test(_TestHeaderValueBareLFSanitized)
     test(_TestHeaderValueBareCRSanitized)
     test(_TestHeaderValueNulSanitized)

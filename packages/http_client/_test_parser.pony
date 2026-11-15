@@ -791,7 +791,7 @@ class \nodoc\ iso _TestContentLengthZero is UnitTest
 class \nodoc\ iso _TestContentLengthAndChunked is UnitTest
   """
   Both Content-Length and Transfer-Encoding: chunked -> chunked takes
-  precedence per RFC 7230 section 3.3.3.
+  precedence per RFC 9112 §6.3.
   """
   fun name(): String => "parser/content_length_and_chunked"
 
@@ -1064,6 +1064,245 @@ class \nodoc\ iso _TestHeaderValueLocationLFSanitized is UnitTest
       | None => h.fail("location header missing")
       end
     end
+
+class \nodoc\ iso _TestTransferEncodingParsing is UnitTest
+  """
+  Transfer-Encoding header values are parsed as a comma-separated list of
+  codings. The body is chunked only when the final coding is "chunked"
+  (case-insensitive) on an HTTP/1.1 response. All other cases use
+  close-delimited framing.
+  """
+  fun name(): String => "parser/transfer_encoding_parsing"
+
+  fun apply(h: TestHelper) =>
+    _test_substring_not_matched(h, "notchunked")
+    _test_substring_not_matched(h, "xchunkedx")
+    _test_chunked_not_final(h)
+    _test_chunked_final_in_list(h)
+    _test_case_insensitive(h)
+    _test_two_te_lines_last_wins(h)
+    _test_two_te_lines_last_chunked(h)
+    _test_http10_with_te_chunked(h)
+    _test_te_non_chunked_ignores_content_length(h)
+
+  fun _test_substring_not_matched(h: TestHelper, te_value: String val) =>
+    """
+    A value that contains "chunked" as a substring but is not the token
+    "chunked" must not trigger chunked framing.
+    """
+    let body_bytes = "3\r\nabc\r\n0\r\n\r\n"
+    let raw: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: " + te_value + "\r\n" +
+      "\r\n" +
+      body_bytes
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](
+      1, notify.responses.size(), te_value + ": 1 response")
+    h.assert_eq[USize](
+      0, notify.completed, te_value + ": not completed (close-delimited)")
+    h.assert_eq[USize](
+      0, notify.errors.size(), te_value + ": 0 errors")
+
+    parser.connection_closed()
+    h.assert_eq[USize](
+      1, notify.completed, te_value + ": completed after close")
+    h.assert_eq[String val](
+      body_bytes,
+      notify.collected_body_string(),
+      te_value + ": raw body (not chunk-decoded)")
+
+  fun _test_chunked_not_final(h: TestHelper) =>
+    """
+    "chunked, gzip" — chunked is not the final coding, so body is
+    close-delimited per RFC 9112 §6.3 item 4.
+    """
+    let body_bytes = "3\r\nabc\r\n0\r\n\r\n"
+    let raw: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: chunked, gzip\r\n" +
+      "\r\n" +
+      body_bytes
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](
+      1, notify.responses.size(), "chunked,gzip: 1 response")
+    h.assert_eq[USize](
+      0, notify.completed, "chunked,gzip: not completed (close-delimited)")
+
+    parser.connection_closed()
+    h.assert_eq[USize](
+      1, notify.completed, "chunked,gzip: completed after close")
+    h.assert_eq[String val](
+      body_bytes,
+      notify.collected_body_string(),
+      "chunked,gzip: raw body")
+
+  fun _test_chunked_final_in_list(h: TestHelper) =>
+    """
+    "gzip, chunked" — chunked is the final coding, so chunked framing applies.
+    """
+    let raw: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: gzip, chunked\r\n" +
+      "\r\n" +
+      "3\r\nabc\r\n0\r\n\r\n"
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](
+      1, notify.responses.size(), "gzip,chunked: 1 response")
+    h.assert_eq[USize](
+      1, notify.completed, "gzip,chunked: completed (chunked)")
+    h.assert_eq[USize](
+      0, notify.errors.size(), "gzip,chunked: 0 errors")
+    h.assert_eq[String val](
+      "abc",
+      notify.collected_body_string(),
+      "gzip,chunked: decoded body")
+
+  fun _test_case_insensitive(h: TestHelper) =>
+    """
+    "CHUNKED" — transfer coding names are case-insensitive per RFC 9110.
+    """
+    let raw: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: CHUNKED\r\n" +
+      "\r\n" +
+      "3\r\nabc\r\n0\r\n\r\n"
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](
+      1, notify.responses.size(), "CHUNKED: 1 response")
+    h.assert_eq[USize](
+      1, notify.completed, "CHUNKED: completed (chunked)")
+    h.assert_eq[USize](
+      0, notify.errors.size(), "CHUNKED: 0 errors")
+    h.assert_eq[String val](
+      "abc",
+      notify.collected_body_string(),
+      "CHUNKED: decoded body")
+
+  fun _test_two_te_lines_last_wins(h: TestHelper) =>
+    """
+    Two Transfer-Encoding headers: "chunked" then "gzip". The effective list
+    is "chunked, gzip", so the final coding is gzip — close-delimited.
+    """
+    let body_bytes = "3\r\nabc\r\n0\r\n\r\n"
+    let raw: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: chunked\r\n" +
+      "Transfer-Encoding: gzip\r\n" +
+      "\r\n" +
+      body_bytes
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](
+      1, notify.responses.size(), "two lines: 1 response")
+    h.assert_eq[USize](
+      0, notify.completed, "two lines: not completed (close-delimited)")
+
+    parser.connection_closed()
+    h.assert_eq[USize](
+      1, notify.completed, "two lines: completed after close")
+    h.assert_eq[String val](
+      body_bytes,
+      notify.collected_body_string(),
+      "two lines: raw body")
+
+  fun _test_two_te_lines_last_chunked(h: TestHelper) =>
+    """
+    Two Transfer-Encoding headers: "gzip" then "chunked". The effective list
+    is "gzip, chunked", so the final coding is chunked — chunked framing.
+    """
+    let raw: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: gzip\r\n" +
+      "Transfer-Encoding: chunked\r\n" +
+      "\r\n" +
+      "3\r\nabc\r\n0\r\n\r\n"
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](
+      1, notify.responses.size(), "two lines chunked: 1 response")
+    h.assert_eq[USize](
+      1, notify.completed, "two lines chunked: completed (chunked)")
+    h.assert_eq[USize](
+      0, notify.errors.size(), "two lines chunked: 0 errors")
+    h.assert_eq[String val](
+      "abc",
+      notify.collected_body_string(),
+      "two lines chunked: decoded body")
+
+  fun _test_http10_with_te_chunked(h: TestHelper) =>
+    """
+    HTTP/1.0 with Transfer-Encoding: chunked — RFC 9112 §6.1 says treat
+    the framing as faulty. The body is read until close.
+    """
+    let body_bytes = "3\r\nabc\r\n0\r\n\r\n"
+    let raw: String val =
+      "HTTP/1.0 200 OK\r\n" +
+      "Transfer-Encoding: chunked\r\n" +
+      "\r\n" +
+      body_bytes
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](
+      1, notify.responses.size(), "HTTP/1.0 TE: 1 response")
+    h.assert_eq[USize](
+      0, notify.completed, "HTTP/1.0 TE: not completed (close-delimited)")
+
+    parser.connection_closed()
+    h.assert_eq[USize](
+      1, notify.completed, "HTTP/1.0 TE: completed after close")
+    h.assert_eq[String val](
+      body_bytes,
+      notify.collected_body_string(),
+      "HTTP/1.0 TE: raw body (not chunk-decoded)")
+
+  fun _test_te_non_chunked_ignores_content_length(h: TestHelper) =>
+    """
+    Transfer-Encoding present but not chunked, with Content-Length also
+    present — Content-Length is ignored per RFC 9112 §6.3 item 3.
+    """
+    let raw: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "Transfer-Encoding: gzip\r\n" +
+      "Content-Length: 100\r\n" +
+      "\r\n" +
+      "some data"
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](
+      1, notify.responses.size(), "TE+CL: 1 response")
+    h.assert_eq[USize](
+      0, notify.completed, "TE+CL: not completed (close-delimited, not fixed)")
+    h.assert_eq[USize](
+      0, notify.errors.size(), "TE+CL: 0 errors")
+
+    parser.connection_closed()
+    h.assert_eq[USize](
+      1, notify.completed, "TE+CL: completed after close")
+    h.assert_eq[String val](
+      "some data",
+      notify.collected_body_string(),
+      "TE+CL: body is close-delimited data")
 
 class \nodoc\ iso _TestHeaderNameBareLFSanitized is UnitTest
   """A bare LF in a header name is replaced with SP."""
