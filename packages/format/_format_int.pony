@@ -35,7 +35,9 @@ primitive _FormatInt
 
   fun _pad(s: String ref, width: USize, align: Align, fill: U32) =>
     s.reverse_in_place()
+    _apply_padding(s, width, align, fill)
 
+  fun _apply_padding(s: String ref, width: USize, align: Align, fill: U32) =>
     if s.size() < width then
       let rem = width - s.size()
       var pre: USize = 0
@@ -75,7 +77,12 @@ primitive _FormatInt
     : String iso^
   =>
     match fmt
-    | FormatUTF32 => return recover String.from_utf32(x.u32()) end
+    | FormatUTF32 =>
+      return recover
+        var s = String.from_utf32(x.u32())
+        _apply_padding(s, width, align, fill)
+        s
+      end
     end
 
     (var base', var typestring, var table) = _fmt_int(fmt)
@@ -117,7 +124,12 @@ primitive _FormatInt
     : String iso^
   =>
     match fmt
-    | FormatUTF32 => return recover String.from_utf32(x.u32()) end
+    | FormatUTF32 =>
+      return recover
+        var s = String.from_utf32(x.u32())
+        _apply_padding(s, width, align, fill)
+        s
+      end
     end
 
     (var base', var typestring, var table) = _fmt_int(fmt)
@@ -159,7 +171,12 @@ primitive _FormatInt
     : String iso^
   =>
     match fmt
-    | FormatUTF32 => return recover String.from_utf32(x.u32()) end
+    | FormatUTF32 =>
+      return recover
+        var s = String.from_utf32(x.u32())
+        _apply_padding(s, width, align, fill)
+        s
+      end
     end
 
     (var base', var typestring, var table) = _fmt_int(fmt)
@@ -201,7 +218,12 @@ primitive _FormatInt
     : String iso^
   =>
     match fmt
-    | FormatUTF32 => return recover String.from_utf32(x.u32()) end
+    | FormatUTF32 =>
+      return recover
+        var s = String.from_utf32(x.u32())
+        _apply_padding(s, width, align, fill)
+        s
+      end
     end
 
     (var base', var typestring, var table) = _fmt_int(fmt)
@@ -243,7 +265,12 @@ primitive _FormatInt
     : String iso^
   =>
     match fmt
-    | FormatUTF32 => return recover String.from_utf32(x.u32()) end
+    | FormatUTF32 =>
+      return recover
+        var s = String.from_utf32(x.u32())
+        _apply_padding(s, width, align, fill)
+        s
+      end
     end
 
     (var base', var typestring, var table) = _fmt_int(fmt)
