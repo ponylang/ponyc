@@ -242,5 +242,10 @@ class val SkipBits is Codec[None]
   fun _encode_bits(value: None, writer: _BitWriter ref)
     : (_BitWriter ref | EncodeError)
   =>
-    writer.write_bits(0, _count.u8())
+    var remaining = _count
+    while remaining > 0 do
+      let chunk = remaining.min(255)
+      writer.write_bits(0, chunk.u8())
+      remaining = remaining - chunk
+    end
     writer
