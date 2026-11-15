@@ -7,6 +7,10 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
+    test(_TestIntU128)
+    test(_TestIntU64Regression)
+    test(_TestIntUnbiasedU128)
+    test(_TestIntUnbiasedU64Regression)
     test(_TestMT)
     test(_TestRandomShuffle)
     test(_TestSplitMix64)
@@ -14,6 +18,122 @@ actor \nodoc\ Main is TestList
     test(_TestXorOshiro128StarStar)
     test(_TestXorShift128Plus)
     test(_TestZeroSeedNotDegenerate)
+
+class \nodoc\ iso _TestIntU128 is UnitTest
+  fun name(): String => "random/Random.int[U128]"
+
+  fun apply(h: TestHelper) =>
+    let r = Rand(42)
+    let bound: U128 = U128(1) << 100
+    var found_above_2_64: Bool = false
+    var i: USize = 0
+    while i < 100 do
+      let v = r.int[U128](bound)
+      h.assert_true(v < bound, "int[U128] returned value >= bound")
+      if v >= (U128(1) << 64) then found_above_2_64 = true end
+      i = i + 1
+    end
+    h.assert_true(
+      found_above_2_64,
+      "int[U128] with bound 2^100 never produced value >= 2^64")
+
+    // 2^64+5 has low 64 bits of 5; truncation would confine results to [0, 5).
+    let r2 = Rand(123)
+    let bound2: U128 = (U128(1) << 64) + 5
+    var max_seen: U128 = 0
+    i = 0
+    while i < 100 do
+      let v = r2.int[U128](bound2)
+      h.assert_true(v < bound2, "int[U128] returned value >= bound")
+      max_seen = max_seen.max(v)
+      i = i + 1
+    end
+    h.assert_true(
+      max_seen > 1000,
+      "int[U128] with bound 2^64+5 returned only small values")
+
+    let r3 = Rand(456)
+    let bound3: U128 = U128(1) << 64
+    i = 0
+    while i < 100 do
+      let v = r3.int[U128](bound3)
+      h.assert_true(v < bound3, "int[U128] returned value >= 2^64 bound")
+      i = i + 1
+    end
+
+class \nodoc\ iso _TestIntU64Regression is UnitTest
+  fun name(): String => "random/Random.int[U64]"
+
+  fun apply(h: TestHelper) =>
+    let r = Rand(42)
+    var i: USize = 0
+    while i < 100 do
+      let v = r.int[U64](1000)
+      h.assert_true(v < 1000, "int[U64] returned value >= bound")
+      i = i + 1
+    end
+
+class \nodoc\ iso _TestIntUnbiasedU128 is UnitTest
+  fun name(): String => "random/Random.int_unbiased[U128]"
+
+  fun apply(h: TestHelper) =>
+    let r = Rand(42)
+    let bound: U128 = U128(1) << 100
+    var found_above_2_64: Bool = false
+    var i: USize = 0
+    while i < 100 do
+      let v = r.int_unbiased[U128](bound)
+      h.assert_true(v < bound, "int_unbiased[U128] returned value >= bound")
+      if v >= (U128(1) << 64) then found_above_2_64 = true end
+      i = i + 1
+    end
+    h.assert_true(
+      found_above_2_64,
+      "int_unbiased[U128] with bound 2^100 never produced value >= 2^64")
+
+    let r2 = Rand(123)
+    var found_nonzero: Bool = false
+    i = 0
+    while i < 100 do
+      let v = r2.int_unbiased[U128](U128(1) << 64)
+      h.assert_true(
+        v < (U128(1) << 64),
+        "int_unbiased[U128] returned value >= 2^64")
+      if v > 0 then found_nonzero = true end
+      i = i + 1
+    end
+    h.assert_true(
+      found_nonzero,
+      "int_unbiased[U128] with bound 2^64 returned 0 every time")
+
+    // Non-power-of-two bound exercises the rejection loop in _u128_unbiased.
+    let r3 = Rand(456)
+    let bound3: U128 = (U128(1) << 100) + 7
+    var found_above_2_64_b: Bool = false
+    i = 0
+    while i < 100 do
+      let v = r3.int_unbiased[U128](bound3)
+      h.assert_true(
+        v < bound3,
+        "int_unbiased[U128] returned value >= bound")
+      if v >= (U128(1) << 64) then found_above_2_64_b = true end
+      i = i + 1
+    end
+    h.assert_true(
+      found_above_2_64_b,
+      "int_unbiased[U128] non-power-of-two bound never produced value >= 2^64")
+
+class \nodoc\ iso _TestIntUnbiasedU64Regression is UnitTest
+  fun name(): String => "random/Random.int_unbiased[U64]"
+
+  fun apply(h: TestHelper) =>
+    let r = Rand(42)
+    var i: USize = 0
+    while i < 100 do
+      let v = r.int_unbiased[U64](1000)
+      h.assert_true(v < 1000, "int_unbiased[U64] returned value >= bound")
+      i = i + 1
+    end
 
 class \nodoc\ iso _TestMT is UnitTest
   fun name(): String => "random/MT"
