@@ -1359,3 +1359,92 @@ class \nodoc\ iso _TestReasonPhraseBareLFSanitized is UnitTest
       h.assert_eq[String val]("O K", reason)
     end
 
+class \nodoc\ iso _TestInvalidStatusLineExtraDigits is UnitTest
+  """Extra characters after the three-digit status code are rejected."""
+  fun name(): String => "parser/invalid_status_line_extra_digits"
+
+  fun apply(h: TestHelper) =>
+    _test_rejected(
+      h,
+      "HTTP/1.1 2000 OK\r\nContent-Length: 0\r\n\r\n",
+      "fourth digit before space")
+    _test_rejected(
+      h,
+      "HTTP/1.1 200OK\r\nContent-Length: 0\r\n\r\n",
+      "letter instead of space")
+    _test_rejected(
+      h,
+      "HTTP/1.1 20000\r\nContent-Length: 0\r\n\r\n",
+      "fourth and fifth digits, no space")
+    _test_rejected(
+      h,
+      "HTTP/1.1 1000 x\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
+      "1xx with fourth digit")
+    _test_rejected(
+      h,
+      "HTTP/1.1 200\tOK\r\nContent-Length: 0\r\n\r\n",
+      "tab instead of space")
+    _test_empty_reason_valid(h)
+
+  fun _test_rejected(h: TestHelper, raw: String val, case: String val) =>
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](
+      0, notify.responses.size(), case + ": should have 0 responses")
+    h.assert_eq[USize](
+      1, notify.errors.size(), case + ": should have 1 error")
+    try
+      h.assert_true(
+        notify.errors(0)? is InvalidStatusLine,
+        case + ": should be InvalidStatusLine")
+    end
+
+  fun _test_empty_reason_valid(h: TestHelper) =>
+    """Status code at end of line with no trailing space is valid."""
+    let raw = "HTTP/1.1 200\r\nContent-Length: 0\r\n\r\n"
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](
+      1, notify.responses.size(), "empty reason: should have 1 response")
+    h.assert_eq[USize](
+      0, notify.errors.size(), "empty reason: should have 0 errors")
+    try
+      (let s, let r, _, _) = notify.responses(0)?
+      h.assert_eq[U16](200, s, "empty reason: status should be 200")
+      h.assert_eq[String val](
+        "", r, "empty reason: reason should be empty")
+    else
+      h.fail("empty reason: could not read response")
+    end
+
+class \nodoc\ iso _PropertyExtraDigitsAfterStatusRejected
+  is Property[U16]
+  """A fourth digit after the status code produces InvalidStatusLine."""
+  fun name(): String => "parser/extra_digit_after_status_rejected"
+
+  fun gen(): Generator[U16] =>
+    Generators.u16(100, 599)
+
+  fun ref property(arg1: U16, ph: PropertyHelper) =>
+    let extra_digit: String val = (arg1 % 10).string()
+    let raw: String val =
+      "HTTP/1.1 " + arg1.string() + extra_digit +
+      " OK\r\nContent-Length: 0\r\n\r\n"
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    ph.assert_eq[USize](
+      0, notify.responses.size(), "should have 0 responses for: " + raw)
+    ph.assert_eq[USize](
+      1, notify.errors.size(), "should have 1 error for: " + raw)
+    try
+      ph.assert_true(
+        notify.errors(0)? is InvalidStatusLine,
+        "should be InvalidStatusLine for: " + raw)
+    end
+

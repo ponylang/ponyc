@@ -56,6 +56,8 @@ actor \nodoc\ Main is TestList
     test(_TestHeaderValueLocationLFSanitized)
     test(_TestHeaderNameBareLFSanitized)
     test(_TestReasonPhraseBareLFSanitized)
+    test(_TestInvalidStatusLineExtraDigits)
+    test.property(_PropertyExtraDigitsAfterStatusRejected)
 
     // Serializer property-based tests
     test.property(_PropertySerializerContainsMethod)
