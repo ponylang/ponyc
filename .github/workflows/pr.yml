@@ -375,7 +375,7 @@ jobs:
         run: |
           cmake --preset debug
           cmake --build --preset debug
-          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-dep-tests pony-agent-server-tests
+          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-dep-tests pony-agent-server-tests pony-mutate-tests
       - name: Test pony-doc
         run: ctest --preset debug -R pony-doc-tests
       - name: Test pony-lint
@@ -386,6 +386,12 @@ jobs:
         run: ctest --preset debug -R pony-dep-tests
       - name: Test pony-agent-server
         run: ctest --preset debug -R pony-agent-server-tests
+      - name: Test pony-mutate
+        run: ctest --preset debug -R '^(pony-mutate-tests|mutation-reports)$'
+      - name: Validate mutation report schema
+        run: |
+          python3 -m pip install --target "$RUNNER_TEMP/mutation-schema" jsonschema==4.26.0
+          PYTHONPATH="$RUNNER_TEMP/mutation-schema" python3 test/mutation-reports/check_reports.py --schema --fixture build/debug/mutation-reports/report-fixture --runner build/debug/pony-mutate -v
       - name: Lint tools
         run: cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/
       - name: Lint examples
@@ -418,7 +424,7 @@ jobs:
         run: |
           cmake --preset armv8-debug
           cmake --build --preset armv8-debug
-          cmake --build --preset armv8-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-dep-tests pony-agent-server-tests
+          cmake --build --preset armv8-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-dep-tests pony-agent-server-tests pony-mutate-tests
       - name: Test pony-doc
         run: ctest --preset armv8-debug -R pony-doc-tests
       - name: Test pony-lint
@@ -429,6 +435,8 @@ jobs:
         run: ctest --preset armv8-debug -R pony-dep-tests
       - name: Test pony-agent-server
         run: ctest --preset armv8-debug -R pony-agent-server-tests
+      - name: Test pony-mutate
+        run: ctest --preset armv8-debug -R '^(pony-mutate-tests|mutation-reports)$'
 
   tools-windows:
     needs: [changes, maybe-build-windows]
@@ -461,7 +469,7 @@ jobs:
         run: |
           cmake --preset windows-x86-64
           cmake --build --preset windows-x86-64-debug
-          cmake --build --preset windows-x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-dep-tests pony-agent-server-tests
+          cmake --build --preset windows-x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-dep-tests pony-agent-server-tests pony-mutate-tests
       - name: Test pony-doc
         run: ctest --preset windows-x86-64-debug -R pony-doc-tests
       - name: Test pony-lint
@@ -472,6 +480,8 @@ jobs:
         run: ctest --preset windows-x86-64-debug -R pony-dep-tests
       - name: Test pony-agent-server
         run: ctest --preset windows-x86-64-debug -R pony-agent-server-tests
+      - name: Test pony-mutate
+        run: ctest --preset windows-x86-64-debug -R '^(pony-mutate-tests|mutation-reports)$'
 
   # ----- ssl-backends suite -----
 

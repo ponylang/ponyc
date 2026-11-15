@@ -506,7 +506,7 @@ class _ProcessWindows is _Process
       var next = arg
       ifdef windows then
         try
-          if arg.contains(" ") and (not arg(0)? == '"') then
+          if arg.contains(" ") and (arg(0)? != '"') then
             next = "\"" + arg + "\""
           end
         end

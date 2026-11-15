@@ -17,6 +17,108 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+static bool write_i32_le(FILE* f, int32_t val)
+{
+  uint8_t buf[4];
+  uint32_t u = (uint32_t)val;
+  buf[0] = (uint8_t)(u);
+  buf[1] = (uint8_t)(u >> 8);
+  buf[2] = (uint8_t)(u >> 16);
+  buf[3] = (uint8_t)(u >> 24);
+  return fwrite(buf, 1, 4, f) == 4;
+}
+
+static bool write_i64_le(FILE* f, int64_t val)
+{
+  uint8_t buf[8];
+  uint64_t u = (uint64_t)val;
+  buf[0] = (uint8_t)(u);
+  buf[1] = (uint8_t)(u >> 8);
+  buf[2] = (uint8_t)(u >> 16);
+  buf[3] = (uint8_t)(u >> 24);
+  buf[4] = (uint8_t)(u >> 32);
+  buf[5] = (uint8_t)(u >> 40);
+  buf[6] = (uint8_t)(u >> 48);
+  buf[7] = (uint8_t)(u >> 56);
+  return fwrite(buf, 1, 8, f) == 8;
+}
+
+PONY_EXTERN_C_BEGIN
+PONY_API int32_t pony_mutant_selector = 0;
+PONY_API int32_t pony_mutate_enabled = 0;
+PONY_API int64_t* pony_coverage_counters = NULL;
+PONY_API int32_t pony_coverage_count = 0;
+
+PONY_API void pony_coverage_init(int32_t count)
+{
+  if(count <= 0)
+    return;
+
+  pony_coverage_counters = (int64_t*)calloc(count, sizeof(int64_t));
+
+  if(pony_coverage_counters == NULL)
+  {
+    fprintf(stderr, "error: failed to allocate coverage counters\n");
+    abort();
+  }
+
+  pony_coverage_count = count;
+}
+
+PONY_API void pony_coverage_write(const char* binary_path)
+{
+  if(pony_coverage_counters == NULL || pony_coverage_count <= 0)
+    return;
+
+  // Mutant runs would overwrite the file with single-mutant data,
+  // corrupting the baseline coverage used for filtering.
+  if(pony_mutant_selector != 0)
+  {
+    free(pony_coverage_counters);
+    pony_coverage_counters = NULL;
+    return;
+  }
+
+  size_t path_len = strlen(binary_path) + 10;
+  char* path = (char*)malloc(path_len);
+
+  if(path == NULL)
+  {
+    free(pony_coverage_counters);
+    pony_coverage_counters = NULL;
+    return;
+  }
+
+  snprintf(path, path_len, "%s.coverage", binary_path);
+
+  FILE* f = fopen(path, "wb");
+
+  if(f == NULL)
+  {
+    fprintf(stderr, "warning: cannot write coverage file %s\n", path);
+  }
+  else
+  {
+    bool ok = write_i32_le(f, pony_coverage_count);
+
+    for(int32_t i = 0; ok && (i < pony_coverage_count); i++)
+      ok = write_i64_le(f, pony_coverage_counters[i]);
+
+    fclose(f);
+
+    if(!ok)
+    {
+      fprintf(stderr, "warning: coverage file %s may be incomplete\n", path);
+      remove(path);
+    }
+  }
+
+  free(path);
+  free(pony_coverage_counters);
+  pony_coverage_counters = NULL;
+}
+PONY_EXTERN_C_END
+
 typedef struct options_t
 {
   // concurrent options
@@ -319,6 +421,33 @@ PONY_API int pony_init(int argc, char** argv)
   Main_runtime_override_defaults_oo(&opt);
 
   argc = parse_opts(argc, argv, &opt);
+
+  if(pony_mutate_enabled)
+  {
+    const char* mutant_env = getenv("PONY_MUTANT_ID");
+    if(mutant_env != NULL)
+    {
+      char* end;
+      long val = strtol(mutant_env, &end, 10);
+
+      if(*end != '\0' || end == mutant_env)
+      {
+        fprintf(stderr,
+          "warning: PONY_MUTANT_ID '%s' is not a valid integer, ignoring\n",
+          mutant_env);
+      }
+      else if(val < INT32_MIN || val > INT32_MAX)
+      {
+        fprintf(stderr,
+          "warning: PONY_MUTANT_ID '%s' is out of range, ignoring\n",
+          mutant_env);
+      }
+      else
+      {
+        pony_mutant_selector = (int32_t)val;
+      }
+    }
+  }
 
   if (opt.ponyhelp) {
     printf("%s", PONYRT_HELP);

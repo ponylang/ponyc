@@ -6,6 +6,20 @@
 
 PONY_EXTERN_C_BEGIN
 
+typedef LLVMValueRef (*build_binop)(LLVMBuilderRef builder, LLVMValueRef left,
+  LLVMValueRef right, const char *name);
+
+bool is_fp(LLVMValueRef val);
+
+LLVMValueRef make_cmp_value(compile_t* c, bool sign,
+  LLVMValueRef l_value, LLVMValueRef r_value, LLVMRealPredicate cmp_f,
+  LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui, bool safe);
+
+LLVMValueRef make_divrem_inner(compile_t* c,
+  LLVMValueRef l_value, LLVMValueRef r_value, bool sign,
+  build_binop build_f, build_binop build_ui, build_binop build_si,
+  bool safe, bool is_div);
+
 LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right, bool safe);
 
 LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe);

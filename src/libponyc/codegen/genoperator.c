@@ -3,6 +3,7 @@
 #include "gencall.h"
 #include "gendesc.h"
 #include "genexpr.h"
+#include "genmutate.h"
 #include "gentagged.h"
 #include "genreference.h"
 #include "genname.h"
@@ -12,9 +13,6 @@
 #include "../type/subtype.h"
 #include "../type/typealias.h"
 #include "ponyassert.h"
-
-typedef LLVMValueRef (*build_binop)(LLVMBuilderRef builder, LLVMValueRef left,
-  LLVMValueRef right, const char *name);
 
 static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
   LLVMValueRef r_value);
@@ -35,7 +33,7 @@ static bool is_always_false(LLVMValueRef val)
   return LLVMConstIntGetZExtValue(val) == 0;
 }
 
-static bool is_fp(LLVMValueRef val)
+bool is_fp(LLVMValueRef val)
 {
   LLVMTypeRef type = LLVMTypeOf(val);
 
@@ -55,32 +53,64 @@ static bool is_fp(LLVMValueRef val)
 static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
   build_binop build_f, build_binop build_i)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  if(is_fp(l_value))
-    return build_f(c->builder, l_value, r_value, "");
+  LLVMValueRef result;
 
-  return build_i(c->builder, l_value, r_value, "");
+  if(is_fp(l_value))
+    result = build_f(c->builder, l_value, r_value, "");
+  else
+    result = build_i(c->builder, l_value, r_value, "");
+
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_binop(c, mutate_ast, left, right,
+      l_value, r_value, result, build_f, build_i);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow;
+      if(is_fp(l_value))
+        shadow = build_f(c->builder, l_shadow, r_shadow, "");
+      else
+        shadow = build_i(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    result = mutate_uoi_insert(c, mutate_ast, result, l_value, r_value);
+  }
+  else if(c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow;
+      if(is_fp(l_value))
+        shadow = build_f(c->builder, l_shadow, r_shadow, "");
+      else
+        shadow = build_i(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+  }
+
+  return result;
 }
 
-static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
+LLVMValueRef make_divrem_inner(compile_t* c,
+  LLVMValueRef l_value, LLVMValueRef r_value, bool sign,
   build_binop build_f, build_binop build_ui, build_binop build_si,
   bool safe, bool is_div)
 {
-  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
-  bool sign = is_signed(type);
-  ast_free_unattached(type);
-
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
   LLVMTypeRef r_type = LLVMTypeOf(r_value);
 
   if(!is_fp(r_value) && LLVMIsConstant(r_value))
@@ -115,24 +145,20 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
 
   if(safe)
   {
-    // Setup additional blocks.
     insert = LLVMGetInsertBlock(c->builder);
     nonzero_block = codegen_block(c, "div_nonzero");
     if(sign)
       no_overflow_block = codegen_block(c, "div_no_overflow");
     post_block = codegen_block(c, "div_post");
 
-    // Check for div by zero.
     zero = LLVMConstInt(r_type, 0, false);
     LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntNE, r_value, zero, "");
     LLVMBuildCondBr(c->builder, cmp, nonzero_block, post_block);
 
-    // Divisor is not zero.
     LLVMPositionBuilderAtEnd(c->builder, nonzero_block);
 
     if(sign)
     {
-      // Check for overflow, e.g. I8(-128) / -1
       uint64_t width = LLVMGetIntTypeWidth(r_type);
       LLVMValueRef neg_one = LLVMConstInt(r_type, 0, false);
       neg_one = LLVMConstNot(neg_one);
@@ -148,7 +174,6 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
 
       overflow_val = is_div ? v_min : zero;
 
-      // No overflow.
       LLVMPositionBuilderAtEnd(c->builder, no_overflow_block);
     }
   }
@@ -164,7 +189,6 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
   {
     LLVMBuildBr(c->builder, post_block);
 
-    // Phi node.
     LLVMPositionBuilderAtEnd(c->builder, post_block);
     LLVMValueRef phi = LLVMBuildPhi(c->builder, r_type, "");
     LLVMAddIncoming(phi, &zero, &insert, 1);
@@ -182,7 +206,57 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
   return result;
 }
 
-static LLVMValueRef make_cmp_value(compile_t* c, bool sign,
+static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
+  build_binop build_f, build_binop build_ui, build_binop build_si,
+  bool safe, bool is_div)
+{
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+  bool sign = is_signed(type);
+  ast_free_unattached(type);
+
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
+
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  LLVMValueRef result = make_divrem_inner(c, l_value, r_value, sign,
+    build_f, build_ui, build_si, safe, is_div);
+
+  if(c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+
+    if(mutate_ast != NULL)
+    {
+      result = mutate_cr_divrem(c, mutate_ast, left, right,
+        l_value, r_value, result, sign, safe, is_div,
+        build_f, build_ui, build_si);
+    }
+
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow;
+      if(is_fp(l_value))
+        shadow = build_f(c->builder, l_shadow, r_shadow, "");
+      else
+        shadow = mutate_safe_divrem_shadow(c->builder, l_shadow, r_shadow,
+          sign, is_div);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    if(mutate_ast != NULL)
+      result = mutate_uoi_insert(c, mutate_ast, result, l_value, r_value);
+  }
+
+  return result;
+}
+
+LLVMValueRef make_cmp_value(compile_t* c, bool sign,
   LLVMValueRef l_value, LLVMValueRef r_value, LLVMRealPredicate cmp_f,
   LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui, bool safe)
 {
@@ -219,6 +293,7 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
   LLVMRealPredicate cmp_f, LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui,
   bool safe)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
@@ -226,12 +301,39 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
-  return make_cmp_value(c, sign, l_value, r_value, cmp_f, cmp_si, cmp_ui, safe);
+  LLVMValueRef result =
+    make_cmp_value(c, sign, l_value, r_value, cmp_f, cmp_si, cmp_ui, safe);
+
+  if((result != NULL) && c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign, cmp_f, cmp_si, cmp_ui, safe);
+  }
+
+  if((result != NULL) && c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow =
+        make_cmp_value(c, sign, l_shadow, r_shadow,
+          cmp_f, cmp_si, cmp_ui, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+  }
+
+  return result;
 }
 
 static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   bool is_and)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
+  bool do_bor = c->opt->mutate && (mutate_ast != NULL)
+    && mutate_site_enabled(c, "bor", mutate_ast);
+
   LLVMBasicBlockRef left_block = codegen_block(c, "sc_left");
   LLVMBuildBr(c->builder, left_block);
 
@@ -241,6 +343,8 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   if(l_value == NULL)
     return NULL;
 
+  // Deciding constant: and+false or or+true. The result is determined
+  // regardless of the right side, so no mutant can change it.
   if(LLVMIsAConstantInt(l_value))
   {
     if(is_and)
@@ -252,34 +356,138 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
         return l_value;
     }
 
-    return gen_expr(c, right);
+    // Non-deciding constant, BOR disabled: just evaluate the right side.
+    if(!do_bor)
+      return gen_expr(c, right);
   }
 
-  LLVMBasicBlockRef left_exit_block = LLVMGetInsertBlock(c->builder);
+  if(!do_bor)
+  {
+    // No BOR: emit the branch and phi exactly as a non-mutation build.
+    LLVMBasicBlockRef left_exit_block = LLVMGetInsertBlock(c->builder);
 
-  LLVMBasicBlockRef right_block = codegen_block(c, "sc_right");
-  LLVMBasicBlockRef post_block = codegen_block(c, "sc_post");
+    LLVMBasicBlockRef right_block = codegen_block(c, "sc_right");
+    LLVMBasicBlockRef post_block = codegen_block(c, "sc_post");
 
-  if(is_and)
-    LLVMBuildCondBr(c->builder, l_value, right_block, post_block);
-  else
-    LLVMBuildCondBr(c->builder, l_value, post_block, right_block);
+    if(is_and)
+      LLVMBuildCondBr(c->builder, l_value, right_block, post_block);
+    else
+      LLVMBuildCondBr(c->builder, l_value, post_block, right_block);
 
-  LLVMPositionBuilderAtEnd(c->builder, right_block);
+    LLVMPositionBuilderAtEnd(c->builder, right_block);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if(r_value == NULL)
+      return NULL;
+
+    LLVMBasicBlockRef right_exit_block = LLVMGetInsertBlock(c->builder);
+    LLVMBuildBr(c->builder, post_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
+
+    LLVMAddIncoming(phi, &l_value, &left_exit_block, 1);
+    LLVMAddIncoming(phi, &r_value, &right_exit_block, 1);
+
+    if(LLVMIsAConstantInt(r_value))
+    {
+      if(is_and)
+      {
+        if(is_always_false(r_value))
+          return r_value;
+      } else {
+        if(is_always_true(r_value))
+          return r_value;
+      }
+
+      return l_value;
+    }
+
+    return phi;
+  }
+
+  // BOR enabled. Generate the right side in sc_right so both operands
+  // are available, then decide whether the mutant fires based on LLVM
+  // constness of the result without CR.
+  LLVMBasicBlockRef left_exit = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef sc_right = codegen_block(c, "sc_right");
+  LLVMBasicBlockRef sc_post = codegen_block(c, "sc_post");
+
+  // Don't write left_exit's terminator yet — it depends on fire.
+  LLVMPositionBuilderAtEnd(c->builder, sc_right);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if(r_value == NULL)
     return NULL;
 
-  LLVMBasicBlockRef right_exit_block = LLVMGetInsertBlock(c->builder);
-  LLVMBuildBr(c->builder, post_block);
+  LLVMBasicBlockRef right_exit = LLVMGetInsertBlock(c->builder);
+  LLVMBuildBr(c->builder, sc_post);
 
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  // Constness of operand shadows tells us whether the unmutated result
+  // is a compile-time constant. A Bool that is LLVM-constant has no
+  // shadow (Bool literals aren't CR targets and Pony can't type a
+  // comparison of two literals), so LLVM constness is the right test.
+  pony_assert(LLVMIsConstant(l_value)
+    || (mutate_shadow_get(c, l_value) == NULL));
+  pony_assert(LLVMIsConstant(r_value)
+    || (mutate_shadow_get(c, r_value) == NULL));
+
+  bool l_const = LLVMIsAConstantInt(l_value) != NULL;
+  bool r_const = LLVMIsAConstantInt(r_value) != NULL;
+
+  // The unmutated result is constant when:
+  // - left decides (handled above, already returned)
+  // - left non-deciding const + right const
+  // - left non-const + right is a deciding const
+  bool r_decides = false;
+  if(r_const)
+  {
+    if(is_and)
+      r_decides = is_always_false(r_value);
+    else
+      r_decides = is_always_true(r_value);
+  }
+
+  bool fire = !((l_const && r_const) || (!l_const && r_decides));
+
+  // Write left_exit's terminator.
+  LLVMPositionBuilderAtEnd(c->builder, left_exit);
+
+  if(l_const && !fire)
+  {
+    // Non-deciding constant, not firing: fall through to the right side.
+    LLVMBuildBr(c->builder, sc_right);
+    LLVMPositionBuilderAtEnd(c->builder, sc_post);
+    return r_value;
+  }
+
+  if(fire)
+  {
+    codegen_debugloc(c, mutate_ast);
+    LLVMValueRef cond = mutate_sc_flip(c, mutate_ast, is_and, l_value);
+
+    if(is_and)
+      LLVMBuildCondBr(c->builder, cond, sc_right, sc_post);
+    else
+      LLVMBuildCondBr(c->builder, cond, sc_post, sc_right);
+  } else {
+    // Not firing, left non-constant: branch on l_value as main does.
+    if(is_and)
+      LLVMBuildCondBr(c->builder, l_value, sc_right, sc_post);
+    else
+      LLVMBuildCondBr(c->builder, l_value, sc_post, sc_right);
+  }
+
+  LLVMPositionBuilderAtEnd(c->builder, sc_post);
   LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
 
-  LLVMAddIncoming(phi, &l_value, &left_exit_block, 1);
-  LLVMAddIncoming(phi, &r_value, &right_exit_block, 1);
+  LLVMAddIncoming(phi, &l_value, &left_exit, 1);
+  LLVMAddIncoming(phi, &r_value, &right_exit, 1);
 
+  if(fire)
+    return phi;
+
+  // Not firing: keep main's constant-right tail.
   if(LLVMIsAConstantInt(r_value))
   {
     if(is_and)
@@ -601,7 +809,8 @@ static LLVMValueRef make_unsafe_fadd(LLVMBuilderRef builder, LLVMValueRef left,
   LLVMValueRef right, const char *name)
 {
   LLVMValueRef result = LLVMBuildFAdd(builder, left, right, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
 }
 
@@ -609,7 +818,8 @@ static LLVMValueRef make_unsafe_fsub(LLVMBuilderRef builder, LLVMValueRef left,
   LLVMValueRef right, const char *name)
 {
   LLVMValueRef result = LLVMBuildFSub(builder, left, right, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
 }
 
@@ -617,7 +827,8 @@ static LLVMValueRef make_unsafe_fmul(LLVMBuilderRef builder, LLVMValueRef left,
   LLVMValueRef right, const char *name)
 {
   LLVMValueRef result = LLVMBuildFMul(builder, left, right, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
 }
 
@@ -625,7 +836,8 @@ static LLVMValueRef make_unsafe_fdiv(LLVMBuilderRef builder, LLVMValueRef left,
   LLVMValueRef right, const char *name)
 {
   LLVMValueRef result = LLVMBuildFDiv(builder, left, right, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
 }
 
@@ -633,7 +845,8 @@ static LLVMValueRef make_unsafe_frem(LLVMBuilderRef builder, LLVMValueRef left,
   LLVMValueRef right, const char *name)
 {
   LLVMValueRef result = LLVMBuildFRem(builder, left, right, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
 }
 
@@ -641,18 +854,100 @@ static LLVMValueRef make_unsafe_fneg(LLVMBuilderRef builder, LLVMValueRef op,
   const char *name)
 {
   LLVMValueRef result = LLVMBuildFNeg(builder, op, name);
-  LLVMSetUnsafeAlgebra(result);
+  if(LLVMIsAInstruction(result))
+    LLVMSetUnsafeAlgebra(result);
   return result;
+}
+
+static LLVMValueRef make_nsw_neg(LLVMBuilderRef builder, LLVMValueRef op,
+  const char* name)
+{
+  LLVMValueRef result = LLVMBuildNeg(builder, op, name);
+  if(LLVMIsAInstruction(result))
+    LLVMSetNoSignedWrap(result);
+  return result;
+}
+
+static LLVMValueRef make_nuw_neg(LLVMBuilderRef builder, LLVMValueRef op,
+  const char* name)
+{
+  LLVMValueRef result = LLVMBuildNeg(builder, op, name);
+  if(LLVMIsAInstruction(result))
+    LLVMSetNoUnsignedWrap(result);
+  return result;
+}
+
+static bool left_is_signed(compile_t* c, ast_t* left)
+{
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+  bool sign = is_signed(type);
+  ast_free_unattached(type);
+  return sign;
 }
 
 LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  if(c->opt->mutate && (c->frame->mutate_ast != NULL))
+  {
+    bool do_aor = mutate_site_enabled(c, "aor", c->frame->mutate_ast);
+    bool do_amr = mutate_site_enabled(c, "amr", c->frame->mutate_ast);
+
+    if(do_aor || do_amr)
+    {
+      if(safe)
+      {
+        bool sign = left_is_signed(c, left);
+        mutate_variant_t variants[3];
+        size_t count = 0;
+
+        if(do_aor)
+        {
+          variants[count++] = (mutate_variant_t)
+            {LLVMBuildFSub, LLVMBuildSub, "sub", NULL};
+          variants[count++] = (mutate_variant_t)
+            {LLVMBuildFMul, LLVMBuildMul, "mul", NULL};
+        }
+        if(do_amr)
+        {
+          variants[count++] = (mutate_variant_t)
+            {make_unsafe_fadd,
+             sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd,
+             "add_unsafe", "amr"};
+        }
+
+        return mutate_binop(c, c->frame->mutate_ast, left, right,
+          LLVMBuildFAdd, LLVMBuildAdd, "add", "aor", variants, count);
+      }
+
+      bool sign = left_is_signed(c, left);
+      mutate_variant_t variants[3];
+      size_t count = 0;
+
+      if(do_aor)
+      {
+        variants[count++] = (mutate_variant_t)
+          {make_unsafe_fsub,
+           sign ? LLVMBuildNSWSub : LLVMBuildNUWSub, "sub", NULL};
+        variants[count++] = (mutate_variant_t)
+          {make_unsafe_fmul,
+           sign ? LLVMBuildNSWMul : LLVMBuildNUWMul, "mul", NULL};
+      }
+      if(do_amr)
+      {
+        variants[count++] = (mutate_variant_t)
+          {LLVMBuildFAdd, LLVMBuildAdd, "add_wrapping", "amr"};
+      }
+
+      return mutate_binop(c, c->frame->mutate_ast, left, right,
+        make_unsafe_fadd, sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd,
+        "add", "aor", variants, count);
+    }
+  }
+
   if(safe)
     return make_binop(c, left, right, LLVMBuildFAdd, LLVMBuildAdd);
 
-  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
-  bool sign = is_signed(type);
-  ast_free_unattached(type);
+  bool sign = left_is_signed(c, left);
 
   return make_binop(c, left, right, make_unsafe_fadd,
     sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd);
@@ -660,12 +955,67 @@ LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  if(c->opt->mutate && (c->frame->mutate_ast != NULL))
+  {
+    bool do_aor = mutate_site_enabled(c, "aor", c->frame->mutate_ast);
+    bool do_amr = mutate_site_enabled(c, "amr", c->frame->mutate_ast);
+
+    if(do_aor || do_amr)
+    {
+      if(safe)
+      {
+        bool sign = left_is_signed(c, left);
+        mutate_variant_t variants[3];
+        size_t count = 0;
+
+        if(do_aor)
+        {
+          variants[count++] = (mutate_variant_t)
+            {LLVMBuildFAdd, LLVMBuildAdd, "add", NULL};
+          variants[count++] = (mutate_variant_t)
+            {LLVMBuildFMul, LLVMBuildMul, "mul", NULL};
+        }
+        if(do_amr)
+        {
+          variants[count++] = (mutate_variant_t)
+            {make_unsafe_fsub,
+             sign ? LLVMBuildNSWSub : LLVMBuildNUWSub,
+             "sub_unsafe", "amr"};
+        }
+
+        return mutate_binop(c, c->frame->mutate_ast, left, right,
+          LLVMBuildFSub, LLVMBuildSub, "sub", "aor", variants, count);
+      }
+
+      bool sign = left_is_signed(c, left);
+      mutate_variant_t variants[3];
+      size_t count = 0;
+
+      if(do_aor)
+      {
+        variants[count++] = (mutate_variant_t)
+          {make_unsafe_fadd,
+           sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd, "add", NULL};
+        variants[count++] = (mutate_variant_t)
+          {make_unsafe_fmul,
+           sign ? LLVMBuildNSWMul : LLVMBuildNUWMul, "mul", NULL};
+      }
+      if(do_amr)
+      {
+        variants[count++] = (mutate_variant_t)
+          {LLVMBuildFSub, LLVMBuildSub, "sub_wrapping", "amr"};
+      }
+
+      return mutate_binop(c, c->frame->mutate_ast, left, right,
+        make_unsafe_fsub, sign ? LLVMBuildNSWSub : LLVMBuildNUWSub,
+        "sub", "aor", variants, count);
+    }
+  }
+
   if(safe)
     return make_binop(c, left, right, LLVMBuildFSub, LLVMBuildSub);
 
-  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
-  bool sign = is_signed(type);
-  ast_free_unattached(type);
+  bool sign = left_is_signed(c, left);
 
   return make_binop(c, left, right, make_unsafe_fsub,
     sign ? LLVMBuildNSWSub : LLVMBuildNUWSub);
@@ -673,12 +1023,67 @@ LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  if(c->opt->mutate && (c->frame->mutate_ast != NULL))
+  {
+    bool do_aor = mutate_site_enabled(c, "aor", c->frame->mutate_ast);
+    bool do_amr = mutate_site_enabled(c, "amr", c->frame->mutate_ast);
+
+    if(do_aor || do_amr)
+    {
+      if(safe)
+      {
+        bool sign = left_is_signed(c, left);
+        mutate_variant_t variants[3];
+        size_t count = 0;
+
+        if(do_aor)
+        {
+          variants[count++] = (mutate_variant_t)
+            {LLVMBuildFAdd, LLVMBuildAdd, "add", NULL};
+          variants[count++] = (mutate_variant_t)
+            {LLVMBuildFSub, LLVMBuildSub, "sub", NULL};
+        }
+        if(do_amr)
+        {
+          variants[count++] = (mutate_variant_t)
+            {make_unsafe_fmul,
+             sign ? LLVMBuildNSWMul : LLVMBuildNUWMul,
+             "mul_unsafe", "amr"};
+        }
+
+        return mutate_binop(c, c->frame->mutate_ast, left, right,
+          LLVMBuildFMul, LLVMBuildMul, "mul", "aor", variants, count);
+      }
+
+      bool sign = left_is_signed(c, left);
+      mutate_variant_t variants[3];
+      size_t count = 0;
+
+      if(do_aor)
+      {
+        variants[count++] = (mutate_variant_t)
+          {make_unsafe_fadd,
+           sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd, "add", NULL};
+        variants[count++] = (mutate_variant_t)
+          {make_unsafe_fsub,
+           sign ? LLVMBuildNSWSub : LLVMBuildNUWSub, "sub", NULL};
+      }
+      if(do_amr)
+      {
+        variants[count++] = (mutate_variant_t)
+          {LLVMBuildFMul, LLVMBuildMul, "mul_wrapping", "amr"};
+      }
+
+      return mutate_binop(c, c->frame->mutate_ast, left, right,
+        make_unsafe_fmul, sign ? LLVMBuildNSWMul : LLVMBuildNUWMul,
+        "mul", "aor", variants, count);
+    }
+  }
+
   if(safe)
     return make_binop(c, left, right, LLVMBuildFMul, LLVMBuildMul);
 
-  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
-  bool sign = is_signed(type);
-  ast_free_unattached(type);
+  bool sign = left_is_signed(c, left);
 
   return make_binop(c, left, right, make_unsafe_fmul,
     sign ? LLVMBuildNSWMul : LLVMBuildNUWMul);
@@ -686,6 +1091,37 @@ LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  if(c->opt->mutate && (c->frame->mutate_ast != NULL))
+  {
+    bool do_aor = mutate_site_enabled(c, "aor", c->frame->mutate_ast);
+    bool do_amr = mutate_site_enabled(c, "amr", c->frame->mutate_ast);
+
+    if(do_aor || do_amr)
+    {
+      mutate_divrem_variant_t variants[2];
+      size_t count = 0;
+
+      if(do_aor)
+      {
+        variants[count++] = (mutate_divrem_variant_t)
+          {safe ? LLVMBuildFRem : make_unsafe_frem,
+            LLVMBuildURem, LLVMBuildSRem, false, -1, "rem", NULL};
+      }
+      if(do_amr)
+      {
+        variants[count++] = (mutate_divrem_variant_t)
+          {safe ? make_unsafe_fdiv : LLVMBuildFDiv,
+            LLVMBuildUDiv, LLVMBuildSDiv, true, !safe,
+            safe ? "div_unsafe" : "div_wrapping", "amr"};
+      }
+
+      return mutate_divrem(c, c->frame->mutate_ast, left, right,
+        safe ? LLVMBuildFDiv : make_unsafe_fdiv,
+        LLVMBuildUDiv, LLVMBuildSDiv, safe, true,
+        "div", "aor", variants, count);
+    }
+  }
+
   return make_divrem(c, left, right,
     safe ? LLVMBuildFDiv : make_unsafe_fdiv, LLVMBuildUDiv, LLVMBuildSDiv,
     safe, true);
@@ -693,6 +1129,37 @@ LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_rem(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  if(c->opt->mutate && (c->frame->mutate_ast != NULL))
+  {
+    bool do_aor = mutate_site_enabled(c, "aor", c->frame->mutate_ast);
+    bool do_amr = mutate_site_enabled(c, "amr", c->frame->mutate_ast);
+
+    if(do_aor || do_amr)
+    {
+      mutate_divrem_variant_t variants[2];
+      size_t count = 0;
+
+      if(do_aor)
+      {
+        variants[count++] = (mutate_divrem_variant_t)
+          {safe ? LLVMBuildFDiv : make_unsafe_fdiv,
+            LLVMBuildUDiv, LLVMBuildSDiv, true, -1, "div", NULL};
+      }
+      if(do_amr)
+      {
+        variants[count++] = (mutate_divrem_variant_t)
+          {safe ? make_unsafe_frem : LLVMBuildFRem,
+            LLVMBuildURem, LLVMBuildSRem, false, !safe,
+            safe ? "rem_unsafe" : "rem_wrapping", "amr"};
+      }
+
+      return mutate_divrem(c, c->frame->mutate_ast, left, right,
+        safe ? LLVMBuildFRem : make_unsafe_frem,
+        LLVMBuildURem, LLVMBuildSRem, safe, false,
+        "rem", "aor", variants, count);
+    }
+  }
+
   return make_divrem(c, left, right,
     safe ? LLVMBuildFRem : make_unsafe_frem, LLVMBuildURem, LLVMBuildSRem,
     safe, false);
@@ -700,37 +1167,142 @@ LLVMValueRef gen_rem(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
   LLVMValueRef value = gen_expr(c, ast);
 
   if(value == NULL)
     return NULL;
 
+  LLVMValueRef neg_result;
+
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    bool do_uoi = mutate_site_enabled(c, "uoi", mutate_ast);
+    bool do_amr = mutate_site_enabled(c, "amr", mutate_ast);
+
+    if(do_uoi || do_amr)
+    {
+      bool fp = is_fp(value);
+      bool is_const_fp = LLVMIsAConstantFP(value) != NULL;
+      bool is_const_int = LLVMIsAConstantInt(value) != NULL;
+
+      if(is_const_fp)
+        neg_result = LLVMBuildFNeg(c->builder, value, "");
+      else if(is_const_int)
+        neg_result = LLVMConstNeg(value);
+      else if(fp)
+        neg_result = (safe ? LLVMBuildFNeg : make_unsafe_fneg)(
+          c->builder, value, "");
+      else if(safe)
+        neg_result = LLVMBuildNeg(c->builder, value, "");
+      else
+      {
+        ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
+        bool sign = is_signed(type);
+        ast_free_unattached(type);
+
+        neg_result = LLVMBuildNeg(c->builder, value, "");
+        if(sign)
+          LLVMSetNoSignedWrap(neg_result);
+        else
+          LLVMSetNoUnsignedWrap(neg_result);
+      }
+
+      mutate_unary_variant_t variants[2];
+      size_t count = 0;
+
+      if(do_uoi)
+      {
+        variants[count++] = (mutate_unary_variant_t)
+          {NULL, NULL, "identity", NULL};
+      }
+      if(do_amr && !is_const_fp && !is_const_int)
+      {
+        if(safe)
+        {
+          ast_t* type =
+            deferred_reify(c->frame->reify, ast_type(ast), c->opt);
+          bool sign = is_signed(type);
+          ast_free_unattached(type);
+
+          variants[count++] = (mutate_unary_variant_t)
+            {make_unsafe_fneg, sign ? make_nsw_neg : make_nuw_neg,
+             "neg_unsafe", "amr"};
+        }
+        else
+        {
+          variants[count++] = (mutate_unary_variant_t)
+            {LLVMBuildFNeg, LLVMBuildNeg, "neg_wrapping", "amr"};
+        }
+      }
+
+      if(count > 0)
+        neg_result = mutate_unary(c, mutate_ast, value, neg_result,
+          "neg", "uoi", variants, count);
+
+      neg_result = mutate_cr_unary(c, mutate_ast, ast, value, neg_result,
+        safe ? LLVMBuildFNeg : make_unsafe_fneg,
+        safe ? LLVMBuildNeg : LLVMBuildNeg);
+
+      goto neg_shadow;
+    }
+  }
+
   if(LLVMIsAConstantFP(value))
-    return LLVMBuildFNeg(c->builder, value, "");
-
-  if(LLVMIsAConstantInt(value))
-    return LLVMConstNeg(value);
-
-  if(is_fp(value))
-    return (safe ? LLVMBuildFNeg : make_unsafe_fneg)(c->builder, value, "");
-
-  if(safe)
-    return LLVMBuildNeg(c->builder, value, "");
-
-  ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
-  bool sign = is_signed(type);
-  ast_free_unattached(type);
-
-  LLVMValueRef result = LLVMBuildNeg(c->builder, value, "");
-  if(sign)
-    LLVMSetNoSignedWrap(result);
+    neg_result = LLVMBuildFNeg(c->builder, value, "");
+  else if(LLVMIsAConstantInt(value))
+    neg_result = LLVMConstNeg(value);
+  else if(is_fp(value))
+    neg_result = (safe ? LLVMBuildFNeg : make_unsafe_fneg)(
+      c->builder, value, "");
+  else if(safe)
+    neg_result = LLVMBuildNeg(c->builder, value, "");
   else
-    LLVMSetNoUnsignedWrap(result);
-  return result;
+  {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
+    bool sign = is_signed(type);
+    ast_free_unattached(type);
+
+    neg_result = LLVMBuildNeg(c->builder, value, "");
+    if(sign)
+      LLVMSetNoSignedWrap(neg_result);
+    else
+      LLVMSetNoUnsignedWrap(neg_result);
+  }
+
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    neg_result = mutate_cr_unary(c, mutate_ast, ast, value, neg_result,
+      safe ? LLVMBuildFNeg : make_unsafe_fneg,
+      safe ? LLVMBuildNeg : LLVMBuildNeg);
+  }
+
+neg_shadow:
+  if(c->opt->mutate)
+  {
+    LLVMValueRef v_shadow = mutate_shadow_get(c, value);
+    if(v_shadow != NULL)
+    {
+      LLVMValueRef shadow;
+      if(is_fp(value))
+        shadow = LLVMBuildFNeg(c->builder, v_shadow, "");
+      else
+        shadow = LLVMConstNeg(v_shadow);
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, neg_result, shadow);
+    }
+  }
+
+  return neg_result;
 }
 
 LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+  bool sign = is_signed(type);
+  ast_free_unattached(type);
+
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
@@ -741,12 +1313,14 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
   pony_assert(LLVMGetTypeKind(l_type) == LLVMIntegerTypeKind);
   unsigned width = LLVMGetIntTypeWidth(l_type);
 
-  if(LLVMIsConstant(r_value))
+  LLVMValueRef r_check = c->opt->mutate
+    ? mutate_shadow_get(c, r_value) : r_value;
+  if((r_check != NULL) && LLVMIsConstant(r_check))
   {
-    LLVMTypeRef r_type = LLVMTypeOf(r_value);
+    LLVMTypeRef r_type = LLVMTypeOf(r_check);
     LLVMValueRef width_val = LLVMConstInt(r_type, width, false);
     LLVMValueRef too_wide = LLVMBuildICmp(c->builder, LLVMIntUGE,
-      r_value, width_val, "");
+      r_check, width_val, "");
 
     if(is_always_true(too_wide))
     {
@@ -754,39 +1328,77 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
         "shift amount greater than type width");
       return NULL;
     }
-
-    if(LLVMIsConstant(l_value))
-      return LLVMBuildShl(c->builder, l_value, r_value, "");
   }
 
-  if(safe)
+  LLVMValueRef result;
+
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    bool do_sor = mutate_site_enabled(c, "sor", mutate_ast);
+    bool do_amr = mutate_site_enabled(c, "amr", mutate_ast);
+
+    if((do_sor || do_amr)
+        && ((mutate_shadow_get(c, l_value) == NULL)
+            || (mutate_shadow_get(c, r_value) == NULL)))
+    {
+      result = mutate_shift(c, mutate_ast, l_value, r_value,
+        true, sign, safe, width, do_sor, do_amr);
+
+      result = mutate_cr_shift(c, mutate_ast, left, right,
+        l_value, r_value, result, true, sign, safe, width);
+
+      goto shl_shadow;
+    }
+  }
+
+  if(LLVMIsConstant(r_value) && LLVMIsConstant(l_value))
+  {
+    result = LLVMBuildShl(c->builder, l_value, r_value, "");
+  }
+  else if(safe)
   {
     LLVMTypeRef r_type = LLVMTypeOf(r_value);
     LLVMValueRef clamp = LLVMConstInt(r_type, width - 1, false);
     LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntULE, r_value, clamp,
       "");
-    LLVMValueRef select = LLVMBuildSelect(c->builder, cmp, r_value, clamp, "");
-
-    return LLVMBuildShl(c->builder, l_value, select, "");
+    LLVMValueRef shift_amount =
+      LLVMBuildSelect(c->builder, cmp, r_value, clamp, "");
+    result = LLVMBuildShl(c->builder, l_value, shift_amount, "");
+  }
+  else
+  {
+    result = LLVMBuildShl(c->builder, l_value, r_value, "");
+    if(sign)
+      LLVMSetNoSignedWrap(result);
+    else
+      LLVMSetNoUnsignedWrap(result);
   }
 
-  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
-  bool sign = is_signed(type);
-  ast_free_unattached(type);
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_shift(c, mutate_ast, left, right,
+      l_value, r_value, result, true, sign, safe, width);
+  }
 
-  LLVMValueRef result = LLVMBuildShl(c->builder, l_value, r_value, "");
-
-  if(sign)
-    LLVMSetNoSignedWrap(result);
-  else
-    LLVMSetNoUnsignedWrap(result);
+shl_shadow:
+  if(c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = LLVMBuildShl(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+  }
 
   return result;
 }
 
 LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  (void)safe;
+  ast_t* mutate_ast = c->frame->mutate_ast;
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
@@ -801,12 +1413,14 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
   pony_assert(LLVMGetTypeKind(l_type) == LLVMIntegerTypeKind);
   unsigned width = LLVMGetIntTypeWidth(l_type);
 
-  if(LLVMIsConstant(r_value))
+  LLVMValueRef r_check = c->opt->mutate
+    ? mutate_shadow_get(c, r_value) : r_value;
+  if((r_check != NULL) && LLVMIsConstant(r_check))
   {
-    LLVMTypeRef r_type = LLVMTypeOf(r_value);
+    LLVMTypeRef r_type = LLVMTypeOf(r_check);
     LLVMValueRef width_val = LLVMConstInt(r_type, width, false);
     LLVMValueRef too_wide = LLVMBuildICmp(c->builder, LLVMIntUGE,
-      r_value, width_val, "");
+      r_check, width_val, "");
 
     if(is_always_true(too_wide))
     {
@@ -814,39 +1428,82 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
         "shift amount greater than type width");
       return NULL;
     }
+  }
 
-    if(LLVMIsConstant(l_value))
+  LLVMValueRef result;
+
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    bool do_sor = mutate_site_enabled(c, "sor", mutate_ast);
+    bool do_amr = mutate_site_enabled(c, "amr", mutate_ast);
+
+    if((do_sor || do_amr)
+        && ((mutate_shadow_get(c, l_value) == NULL)
+            || (mutate_shadow_get(c, r_value) == NULL)))
     {
-      if(sign)
-        return LLVMBuildAShr(c->builder, l_value, r_value, "");
+      result = mutate_shift(c, mutate_ast, l_value, r_value,
+        false, sign, safe, width, do_sor, do_amr);
 
-      return LLVMBuildLShr(c->builder, l_value, r_value, "");
+      result = mutate_cr_shift(c, mutate_ast, left, right,
+        l_value, r_value, result, false, sign, safe, width);
+
+      goto shr_shadow;
     }
   }
 
-  if(safe)
+  if(LLVMIsConstant(r_value) && LLVMIsConstant(l_value))
+  {
+    if(sign)
+      result = LLVMBuildAShr(c->builder, l_value, r_value, "");
+    else
+      result = LLVMBuildLShr(c->builder, l_value, r_value, "");
+  }
+  else if(safe)
   {
     LLVMTypeRef r_type = LLVMTypeOf(r_value);
     LLVMValueRef clamp = LLVMConstInt(r_type, width - 1, false);
     LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntULE, r_value, clamp,
       "");
-    LLVMValueRef select = LLVMBuildSelect(c->builder, cmp, r_value, clamp, "");
+    LLVMValueRef shift_amount =
+      LLVMBuildSelect(c->builder, cmp, r_value, clamp, "");
 
     if(sign)
-      return LLVMBuildAShr(c->builder, l_value, select, "");
-
-    return LLVMBuildLShr(c->builder, l_value, select, "");
+      result = LLVMBuildAShr(c->builder, l_value, shift_amount, "");
+    else
+      result = LLVMBuildLShr(c->builder, l_value, shift_amount, "");
   }
-
-  if(sign)
+  else
   {
-    LLVMValueRef result = LLVMBuildAShr(c->builder, l_value, r_value, "");
+    if(sign)
+      result = LLVMBuildAShr(c->builder, l_value, r_value, "");
+    else
+      result = LLVMBuildLShr(c->builder, l_value, r_value, "");
     LLVMSetIsExact(result);
-    return result;
   }
 
-  LLVMValueRef result = LLVMBuildLShr(c->builder, l_value, r_value, "");
-  LLVMSetIsExact(result);
+  if(c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_shift(c, mutate_ast, left, right,
+      l_value, r_value, result, false, sign, safe, width);
+  }
+
+shr_shadow:
+  if(c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow;
+      if(sign)
+        shadow = LLVMBuildAShr(c->builder, l_shadow, r_shadow, "");
+      else
+        shadow = LLVMBuildLShr(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+  }
+
   return result;
 }
 
@@ -862,45 +1519,263 @@ LLVMValueRef gen_or_sc(compile_t* c, ast_t* left, ast_t* right)
 
 LLVMValueRef gen_and(compile_t* c, ast_t* left, ast_t* right)
 {
+  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
+      && mutate_site_enabled(c, "bor", c->frame->mutate_ast))
+  {
+    mutate_variant_t variants[] = {
+      {LLVMBuildOr, LLVMBuildOr, "or", NULL},
+      {LLVMBuildXor, LLVMBuildXor, "xor", NULL}
+    };
+    return mutate_binop(c, c->frame->mutate_ast, left, right,
+      LLVMBuildAnd, LLVMBuildAnd, "and", "bor",
+      variants, sizeof(variants) / sizeof(variants[0]));
+  }
+
+  ast_t* mutate_ast = c->frame->mutate_ast;
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  return LLVMBuildAnd(c->builder, l_value, r_value, "");
+  LLVMValueRef result = LLVMBuildAnd(c->builder, l_value, r_value, "");
+
+  if(c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+
+    if(mutate_ast != NULL)
+    {
+      result = mutate_cr_binop(c, mutate_ast, left, right,
+        l_value, r_value, result, LLVMBuildAnd, LLVMBuildAnd);
+    }
+
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = LLVMBuildAnd(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    if(mutate_ast != NULL)
+      result = mutate_uoi_insert(c, mutate_ast, result, l_value, r_value);
+  }
+
+  return result;
 }
 
 LLVMValueRef gen_or(compile_t* c, ast_t* left, ast_t* right)
 {
+  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
+      && mutate_site_enabled(c, "bor", c->frame->mutate_ast))
+  {
+    mutate_variant_t variants[] = {
+      {LLVMBuildAnd, LLVMBuildAnd, "and", NULL},
+      {LLVMBuildXor, LLVMBuildXor, "xor", NULL}
+    };
+    return mutate_binop(c, c->frame->mutate_ast, left, right,
+      LLVMBuildOr, LLVMBuildOr, "or", "bor",
+      variants, sizeof(variants) / sizeof(variants[0]));
+  }
+
+  ast_t* mutate_ast = c->frame->mutate_ast;
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-    return LLVMBuildOr(c->builder, l_value, r_value, "");
+  LLVMValueRef result = LLVMBuildOr(c->builder, l_value, r_value, "");
 
-  return LLVMBuildOr(c->builder, l_value, r_value, "");
+  if(c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+
+    if(mutate_ast != NULL)
+    {
+      result = mutate_cr_binop(c, mutate_ast, left, right,
+        l_value, r_value, result, LLVMBuildOr, LLVMBuildOr);
+    }
+
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = LLVMBuildOr(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    if(mutate_ast != NULL)
+      result = mutate_uoi_insert(c, mutate_ast, result, l_value, r_value);
+  }
+
+  return result;
 }
 
 LLVMValueRef gen_xor(compile_t* c, ast_t* left, ast_t* right)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
+  bool do_bor = c->opt->mutate && (mutate_ast != NULL)
+    && mutate_site_enabled(c, "bor", mutate_ast);
+
+  // Bool xor needs its own path when BOR is enabled: the replacement
+  // operators (and, or) are short-circuit, so the right side must be
+  // generated in a separate block that the branch can skip.
+  if(do_bor)
+  {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool is_bool_type = is_bool(type);
+    ast_free_unattached(type);
+
+    if(is_bool_type)
+    {
+      LLVMValueRef l_value = gen_expr(c, left);
+      if(l_value == NULL)
+        return NULL;
+
+      LLVMBasicBlockRef left_exit = LLVMGetInsertBlock(c->builder);
+      LLVMBasicBlockRef xor_right = codegen_block(c, "xor_right");
+      LLVMBasicBlockRef xor_post = codegen_block(c, "xor_post");
+
+      LLVMPositionBuilderAtEnd(c->builder, xor_right);
+      LLVMValueRef r_value = gen_expr(c, right);
+      if(r_value == NULL)
+        return NULL;
+
+      LLVMBasicBlockRef right_exit = LLVMGetInsertBlock(c->builder);
+
+      bool l_has_shadow = LLVMIsConstant(l_value)
+        || (mutate_shadow_get(c, l_value) != NULL);
+      bool r_has_shadow = LLVMIsConstant(r_value)
+        || (mutate_shadow_get(c, r_value) != NULL);
+      bool fire = !(l_has_shadow && r_has_shadow);
+
+      if(!fire)
+      {
+        // Both operands constant/shadowed: no mutant. Fall through to
+        // the right side unconditionally, compute xor, register shadow.
+        LLVMPositionBuilderAtEnd(c->builder, left_exit);
+        LLVMBuildBr(c->builder, xor_right);
+        LLVMPositionBuilderAtEnd(c->builder, right_exit);
+        LLVMBuildBr(c->builder, xor_post);
+        LLVMPositionBuilderAtEnd(c->builder, xor_post);
+
+        LLVMValueRef result;
+        if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
+          result = LLVMConstXor(l_value, r_value);
+        else
+          result = LLVMBuildXor(c->builder, l_value, r_value, "");
+
+        LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+        LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+        if((l_shadow != NULL) && (r_shadow != NULL))
+        {
+          LLVMValueRef shadow =
+            LLVMBuildXor(c->builder, l_shadow, r_shadow, "");
+          if(LLVMIsConstant(shadow))
+            mutate_shadow_set(c, result, shadow);
+        }
+
+        return result;
+      }
+
+      LLVMPositionBuilderAtEnd(c->builder, left_exit);
+      codegen_debugloc(c, mutate_ast);
+      int32_t and_id, or_id;
+      mutate_sc_xor_record(c, mutate_ast, &and_id, &or_id);
+
+      LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
+      LLVMValueRef sel = LLVMBuildLoad2(c->builder, c->i32,
+        selector, "mut.sel");
+
+      LLVMValueRef is_and = LLVMBuildICmp(c->builder, LLVMIntEQ,
+        sel, LLVMConstInt(c->i32, and_id, false), "");
+      LLVMValueRef is_or = LLVMBuildICmp(c->builder, LLVMIntEQ,
+        sel, LLVMConstInt(c->i32, or_id, false), "");
+
+      // enter = (is_and AND l) OR (is_or AND NOT l) OR NOT (is_and OR is_or)
+      LLVMValueRef and_enter = LLVMBuildAnd(c->builder, is_and, l_value, "");
+      LLVMValueRef not_l = LLVMBuildNot(c->builder, l_value, "");
+      LLVMValueRef or_enter = LLVMBuildAnd(c->builder, is_or, not_l, "");
+      LLVMValueRef either = LLVMBuildOr(c->builder, is_and, is_or, "");
+      LLVMValueRef neither = LLVMBuildNot(c->builder, either, "");
+      LLVMValueRef enter = LLVMBuildOr(c->builder,
+        LLVMBuildOr(c->builder, and_enter, or_enter, ""), neither, "");
+
+      LLVMBuildCondBr(c->builder, enter, xor_right, xor_post);
+
+      // In xor_right after the right side:
+      // res = select (is_and OR is_or), r, xor(l, r)
+      LLVMPositionBuilderAtEnd(c->builder, right_exit);
+      LLVMValueRef xor_val =
+        LLVMBuildXor(c->builder, l_value, r_value, "");
+      LLVMValueRef res = LLVMBuildSelect(c->builder, either, r_value,
+        xor_val, "");
+      LLVMBuildBr(c->builder, xor_post);
+
+      LLVMPositionBuilderAtEnd(c->builder, xor_post);
+      LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
+      LLVMAddIncoming(phi, &l_value, &left_exit, 1);
+      LLVMAddIncoming(phi, &res, &right_exit, 1);
+
+      return phi;
+    }
+  }
+
+  // Integer xor, or Bool xor without BOR.
+  if(do_bor)
+  {
+    mutate_variant_t variants[] = {
+      {LLVMBuildAnd, LLVMBuildAnd, "and", NULL},
+      {LLVMBuildOr, LLVMBuildOr, "or", NULL}
+    };
+    return mutate_binop(c, mutate_ast, left, right,
+      LLVMBuildXor, LLVMBuildXor, "xor", "bor",
+      variants, sizeof(variants) / sizeof(variants[0]));
+  }
+
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-    return LLVMConstXor(l_value, r_value);
+  LLVMValueRef result;
 
-  return LLVMBuildXor(c->builder, l_value, r_value, "");
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
+    result = LLVMConstXor(l_value, r_value);
+  else
+    result = LLVMBuildXor(c->builder, l_value, r_value, "");
+
+  if(c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+
+    if(mutate_ast != NULL)
+    {
+      result = mutate_cr_binop(c, mutate_ast, left, right,
+        l_value, r_value, result, LLVMBuildXor, LLVMBuildXor);
+    }
+
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = LLVMBuildXor(c->builder, l_shadow, r_shadow, "");
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    if(mutate_ast != NULL)
+      result = mutate_uoi_insert(c, mutate_ast, result, l_value, r_value);
+  }
+
+  return result;
 }
 
 LLVMValueRef gen_not(compile_t* c, ast_t* ast)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
   LLVMValueRef value = gen_expr(c, ast);
 
   if(value == NULL)
@@ -910,65 +1785,471 @@ LLVMValueRef gen_not(compile_t* c, ast_t* ast)
   bool bool_type = is_bool(type);
   ast_free_unattached(type);
 
+  LLVMValueRef not_result;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "uoi", mutate_ast))
+  {
+    if(bool_type)
+    {
+      if(LLVMIsAConstantInt(value))
+        not_result = is_always_true(value)
+          ? LLVMConstInt(c->i1, 0, false)
+          : LLVMConstInt(c->i1, 1, false);
+      else
+        not_result = LLVMBuildICmp(c->builder, LLVMIntEQ, value,
+          LLVMConstInt(c->i1, 0, false), "");
+    }
+    else
+    {
+      if(LLVMIsAConstantInt(value))
+        not_result = LLVMConstNot(value);
+      else
+        not_result = LLVMBuildNot(c->builder, value, "");
+    }
+
+    mutate_unary_variant_t variants[] = {
+      {NULL, NULL, "identity", NULL}
+    };
+    not_result = mutate_unary(c, mutate_ast, value, not_result,
+      "not", "uoi",
+      variants, sizeof(variants) / sizeof(variants[0]));
+
+    if(!bool_type)
+    {
+      not_result = mutate_cr_unary(c, mutate_ast, ast, value, not_result,
+        NULL, LLVMBuildNot);
+    }
+
+    goto not_shadow;
+  }
+
   if(bool_type)
   {
     if(LLVMIsAConstantInt(value))
     {
-      if(is_always_true(value))
-        return LLVMConstInt(c->i1, 0, false);
-
-      return LLVMConstInt(c->i1, 1, false);
+      not_result = is_always_true(value)
+        ? LLVMConstInt(c->i1, 0, false)
+        : LLVMConstInt(c->i1, 1, false);
     }
-
-    return LLVMBuildICmp(c->builder, LLVMIntEQ, value,
-      LLVMConstInt(c->i1, 0, false), "");
+    else
+    {
+      not_result = LLVMBuildICmp(c->builder, LLVMIntEQ, value,
+        LLVMConstInt(c->i1, 0, false), "");
+    }
+  }
+  else if(LLVMIsAConstantInt(value))
+  {
+    not_result = LLVMConstNot(value);
+  }
+  else
+  {
+    not_result = LLVMBuildNot(c->builder, value, "");
   }
 
-  if(LLVMIsAConstantInt(value))
-    return LLVMConstNot(value);
+  if(!bool_type && c->opt->mutate && (mutate_ast != NULL))
+  {
+    not_result = mutate_cr_unary(c, mutate_ast, ast, value, not_result,
+      NULL, LLVMBuildNot);
+  }
 
-  return LLVMBuildNot(c->builder, value, "");
+not_shadow:
+  if(c->opt->mutate)
+  {
+    LLVMValueRef v_shadow = mutate_shadow_get(c, value);
+    if(v_shadow != NULL)
+    {
+      LLVMValueRef shadow;
+      if(bool_type)
+      {
+        shadow = is_always_true(v_shadow)
+          ? LLVMConstInt(c->i1, 0, false)
+          : LLVMConstInt(c->i1, 1, false);
+      }
+      else
+        shadow = LLVMConstNot(v_shadow);
+      if(LLVMIsConstant(shadow))
+        mutate_shadow_set(c, not_result, shadow);
+    }
+  }
+
+  return not_result;
 }
 
 LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
+  {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    bool is_bool_eq = is_bool(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
+    mutate_cmp_variant_t bool_variants[] = {
+      {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
+    };
+    mutate_cmp_variant_t all_variants[] = {
+      {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"},
+      {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
+      {LLVMRealOLE, LLVMIntSLE, LLVMIntULE, "le"},
+      {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
+      {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"}
+    };
+    mutate_cmp_variant_t* variants = is_bool_eq ? bool_variants : all_variants;
+    size_t count = is_bool_eq ? 1 : 5;
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ,
+      "eq", "ror", safe, variants, count);
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    return result;
+  }
+
   return make_cmp(c, left, right, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
 }
 
 LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value,
   bool safe)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
+  bool is_bool_eq = is_bool(type);
   ast_free_unattached(type);
   LLVMValueRef l_value = gen_expr(c, left);
 
-  return make_cmp_value(c, sign, l_value, r_value, LLVMRealOEQ, LLVMIntEQ,
-    LLVMIntEQ, safe);
+  if(c->opt->mutate && (l_value != NULL)
+      && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
+  {
+    mutate_cmp_variant_t bool_variants[] = {
+      {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
+    };
+    mutate_cmp_variant_t all_variants[] = {
+      {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"},
+      {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
+      {LLVMRealOLE, LLVMIntSLE, LLVMIntULE, "le"},
+      {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
+      {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"}
+    };
+    mutate_cmp_variant_t* variants = is_bool_eq ? bool_variants : all_variants;
+    size_t count = is_bool_eq ? 1 : 5;
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ,
+      "eq", "ror", safe, variants, count);
+
+    result = mutate_cr_cmp(c, mutate_ast, left, NULL,
+      l_value, r_value, result, sign,
+      LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    return result;
+  }
+
+  LLVMValueRef result = make_cmp_value(c, sign, l_value, r_value,
+    LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+
+  if((result != NULL) && c->opt->mutate && (mutate_ast != NULL))
+  {
+    result = mutate_cr_cmp(c, mutate_ast, left, NULL,
+      l_value, r_value, result, sign,
+      LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+  }
+
+  if((result != NULL) && c->opt->mutate)
+  {
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+  }
+
+  return result;
 }
 
 LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
+  {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    bool is_bool_ne = is_bool(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
+    mutate_cmp_variant_t bool_variants[] = {
+      {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"}
+    };
+    mutate_cmp_variant_t all_variants[] = {
+      {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"},
+      {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
+      {LLVMRealOLE, LLVMIntSLE, LLVMIntULE, "le"},
+      {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
+      {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"}
+    };
+    mutate_cmp_variant_t* variants = is_bool_ne ? bool_variants : all_variants;
+    size_t count = is_bool_ne ? 1 : 5;
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealONE, LLVMIntNE, LLVMIntNE,
+      "ne", "ror", safe, variants, count);
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealONE, LLVMIntNE, LLVMIntNE, safe);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealONE, LLVMIntNE, LLVMIntNE, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    return result;
+  }
+
   return make_cmp(c, left, right, LLVMRealONE, LLVMIntNE, LLVMIntNE, safe);
 }
 
 LLVMValueRef gen_lt(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
+  {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
+    mutate_cmp_variant_t variants[] = {
+      {LLVMRealOLE, LLVMIntSLE, LLVMIntULE, "le"},
+      {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"},
+      {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
+      {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"},
+      {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
+    };
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOLT, LLVMIntSLT, LLVMIntULT,
+      "lt", "ror", safe,
+      variants, sizeof(variants) / sizeof(variants[0]));
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealOLT, LLVMIntSLT, LLVMIntULT, safe);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOLT, LLVMIntSLT, LLVMIntULT, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    return result;
+  }
+
   return make_cmp(c, left, right, LLVMRealOLT, LLVMIntSLT, LLVMIntULT, safe);
 }
 
 LLVMValueRef gen_le(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
+  {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
+    mutate_cmp_variant_t variants[] = {
+      {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
+      {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"},
+      {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
+      {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"},
+      {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
+    };
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOLE, LLVMIntSLE, LLVMIntULE,
+      "le", "ror", safe,
+      variants, sizeof(variants) / sizeof(variants[0]));
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealOLE, LLVMIntSLE, LLVMIntULE, safe);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOLE, LLVMIntSLE, LLVMIntULE, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    return result;
+  }
+
   return make_cmp(c, left, right, LLVMRealOLE, LLVMIntSLE, LLVMIntULE, safe);
 }
 
 LLVMValueRef gen_ge(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
+  {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
+    mutate_cmp_variant_t variants[] = {
+      {LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, "gt"},
+      {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
+      {LLVMRealOLE, LLVMIntSLE, LLVMIntULE, "le"},
+      {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"},
+      {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
+    };
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOGE, LLVMIntSGE, LLVMIntUGE,
+      "ge", "ror", safe,
+      variants, sizeof(variants) / sizeof(variants[0]));
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, safe);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    return result;
+  }
+
   return make_cmp(c, left, right, LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, safe);
 }
 
 LLVMValueRef gen_gt(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
+  ast_t* mutate_ast = c->frame->mutate_ast;
+
+  if(c->opt->mutate && (mutate_ast != NULL)
+      && mutate_site_enabled(c, "ror", mutate_ast))
+  {
+    ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+    bool sign = is_signed(type);
+    ast_free_unattached(type);
+
+    LLVMValueRef l_value = gen_expr(c, left);
+    LLVMValueRef r_value = gen_expr(c, right);
+
+    if((l_value == NULL) || (r_value == NULL))
+      return NULL;
+
+    mutate_cmp_variant_t variants[] = {
+      {LLVMRealOGE, LLVMIntSGE, LLVMIntUGE, "ge"},
+      {LLVMRealOLT, LLVMIntSLT, LLVMIntULT, "lt"},
+      {LLVMRealOLE, LLVMIntSLE, LLVMIntULE, "le"},
+      {LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, "eq"},
+      {LLVMRealONE, LLVMIntNE, LLVMIntNE, "ne"}
+    };
+    LLVMValueRef result = mutate_cmp_values(c, mutate_ast, l_value, r_value,
+      sign, LLVMRealOGT, LLVMIntSGT, LLVMIntUGT,
+      "gt", "ror", safe,
+      variants, sizeof(variants) / sizeof(variants[0]));
+
+    result = mutate_cr_cmp(c, mutate_ast, left, right,
+      l_value, r_value, result, sign,
+      LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, safe);
+
+    LLVMValueRef l_shadow = mutate_shadow_get(c, l_value);
+    LLVMValueRef r_shadow = mutate_shadow_get(c, r_value);
+    if((l_shadow != NULL) && (r_shadow != NULL))
+    {
+      LLVMValueRef shadow = make_cmp_value(c, sign, l_shadow, r_shadow,
+        LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, safe);
+      if((shadow != NULL) && LLVMIsConstant(shadow))
+        mutate_shadow_set(c, result, shadow);
+    }
+
+    return result;
+  }
+
   return make_cmp(c, left, right, LLVMRealOGT, LLVMIntSGT, LLVMIntUGT, safe);
 }
 

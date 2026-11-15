@@ -14,7 +14,7 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast);
 LLVMValueRef gen_call(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern,
-  LLVMValueRef r_value);
+  LLVMValueRef r_value, bool emit_ror);
 
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast);
 
