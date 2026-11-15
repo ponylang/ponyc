@@ -29,6 +29,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix collection generator length distribution regression ([PR #6543](https://github.com/ponylang/ponyc/pull/6543))
 - Fix float shrinking stopping short of the target ([PR #6542](https://github.com/ponylang/ponyc/pull/6542))
 - Fix http_client sending bare CR and LF from Location headers into redirect requests ([PR #6545](https://github.com/ponylang/ponyc/pull/6545))
+- Fix Format.int with FormatUTF32 ignoring width, fill, and align ([PR #6577](https://github.com/ponylang/ponyc/pull/6577))
 
 ### Added
 
