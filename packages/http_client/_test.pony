@@ -81,6 +81,7 @@ actor \nodoc\ Main is TestList
     test(_TestSerializerTransferEncodingSuppressesContentLength)
     test(_TestSerializerTransferEncodingNoBodyNoContentLength)
     test(_TestSerializerNoBody)
+    test(_TestSerializerIPv6Host)
 
     // Response collector property-based tests
     test.property(_PropertyCollectorChunkAccumulation)
@@ -198,6 +199,10 @@ actor \nodoc\ Main is TestList
     test(_TestRedirectUnsupportedSchemeLocation)
     test(_TestRedirectUserinfoRejected)
     test(_TestRedirectIPv6Origin)
+    test(_TestRedirectFromIPv6OriginRelative)
+    test(_TestRedirectFromIPv6OriginAbsolute)
+    test(_TestRedirectFromIPv6OriginSameOrigin)
+    test(_TestOriginBracketNormalization)
     test(_TestRedirectEmptyPathDefaultsToSlash)
     test(_TestRedirectEmptyPathWithQuery)
     test(_TestRedirectEmptyHostRejected)

@@ -5,9 +5,9 @@ class val Origin is (Equatable[Origin] & Stringable)
   The origin of a URL: whether it is secure (https), the host, and the port.
 
   Two requests share an origin when all three match. Host comparison is
-  case-insensitive; the host is lowercased on construction. Redirect header
-  stripping uses origin equality — credentials are removed when a hop crosses
-  to a different origin.
+  case-insensitive; the host is lowercased and IPv6 brackets are stripped on
+  construction. Redirect header stripping uses origin equality — credentials
+  are removed when a hop crosses to a different origin.
   """
   let secure: Bool
   let host: String
@@ -15,7 +15,12 @@ class val Origin is (Equatable[Origin] & Stringable)
 
   new val create(secure': Bool, host': String, port': String) =>
     secure = secure'
-    host = host'.lower()
+    host =
+      if try host'(0)? == '[' else false end then
+        host'.substring(1, (host'.size() - 1).isize()).lower()
+      else
+        host'.lower()
+      end
     port = port'
 
   new val from_uri(url: uri.URI val) =>
@@ -51,12 +56,19 @@ class val Origin is (Equatable[Origin] & Stringable)
   fun eq(that: Origin box): Bool =>
     (secure == that.secure) and (host == that.host) and (port == that.port)
 
+  fun _url_host(): String =>
+    """
+    The host formatted for use in a URI or Host header: IPv6 addresses are
+    wrapped in brackets per RFC 3986 section 3.2.2.
+    """
+    if host.contains(":") then "[" + host + "]" else host end
+
   fun string(): String =>
     recover val
       String
         .> append(if secure then "https" else "http" end)
         .> append("://")
-        .> append(host)
+        .> append(_url_host())
         .> append(":")
         .> append(port)
     end

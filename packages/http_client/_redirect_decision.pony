@@ -90,7 +90,7 @@ primitive _RedirectDecision
         String
           .> append(if origin.secure then "https" else "http" end)
           .> append("://")
-          .> append(origin.host)
+          .> append(origin._url_host())
           .> append(":")
           .> append(origin.port)
           .> append(request_target)
