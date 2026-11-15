@@ -14,6 +14,7 @@ Stdlib only so no pip install is required on any CI runner.
 """
 
 import os
+import platform
 import subprocess
 import sys
 
@@ -72,7 +73,53 @@ def split_build_command(argv):
     return argv[:cut], argv[cut + 1:]
 
 
+def _msvc_tools_version():
+    """Return the MSVC toolchain version on Windows, or None elsewhere.
+
+    The version comes from Microsoft.VCToolsVersion.default.txt in the VS
+    installation found by vswhere. When the file or vswhere is absent (not
+    Windows, no VS, a non-MSVC toolchain), returns None.
+    """
+    if platform.system() != 'Windows':
+        return None
+    for vswhere_dir in (r'C:\Program Files (x86)\Microsoft Visual Studio\Installer',
+                        r'C:\Program Files\Microsoft Visual Studio\Installer'):
+        vswhere = os.path.join(vswhere_dir, 'vswhere.exe')
+        if os.path.isfile(vswhere):
+            break
+    else:
+        return None
+    try:
+        result = subprocess.run(
+            [vswhere, '-latest', '-property', 'installationPath'],
+            capture_output=True, text=True, timeout=10)
+        vs_path = result.stdout.strip()
+        if result.returncode != 0 or not vs_path:
+            return None
+    except Exception:
+        return None
+    version_file = os.path.join(
+        vs_path, 'VC', 'Auxiliary', 'Build',
+        'Microsoft.VCToolsVersion.default.txt')
+    try:
+        with open(version_file) as f:
+            return f.read().strip()
+    except Exception:
+        return None
+
+
 def cache_args(args):
-    """The selector (+ tag) passed through to the cache primitive scripts."""
+    """Build the selector and tag arguments for a cache primitive script.
+
+    On Windows, the MSVC toolchain version is appended to the tag so that LLVM
+    libraries compiled under one toolchain version are never linked against a
+    different version's STL. The MSVC STL ships vectorized algorithm intrinsics
+    (e.g. __std_replace_1) that change between toolchain updates; a cached LLVM
+    built with a newer STL fails to link on a runner whose STL is older.
+    """
     sel = ['--image', args.image] if args.image else ['--platform', args.platform]
-    return sel + ['--tag', args.tag]
+    tag = args.tag
+    msvc_ver = _msvc_tools_version()
+    if msvc_ver:
+        tag = f'{tag}-msvc{msvc_ver}'
+    return sel + ['--tag', tag]
