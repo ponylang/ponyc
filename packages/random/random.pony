@@ -143,16 +143,15 @@ trait Random
   fun ref int[N: (Unsigned val & Real[N] val) = U64](n: N): N =>
     """
     A random integer in [0, n)
-
-    Uses fixed-point inversion if platform supports native 128 bit operations
-    otherwise uses floating-point multiplication.
     """
-    ifdef native128 then
-      // TODO: once we have specialized generic functions, chose smaller int
-      // types for smaller N.
-      N.from[U64](((next().u128() * n.u128()) >> 64).u64())
+    if n.u128() > U64.max_value().u128() then
+      N.from[U128](u128() %% n.u128())
     else
-      int_fp_mult[N](n)
+      ifdef native128 then
+        N.from[U64](((next().u128() * n.u128()) >> 64).u64())
+      else
+        int_fp_mult[N](n)
+      end
     end
 
   fun ref int_unbiased[N: (Unsigned val & Real[N] val) = U64](n: N): N =>
@@ -161,7 +160,11 @@ trait Random
 
     Not biased with small values of `n` like `int`.
     """
-    N.from[U64](_u64_unbiased(U64.from[N](n)))
+    if n.u128() > U64.max_value().u128() then
+      N.from[U128](_u128_unbiased(n.u128()))
+    else
+      N.from[U64](_u64_unbiased(U64.from[N](n)))
+    end
 
   fun ref _u64_unbiased(range: U64): U64 =>
     """
@@ -190,6 +193,18 @@ trait Random
       end
     end
     (m >> 64).u64()
+
+  fun ref _u128_unbiased(range: U128): U128 =>
+    """
+    Uses rejection sampling: discard values in [0, 2^128 mod range) and reduce
+    the rest with `%%`.
+    """
+    let limit: U128 = (-range) %% range
+    var x: U128 = u128()
+    while x < limit do
+      x = u128()
+    end
+    x %% range
 
   fun ref real(): F64 =>
     """
