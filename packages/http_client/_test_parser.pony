@@ -587,6 +587,104 @@ class \nodoc\ iso _TestSizeLimitCloseDelimitedBody is UnitTest
         "should be BodyTooLarge")
     end
 
+class \nodoc\ iso _TestSizeLimitStatusLineAtLimit is UnitTest
+  """
+  Status line exactly at the limit succeeds even when the read splits
+  after the CR.
+  """
+  fun name(): String => "parser/size_limit_status_line_at_limit"
+
+  fun apply(h: TestHelper) =>
+    // "HTTP/1.1 200 OK" is 15 bytes (excluding CRLF)
+    let config = _ParserConfig(where max_status_line_size' = 15)
+
+    // Whole: entire status line in one read
+    let notify1: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser1 = _ResponseParser(notify1, config)
+    let raw1: String val =
+      "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+    parser1.parse(recover raw1.array().clone() end)
+    h.assert_eq[USize](0, notify1.errors.size(), "whole: no errors")
+    h.assert_eq[USize](1, notify1.responses.size(), "whole: 1 response")
+
+    // Split: read ends right after the \r
+    let notify2: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser2 = _ResponseParser(notify2, config)
+    parser2.parse(recover "HTTP/1.1 200 OK\r".array().clone() end)
+    parser2.parse(recover
+      "\nContent-Length: 0\r\n\r\n".array().clone()
+    end)
+    h.assert_eq[USize](0, notify2.errors.size(), "split: no errors")
+    h.assert_eq[USize](1, notify2.responses.size(), "split: 1 response")
+
+    // Over limit by one, split after \r: still rejected
+    // "HTTP/1.1 200 OKx" is 16 bytes, limit is 15
+    let notify3: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser3 = _ResponseParser(notify3, config)
+    parser3.parse(recover "HTTP/1.1 200 OKx\r".array().clone() end)
+    parser3.parse(recover
+      "\nContent-Length: 0\r\n\r\n".array().clone()
+    end)
+    h.assert_eq[USize](
+      1,
+      notify3.errors.size(),
+      "over-limit split: 1 error")
+    try
+      h.assert_true(
+        notify3.errors(0)? is TooLarge,
+        "over-limit split: should be TooLarge")
+    end
+
+class \nodoc\ iso _TestSizeLimitChunkHeaderAtLimit is UnitTest
+  """
+  Chunk-size line exactly at the limit succeeds even when the read splits
+  after the CR.
+  """
+  fun name(): String => "parser/size_limit_chunk_header_at_limit"
+
+  fun apply(h: TestHelper) =>
+    // "10" is 2 bytes (excluding CRLF)
+    let config = _ParserConfig(where max_chunk_header_size' = 2)
+    let headers: String val =
+      "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+
+    // Whole: chunk header in one read
+    let notify1: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser1 = _ResponseParser(notify1, config)
+    let raw1: String val =
+      headers + "10\r\nabcdefghijklmnop\r\n0\r\n\r\n"
+    parser1.parse(recover raw1.array().clone() end)
+    h.assert_eq[USize](0, notify1.errors.size(), "whole: no errors")
+    h.assert_eq[USize](1, notify1.completed, "whole: 1 completion")
+
+    // Split: read ends right after the \r of the chunk-size line
+    let notify2: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser2 = _ResponseParser(notify2, config)
+    parser2.parse(recover (headers + "10\r").array().clone() end)
+    parser2.parse(recover
+      "\nabcdefghijklmnop\r\n0\r\n\r\n".array().clone()
+    end)
+    h.assert_eq[USize](0, notify2.errors.size(), "split: no errors")
+    h.assert_eq[USize](1, notify2.completed, "split: 1 completion")
+
+    // Over limit by one, split after \r: still rejected
+    // "100" is 3 bytes, limit is 2
+    let notify3: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser3 = _ResponseParser(notify3, config)
+    parser3.parse(recover (headers + "100\r").array().clone() end)
+    parser3.parse(recover
+      "\nabcdefghijklmnop\r\n0\r\n\r\n".array().clone()
+    end)
+    h.assert_eq[USize](
+      1,
+      notify3.errors.size(),
+      "over-limit split: 1 error")
+    try
+      h.assert_true(
+        notify3.errors(0)? is InvalidChunk,
+        "over-limit split: should be InvalidChunk")
+    end
+
 class \nodoc\ iso _TestInvalidContentLength is UnitTest
   """Non-numeric Content-Length -> InvalidContentLength."""
   fun name(): String => "parser/invalid_content_length"

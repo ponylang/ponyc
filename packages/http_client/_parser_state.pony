@@ -214,8 +214,9 @@ class _ExpectStatusLine is _ParserState
       _ParseContinue
 
     | None =>
-      // No complete line yet — check size limit
-      if available > _config.max_status_line_size then
+      // No complete line yet — check size limit.
+      // +1: a trailing \r may be the start of the CRLF, not content.
+      if available > (_config.max_status_line_size + 1) then
         TooLarge
       else
         _ParseNeedMore
@@ -617,9 +618,10 @@ class _ExpectChunkHeader is _ParserState
         _ParseContinue
       end
     | None =>
-      // No complete line — check size limit
+      // No complete line — check size limit.
+      // +1: a trailing \r may be the start of the CRLF, not content.
       let pending = p.buf.size() - p.pos
-      if pending > _config.max_chunk_header_size then
+      if pending > (_config.max_chunk_header_size + 1) then
         InvalidChunk
       else
         _ParseNeedMore
