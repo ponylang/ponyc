@@ -32,6 +32,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Format.int with FormatUTF32 ignoring width, fill, and align ([PR #6577](https://github.com/ponylang/ponyc/pull/6577))
 - Fix `Path.rel` returning wrong results when the base is `"."` or `""` ([PR #6578](https://github.com/ponylang/ponyc/pull/6578))
 - Fix JSONPath parser accepting integers outside RFC 9535 range ([PR #6581](https://github.com/ponylang/ponyc/pull/6581))
+- Fix Format AlignCenter with a multibyte fill character dropping right-hand padding ([PR #6584](https://github.com/ponylang/ponyc/pull/6584))
 
 ### Added
 
