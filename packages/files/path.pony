@@ -351,13 +351,21 @@ primitive Path
     component and head is everything leading up to that. The tail part will
     never contain a slash; if path ends in a slash, tail will be empty. If
     there is no slash in path, head will be empty. If path is empty, both head
-    and tail are empty. The path in head will be cleaned before it is returned.
+    and tail are empty. If the last separator is the root, head is the root
+    rather than `"."`. The path in head will be cleaned before it is returned.
     In all cases, join(head, tail) returns a path to the same location as path
     (but the strings may differ). Also see the functions dir() and base().
     """
     try
       let i = _rfind_sep(path)?.usize()
-      (clean(path.trim(0, i)), path.trim(i + 1))
+      let vol = volume(path)
+      if i < vol.size() then
+        (clean(vol), path.trim(vol.size() + 1))
+      elseif i == vol.size() then
+        (clean(path.trim(0, i + 1)), path.trim(i + 1))
+      else
+        (clean(path.trim(0, i)), path.trim(i + 1))
+      end
     else
       ("", path)
     end
@@ -390,11 +398,21 @@ primitive Path
 
   fun dir(path: String): String =>
     """
-    Return a cleaned path before the last separator, or the whole path if there
-    is no separator.
+    Return the directory component of the path: the cleaned path before the
+    last separator. If the last separator is the root, the root itself is
+    returned rather than `"."`. Returns the whole path if there is no
+    separator.
     """
     try
-      clean(path.trim(0, _rfind_sep(path)?.usize()))
+      let i = _rfind_sep(path)?.usize()
+      let vol = volume(path)
+      if i < vol.size() then
+        clean(vol)
+      elseif i == vol.size() then
+        clean(path.trim(0, i + 1))
+      else
+        clean(path.trim(0, i))
+      end
     else
       path
     end
