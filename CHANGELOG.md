@@ -36,6 +36,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Random.int and Random.int_unbiased for U128 bounds above 2^64 ([PR #6582](https://github.com/ponylang/ponyc/pull/6582))
 - Fix http_client sending Content-Length alongside a caller-set Transfer-Encoding ([PR #6583](https://github.com/ponylang/ponyc/pull/6583))
 - Fix Path.split and Path.dir dropping the root from absolute paths ([PR #6585](https://github.com/ponylang/ponyc/pull/6585))
+- Fix `ParseURIAuthority` accepting `:::` before an embedded IPv4 address ([PR #6593](https://github.com/ponylang/ponyc/pull/6593))
 
 ### Added
 
