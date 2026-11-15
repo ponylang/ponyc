@@ -543,9 +543,13 @@ class Array[A] is ResizableSeq[A]
     Copy up to len bytes from src starting at src_idx into this array
     starting at dst_idx, growing as needed. Only works for Array[U8].
 
-    The number of bytes actually copied is the minimum of len and the
+    The number of bytes copied is the minimum of len and the
     bytes available in src from src_idx. If src_idx is out of bounds,
     nothing is copied.
+
+    If dst_idx is past the current size, the bytes between the old end
+    and dst_idx are uninitialized, the same as bytes added by
+    `undefined`.
     """
     if src_idx < src.size() then
       let count = len.min(src.size() - src_idx)
