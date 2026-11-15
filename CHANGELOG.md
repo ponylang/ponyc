@@ -42,6 +42,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Iter.nth and Iter.find to error when n is 0 ([PR #6597](https://github.com/ponylang/ponyc/pull/6597))
 - Fix `Iter.intersperse` looping forever when `n` is 0 ([PR #6602](https://github.com/ponylang/ponyc/pull/6602))
 - Fix `Pbkdf2Sha256` raising on LibreSSL when the password is an empty `Array[U8]` ([PR #6603](https://github.com/ponylang/ponyc/pull/6603))
+- Fix FrameDecoder looping forever on sub-byte frames and misplacing non-byte-aligned frames ([PR #6604](https://github.com/ponylang/ponyc/pull/6604))
 
 ### Added
 
