@@ -2065,14 +2065,116 @@ class \nodoc\ iso _ShrinkerLowerFloatTest is UnitTest
     let shrinker = _Shrinker(choices, spans)
     let iter = _LowerChoicesIter(shrinker)
 
+    // First candidate is the target (0.0), not a midpoint.
     h.assert_true(iter.has_next())
-    let candidate = iter.next()?
-    h.assert_eq[USize](candidate.size(), 1)
-    match candidate(0)?
+    let c1 = iter.next()?
+    h.assert_eq[USize](c1.size(), 1)
+    match c1(0)?
     | let fc: _FloatChoice =>
-      h.assert_eq[F64](fc.value, 50.0)
+      h.assert_eq[F64](fc.value, 0.0)
       h.assert_eq[F64](fc.min, 0.0)
       h.assert_eq[F64](fc.max, 100.0)
+    else
+      h.fail("expected FloatChoice")
+    end
+
+    // Simulate rejection (shrinker baseline unchanged).
+    // Second candidate is the binary-search midpoint (50.0).
+    h.assert_true(iter.has_next())
+    let c2 = iter.next()?
+    match c2(0)?
+    | let fc: _FloatChoice =>
+      h.assert_eq[F64](fc.value, 50.0)
+    else
+      h.fail("expected FloatChoice")
+    end
+
+class \nodoc\ iso _ShrinkerLowerFloatNaNTest is UnitTest
+  """
+  A NaN float choice should enter the lowering pass and try the target.
+  """
+  fun name(): String => "shrinker/lower_float_nan"
+
+  fun apply(h: TestHelper) ? =>
+    let nan = F64(0) / F64(0)
+    let choices: Array[_Choice val] val =
+      [_FloatChoice(nan, -1e10, 1e10)]
+    let spans: Array[_Span val] val =
+      recover val Array[_Span val] end
+    let shrinker = _Shrinker(choices, spans)
+    let iter = _LowerChoicesIter(shrinker)
+
+    h.assert_true(iter.has_next())
+    let c1 = iter.next()?
+    match c1(0)?
+    | let fc: _FloatChoice =>
+      h.assert_eq[F64](fc.value, 0.0)
+    else
+      h.fail("expected FloatChoice")
+    end
+
+class \nodoc\ iso _ShrinkerLowerFloatInfTest is UnitTest
+  """
+  An infinite float choice should try the target and not loop on
+  infinite midpoints.
+  """
+  fun name(): String => "shrinker/lower_float_inf"
+
+  fun apply(h: TestHelper) ? =>
+    let inf = F64(1) / F64(0)
+    let choices: Array[_Choice val] val =
+      [_FloatChoice(inf, 0, F64.max_value())]
+    let spans: Array[_Span val] val =
+      recover val Array[_Span val] end
+    let shrinker = _Shrinker(choices, spans)
+    let iter = _LowerChoicesIter(shrinker)
+
+    // First candidate: the target (0.0).
+    h.assert_true(iter.has_next())
+    let c1 = iter.next()?
+    match c1(0)?
+    | let fc: _FloatChoice =>
+      h.assert_eq[F64](fc.value, 0.0)
+    else
+      h.fail("expected FloatChoice")
+    end
+
+    // Simulate rejection. Binary search midpoint is inf; search should
+    // end rather than looping.
+    h.assert_true(iter.has_next())
+    let c2 = iter.next()?
+    match c2(0)?
+    | let fc: _FloatChoice =>
+      h.assert_true(
+        not fc.value.finite(),
+        "second candidate should be the non-finite midpoint")
+    else
+      h.fail("expected FloatChoice")
+    end
+
+    // Search should be exhausted after the non-finite midpoint.
+    h.assert_false(iter.has_next())
+
+class \nodoc\ iso _ShrinkerLowerFloatNonZeroTargetTest is UnitTest
+  """
+  When generator bounds exclude 0, the target is the bound closest to 0.
+  """
+  fun name(): String => "shrinker/lower_float_nonzero_target"
+
+  fun apply(h: TestHelper) ? =>
+    let choices: Array[_Choice val] val =
+      [_FloatChoice(100.0, 5.0, 200.0)]
+    let spans: Array[_Span val] val =
+      recover val Array[_Span val] end
+    let shrinker = _Shrinker(choices, spans)
+    let iter = _LowerChoicesIter(shrinker)
+
+    // First candidate is the clamped target (5.0), not 0.0.
+    h.assert_true(iter.has_next())
+    let c1 = iter.next()?
+    match c1(0)?
+    | let fc: _FloatChoice =>
+      h.assert_eq[F64](fc.value, 5.0)
     else
       h.fail("expected FloatChoice")
     end
@@ -2191,8 +2293,8 @@ class \nodoc\ iso _ShrinkerLowerFloatStallTest is UnitTest
     end
     h.assert_eq[USize](
       count,
-      1,
-      "stalled binary search should produce exactly one candidate")
+      2,
+      "should produce target then one stalled midpoint")
 
 // --- Serializer tests ---
 class \nodoc\ iso _SerializerRoundTripAllTypesTest is UnitTest
@@ -3690,6 +3792,54 @@ class \nodoc\ iso _DirectShrinkFlatMapTest is UnitTest
       repr.contains("(17, 3)") or
       repr.contains("(26, 2)") or
       repr.contains("(51, 1)")
+
+class \nodoc\ iso _ShrinkFloatToTargetProperty is Property[F64]
+  fun name(): String => "shrink/float_to_target/property"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 100,
+      max_shrink_reductions' = 100, seed' = 42,
+      regression_db' = false)
+
+  fun gen(): Generator[F64] => Generators.f64(0, 1)
+
+  fun ref property(sample: F64, h: PropertyHelper) ? =>
+    error
+
+class \nodoc\ iso _DirectShrinkFloatToTargetTest is UnitTest
+  """
+  An always-failing F64 property should shrink to the target (0.0)
+  within the default budget.
+  """
+  fun name(): String => "shrink/direct/float_to_target"
+
+  fun apply(h: TestHelper) =>
+    let prop = _ShrinkFloatToTargetProperty
+    let params = prop.params()
+    let exec = _PropertyExec[F64](consume prop, params, h, h.env)
+    let ph = PropertyHelper._create(h, 0)
+    var found_failure = false
+    while exec.has_more_samples() do
+      exec.run_sample(ph)
+      if not exec.last_sample_passed() then
+        found_failure = true
+        break
+      end
+      exec.sample_passed()
+    end
+    if not found_failure then
+      h.fail("expected property to fail")
+      return
+    end
+    exec.sample_failed()
+    exec.begin_shrink()
+    while not exec.shrink_exhausted() do
+      exec.run_shrink_candidate(ph)
+    end
+    h.assert_true(
+      exec.sample_repr() == "0",
+      "shrinker should converge to 0, got: " +
+      exec.sample_repr())
 
 // --- Meta-tests: run a sub-PonyTest and verify its output ---
 actor \nodoc\ _ShrinkVerifyReporter

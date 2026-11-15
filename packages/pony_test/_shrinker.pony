@@ -189,10 +189,11 @@ class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
   On acceptance: hi = mid (search lower). On rejection: lo = mid (search
   higher toward the boundary where the property starts failing).
 
-  Float binary search stalls when mid converges to lo (near-zero
-  halving) or when mid equals hi (infinity or extreme values where
-  halving the distance rounds back up). Both cases terminate the
-  search for that index.
+  Tries the target value directly before binary-searching. This reaches
+  the target in one step when the property fails there, and avoids the
+  ~1050-step halving path for finite values. For non-finite baselines
+  (NaN, infinity), trying the target first is the only way to make
+  progress: inf midpoints stall, and NaN arithmetic propagates NaN.
   """
   let _shrinker: _Shrinker ref
   var _idx: USize = 0
@@ -203,6 +204,7 @@ class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
   var _lo_f: F64 = 0
   var _hi_f: F64 = 0
   var _active: Bool = false
+  var _try_target_f: Bool = false
   var _pending_mid: (I128 | None) = None
   var _pending_mid_u: (U128 | None) = None
   var _pending_mid_f: (F64 | None) = None
@@ -251,19 +253,26 @@ class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
       end
       candidate
     | let fc: _FloatChoice =>
-      let mid = _lo_f + ((_hi_f - _lo_f) / 2)
-      let candidate =
+      if _try_target_f then
+        _try_target_f = false
+        _pending_mid_f = _lo_f
         _replace_choice(
-          _idx,
-          _FloatChoice(mid, fc.min, fc.max))?
-      if (mid == _lo_f) or (mid == _hi_f) then
-        _active = false
-        _idx = _idx + 1
-        _pending_mid_f = None
+          _idx, _FloatChoice(_lo_f, fc.min, fc.max))?
       else
-        _pending_mid_f = mid
+        let mid = _lo_f + ((_hi_f - _lo_f) / 2)
+        let candidate =
+          _replace_choice(
+            _idx,
+            _FloatChoice(mid, fc.min, fc.max))?
+        if (mid == _lo_f) or (not mid.finite()) then
+          _active = false
+          _idx = _idx + 1
+          _pending_mid_f = None
+        else
+          _pending_mid_f = mid
+        end
+        candidate
       end
-      candidate
     | let bc: _BoolChoice =>
       _active = false
       _idx = _idx + 1
@@ -341,9 +350,10 @@ class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
           end
         | let fc: _FloatChoice =>
           let target = F64(0).max(fc.min).min(fc.max)
-          if fc.value != target then
+          if fc.value.nan() or (fc.value != target) then
             _lo_f = target
             _hi_f = fc.value
+            _try_target_f = true
             _active = true
             return
           end
