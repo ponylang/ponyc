@@ -3,11 +3,12 @@ primitive ParseFormURLEncoded
   Parse an `application/x-www-form-urlencoded` string into a `FormURLEncoded`
   collection.
 
-  Splits on `&`, then on the first `=`. Decodes `+` as space and
+  Splits on `&`, then on the first `=`. Empty sequences from a leading,
+  trailing, or doubled `&` are skipped. Decodes `+` as space and
   percent-decodes both keys and values.
 
   Duplicate keys are preserved in order. Keys without `=` get an
-  empty-string value.
+  empty-string value. A bare `=` gives an empty key and an empty value.
 
   The `;` separator (from an older HTML convention) is not supported —
   it was dropped from the WHATWG URL Standard and is rarely encountered
@@ -46,9 +47,11 @@ primitive ParseFormURLEncoded
       if at_end or at_amp then
         let pair_str: String val =
           input.substring(start.isize(), i.isize())
-        match \exhaustive\ _parse_pair(pair_str)
-        | (let k: String val, let v: String val) => pairs.push((k, v))
-        | let err: InvalidPercentEncoding val => return err
+        if pair_str.size() > 0 then
+          match \exhaustive\ _parse_pair(pair_str)
+          | (let k: String val, let v: String val) => pairs.push((k, v))
+          | let err: InvalidPercentEncoding val => return err
+          end
         end
         start = i + 1
       end
