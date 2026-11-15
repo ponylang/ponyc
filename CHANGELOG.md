@@ -45,6 +45,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix FrameDecoder looping forever on sub-byte frames and misplacing non-byte-aligned frames ([PR #6604](https://github.com/ponylang/ponyc/pull/6604))
 - Fix http_client treating partial Transfer-Encoding matches as chunked ([PR #6614](https://github.com/ponylang/ponyc/pull/6614))
 - Fix http_client request builder appending a second `?` when the path already has a query string ([PR #6601](https://github.com/ponylang/ponyc/pull/6601))
+- Fix Path.clean stripping trailing separator from volume roots ([PR #6610](https://github.com/ponylang/ponyc/pull/6610))
 
 ### Added
 
