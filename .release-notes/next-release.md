@@ -268,3 +268,9 @@ Code that passed a separator explicitly no longer compiles:
 (let head, let tail) = Path.split(my_path)
 ```
 
+## Fix `Iter.intersperse` looping forever when `n` is 0
+
+`Iter.intersperse(value, 0)` looped forever.
+
+`intersperse` now treats `n == 0` as `n == 1`, matching `step_by`.
+
