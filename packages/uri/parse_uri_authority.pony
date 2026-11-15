@@ -342,7 +342,7 @@ primitive ParseURIAuthority
       let ipv4_part: String val =
         s.substring(last_colon + 1)
 
-      if not _valid_ipv4(ipv4_part) then
+      if (h16_part.size() == 0) or (not _valid_ipv4(ipv4_part)) then
         return (USize.max_value(), false)
       end
 

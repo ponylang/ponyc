@@ -229,15 +229,24 @@ class \nodoc\ iso _TestBuildInvalidIPLiteral is UnitTest
   fun name(): String => "uri/builder/invalid_ip_literal"
 
   fun ref apply(h: TestHelper) =>
-    match \exhaustive\ URIBuilder
-      .set_scheme("http")
-      .set_host("[not valid")
-      .build()
-    | let _: URI val => h.fail("expected error for malformed IP-literal")
-    | let e: URIBuildError val =>
-      h.assert_true(
-        e is InvalidHost,
-        "expected InvalidHost, got: " + e.string())
+    let invalid: Array[String val] =
+      [
+        "[not valid"
+        "[:::1.2.3.4]"
+        "[1:::1.2.3.4]"
+      ]
+    for host in invalid.values() do
+      match \exhaustive\ URIBuilder
+        .set_scheme("http")
+        .set_host(host)
+        .build()
+      | let _: URI val =>
+        h.fail("expected error for " + host)
+      | let e: URIBuildError val =>
+        h.assert_true(
+          e is InvalidHost,
+          "expected InvalidHost for " + host + ", got: " + e.string())
+      end
     end
 
 class \nodoc\ iso _TestBuildEmpty is UnitTest

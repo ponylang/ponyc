@@ -299,6 +299,8 @@ class \nodoc\ iso _TestParseURIAuthorityIPv6 is UnitTest
         "[1:2:3:4:5::6:1.2.3.4]"
         "[1:2:3:4:5:6:7:]"
         "[:1:2:3:4:5:6:7]"
+        "[:::1.2.3.4]"
+        "[1:::1.2.3.4]"
       ]
     for input in invalid.values() do
       match \exhaustive\ ParseURIAuthority(input)
@@ -322,6 +324,8 @@ class \nodoc\ iso _TestParseURIAuthorityIPv6 is UnitTest
         "http://[1.2.3.4]/"
         "http://[.]/"
         "http://[:]/"
+        "http://[:::1.2.3.4]/"
+        "http://[1:::1.2.3.4]/"
       ]
     for input in uri_invalid.values() do
       match \exhaustive\ ParseURI(input)
