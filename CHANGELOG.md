@@ -53,6 +53,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix http_client crashing or misrouting on cross-origin redirects ([PR #6628](https://github.com/ponylang/ponyc/pull/6628))
 - Fix Path.is_abs treating bare drive letters as absolute on Windows ([PR #6629](https://github.com/ponylang/ponyc/pull/6629))
 - Fix HashMap performance degradation under insert/remove churn ([PR #6615](https://github.com/ponylang/ponyc/pull/6615))
+- Fix http_client accepting malformed status codes with extra characters ([PR #6626](https://github.com/ponylang/ponyc/pull/6626))
 
 ### Added
 
