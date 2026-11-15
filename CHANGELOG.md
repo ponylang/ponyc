@@ -64,6 +64,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Reject dot segments in URIBuilder.append_path_segment ([PR #6579](https://github.com/ponylang/ponyc/pull/6579))
 - Remove unused `separator` parameter from `Path.split` ([PR #6600](https://github.com/ponylang/ponyc/pull/6600))
 - cli integer options and args now accept only decimal digits ([PR #6611](https://github.com/ponylang/ponyc/pull/6611))
+- NormalizeIRI and IRIEquivalent now reject illegal literal non-ASCII characters ([PR #6622](https://github.com/ponylang/ponyc/pull/6622))
 
 ## [0.78.2] - 2026-11-12
 
