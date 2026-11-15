@@ -420,8 +420,9 @@ class \nodoc\ iso _TestPathCleanBackslash is UnitTest
 
 class \nodoc\ iso _TestPathCleanRootBoundary is UnitTest
   """
-  `clean()` discards `..` that would climb above a root or volume prefix.
-  In a relative path, leading `..` that cannot be resolved is preserved.
+  `clean()` discards `..` that would climb above a rooted path's root.
+  In a non-rooted path (including drive-relative), leading `..` that cannot
+  be resolved is preserved.
   """
   fun name(): String => "files/Path.clean-root-boundary"
 
@@ -463,6 +464,23 @@ class \nodoc\ iso _TestPathCleanRootBoundary is UnitTest
     h.assert_eq[String](Path.clean("//"), "/")
     h.assert_eq[String](Path.clean("//usr/"), "/usr")
     h.assert_eq[String](Path.clean("//a"), "/a")
+
+    // Drive-relative paths (C:foo) are not rooted — leading .. is preserved
+    ifdef windows then
+      h.assert_eq[String](Path.clean("C:../foo"), "C:../foo")
+      h.assert_eq[String](Path.clean("C:../../foo"), "C:../../foo")
+      h.assert_eq[String](Path.clean("C:foo/../bar"), "C:bar")
+      h.assert_eq[String](Path.clean("C:foo/bar/../../baz"), "C:baz")
+      h.assert_eq[String](Path.clean("C:foo/.."), "C:")
+      h.assert_eq[String](Path.clean("C:"), "C:")
+      h.assert_eq[String](Path.clean("C:.."), "C:..")
+      h.assert_eq[String](Path.clean("C:foo/bar/../.."), "C:")
+      h.assert_eq[String](Path.clean("C:foo/bar/../../../baz"), "C:../baz")
+      h.assert_eq[String](Path.clean("C:foo/../../../bar"), "C:../../bar")
+
+      // join calls clean, so drive-relative .. propagates correctly
+      h.assert_eq[String](Path.join("C:foo", "../bar"), "C:bar")
+    end
 
     // .. that resolves within a relative path is still removed
     h.assert_eq[String](Path.clean("foo/../bar"), "bar")
@@ -1617,9 +1635,11 @@ class \nodoc\ iso _TestPathCleanRootedNoDotDot is Property[String]
 
   fun ref property(sample: String, ph: PropertyHelper) =>
     let cleaned = Path.clean(sample)
+    let vol = Path.volume(cleaned)
     let is_rooted =
       (try Path.is_sep(cleaned(0)?) else false end) or
-      (Path.volume(cleaned).size() > 0)
+      (try Path.is_sep(vol(0)?) else false end) or
+      (try Path.is_sep(cleaned(vol.size())?) else false end)
     if is_rooted then
       try
         cleaned.find("/../")?
