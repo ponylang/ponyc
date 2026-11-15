@@ -43,6 +43,9 @@ actor \nodoc\ Main is TestList
     test(_TestConditional)
     test(_TestConditionalEncode)
     test(_TestSkipBits)
+    test(_TestSkipBitsZero)
+    test(_TestSkipBitsRoundtrip)
+    test(_TestSkipBitsLargeCount)
     test(_TestVariableSize)
     test(_TestVariableSizeRoundtrip)
     test(_TestVariableSizeOverflow)
@@ -775,6 +778,54 @@ class \nodoc\ iso _TestSkipBits is UnitTest
       h.assert_eq[USize](4, c)
     else
       h.fail("skip failed")
+    end
+
+class \nodoc\ iso _TestSkipBitsZero is UnitTest
+  fun name(): String => "binary_codec/SkipBits/zero"
+
+  fun apply(h: TestHelper) =>
+    let codec = Seq2[None, U8](SkipBits(0), U8Codec)
+    match \exhaustive\ codec.encode((None, 0xAB))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](1, encoded.size())
+      match \exhaustive\ codec.decode(encoded, 0)
+      | ((None, let v: U8), _) =>
+        h.assert_eq[U8](0xAB, v)
+      | let e: DecodeError => h.fail("decode failed: " + e.string())
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestSkipBitsRoundtrip is UnitTest
+  fun name(): String => "binary_codec/SkipBits/roundtrip"
+
+  fun apply(h: TestHelper) =>
+    let codec = Seq2[None, U8](SkipBits(8), U8Codec)
+    match \exhaustive\ codec.encode((None, 0x42))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](2, encoded.size())
+      match \exhaustive\ codec.decode(encoded, 0)
+      | ((None, let v: U8), _) =>
+        h.assert_eq[U8](0x42, v)
+      | let e: DecodeError => h.fail("decode failed: " + e.string())
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestSkipBitsLargeCount is UnitTest
+  fun name(): String => "binary_codec/SkipBits/large_count"
+
+  fun apply(h: TestHelper) =>
+    let codec = Seq2[None, U8](SkipBits(264), U8Codec)
+    match \exhaustive\ codec.encode((None, 0x7F))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](34, encoded.size())
+      match \exhaustive\ codec.decode(encoded, 0)
+      | ((None, let v: U8), _) =>
+        h.assert_eq[U8](0x7F, v)
+      | let e: DecodeError => h.fail("decode failed: " + e.string())
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
     end
 
 class \nodoc\ iso _TestVariableSize is UnitTest
