@@ -122,3 +122,5 @@ actor \nodoc\ Main is TestList
     test(_TestIRIToURIKnownGood)
     test(_TestURIToIRIKnownGood)
     test(_TestNormalizeIRIKnownGood)
+    test(_TestNormalizeIRIIllegalLiterals)
+    test(_TestIRIEquivalentIllegalLiterals)

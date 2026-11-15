@@ -79,6 +79,8 @@ actor Main
         env.out.print("  Normalized: " + n.string())
       | let e: InvalidPercentEncoding val =>
         env.out.print("  Error: " + e.string())
+      | let e: InvalidIRILiteral val =>
+        env.out.print("  Error: " + e.string())
       end
     | let e: URIParseError val =>
       env.out.print("  Error: " + e.string())
@@ -98,6 +100,8 @@ actor Main
         env.out.print("  " + eq_a + " == " + eq_b + "? " +
           result.string())
       | let e: InvalidPercentEncoding val =>
+        env.out.print("  Error: " + e.string())
+      | let e: InvalidIRILiteral val =>
         env.out.print("  Error: " + e.string())
       end
     else

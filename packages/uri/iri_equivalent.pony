@@ -8,20 +8,23 @@ primitive IRIEquivalent
   for example, a literal `é` and its percent-encoded form `%C3%A9`
   are equivalent.
 
-  Returns `InvalidPercentEncoding` if either input contains a malformed
-  percent-encoded sequence.
+  Returns `InvalidIRILiteral` if either input contains a literal non-ASCII
+  character that is not allowed in an IRI. Returns `InvalidPercentEncoding`
+  if either input contains a malformed percent-encoded sequence.
   """
   fun apply(a: URI val, b: URI val)
-    : (Bool | InvalidPercentEncoding val)
+    : (Bool | InvalidPercentEncoding val | InvalidIRILiteral val)
   =>
     let norm_a =
       match \exhaustive\ NormalizeIRI(a)
       | let u: URI val => u
       | let e: InvalidPercentEncoding val => return e
+      | let e: InvalidIRILiteral val => return e
       end
     let norm_b =
       match \exhaustive\ NormalizeIRI(b)
       | let u: URI val => u
       | let e: InvalidPercentEncoding val => return e
+      | let e: InvalidIRILiteral val => return e
       end
     norm_a == norm_b
