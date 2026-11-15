@@ -503,3 +503,9 @@ The `http_client` response parser accepted status lines where extra characters f
 
 `ProcessMonitor.writev` and `ProcessMonitor.printv` ignored a prior `done_writing()` call when earlier writes were still pending. Data passed to them after `done_writing()` was queued and delivered to the child's STDIN, and STDIN stayed open until that extra data drained. `write` and `print` correctly dropped data after `done_writing()`. All four behaviours now drop writes after `done_writing()`.
 
+## Fix http_client accepting underscores and empty chunk sizes in chunked responses
+
+The `http_client` chunked transfer-encoding parser accepted chunk sizes that contain underscores (`1_0` parsed as 16) and empty chunk sizes before extensions (`;ext` parsed as 0, ending the body). RFC 9112 §7.1 requires `1*HEXDIG` — at least one hex digit and nothing else. The parser now rejects any chunk size that contains a non-hex character or is empty.
+
+The parser also now accepts optional whitespace (SP, HTAB) between the chunk size and the semicolon of a chunk extension, as RFC 9112 §7.1.1 allows.
+
