@@ -69,10 +69,8 @@ primitive Format
       match \exhaustive\ align
       | AlignLeft =>
         s.append(str, 0, copy_len)
-        if s.size() < len then
-          for i in Range[USize].till(s.size(), len) do
-            s.push_utf32(fill)
-          end
+        for i in Range[USize].till(0, len - copy_len) do
+          s.push_utf32(fill)
         end
       | AlignRight =>
         for i in Range[USize].till(0, len - copy_len) do
@@ -85,10 +83,9 @@ primitive Format
           s.push_utf32(fill)
         end
         s.append(str, 0, copy_len)
-        if s.size() < len then
-          for i in Range[USize].till(s.size(), len) do
-            s.push_utf32(fill)
-          end
+        let right = (len - copy_len) - half
+        for i in Range[USize].till(0, right) do
+          s.push_utf32(fill)
         end
       end
 

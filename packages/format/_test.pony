@@ -61,6 +61,27 @@ class \nodoc\ iso _TestApply is UnitTest
       "hello",
       Format("hello" where prec = 5))
 
+    // Multi-byte UTF-8 fill (U+00E9 'é' is 2 bytes).
+    h.assert_eq[String](
+      "abéééé",
+      Format("ab" where width = 6, fill = 0xE9))
+    h.assert_eq[String](
+      "ééééab",
+      Format("ab" where width = 6, align = AlignRight, fill = 0xE9))
+    h.assert_eq[String](
+      "ééabéé",
+      Format("ab" where width = 6, align = AlignCenter, fill = 0xE9))
+
+    // 3-byte fill (U+20AC '€') with odd padding.
+    h.assert_eq[String](
+      "€€ab€€€",
+      Format("ab" where width = 7, align = AlignCenter, fill = 0x20AC))
+
+    // 4-byte fill (U+1F600 '😀').
+    h.assert_eq[String](
+      "😀ab😀😀",
+      Format("ab" where width = 5, align = AlignCenter, fill = 0x1F600))
+
 class \nodoc\ iso _TestFloat is UnitTest
   fun name(): String => "format/float"
 
