@@ -102,6 +102,7 @@ actor \nodoc\ Main is TestList
     test(_TestBuildPortAutoAuthority)
     test(_TestBuildQuerySetThenAdd)
     test(_TestBuildAuthorityNoScheme)
+    test(_TestBuildDotSegmentRejected)
     test.property(_PropertyBuildFromRoundtrip)
     test.property(_PropertyBuildParseRoundtrip)
     test.property(_PropertyBuildInvalidSchemeFails)
