@@ -30,6 +30,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix float shrinking stopping short of the target ([PR #6542](https://github.com/ponylang/ponyc/pull/6542))
 - Fix http_client sending bare CR and LF from Location headers into redirect requests ([PR #6545](https://github.com/ponylang/ponyc/pull/6545))
 - Fix Format.int with FormatUTF32 ignoring width, fill, and align ([PR #6577](https://github.com/ponylang/ponyc/pull/6577))
+- Fix `Path.rel` returning wrong results when the base is `"."` or `""` ([PR #6578](https://github.com/ponylang/ponyc/pull/6578))
 
 ### Added
 
