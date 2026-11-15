@@ -15,7 +15,8 @@ actor Main
       c = Config(env)?
       outfile =
         match c.outpath
-        | let fp: FilePath => File(fp)
+        | let fp: FilePath =>
+          File(fp) .> set_length(0)
         else
           None
         end

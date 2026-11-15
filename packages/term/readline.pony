@@ -424,6 +424,7 @@ class Readline is ANSINotify
     """
     try
       with file = File(_path as FilePath) do
+        file.set_length(0)
         for line in _history.values() do
           file.print(line)
         end

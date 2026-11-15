@@ -1092,6 +1092,7 @@ primitive \nodoc\ _HistoryFile
   """
   fun write(path: FilePath, lines: Array[String] box) =>
     with file = File(path) do
+      file.set_length(0)
       for line in lines.values() do
         file.print(line)
       end
