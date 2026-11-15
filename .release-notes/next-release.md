@@ -423,6 +423,32 @@ CommandParser(cs).parse(["app"; "--ratio=1024.0"])    // 1024.0
 
 Cross-origin HTTP redirects through `RedirectFollower` crashed over HTTPS and silently sent the follow-up request on the wrong connection over HTTP. The old connection is now closed immediately before the new one is created, so late events from the old socket cannot reach the new connection.
 
+## Fix cli `OptionSpec` and `ArgSpec` accepting unvalidated names
+
+`OptionSpec` and `ArgSpec` constructors accepted any string as a name — empty strings, strings starting with `-` or a digit, and strings containing characters outside the documented grammar. An empty option name produced a bare `--` in help output and couldn't be parsed from a command line.
+
+Both classes now validate names with the same rule as `CommandSpec`: the first character must be a letter, and the rest may be letters, digits, hyphens, or underscores.
+
+## cli `OptionSpec` and `ArgSpec` constructors are now partial
+
+All `OptionSpec` and `ArgSpec` constructors (`bool`, `string`, `i64`, `u64`, `f64`, `string_seq`) now validate names and error on invalid ones. Callers must add `?`:
+
+Before:
+
+```pony
+OptionSpec.bool("flag", "A flag" where default' = false)
+ArgSpec.string("file", "Input file")
+```
+
+After:
+
+```pony
+OptionSpec.bool("flag", "A flag" where default' = false)?
+ArgSpec.string("file", "Input file")?
+```
+
+Programs that construct options or args inside a `try` block for `CommandSpec.leaf` or `CommandSpec.parent` (which are already partial) only need the added `?`.
+
 ## Fix `Path.is_abs` treating bare drive letters as absolute on Windows
 
 `Path.is_abs("C:")` returned `true` on Windows, but `C:` is drive-relative — it refers to the current directory on drive C, not the root. `C:/` is the absolute form. `Path.abs("C:")` returned `"C:"` instead of joining with the working directory, and `Path.join(base, "C:")` returned `"C:"` instead of appending it as a relative component.

@@ -25,7 +25,7 @@ actor Main
             OptionSpec.bool(
               "version",
               "Print version and exit"
-              where short' = 'V', default' = false)
+              where short' = 'V', default' = false)?
           ])? .> add_help()?
       else
         env.err.print("internal error: invalid command spec")

@@ -29,32 +29,32 @@ actor Main
             OptionSpec.i64(
               "senders",
               "Number of sender actors"
-              where default' = 100)
+              where default' = 100)?
             OptionSpec.i64(
               "analyzers",
               "Number of analyzer actors"
-              where default' = 1000)
+              where default' = 1000)?
             OptionSpec.i64(
               "analyzer-interval",
               "How often analyzers send messages to " +
                 "receiver in centiseconds " +
                 "(10 centiseconds = 1 second)"
-              where default' = 100)
+              where default' = 100)?
             OptionSpec.i64(
               "analyzer-report-count",
               "Number of times analyzers send messages " +
                 "to receiver before shutting down, " +
                 "0 is infinite"
-              where default' = 10)
+              where default' = 10)?
             OptionSpec.i64(
               "receiver-workload",
               "Number of microseconds the receiver " +
                 "takes to process each message " +
                 "it receives"
-              where default' = 10000)
+              where default' = 10000)?
           ],
           [
-            ArgSpec.string_seq("", "")
+            ArgSpec.string_seq("args", "")?
           ])? .> add_help()?
       let cmd =
         match \exhaustive\ CommandParser(cs).parse(

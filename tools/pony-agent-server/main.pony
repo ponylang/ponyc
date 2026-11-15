@@ -14,21 +14,21 @@ actor Main
             OptionSpec.bool(
               "version",
               "Print version and exit"
-              where short' = 'V', default' = false)
+              where short' = 'V', default' = false)?
             OptionSpec.bool(
               "queries",
               "Print supported queries and exit"
-              where short' = 'Q', default' = false)
+              where short' = 'Q', default' = false)?
             OptionSpec.string_seq(
               "define",
               "Compile-time define (repeatable, e.g. -D openssl_3.0.x)"
-              where short' = 'D')
+              where short' = 'D')?
           ],
           [
             ArgSpec.string(
               "module",
               "Path to the Pony module to compile"
-              where default' = "")
+              where default' = "")?
           ])? .> add_help()?
       else
         env.err.print("internal error: invalid command spec")

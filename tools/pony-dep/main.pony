@@ -33,36 +33,37 @@ actor Main
               "Create an archive from a project's source",
               [
                 OptionSpec.bool(
-                  "hash", "Print content hash to stdout", 'H', false)
+                  "hash", "Print content hash to stdout", 'H', false)?
               ],
               [
-                ArgSpec.string("directory")
-                ArgSpec.string("output")
+                ArgSpec.string("directory")?
+                ArgSpec.string("output")?
               ])?
             CommandSpec.leaf(
               "fetch",
               "Fetch all dependencies from a config file",
               [],
               [
-                ArgSpec.string("config-file")
-                ArgSpec.string("directory")
+                ArgSpec.string("config-file")?
+                ArgSpec.string("directory")?
               ])?
             CommandSpec.leaf(
               "add",
               "Fetch a dependency, hash it, and add it to config",
               [
                 OptionSpec.string(
-                  "type", "Fetch protocol" where short' = 't', default' = "par")
+                  "type", "Fetch protocol"
+                  where short' = 't', default' = "par")?
                 OptionSpec.string(
-                  "ref", "Version reference" where short' = 'r', default' = "")
+                  "ref", "Version reference" where short' = 'r', default' = "")?
                 OptionSpec.string(
                   "documentation-url", "Documentation URL"
-                  where default' = "")
+                  where default' = "")?
               ],
               [
-                ArgSpec.string("name")
-                ArgSpec.string("url")
-                ArgSpec.string("config-file")
+                ArgSpec.string("name")?
+                ArgSpec.string("url")?
+                ArgSpec.string("config-file")?
               ])?
             CommandSpec.leaf(
               "remove",
@@ -72,8 +73,8 @@ actor Main
               "Remove placed modules that nothing references",
               [],
               [
-                ArgSpec.string("src-dir")
-                ArgSpec.string("ext-dir")
+                ArgSpec.string("src-dir")?
+                ArgSpec.string("ext-dir")?
               ])?
           ])? .> add_help()?
       else

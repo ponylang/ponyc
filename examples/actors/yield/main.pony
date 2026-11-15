@@ -174,22 +174,22 @@ actor Main
             OptionSpec.bool(
               "punk",
               "Run a punctuated stream demonstration."
-              where short' = 'p', default' = false)
+              where short' = 'p', default' = false)?
             OptionSpec.i64(
               "bench",
               "Run an instrumented behaviour to " +
                 "guesstimate overhead of " +
                 "non/interruptive."
-              where short' = 'b', default' = 0)
+              where short' = 'b', default' = 0)?
             OptionSpec.bool(
               "lonely",
               "Run a non-interruptible behaviour " +
                 "with logic that runs forever."
-              where short' = 'l', default' = false)
+              where short' = 'l', default' = false)?
             OptionSpec.bool(
               "debug",
               "Run in debug mode with verbose output."
-              where short' = 'd', default' = false)
+              where short' = 'd', default' = false)?
           ])? .> add_help()?
       else
         _env.exitcode(-1)

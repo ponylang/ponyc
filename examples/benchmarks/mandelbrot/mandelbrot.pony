@@ -115,28 +115,28 @@ class val Config
             "iterations",
             "Maximum amount of iterations to be " +
               "done for each pixel."
-            where short' = 'i', default' = 50)
+            where short' = 'i', default' = 50)?
           OptionSpec.f64(
             "limit",
             "Square of the limit that pixels need " +
               "to exceed in order to escape from " +
               "the Mandelbrot set."
-            where short' = 'l', default' = 4.0)
+            where short' = 'l', default' = 4.0)?
           OptionSpec.i64(
             "chunks",
             "Maximum line count of chunks the " +
               "image should be divided into for " +
               "divide & conquer processing."
-            where short' = 'c', default' = 16)
+            where short' = 'c', default' = 16)?
           OptionSpec.i64(
             "width",
             "Lateral length of the resulting " +
               "mandelbrot image."
-            where short' = 'w', default' = 16000)
+            where short' = 'w', default' = 16000)?
           OptionSpec.string(
             "output",
             "File to write the output to."
-            where short' = 'o', default' = "")
+            where short' = 'o', default' = "")?
         ])? .> add_help()?
     let cmd =
       match \exhaustive\ CommandParser(cs).parse(

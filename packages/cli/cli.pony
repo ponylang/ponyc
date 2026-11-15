@@ -90,9 +90,9 @@ actor Main
       try
         CommandSpec.leaf("echo", "A sample echo program", [
           OptionSpec.bool("upper", "Uppercase words"
-            where short' = 'U', default' = false)
+            where short' = 'U', default' = false)?
         ], [
-          ArgSpec.string_seq("words", "The words to echo")
+          ArgSpec.string_seq("words", "The words to echo")?
         ])? .> add_help()?
       else
         env.exitcode(-1)  // some kind of coding error

@@ -43,35 +43,35 @@ primitive _FloodSpec
       [ OptionSpec.string(
           _Flag.host(),
           "server bind host"
-          where default' = "localhost")
+          where default' = "localhost")?
         OptionSpec.string(
           _Flag.port(),
           "server bind port (0 = ephemeral)"
-          where default' = "0")
+          where default' = "0")?
         OptionSpec.u64(
           _Flag.datagrams(),
           "datagrams each client sends"
-          where default' = 1000)
+          where default' = 1000)?
         OptionSpec.u64(
           _Flag.payload_size(),
           "bytes per datagram"
-          where default' = 64)
+          where default' = 64)?
         OptionSpec.u64(
           _Flag.batch_size(),
           "datagrams per send burst"
-          where default' = 10)
+          where default' = 10)?
         OptionSpec.u64(
           _Flag.clients(),
           "concurrent client sockets"
-          where default' = 4)
+          where default' = 4)?
         OptionSpec.u64(
           _Flag.read_buffer_size(),
           "per-socket read buffer size"
-          where default' = 16384)
+          where default' = 16384)?
         OptionSpec.u64(
           _Flag.max_datagrams_per_turn(),
           "datagram ceiling per read turn"
-          where default' = 256)
+          where default' = 256)?
       ])? .> add_help(where descr' = "print usage and exit")?
 
 class val _Config
