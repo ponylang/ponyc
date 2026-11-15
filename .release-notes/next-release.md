@@ -562,3 +562,7 @@ Use `--format=json` to print a Stryker JSON report, or `--json-file=report.json`
 
 In generic types and methods, the same mutation uses one ID across instantiations of the same implementing type definition. Default methods inherited by different implementing types have separate mutant IDs for each implementing type. The `shared` field in `.mutants.json` marks sites in generic code, even when only one instantiation is compiled. Coverage is recorded separately for each replacement and only when an instantiation that supports it runs. For example, running a floating-point instantiation does not mark an integer-only complement replacement as covered, so `pony-mutate` reports no coverage for that replacement unless an integer instantiation runs.
 
+## Fix SkipBits encoding the wrong number of padding bits for counts above 255
+
+`SkipBits` in `binary_codec` truncated its bit count to a `U8` on encode. `SkipBits(264)` encoded 8 zero bits instead of 264, while decode read the full 264 bits. A message containing a `SkipBits` with a count above 255 could not be decoded back from its own encoding.
+
