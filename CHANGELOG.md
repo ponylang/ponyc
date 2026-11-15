@@ -40,6 +40,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `ParseURIAuthority` accepting `:::` before an embedded IPv4 address ([PR #6593](https://github.com/ponylang/ponyc/pull/6593))
 - Fix File/CreateFile callers leaving stale tails when writing shorter content ([PR #6580](https://github.com/ponylang/ponyc/pull/6580))
 - Fix Iter.nth and Iter.find to error when n is 0 ([PR #6597](https://github.com/ponylang/ponyc/pull/6597))
+- Fix `Iter.intersperse` looping forever when `n` is 0 ([PR #6602](https://github.com/ponylang/ponyc/pull/6602))
 
 ### Added
 
