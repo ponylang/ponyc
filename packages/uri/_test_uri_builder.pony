@@ -395,6 +395,91 @@ class \nodoc\ iso _TestBuildAuthorityNoScheme is UnitTest
       h.fail("build failed: " + e.string())
     end
 
+class \nodoc\ iso _TestBuildDotSegmentRejected is UnitTest
+  """append_path_segment rejects dot segments "." and ".."."""
+  fun name(): String => "uri/builder/dot_segment_rejected"
+
+  fun ref apply(h: TestHelper) =>
+    // ".." is rejected
+    match \exhaustive\ URIBuilder
+      .set_scheme("http")
+      .set_host("h")
+      .append_path_segment("a")
+      .append_path_segment("..")
+      .build()
+    | let _: URI val =>
+      h.fail("expected InvalidDotSegment for \"..\"")
+    | let e: URIBuildError val =>
+      h.assert_true(
+        e is InvalidDotSegment,
+        "expected InvalidDotSegment, got: " + e.string())
+    end
+
+    // "." is rejected
+    match \exhaustive\ URIBuilder
+      .set_scheme("http")
+      .set_host("h")
+      .append_path_segment("a")
+      .append_path_segment(".")
+      .build()
+    | let _: URI val =>
+      h.fail("expected InvalidDotSegment for \".\"")
+    | let e: URIBuildError val =>
+      h.assert_true(
+        e is InvalidDotSegment,
+        "expected InvalidDotSegment, got: " + e.string())
+    end
+
+    // ".hidden" is fine — not a dot segment
+    match \exhaustive\ URIBuilder
+      .set_scheme("http")
+      .set_host("h")
+      .append_path_segment(".hidden")
+      .build()
+    | let u: URI val =>
+      h.assert_eq[String val]("http://h/.hidden", u.string())
+    | let e: URIBuildError val =>
+      h.fail("build failed for \".hidden\": " + e.string())
+    end
+
+    // "..foo" is fine — not a dot segment
+    match \exhaustive\ URIBuilder
+      .set_scheme("http")
+      .set_host("h")
+      .append_path_segment("..foo")
+      .build()
+    | let u: URI val =>
+      h.assert_eq[String val]("http://h/..foo", u.string())
+    | let e: URIBuildError val =>
+      h.fail("build failed for \"..foo\": " + e.string())
+    end
+
+    // "" (empty segment) is fine — not a dot segment
+    match \exhaustive\ URIBuilder
+      .set_scheme("http")
+      .set_host("h")
+      .append_path_segment("a")
+      .append_path_segment("")
+      .build()
+    | let u: URI val =>
+      h.assert_eq[String val]("http://h/a/", u.string())
+    | let e: URIBuildError val =>
+      h.fail("build failed for \"\": " + e.string())
+    end
+
+    // set_path clears the dot-segment flag
+    match \exhaustive\ URIBuilder
+      .set_scheme("http")
+      .set_host("h")
+      .append_path_segment("..")
+      .set_path("/clean")
+      .build()
+    | let u: URI val =>
+      h.assert_eq[String val]("http://h/clean", u.string())
+    | let e: URIBuildError val =>
+      h.fail("set_path should clear dot-segment flag: " + e.string())
+    end
+
 // -- Property-based tests --
 class \nodoc\ iso _PropertyBuildFromRoundtrip is Property[_ValidURIInput]
   """

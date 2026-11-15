@@ -34,6 +34,7 @@ class ref URIBuilder
   var _path: String = ""
   var _query: (String | None) = None
   var _fragment: (String | None) = None
+  var _has_dot_segment: Bool = false
 
   new create() =>
     """
@@ -148,6 +149,7 @@ class ref URIBuilder
     (slashes) is preserved — only characters that need encoding are encoded.
     """
     _path = PercentEncode(path, URIPartPath)
+    _has_dot_segment = false
     this
 
   fun ref append_path_segment(segment: String): URIBuilder ref =>
@@ -156,7 +158,16 @@ class ref URIBuilder
 
     The segment is encoded with slash (`/`) also encoded (as `%2F`) so
     it remains a single segment. A `/` separator is prepended automatically.
+
+    Dot segments (`.` and `..`) are rejected — `build()` returns
+    `InvalidDotSegment`. No percent-encoding can preserve them as literal
+    segments: RFC 3986 §6.2.2.2 normalizes `%2E` back to `.` before
+    dot-segment removal runs, so an appended `..` would cause normalization
+    to remove the preceding segment (path traversal).
     """
+    if (segment == ".") or (segment == "..") then
+      _has_dot_segment = true
+    end
     let encoded = _PathSegmentEncode(segment)
     _path =
       recover val
@@ -242,10 +253,17 @@ class ref URIBuilder
     """
     Validate and assemble the URI from the current components.
 
-    Returns `InvalidScheme` if the scheme is set but does not match
-    `[A-Za-z][A-Za-z0-9+-.]*`. Returns `InvalidHost` if an IP-literal
-    host is malformed. Returns the assembled `URI val` on success.
+    Returns `InvalidDotSegment` if `append_path_segment` was called with
+    `.` or `..`. Returns `InvalidScheme` if the scheme is set but does not
+    match `[A-Za-z][A-Za-z0-9+-.]*`. Returns `InvalidHost` if an
+    IP-literal host is malformed. Returns the assembled `URI val` on
+    success.
     """
+    // Reject dot segments
+    if _has_dot_segment then
+      return InvalidDotSegment
+    end
+
     // Validate scheme if present
     match _scheme
     | let s: String =>
