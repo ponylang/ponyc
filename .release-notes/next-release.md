@@ -230,3 +230,9 @@ When a request had a body and the caller set `Transfer-Encoding`, the library st
 
 `ParseURIAuthority`, `ParseURI`, and `URIBuilder.build` accepted IPv6 literals where `:::` preceded an embedded IPv4 address — `[:::1.2.3.4]` and `[1:::1.2.3.4]`. These are invalid: `:::` never appears in an IPv6 address. The same literals without the embedded IPv4 address (`[:::1]`, `[1:::2]`) were already rejected.
 
+## Fix File/CreateFile callers leaving stale tails when writing shorter content
+
+Several callers opened existing files with `File(path)` or `CreateFile(path)` and wrote from position 0 without truncating first. When new content was shorter than old content, the tail of the old data remained in the file. Affected callers: readline history saving, the pony_test regression database, pony-doc output files, and the mandelbrot benchmark.
+
+Each caller now truncates the file with `set_length(0)` before writing.
+
