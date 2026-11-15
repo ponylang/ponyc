@@ -33,6 +33,8 @@ actor \nodoc\ Main is TestList
     test(_TestSizeLimitHeaders)
     test(_TestSizeLimitBody)
     test(_TestSizeLimitCloseDelimitedBody)
+    test(_TestSizeLimitStatusLineAtLimit)
+    test(_TestSizeLimitChunkHeaderAtLimit)
     test(_TestInvalidContentLength)
     test(_TestInvalidChunkSize)
     test(_TestChunkSizeNonHexRejected)

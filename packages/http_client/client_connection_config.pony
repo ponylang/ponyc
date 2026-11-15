@@ -16,12 +16,22 @@ class val ClientConnectionConfig
   """
   Configuration for an HTTP client connection.
 
-  Parser limits control the maximum size of response components. Idle timeout
-  controls how long the connection can sit without I/O activity before the
-  library closes it. Connection timeout bounds how long the initial connection
-  handshake is allowed to take. Read buffer size bounds how much data the
-  connection reads per scheduler turn. `from` specifies the local bind address
-  (empty string means any interface).
+  Parser limits control the maximum size of response components:
+
+  * `max_status_line_size` — maximum length of the status line, excluding the
+    terminating CRLF. Default 8192.
+  * `max_header_size` — maximum total bytes for all header lines (or all
+    trailer lines), including each line's CRLF. Default 8192.
+  * `max_chunk_header_size` — maximum length of a chunk-size line in chunked
+    encoding, excluding the terminating CRLF. Default 128.
+  * `max_body_size` — maximum total body bytes (across all chunks for chunked
+    encoding). Default 10 MB.
+
+  Idle timeout controls how long the connection can sit without I/O activity
+  before the library closes it. Connection timeout bounds how long the initial
+  connection handshake is allowed to take. Read buffer size bounds how much
+  data the connection reads per scheduler turn. `from` specifies the local bind
+  address (empty string means any interface).
 
   ```pony
   // All defaults (60-second idle timeout, 10 MB max body, 16 KB read buffer)
