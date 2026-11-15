@@ -465,3 +465,7 @@ Lookups, insertions, and removals now run in constant expected time regardless o
 
 The `http_client` response parser accepted status lines where extra characters followed the three-digit status code. `HTTP/1.1 2000 OK` silently parsed as status 200 with reason phrase `0 OK`. The parser now rejects any status line where the byte after the three digits is not a space or the end of the line.
 
+## Fix Path.clean treating drive-relative paths as rooted on Windows
+
+`Path.clean` treated any path with a volume prefix as rooted, including drive-relative paths like `C:foo`. On Windows, `C:foo` is relative to the current directory on drive C, not to the root of C. Because `clean` treated it as rooted, `..` components were silently discarded: `clean("C:../foo")` returned `"C:foo"` instead of the correct `"C:../foo"`, and `clean("C:foo/../bar")` returned `"C:foo/bar"` instead of `"C:bar"`. The bug propagated through `join`, `abs`, `rel`, `split`, and `dir`, which all call `clean`.
+
