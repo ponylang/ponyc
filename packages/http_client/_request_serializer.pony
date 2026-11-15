@@ -5,7 +5,8 @@ primitive _RequestSerializer
   Produces: `METHOD SP PATH SP HTTP/1.1\r\n` + headers + `\r\n` + body.
 
   Auto-sets `Host` from the connection's host/port if not already present.
-  Port is omitted for "80" and "443" (standard ports); included otherwise.
+  Port is omitted when it is the default for the connection's scheme (80
+  for http, 443 for https) or empty; included otherwise (RFC 9110 §7.2).
   Auto-sets `Content-Length` from body size if body is present and neither
   `Content-Length` nor `Transfer-Encoding` is already in the request headers
   (RFC 9112 section 6.2). User-explicit headers take precedence.
@@ -14,7 +15,8 @@ primitive _RequestSerializer
   fun apply(
     request: HTTPRequest val,
     host: String,
-    port: String)
+    port: String,
+    secure: Bool)
     : Array[U8] iso^
   =>
     let buf = recover iso Array[U8] end
@@ -26,10 +28,11 @@ primitive _RequestSerializer
       .> append(" HTTP/1.1\r\n")
 
     // Host header (auto-set if not present)
+    let default_port: String = if secure then "443" else "80" end
     if request.headers.get("host") is None then
       buf.append("Host: ")
       buf.append(host)
-      if (port != "80") and (port != "443") and (port != "") then
+      if (port != default_port) and (port != "") then
         buf .> push(':')
           .> append(port)
       end

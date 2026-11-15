@@ -24,7 +24,8 @@ class \nodoc\ iso _PropertySerializerContainsMethod
       end
     let request = HTTPRequest(method, "/test")
     let serialized: String val =
-      String.from_iso_array(_RequestSerializer(request, "example.com", "80"))
+      String.from_iso_array(
+        _RequestSerializer(request, "example.com", "80", false))
     // Request line starts with METHOD
     ph.assert_true(
       serialized.contains(arg1 + " /test HTTP/1.1\r\n"),
@@ -44,7 +45,8 @@ class \nodoc\ iso _PropertySerializerContainsPath
   fun ref property(arg1: String val, ph: PropertyHelper) =>
     let request = HTTPRequest(GET, arg1)
     let serialized: String val =
-      String.from_iso_array(_RequestSerializer(request, "example.com", "80"))
+      String.from_iso_array(
+        _RequestSerializer(request, "example.com", "80", false))
     ph.assert_true(
       serialized.contains("GET " + arg1 + " HTTP/1.1"),
       "request line should contain path: " + arg1)
@@ -61,7 +63,8 @@ class \nodoc\ iso _PropertySerializerAutoHost
   fun ref property(arg1: String val, ph: PropertyHelper) =>
     let request = HTTPRequest(GET, "/")
     let serialized: String val =
-      String.from_iso_array(_RequestSerializer(request, arg1, "80"))
+      String.from_iso_array(
+        _RequestSerializer(request, arg1, "80", false))
     ph.assert_true(
       serialized.contains("Host: " + arg1 + "\r\n"),
       "should contain Host: " + arg1)
@@ -88,7 +91,7 @@ class \nodoc\ iso _PropertySerializerAutoContentLength
     let request = HTTPRequest(POST, "/data" where body' = body)
     let serialized: String val =
       String.from_iso_array(
-        _RequestSerializer(request, "example.com", "80"))
+        _RequestSerializer(request, "example.com", "80", false))
     ph.assert_true(
       serialized.contains(
         "Content-Length: " + arg1.string() + "\r\n"),
@@ -105,7 +108,7 @@ class \nodoc\ iso _TestSerializerKnownGood is UnitTest
     let request = HTTPRequest(GET, "/index.html")
     let serialized: String val =
       String.from_iso_array(
-        _RequestSerializer(request, "www.example.com", "80"))
+        _RequestSerializer(request, "www.example.com", "80", false))
 
     let expected: String val =
       "GET /index.html HTTP/1.1\r\n" +
@@ -119,36 +122,81 @@ class \nodoc\ iso _TestSerializerHostWithPort is UnitTest
 
   fun apply(h: TestHelper) =>
     let request = HTTPRequest(GET, "/")
-    let serialized: String val =
+
+    // http on non-standard port
+    let http_8080: String val =
       String.from_iso_array(
-        _RequestSerializer(request, "example.com", "8080"))
+        _RequestSerializer(request, "example.com", "8080", false))
     h.assert_true(
-      serialized.contains("Host: example.com:8080\r\n"),
-      "Host should include port 8080")
+      http_8080.contains("Host: example.com:8080\r\n"),
+      "http non-standard port should appear")
+
+    // https on non-standard port
+    let https_8443: String val =
+      String.from_iso_array(
+        _RequestSerializer(request, "example.com", "8443", true))
+    h.assert_true(
+      https_8443.contains("Host: example.com:8443\r\n"),
+      "https non-standard port should appear")
 
 class \nodoc\ iso _TestSerializerHostDefaultPort is UnitTest
-  """Port 80 and 443 omitted from Host header."""
+  """Default port omitted only when it matches the scheme."""
   fun name(): String => "serializer/host_default_port"
 
   fun apply(h: TestHelper) =>
-    // Port 80
-    let s80: String val =
+    // http on port 80 — default, omit
+    let http_80: String val =
       String.from_iso_array(
-        _RequestSerializer(HTTPRequest(GET, "/"), "example.com", "80"))
+        _RequestSerializer(
+          HTTPRequest(GET, "/"), "example.com", "80", false))
     h.assert_true(
-      s80.contains("Host: example.com\r\n"),
-      "port 80 should be omitted")
+      http_80.contains("Host: example.com\r\n"),
+      "http port 80 should be omitted")
     h.assert_false(
-      s80.contains("Host: example.com:80\r\n"),
-      "port 80 should not appear")
+      http_80.contains("Host: example.com:80\r\n"),
+      "http port 80 should not appear")
 
-    // Port 443
-    let s443: String val =
+    // https on port 443 — default, omit
+    let https_443: String val =
       String.from_iso_array(
-        _RequestSerializer(HTTPRequest(GET, "/"), "example.com", "443"))
+        _RequestSerializer(
+          HTTPRequest(GET, "/"), "example.com", "443", true))
     h.assert_true(
-      s443.contains("Host: example.com\r\n"),
-      "port 443 should be omitted")
+      https_443.contains("Host: example.com\r\n"),
+      "https port 443 should be omitted")
+    h.assert_false(
+      https_443.contains("Host: example.com:443\r\n"),
+      "https port 443 should not appear")
+
+    // http on port 443 — not the default for http, include
+    let http_443: String val =
+      String.from_iso_array(
+        _RequestSerializer(
+          HTTPRequest(GET, "/"), "example.com", "443", false))
+    h.assert_true(
+      http_443.contains("Host: example.com:443\r\n"),
+      "http port 443 should appear")
+
+    // https on port 80 — not the default for https, include
+    let https_80: String val =
+      String.from_iso_array(
+        _RequestSerializer(
+          HTTPRequest(GET, "/"), "example.com", "80", true))
+    h.assert_true(
+      https_80.contains("Host: example.com:80\r\n"),
+      "https port 80 should appear")
+
+    // empty port — default, omit regardless of scheme
+    let empty: String val =
+      String.from_iso_array(
+        _RequestSerializer(
+          HTTPRequest(GET, "/"), "example.com", "", false))
+    h.assert_true(
+      empty.contains("Host: example.com\r\n"),
+      "empty port should be omitted")
+    h.assert_false(
+      empty.contains("Host: example.com:\r\n"),
+      "empty port should not produce trailing colon")
 
 class \nodoc\ iso _TestSerializerUserHostTakesPrecedence is UnitTest
   """Explicit Host header is not overwritten."""
@@ -163,7 +211,7 @@ class \nodoc\ iso _TestSerializerUserHostTakesPrecedence is UnitTest
     let request = HTTPRequest(GET, "/" where headers' = hdrs)
     let serialized: String val =
       String.from_iso_array(
-        _RequestSerializer(request, "example.com", "80"))
+        _RequestSerializer(request, "example.com", "80", false))
     h.assert_true(
       serialized.contains("host: custom.host.com\r\n"),
       "should use user-provided Host")
@@ -190,7 +238,7 @@ class \nodoc\ iso _TestSerializerUserContentLengthTakesPrecedence
         where headers' = hdrs, body' = body)
     let serialized: String val =
       String.from_iso_array(
-        _RequestSerializer(request, "example.com", "80"))
+        _RequestSerializer(request, "example.com", "80", false))
     h.assert_true(
       serialized.contains("content-length: 999\r\n"),
       "should use user-provided Content-Length")
@@ -216,7 +264,7 @@ class \nodoc\ iso _TestSerializerTransferEncodingSuppressesContentLength
         where headers' = hdrs, body' = body)
     let serialized: String val =
       String.from_iso_array(
-        _RequestSerializer(request, "example.com", "80"))
+        _RequestSerializer(request, "example.com", "80", false))
     h.assert_true(
       serialized.contains("transfer-encoding: chunked\r\n"),
       "should contain Transfer-Encoding")
@@ -241,7 +289,7 @@ class \nodoc\ iso _TestSerializerTransferEncodingNoBodyNoContentLength
     let request = HTTPRequest(POST, "/stream" where headers' = hdrs)
     let serialized: String val =
       String.from_iso_array(
-        _RequestSerializer(request, "example.com", "80"))
+        _RequestSerializer(request, "example.com", "80", false))
     h.assert_true(
       serialized.contains("transfer-encoding: chunked\r\n"),
       "should contain Transfer-Encoding")
@@ -257,7 +305,7 @@ class \nodoc\ iso _TestSerializerNoBody is UnitTest
     let request = HTTPRequest(GET, "/")
     let serialized: String val =
       String.from_iso_array(
-        _RequestSerializer(request, "example.com", "80"))
+        _RequestSerializer(request, "example.com", "80", false))
     h.assert_false(
       serialized.contains("Content-Length"),
       "GET with no body should not have Content-Length")

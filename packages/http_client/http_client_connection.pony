@@ -37,6 +37,7 @@ class HTTPClientConnection is
   let _config: (ClientConnectionConfig | None)
   let _host: String
   let _port: String
+  let _secure: Bool
   var _tcp_connection: TCPConnection = TCPConnection.none()
   var _state: _ConnectionState = _Active
   var _request_state: (_Idle | _AwaitingResponse) = _Idle
@@ -55,6 +56,7 @@ class HTTPClientConnection is
     _config = None
     _host = ""
     _port = ""
+    _secure = false
 
   new create(
     auth: TCPConnectAuth,
@@ -74,6 +76,7 @@ class HTTPClientConnection is
     _config = config
     _host = host
     _port = port
+    _secure = false
     _parser = _ResponseParser(this, config._parser_config())
     _tcp_connection =
       TCPConnection.client(
@@ -105,6 +108,7 @@ class HTTPClientConnection is
     _config = config
     _host = host
     _port = port
+    _secure = true
     _parser = _ResponseParser(this, config._parser_config())
     _tcp_connection =
       TCPConnection.ssl_client(
@@ -152,7 +156,7 @@ class HTTPClientConnection is
     | let p: _ResponseParser => p.expect_response(request.method)
     end
 
-    let serialized = _RequestSerializer(request, _host, _port)
+    let serialized = _RequestSerializer(request, _host, _port, _secure)
     match _tcp_connection.send(consume serialized)
     | let _: SendError =>
       _close_connection()
