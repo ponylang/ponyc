@@ -920,3 +920,203 @@ class \nodoc\ iso _TestMultiple1xx is UnitTest
     h.assert_eq[String val](
       "Done", notify.collected_body_string())
 
+class \nodoc\ iso _TestHeaderValueBareLFSanitized is UnitTest
+  """A bare LF in a header value is replaced with SP per RFC 9110 §5.5."""
+  fun name(): String => "parser/header_value_bare_lf_sanitized"
+
+  fun apply(h: TestHelper) =>
+    let raw: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "X-Test: before\nafter\r\n" +
+      "Content-Length: 0\r\n" +
+      "\r\n"
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](1, notify.responses.size())
+    try
+      let hdrs = notify.responses(0)?._4
+      match \exhaustive\ hdrs.get("x-test")
+      | let v: String =>
+        h.assert_eq[String val]("before after", v)
+      | None => h.fail("x-test header missing")
+      end
+    end
+
+class \nodoc\ iso _TestHeaderValueBareCRSanitized is UnitTest
+  """A bare CR in a header value is replaced with SP per RFC 9110 §5.5."""
+  fun name(): String => "parser/header_value_bare_cr_sanitized"
+
+  fun apply(h: TestHelper) =>
+    let raw: String val =
+      "HTTP/1.1 200 OK\r\n" +
+      "X-Test: before\rafter\r\n" +
+      "Content-Length: 0\r\n" +
+      "\r\n"
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](1, notify.responses.size())
+    try
+      let hdrs = notify.responses(0)?._4
+      match \exhaustive\ hdrs.get("x-test")
+      | let v: String =>
+        h.assert_eq[String val]("before after", v)
+      | None => h.fail("x-test header missing")
+      end
+    end
+
+class \nodoc\ iso _TestHeaderValueNulSanitized is UnitTest
+  """A NUL byte in a header value is replaced with SP per RFC 9110 §5.5."""
+  fun name(): String => "parser/header_value_nul_sanitized"
+
+  fun apply(h: TestHelper) =>
+    let raw =
+      recover val
+        String
+          .> append("HTTP/1.1 200 OK\r\n")
+          .> append("X-Test: before")
+          .> push(0)
+          .> append("after\r\n")
+          .> append("Content-Length: 0\r\n")
+          .> append("\r\n")
+      end
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](1, notify.responses.size())
+    try
+      let hdrs = notify.responses(0)?._4
+      match \exhaustive\ hdrs.get("x-test")
+      | let v: String =>
+        h.assert_eq[String val]("before after", v)
+      | None => h.fail("x-test header missing")
+      end
+    end
+
+class \nodoc\ iso _TestHeaderValueMultipleControlCharsSanitized is UnitTest
+  """Multiple control characters in one header value are all replaced."""
+  fun name(): String => "parser/header_value_multiple_control_chars_sanitized"
+
+  fun apply(h: TestHelper) =>
+    let raw =
+      recover val
+        String
+          .> append("HTTP/1.1 200 OK\r\n")
+          .> append("X-Test: a")
+          .> push('\n')
+          .> append("b")
+          .> push('\r')
+          .> append("c")
+          .> push(0)
+          .> append("d\r\n")
+          .> append("Content-Length: 0\r\n")
+          .> append("\r\n")
+      end
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](1, notify.responses.size())
+    try
+      let hdrs = notify.responses(0)?._4
+      match \exhaustive\ hdrs.get("x-test")
+      | let v: String =>
+        h.assert_eq[String val]("a b c d", v)
+      | None => h.fail("x-test header missing")
+      end
+    end
+
+class \nodoc\ iso _TestHeaderValueLocationLFSanitized is UnitTest
+  """
+  A Location header with a bare LF in the path — the vector for redirect
+  header injection (#6544) — has the LF replaced with SP by the parser.
+  """
+  fun name(): String => "parser/header_value_location_lf_sanitized"
+
+  fun apply(h: TestHelper) =>
+    let raw =
+      recover val
+        String
+          .> append("HTTP/1.1 302 Found\r\n")
+          .> append("Location: /next HTTP/1.1\nX-Injected: 1\nX-Z:\r\n")
+          .> append("Content-Length: 0\r\n")
+          .> append("\r\n")
+      end
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](1, notify.responses.size())
+    try
+      let hdrs = notify.responses(0)?._4
+      match \exhaustive\ hdrs.get("location")
+      | let v: String =>
+        h.assert_false(
+          v.contains("\n"), "Location must not contain bare LF after parsing")
+        h.assert_false(
+          v.contains("\r"), "Location must not contain bare CR after parsing")
+        h.assert_eq[String val](
+          "/next HTTP/1.1 X-Injected: 1 X-Z:", v)
+      | None => h.fail("location header missing")
+      end
+    end
+
+class \nodoc\ iso _TestHeaderNameBareLFSanitized is UnitTest
+  """A bare LF in a header name is replaced with SP."""
+  fun name(): String => "parser/header_name_bare_lf_sanitized"
+
+  fun apply(h: TestHelper) =>
+    let raw =
+      recover val
+        String
+          .> append("HTTP/1.1 200 OK\r\n")
+          .> append("X")
+          .> push('\n')
+          .> append("Test: hello\r\n")
+          .> append("Content-Length: 0\r\n")
+          .> append("\r\n")
+      end
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](1, notify.responses.size())
+    try
+      let hdrs = notify.responses(0)?._4
+      match \exhaustive\ hdrs.get("x test")
+      | let v: String =>
+        h.assert_eq[String val]("hello", v)
+      | None => h.fail("x test header missing after name sanitization")
+      end
+    end
+
+class \nodoc\ iso _TestReasonPhraseBareLFSanitized is UnitTest
+  """A bare LF in the reason phrase is replaced with SP."""
+  fun name(): String => "parser/reason_phrase_bare_lf_sanitized"
+
+  fun apply(h: TestHelper) =>
+    let raw =
+      recover val
+        String
+          .> append("HTTP/1.1 200 O")
+          .> push('\n')
+          .> append("K\r\n")
+          .> append("Content-Length: 0\r\n")
+          .> append("\r\n")
+      end
+    let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
+    let parser = _ResponseParser(notify)
+    parser.parse(recover raw.array().clone() end)
+
+    h.assert_eq[USize](1, notify.responses.size())
+    try
+      let reason = notify.responses(0)?._2
+      h.assert_false(
+        reason.contains("\n"), "Reason must not contain bare LF after parsing")
+      h.assert_eq[String val]("O K", reason)
+    end
+

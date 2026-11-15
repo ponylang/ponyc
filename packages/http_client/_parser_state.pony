@@ -74,6 +74,26 @@ primitive _BufferScan
     end
     None
 
+  fun sanitize_field_value(s: String iso): String iso^ =>
+    """
+    Replace bare CR, bare LF, and NUL in an HTTP header field value with SP,
+    per RFC 9110 §5.5.
+    """
+    var i: USize = 0
+    let len = s.size()
+    try
+      while i < len do
+        let c = s(i)?
+        if (c == '\r') or (c == '\n') or (c == 0) then
+          s(i)? = ' '
+        end
+        i = i + 1
+      end
+    else
+      _Unreachable()
+    end
+    consume s
+
 // ---------------------------------------------------------------------------
 // Parser states
 // ---------------------------------------------------------------------------
@@ -184,7 +204,8 @@ class _ExpectStatusLine is _ParserState
             else
               after_status
             end
-          p.extract_string(reason_start, crlf)
+          _BufferScan.sanitize_field_value(
+            p.extract_string(reason_start, crlf))
         else
           ""
         end
@@ -316,7 +337,8 @@ class _ExpectHeaders is _ParserState
         end
 
         // Extract header name (lowercasing happens in Headers.add)
-        let name: String val = p.extract_string(p.pos, colon_pos)
+        let name: String val =
+          _BufferScan.sanitize_field_value(p.extract_string(p.pos, colon_pos))
 
         // Extract header value, skipping optional whitespace (OWS)
         var val_start = colon_pos + 1
@@ -342,7 +364,8 @@ class _ExpectHeaders is _ParserState
           _Unreachable()
         end
 
-        let value: String val = p.extract_string(val_start, val_end)
+        let value: String val =
+          _BufferScan.sanitize_field_value(p.extract_string(val_start, val_end))
 
         // Detect special headers
         let lower_name: String val = name.lower()
