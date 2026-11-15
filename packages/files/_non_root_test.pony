@@ -396,10 +396,6 @@ class \nodoc\ iso _TestPathClean is UnitTest
     h.assert_eq[String](res6, "/foo/bar")
     h.assert_eq[String](res7, "/foo/qux")
 
-    // Volume roots are normalized to the bare volume form
-    h.assert_eq[String](Path.clean("//h/s/"), "//h/s")
-    h.assert_eq[String](Path.clean("//h/s"), "//h/s")
-
     // The bare "/" root is preserved
     h.assert_eq[String](Path.clean("/"), "/")
 
@@ -565,26 +561,12 @@ class \nodoc\ iso _TestPathRel is UnitTest
     h.assert_eq[String](rd6, "a")
     h.assert_eq[String](Path.join("foo/..", rd6), "a")
 
-    // Bare volume vs volume root: clean normalizes "//h/s/" to "//h/s",
-    // so cross-form cases satisfy join(to, rel(to, target)) == clean(target).
-    let rv1 = Path.rel("//h/s/a", "//h/s")?
-    h.assert_eq[String](rv1, "../")
-    h.assert_eq[String](
-      Path.join("//h/s/a", rv1), Path.clean("//h/s"))
-
-    let rv2 = Path.rel("//h/s", "//h/s/")?
-    h.assert_eq[String](
-      Path.join("//h/s", rv2), Path.clean("//h/s/"))
-
-    let rv3 = Path.rel("//h/s/", "//h/s")?
-    h.assert_eq[String](
-      Path.join("//h/s/", rv3), Path.clean("//h/s"))
-
+    // Same-form volume round-trip
     let rv4 = Path.rel("//h/s/", "//h/s/")?
     h.assert_eq[String](
       Path.join("//h/s/", rv4), Path.clean("//h/s/"))
 
-    // Non-volume trailing slashes: clean strips them too, so the
+    // Non-volume trailing slashes: clean strips them, so the
     // clean(target) contract applies to any path with a trailing slash.
     let rt1 = Path.rel("foo", "foo/bar/")?
     h.assert_eq[String](

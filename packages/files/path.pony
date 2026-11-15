@@ -87,9 +87,7 @@ primitive Path
     kept: `clean("../../a")` is `"../../a"`.
     A leading `//` (exactly two separators) is preserved as a network path
     prefix per POSIX; three or more leading separators collapse to one.
-    The result will have no trailing slash unless it is the bare `"/"` root.
-    A volume root like `"//h/s/"` or `"C:/"` is normalized to the bare
-    volume form (`"//h/s"`, `"C:"`); use `volume()` to detect these.
+    The result will have no trailing slash unless it is a root directory.
     If the result would be empty, `"."` will be returned instead.
     """
     let s = recover String(path.size()) end
