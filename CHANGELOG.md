@@ -42,6 +42,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - MultipartFormData uses WHATWG percent-encoding; file() is now partial ([PR #6523](https://github.com/ponylang/ponyc/pull/6523))
 - `Generators.utf32_codepoint_string` now rejects values above 0x10FFFF ([PR #6533](https://github.com/ponylang/ponyc/pull/6533))
 - Rename `ponyint_futimesat` to `ponyint_utimensat` ([PR #6499](https://github.com/ponylang/ponyc/pull/6499))
+- Reject dot segments in URIBuilder.append_path_segment ([PR #6579](https://github.com/ponylang/ponyc/pull/6579))
 
 ## [0.78.2] - 2026-11-12
 
