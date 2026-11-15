@@ -59,6 +59,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Path.clean treating drive-relative paths as rooted on Windows ([PR #6631](https://github.com/ponylang/ponyc/pull/6631))
 - Fix ProcessMonitor writev and printv writing to the child after done_writing ([PR #6633](https://github.com/ponylang/ponyc/pull/6633))
 - Fix http_client accepting underscores and empty chunk sizes in chunked responses ([PR #6635](https://github.com/ponylang/ponyc/pull/6635))
+- Fix Path.abs and Path.rel not resolving drive-relative paths on Windows ([PR #6636](https://github.com/ponylang/ponyc/pull/6636))
 
 ### Added
 
