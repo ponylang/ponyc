@@ -52,6 +52,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix binary_codec silently dropping fields at non-byte-aligned positions ([PR #6625](https://github.com/ponylang/ponyc/pull/6625))
 - Fix http_client crashing or misrouting on cross-origin redirects ([PR #6628](https://github.com/ponylang/ponyc/pull/6628))
 - Fix Path.is_abs treating bare drive letters as absolute on Windows ([PR #6629](https://github.com/ponylang/ponyc/pull/6629))
+- Fix HashMap performance degradation under insert/remove churn ([PR #6615](https://github.com/ponylang/ponyc/pull/6615))
 
 ### Added
 
