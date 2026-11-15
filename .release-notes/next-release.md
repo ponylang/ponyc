@@ -208,3 +208,7 @@ The JSONPath parser accepted integers outside the ±(2^53-1) range required by R
 
 The parser now rejects integers outside ±(2^53-1) in indices, slice bounds, and filter singular-query indices with a clear diagnostic. Integer literals in filter comparisons are unchanged — they are compared against JSON data values, not used for path processing, so only I64 overflow is rejected there.
 
+## Fix Format AlignCenter with a multibyte fill character dropping right-hand padding
+
+`Format.apply` with `AlignCenter` and a fill character that takes more than one byte in UTF-8 produced too little padding. The left fill was correct, but the right fill was missing or short. Padding is now symmetric.
+
