@@ -576,9 +576,45 @@ primitive _DecimalInt
       i = i + 1
     end
 
+primitive _DecimalFloat
+  fun check(s: String) ? =>
+    """
+    Errors if `s` does not match `['-'] digit+ ['.' digit+]`.
+    """
+    var i: ISize = 0
+    let n = s.size().isize()
+    if n == 0 then error end
+    if s(0)? == '-' then
+      i = 1
+    end
+    if i == n then error end
+    while i < n do
+      let c = s(i.usize())?
+      if (c < '0') or (c > '9') then break end
+      i = i + 1
+    end
+    // At least one digit before the optional dot.
+    let first_digit: ISize = if s(0)? == '-' then 1 else 0 end
+    if i == first_digit then error end
+    if (i < n) and (s(i.usize())? == '.') then
+      i = i + 1
+      let dot_pos = i
+      while i < n do
+        let c = s(i.usize())?
+        if (c < '0') or (c > '9') then error end
+        i = i + 1
+      end
+      // At least one digit after the dot.
+      if i == dot_pos then error end
+    end
+    if i != n then error end
+
 primitive _F64Type is _ValueType
   fun string(): String => "F64"
-  fun value_of(s: String): _Value ? => s.f64()?
+
+  fun value_of(s: String): _Value ? =>
+    _DecimalFloat.check(s)?
+    s.f64()?
 
 primitive _StringSeqType is _ValueType
   fun string(): String => "ReadSeq[String]"
