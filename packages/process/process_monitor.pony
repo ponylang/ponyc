@@ -281,7 +281,7 @@ actor ProcessMonitor is AsioEventNotify
     """
     Print some bytes and append a newline.
     """
-    if (_state is _Running) and (not _done_writing) then
+    if _state is _Running then
       _write_final(data)
       _write_final("\n")
     end
@@ -290,7 +290,7 @@ actor ProcessMonitor is AsioEventNotify
     """
     Write to STDIN of the child process.
     """
-    if (_state is _Running) and (not _done_writing) then
+    if _state is _Running then
       _write_final(data)
     end
 
@@ -318,7 +318,8 @@ actor ProcessMonitor is AsioEventNotify
   be done_writing() =>
     """
     Signal that we are finished writing to STDIN. Once any pending writes have
-    drained, STDIN is closed so a child waiting on EOF can proceed.
+    drained, STDIN is closed so a child waiting on EOF can proceed. Writes
+    arriving after this call are silently dropped.
     """
     if _state is _Running then
       _done_writing = true
@@ -644,11 +645,12 @@ actor ProcessMonitor is AsioEventNotify
   fun ref _write_final(data: ByteSeq) =>
     """
     Write as much as possible to STDIN if it is open and there are no pending
-    writes. Queue everything unwritten and apply backpressure. If STDIN is
-    already closed, drop the write rather than queue it — nothing would drain
-    the queue or release the backpressure.
+    writes. Queue everything unwritten and apply backpressure. Drop the write
+    if STDIN is already closed — nothing would drain the queue or release the
+    backpressure — or if `done_writing()` has been called, so the pending
+    queue can drain and STDIN can close as promised.
     """
-    if _stdin.is_closed() then
+    if _stdin.is_closed() or _done_writing then
       return
     end
 

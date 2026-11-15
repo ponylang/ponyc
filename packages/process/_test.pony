@@ -21,6 +21,7 @@ actor \nodoc\ Main is TestList
     test(_TestExpect)
     test(_TestWritevOrdering)
     test(_TestPrintvOrdering)
+    test(_TestWriteAfterDoneWritingIsDropped)
     test(_TestChdir)
     test(_TestBadChdir)
     test(_TestBadExec)
@@ -739,6 +740,58 @@ class \nodoc\ iso _TestPrintvOrdering is UnitTest
       h.long_test(30_000_000_000)
     else
       h.fail("Could not create FilePath!")
+    end
+
+class \nodoc\ iso _TestWriteAfterDoneWritingIsDropped is UnitTest
+  """
+  After `done_writing()`, data passed to `write`, `print`, `writev`, and
+  `printv` is silently dropped. The initial write is large enough to overflow
+  the pipe buffer, so data is still pending when `done_writing()` arrives and
+  STDIN remains open. Without the `_done_writing` guard, `writev` and `printv`
+  would push their data onto the pending queue and it would reach the child.
+  """
+  fun name(): String => "process/write-after-done-writing-is-dropped"
+  fun exclusion_group(): String => "process-monitor"
+
+  fun apply(h: TestHelper) =>
+    ifdef windows then
+      h.complete(true)
+    else
+      let big: USize = 200_000
+      let first: Array[U8] val = recover Array[U8].init('a', big) end
+      let notifier: ProcessNotify iso = _ProcessClient(big, "", 0, h)
+      try
+        let process_auth = StartProcessAuth(h.env.root)
+        let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+        let file_auth = FileAuth(h.env.root)
+
+        let path_resolver = _PathResolver(h.env.vars, file_auth)
+        let path = FilePath(file_auth, _CatCommand.path(path_resolver)?)
+        let args: Array[String] val = _CatCommand.args()
+        let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+
+        match \exhaustive\ StartProcess(
+          process_auth,
+          backpressure_auth,
+          consume notifier,
+          path,
+          args,
+          vars)
+        | let pm: ProcessMonitor =>
+          pm.write(first)
+          pm.done_writing()
+          pm.write("W")
+          pm.print("P")
+          pm.writev(["V1"; "V2"])
+          pm.printv(["Q1"; "Q2"])
+          h.dispose_when_done(pm)
+        | let err: ProcessError =>
+          h.fail("StartProcess failed: " + err.string())
+        end
+        h.long_test(30_000_000_000)
+      else
+        h.fail("Could not create FilePath!")
+      end
     end
 
 class \nodoc\ _TestChdir is UnitTest
