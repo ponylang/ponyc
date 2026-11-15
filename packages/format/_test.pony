@@ -427,3 +427,54 @@ class \nodoc\ iso _TestIntUTF32 is UnitTest
     h.assert_eq[String]("é", Format.int[U8](0xE9, FormatUTF32))
     // U+263A (3-byte UTF-8), fits in U16
     h.assert_eq[String]("☺", Format.int[U16](0x263A, FormatUTF32))
+
+    // Width, fill, and align apply with FormatUTF32.
+    h.assert_eq[String](
+      "**A**",
+      Format.int[U8](
+        65, FormatUTF32
+        where width = 5, fill = '*', align = AlignCenter))
+    h.assert_eq[String](
+      "****A",
+      Format.int[U8](
+        65, FormatUTF32
+        where width = 5, fill = '*', align = AlignRight))
+    h.assert_eq[String](
+      "A****",
+      Format.int[U8](
+        65, FormatUTF32
+        where width = 5, fill = '*', align = AlignLeft))
+
+    // Non-ASCII character with padding.
+    h.assert_eq[String](
+      "   é",
+      Format.int[U32](0xE9, FormatUTF32 where width = 5))
+
+    // Non-ASCII fill character with FormatUTF32.
+    h.assert_eq[String](
+      "ééAéé",
+      Format.int[U8](
+        65, FormatUTF32
+        where width = 5, fill = 0xE9, align = AlignCenter))
+
+    // Width applies across all integer widths.
+    h.assert_eq[String](
+      "  A",
+      Format.int[U16](65, FormatUTF32 where width = 3))
+    h.assert_eq[String](
+      "  A",
+      Format.int[U32](65, FormatUTF32 where width = 3))
+    h.assert_eq[String](
+      "  A",
+      Format.int[U64](65, FormatUTF32 where width = 3))
+    h.assert_eq[String](
+      "  A",
+      Format.int[U128](65, FormatUTF32 where width = 3))
+    h.assert_eq[String](
+      "  A",
+      Format.int[I32](65, FormatUTF32 where width = 3))
+
+    // Width narrower than content produces no padding.
+    h.assert_eq[String](
+      "é",
+      Format.int[U32](0xE9, FormatUTF32 where width = 1))
