@@ -31,6 +31,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix http_client sending bare CR and LF from Location headers into redirect requests ([PR #6545](https://github.com/ponylang/ponyc/pull/6545))
 - Fix Format.int with FormatUTF32 ignoring width, fill, and align ([PR #6577](https://github.com/ponylang/ponyc/pull/6577))
 - Fix `Path.rel` returning wrong results when the base is `"."` or `""` ([PR #6578](https://github.com/ponylang/ponyc/pull/6578))
+- Fix cli `CommandSpec` accepting empty command names and names starting with `-` ([PR #6594](https://github.com/ponylang/ponyc/pull/6594))
 - Fix JSONPath parser accepting integers outside RFC 9535 range ([PR #6581](https://github.com/ponylang/ponyc/pull/6581))
 - Fix Format AlignCenter with a multibyte fill character dropping right-hand padding ([PR #6584](https://github.com/ponylang/ponyc/pull/6584))
 - Fix Random.int and Random.int_unbiased for U128 bounds above 2^64 ([PR #6582](https://github.com/ponylang/ponyc/pull/6582))
@@ -49,6 +50,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - MultipartFormData uses WHATWG percent-encoding; file() is now partial ([PR #6523](https://github.com/ponylang/ponyc/pull/6523))
 - `Generators.utf32_codepoint_string` now rejects values above 0x10FFFF ([PR #6533](https://github.com/ponylang/ponyc/pull/6533))
 - Rename `ponyint_futimesat` to `ponyint_utimensat` ([PR #6499](https://github.com/ponylang/ponyc/pull/6499))
+- cli `CommandSpec` now requires command names to start with a letter ([PR #6594](https://github.com/ponylang/ponyc/pull/6594))
 - Reject dot segments in URIBuilder.append_path_segment ([PR #6579](https://github.com/ponylang/ponyc/pull/6579))
 
 ## [0.78.2] - 2026-11-12

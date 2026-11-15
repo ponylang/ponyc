@@ -70,12 +70,21 @@ class CommandSpec
     end
 
   fun tag _assert_name(nm: String): String ? =>
+    if nm.size() == 0 then error end
+    var first = true
     for b in nm.values() do
-      if (b != '-') and (b != '_') and
-        not ((b >= '0') and (b <= '9')) and
-        not ((b >= 'A') and (b <= 'Z')) and
-        not ((b >= 'a') and (b <= 'z')) then
-        error
+      if first then
+        if not (((b >= 'A') and (b <= 'Z')) or ((b >= 'a') and (b <= 'z'))) then
+          error
+        end
+        first = false
+      else
+        if (b != '-') and (b != '_') and
+          not ((b >= '0') and (b <= '9')) and
+          not ((b >= 'A') and (b <= 'Z')) and
+          not ((b >= 'a') and (b <= 'z')) then
+          error
+        end
       end
     end
     nm

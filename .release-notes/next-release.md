@@ -202,6 +202,18 @@ end
 
 Callers who match `URIBuildError` as a single arm are unaffected.
 
+## Fix cli `CommandSpec` accepting empty command names and names starting with `-`
+
+`CommandSpec.parent` and `CommandSpec.leaf` accepted empty command names and names starting with `-`. A subcommand with either kind of name could not be invoked from a command line: the parser treated `-x` as a short option and an empty name matched nothing.
+
+Both constructors now error on empty names and names starting with `-`.
+
+## cli `CommandSpec` now requires command names to start with a letter
+
+`CommandSpec.parent` and `CommandSpec.leaf` accepted command names starting with a digit or underscore (e.g., `1abc`, `_a`). These names worked as subcommands but didn't match the documented grammar (`alphanum_word ::= alphachar(alphachar | numchar | '_' | '-')*`).
+
+Both constructors now enforce the documented grammar: the first character must be a letter (`[A-Za-z]`). Programs that create a `CommandSpec` with a name starting with a digit or underscore will get an error from the partial constructor where they didn't before.
+
 ## Fix JSONPath parser accepting integers outside RFC 9535 range
 
 The JSONPath parser accepted integers outside the ±(2^53-1) range required by RFC 9535 §2.1 for indices and slice bounds. Values between 2^53 and 2^63-1 were silently accepted, and values above 2^63-1 produced misleading error messages that pointed at the wrong part of the expression rather than the out-of-range integer.

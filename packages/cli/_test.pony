@@ -75,11 +75,16 @@ class \nodoc\ iso _TestMinimalWithHelp is UnitTest
 class \nodoc\ iso _TestBadName is UnitTest
   fun name(): String => "cli/badname"
 
-  // Negative test: command names must be alphanum tokens
-  fun apply(h: TestHelper) =>
-    try
-      let cs = CommandSpec.leaf("min imal", "")?
-      h.fail("expected error on bad command name: " + cs.name())
+  fun apply(h: TestHelper) ? =>
+    for bad_name in ["min imal"; ""; "-x"; "1abc"; "_a"].values() do
+      try
+        let cs = CommandSpec.leaf(bad_name, "")?
+        h.fail("expected error on bad command name: " + cs.name())
+      end
+    end
+    for good_name in ["a"; "A"; "a1"; "a-b"; "a_b"; "aB1-_"].values() do
+      let cs = CommandSpec.leaf(good_name, "")?
+      h.assert_eq[String](good_name, cs.name())
     end
 
 class \nodoc\ iso _TestUnknownCommand is UnitTest
