@@ -12,7 +12,7 @@ codecs compose into larger ones:
 - `Mapped` maps a wire type to a domain type and back.
 - `BitsU8`, `BitsU16`, `BitsU32`, `BitsU64` read sub-byte fields.
 - `FlatZip` decodes a value, then uses it to pick the next codec.
-- `Count` reads a count and decodes that many elements.
+- `Count` reads a count field and decodes that many elements.
 - `Many` repeats a codec until the input runs out.
 - `Discriminated` dispatches on a tag to decode a tagged union.
 - `Literal`, `ConstThen`, `ThenConst` match or emit fixed bytes.
@@ -137,11 +137,12 @@ end
 
 ## Example: count-prefixed array (Count)
 
-`Count` reads a `U16` count field, then decodes that many
-instances of a body codec into an `Array`.
+`Count` reads a count field, then decodes that many instances of a
+body codec into an `Array`. The count type is generic — use any
+unsigned integer width that matches the protocol's count field.
 
 ```pony
-let records = Count[U32](U16BE, U32BE)
+let records = Count[U32, U16](U16BE, U32BE)
 
 // Count = 2, then two U32BE values (10 and 20)
 let data: Array[U8] val =

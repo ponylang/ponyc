@@ -1,14 +1,14 @@
-class val Count[A: Any val] is Codec[Array[A] val]
+class val Count[A: Any val, L: UnsignedInteger[L] val] is Codec[Array[A] val]
   """
   Read a count field, then decode that many instances of the body codec.
 
   On encode, write the array length as the count, then encode each element.
   The count field is structural — it does not appear in the decoded type.
   """
-  let _count_codec: Codec[U16]
+  let _count_codec: Codec[L]
   let _body_codec: Codec[A]
 
-  new val create(count_codec: Codec[U16], body_codec: Codec[A]) =>
+  new val create(count_codec: Codec[L], body_codec: Codec[A]) =>
     _count_codec = count_codec
     _body_codec = body_codec
 
@@ -19,8 +19,15 @@ class val Count[A: Any val] is Codec[Array[A] val]
     Decode a count followed by that many elements.
     """
     match \exhaustive\ _count_codec.decode(data, offset)
-    | (let count: U16, let cc: USize) =>
+    | (let count: L, let cc: USize) =>
       let n = count.usize()
+      if L.from[USize](n) != count then
+        return MalformedData(
+          "count field " + count.string() +
+            " exceeds platform maximum of " +
+            USize.max_value().string(),
+          offset)
+      end
       var consumed: USize = cc
       let results = recover iso Array[A](n) end
       var i: USize = 0
@@ -40,7 +47,14 @@ class val Count[A: Any val] is Codec[Array[A] val]
   fun _encode_bits(value: Array[A] val, writer: _BitWriter ref)
     : (_BitWriter ref | EncodeError)
   =>
-    match \exhaustive\ _count_codec._encode_bits(value.size().u16(), writer)
+    let size = value.size()
+    let count = L.from[USize](size)
+    if count.usize() != size then
+      return EncodeViolation(
+        size.string() + " elements exceed maximum count of " +
+          L.max_value().string())
+    end
+    match \exhaustive\ _count_codec._encode_bits(count, writer)
     | let w: _BitWriter ref =>
       var w' = w
       for item in value.values() do

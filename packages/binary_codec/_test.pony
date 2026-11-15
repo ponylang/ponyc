@@ -36,9 +36,17 @@ actor \nodoc\ Main is TestList
     test(_TestConstThen)
     test(_TestMany)
     test(_TestCount)
+    test(_TestCountRoundtrip)
+    test(_TestCountOverflow)
+    test(_TestCountU32)
+    test(_TestCountDecodeOverflow)
     test(_TestConditional)
     test(_TestSkipBits)
     test(_TestVariableSize)
+    test(_TestVariableSizeRoundtrip)
+    test(_TestVariableSizeOverflow)
+    test(_TestVariableSizeU32)
+    test(_TestVariableSizeDecodeOverflow)
     test(_TestFrameDecoder)
     test(_TestFrameDecoderSubByte)
     test(_TestFrameDecoderNonAligned)
@@ -571,7 +579,7 @@ class \nodoc\ iso _TestCount is UnitTest
   fun apply(h: TestHelper) =>
     // U16BE count (2), then 2 U8 values
     let data: Array[U8] val = [0x00; 0x02; 0xAA; 0xBB]
-    let codec = Count[U8](U16BE, U8Codec)
+    let codec = Count[U8, U16](U16BE, U8Codec)
     match codec.decode(data, 0)
     | (let v: Array[U8] val, let c: USize) =>
       h.assert_eq[USize](2, v.size())
@@ -584,6 +592,94 @@ class \nodoc\ iso _TestCount is UnitTest
       h.assert_eq[USize](32, c)
     else
       h.fail("decode failed")
+    end
+
+class \nodoc\ iso _TestCountRoundtrip is UnitTest
+  fun name(): String => "binary_codec/Count/roundtrip"
+
+  fun apply(h: TestHelper) =>
+    let codec = Count[U8, U16](U16BE, U8Codec)
+    let value: Array[U8] val = [0xAA; 0xBB; 0xCC]
+    match \exhaustive\ codec.encode(value)
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](5, encoded.size())
+      match \exhaustive\ codec.decode(encoded, 0)
+      | (let v: Array[U8] val, _) =>
+        h.assert_eq[USize](3, v.size())
+        try
+          h.assert_eq[U8](0xAA, v(0)?)
+          h.assert_eq[U8](0xBB, v(1)?)
+          h.assert_eq[U8](0xCC, v(2)?)
+        else
+          h.fail("element access failed")
+        end
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestCountOverflow is UnitTest
+  fun name(): String => "binary_codec/Count/overflow"
+
+  fun apply(h: TestHelper) =>
+    let codec = Count[U8, U8](U8Codec, U8Codec)
+    let big = recover val Array[U8].init(0, 256) end
+    match \exhaustive\ codec.encode(big)
+    | let _: Array[U8] val => h.fail("expected EncodeError for 256 elements")
+    | let _: EncodeError => None
+    end
+
+    let at_max = recover val Array[U8].init(0, 255) end
+    match \exhaustive\ codec.encode(at_max)
+    | let encoded: Array[U8] val =>
+      match \exhaustive\ codec.decode(encoded, 0)
+      | (let v: Array[U8] val, _) =>
+        h.assert_eq[USize](255, v.size())
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError =>
+      h.fail("encode at max failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestCountU32 is UnitTest
+  fun name(): String => "binary_codec/Count/U32"
+
+  fun apply(h: TestHelper) =>
+    let codec = Count[U8, U32](U32BE, U8Codec)
+    let value: Array[U8] val = [0x01; 0x02]
+    match \exhaustive\ codec.encode(value)
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](6, encoded.size())
+      match \exhaustive\ codec.decode(encoded, 0)
+      | (let v: Array[U8] val, _) =>
+        h.assert_eq[USize](2, v.size())
+        try
+          h.assert_eq[U8](0x01, v(0)?)
+          h.assert_eq[U8](0x02, v(1)?)
+        else
+          h.fail("element access failed")
+        end
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestCountDecodeOverflow is UnitTest
+  fun name(): String => "binary_codec/Count/decode_overflow"
+
+  fun apply(h: TestHelper) =>
+    let codec = Count[U8, U128](U128BE, U8Codec)
+    // U128 count = 0x0000...0001_00000000_00000000 (exceeds USize on 64-bit)
+    let data: Array[U8] val =
+      [
+        0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x01
+        0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00
+      ]
+    match \exhaustive\ codec.decode(data, 0)
+    | (let _: Array[U8] val, _) =>
+      h.fail("expected MalformedData for count exceeding USize")
+    | let _: MalformedData => None
+    | InsufficientData => h.fail("expected MalformedData, got InsufficientData")
     end
 
 class \nodoc\ iso _TestConditional is UnitTest
@@ -636,13 +732,89 @@ class \nodoc\ iso _TestVariableSize is UnitTest
     // U16BE length (5), then 5 bytes
     let data: Array[U8] val =
       [0x00; 0x05; 0x48; 0x65; 0x6C; 0x6C; 0x6F]
-    let codec = VariableSize[Array[U8] val](U16BE, BytesRest)
+    let codec = VariableSize[Array[U8] val, U16](U16BE, BytesRest)
     match codec.decode(data, 0)
     | (let v: Array[U8] val, let c: USize) =>
       h.assert_eq[USize](5, v.size())
       h.assert_eq[USize](56, c)
     else
       h.fail("decode failed")
+    end
+
+class \nodoc\ iso _TestVariableSizeRoundtrip is UnitTest
+  fun name(): String => "binary_codec/VariableSize/roundtrip"
+
+  fun apply(h: TestHelper) =>
+    let codec = VariableSize[Array[U8] val, U16](U16BE, BytesRest)
+    let value: Array[U8] val = [0x48; 0x65; 0x6C; 0x6C; 0x6F]
+    match \exhaustive\ codec.encode(value)
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](7, encoded.size())
+      match \exhaustive\ codec.decode(encoded, 0)
+      | (let v: Array[U8] val, _) =>
+        h.assert_eq[USize](5, v.size())
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestVariableSizeOverflow is UnitTest
+  fun name(): String => "binary_codec/VariableSize/overflow"
+
+  fun apply(h: TestHelper) =>
+    let codec = VariableSize[Array[U8] val, U8](U8Codec, BytesRest)
+    let big = recover val Array[U8].init(0, 256) end
+    match \exhaustive\ codec.encode(big)
+    | let _: Array[U8] val =>
+      h.fail("expected EncodeError for 256-byte body")
+    | let _: EncodeError => None
+    end
+
+    let at_max = recover val Array[U8].init(0, 255) end
+    match \exhaustive\ codec.encode(at_max)
+    | let encoded: Array[U8] val =>
+      match \exhaustive\ codec.decode(encoded, 0)
+      | (let v: Array[U8] val, _) =>
+        h.assert_eq[USize](255, v.size())
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError =>
+      h.fail("encode at max failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestVariableSizeU32 is UnitTest
+  fun name(): String => "binary_codec/VariableSize/U32"
+
+  fun apply(h: TestHelper) =>
+    let codec = VariableSize[Array[U8] val, U32](U32BE, BytesRest)
+    let value: Array[U8] val = [0x01; 0x02; 0x03]
+    match \exhaustive\ codec.encode(value)
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](7, encoded.size())
+      match \exhaustive\ codec.decode(encoded, 0)
+      | (let v: Array[U8] val, _) =>
+        h.assert_eq[USize](3, v.size())
+      else h.fail("decode failed")
+      end
+    | let e: EncodeError => h.fail("encode failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestVariableSizeDecodeOverflow is UnitTest
+  fun name(): String => "binary_codec/VariableSize/decode_overflow"
+
+  fun apply(h: TestHelper) =>
+    let codec = VariableSize[Array[U8] val, U128](U128BE, BytesRest)
+    // U128 size = 0x0000...0001_00000000_00000000 (exceeds USize on 64-bit)
+    let data: Array[U8] val =
+      [
+        0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x01
+        0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00
+      ]
+    match \exhaustive\ codec.decode(data, 0)
+    | (let _: Array[U8] val, _) =>
+      h.fail("expected MalformedData for size exceeding USize")
+    | let _: MalformedData => None
+    | InsufficientData => h.fail("expected MalformedData, got InsufficientData")
     end
 
 class \nodoc\ iso _TestFrameDecoder is UnitTest
@@ -1196,7 +1368,7 @@ class \nodoc\ iso _TestUnalignedVariableSize is UnitTest
     let codec =
       Seq3[U8, U8, U8](
         BitsU8(4),
-        VariableSize[U8](BitsU16(8), U8Codec),
+        VariableSize[U8, U16](BitsU16(8), U8Codec),
         BitsU8(4))
     match \exhaustive\ codec.encode((1, 0x77, 2))
     | let encoded: Array[U8] val =>
