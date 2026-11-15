@@ -63,6 +63,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix binary_codec Conditional encoding None as empty when flag is true ([PR #6638](https://github.com/ponylang/ponyc/pull/6638))
 - Fix undefined memory read for overlong paths on Windows ([PR #6639](https://github.com/ponylang/ponyc/pull/6639))
 - Fix http_client rejecting at-limit status lines and chunk sizes on split reads ([PR #6640](https://github.com/ponylang/ponyc/pull/6640))
+- Fix http_client IPv6 host handling in redirects and Host header ([PR #6642](https://github.com/ponylang/ponyc/pull/6642))
 
 ### Added
 
