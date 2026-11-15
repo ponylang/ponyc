@@ -78,5 +78,18 @@ class ref _RequestBuilder
       for (k, v) in _query_params.values() do
         params.push((k, v))
       end
-      _path + "?" + QueryParams(consume params)
+      let encoded = QueryParams(consume params)
+      let sep =
+        if _path.contains("?") then
+          try
+            let last = _path(_path.size() - 1)?
+            if (last == '?') or (last == '&') then "" else "&" end
+          else
+            _Unreachable()
+            "&"
+          end
+        else
+          "?"
+        end
+      _path + sep + encoded
     end

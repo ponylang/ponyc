@@ -18,6 +18,9 @@ interface ref RequestOptions
   fun ref query(key: String, value: String): RequestOptions ref
     """
     Add a query parameter. Parameters are percent-encoded in `build()`.
+
+    If the path already contains a query string, builder parameters are
+    appended with `&`.
     """
 
   fun ref basic_auth(username: String, password: String): RequestOptions ref
