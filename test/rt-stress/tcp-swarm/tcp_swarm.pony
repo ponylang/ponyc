@@ -120,51 +120,51 @@ primitive _SwarmSpec
       [ OptionSpec.string(
           _Flag.host(),
           "listener bind host"
-          where default' = "localhost")
+          where default' = "localhost")?
         OptionSpec.string(
           _Flag.port(),
           "listener bind port (0 = ephemeral)"
-          where default' = "0")
+          where default' = "0")?
         OptionSpec.u64(
           _Flag.connections(),
           "total connections to churn"
-          where default' = 1000)
+          where default' = 1000)?
         OptionSpec.u64(
           _Flag.concurrency(),
           "in-flight connection cap"
-          where default' = 64)
+          where default' = 64)?
         OptionSpec.u64(
           _Flag.payload_size(),
           "bytes each connection sends"
-          where default' = 64)
+          where default' = 64)?
         OptionSpec.u64(
           _Flag.messages(),
           "send() calls per connection"
-          where default' = 1)
+          where default' = 1)?
         OptionSpec.string(
           _Flag.close(),
           "graceful | hard"
-          where default' = "graceful")
+          where default' = "graceful")?
         OptionSpec.string(
           _Flag.write_shape(),
           "write | writev"
-          where default' = "write")
+          where default' = "write")?
         OptionSpec.u64(
           _Flag.writev_chunks(),
           "buffers per vectored send (writev only)"
-          where default' = 4)
+          where default' = 4)?
         OptionSpec.u64(
           _Flag.read_buffer_size(),
           "per-connection read buffer size"
-          where default' = 16384)
+          where default' = 16384)?
         OptionSpec.u64(
           _Flag.expect(),
           "framed read size (0 = off)"
-          where default' = 0)
+          where default' = 0)?
         OptionSpec.u64(
           _Flag.yield_after_reading(),
           "yield the read loop after this many bytes"
-          where default' = 16384)
+          where default' = 16384)?
       ])? .> add_help(where descr' = "print usage and exit")?
 
 class val _Config

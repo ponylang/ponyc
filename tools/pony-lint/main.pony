@@ -53,20 +53,20 @@ actor Main
             OptionSpec.string_seq(
               "disable",
               "Disable a rule or category (repeatable)"
-              where short' = 'd')
+              where short' = 'd')?
             OptionSpec.string(
               "config",
-              "Path to config file" where short' = 'c', default' = "")
+              "Path to config file" where short' = 'c', default' = "")?
             OptionSpec.bool(
               "version",
-              "Print version and exit" where short' = 'V', default' = false)
+              "Print version and exit" where short' = 'V', default' = false)?
             OptionSpec.string(
               "explain",
               "Print rule description and documentation URL"
-              where default' = "")
+              where default' = "")?
           ],
           [
-            ArgSpec.string_seq("paths", "Paths to lint (default: CWD)")
+            ArgSpec.string_seq("paths", "Paths to lint (default: CWD)")?
           ])? .> add_help()?
       else
         env.err.print("internal error: invalid command spec")

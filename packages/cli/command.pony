@@ -50,13 +50,13 @@ class box Command
     """
     Returns the Option by name, defaulting to a fake Option if unknown.
     """
-    try _options(name)? else Option(OptionSpec.bool(name), false) end
+    try _options(name)? else Option(OptionSpec._placeholder(name), false) end
 
   fun arg(name: String): Arg =>
     """
     Returns the Arg by name, defaulting to a fake Arg if unknown.
     """
-    try _args(name)? else Arg(ArgSpec.bool(name), false) end
+    try _args(name)? else Arg(ArgSpec._placeholder(name), false) end
 
 class val Option
   """

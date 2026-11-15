@@ -27,15 +27,15 @@ actor Main
             OptionSpec.i64(
               "pingers",
               "Number of Pinger actors"
-              where default' = 8)
+              where default' = 8)?
             OptionSpec.i64(
               "initial-pings",
               "Initial pings per Pinger per interval"
-              where default' = 5)
+              where default' = 5)?
             OptionSpec.i64(
               "duration",
               "Total benchmark duration in seconds"
-              where default' = 60)
+              where default' = 60)?
           ])? .> add_help()?
       let cmd =
         match \exhaustive\ CommandParser(cs).parse(env.args, env.vars)

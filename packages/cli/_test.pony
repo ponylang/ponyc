@@ -6,7 +6,9 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
+    test(_TestBadArgName)
     test(_TestBadName)
+    test(_TestBadOptionName)
     test(_TestBools)
     test(_TestChat)
     test(_TestDefaults)
@@ -45,7 +47,7 @@ class \nodoc\ iso _TestMinimal is UnitTest
       CommandSpec.leaf(
         "minimal",
         "",
-        [ OptionSpec.bool("aflag", "")
+        [ OptionSpec.bool("aflag", "")?
         ])?
 
     h.assert_eq[String]("minimal", cs.name())
@@ -74,6 +76,21 @@ class \nodoc\ iso _TestMinimalWithHelp is UnitTest
     // test for successful parsing
     let cmd_err = CommandParser(cs).parse(args) as Command
 
+class \nodoc\ iso _TestBadArgName is UnitTest
+  fun name(): String => "cli/bad_arg_name"
+
+  fun apply(h: TestHelper) ? =>
+    for bad_name in ["an arg"; ""; "-x"; "1abc"; "_a"].values() do
+      try
+        let a = ArgSpec.string(bad_name)?
+        h.fail("expected error on bad arg name: " + a.name())
+      end
+    end
+    for good_name in ["a"; "A"; "a1"; "a-b"; "a_b"; "aB1-_"].values() do
+      let a = ArgSpec.string(good_name)?
+      h.assert_eq[String](good_name, a.name())
+    end
+
 class \nodoc\ iso _TestBadName is UnitTest
   fun name(): String => "cli/badname"
 
@@ -87,6 +104,21 @@ class \nodoc\ iso _TestBadName is UnitTest
     for good_name in ["a"; "A"; "a1"; "a-b"; "a_b"; "aB1-_"].values() do
       let cs = CommandSpec.leaf(good_name, "")?
       h.assert_eq[String](good_name, cs.name())
+    end
+
+class \nodoc\ iso _TestBadOptionName is UnitTest
+  fun name(): String => "cli/bad_option_name"
+
+  fun apply(h: TestHelper) ? =>
+    for bad_name in ["an opt"; ""; "-x"; "1abc"; "_a"].values() do
+      try
+        let o = OptionSpec.bool(bad_name)?
+        h.fail("expected error on bad option name: " + o.name())
+      end
+    end
+    for good_name in ["a"; "A"; "a1"; "a-b"; "a_b"; "aB1-_"].values() do
+      let o = OptionSpec.bool(good_name)?
+      h.assert_eq[String](good_name, o.name())
     end
 
 class \nodoc\ iso _TestUnknownCommand is UnitTest
@@ -197,7 +229,7 @@ class \nodoc\ iso _TestHyphenArg is UnitTest
     let cs =
       CommandSpec.leaf(
         "minimal" where args' =
-        [ ArgSpec.string("name", "")
+        [ ArgSpec.string("name", "")?
         ])?
     h.assert_true(cs.is_leaf())
     h.assert_false(cs.is_parent())
@@ -221,24 +253,24 @@ class \nodoc\ iso _TestIntegerFormat is UnitTest
       CommandSpec.leaf(
         "app",
         "",
-        [OptionSpec.i64("intr", "" where short' = 'I', default' = 0)])?
+        [OptionSpec.i64("intr", "" where short' = 'I', default' = 0)?])?
     let u64_opt_spec =
       CommandSpec.leaf(
         "app",
         "",
-        [OptionSpec.u64("uintr", "" where short' = 'U', default' = 0)])?
+        [OptionSpec.u64("uintr", "" where short' = 'U', default' = 0)?])?
     let i64_arg_spec =
       CommandSpec.leaf(
         "app",
         "",
         Array[OptionSpec](),
-        [ArgSpec.i64("n", "" where default' = 0)])?
+        [ArgSpec.i64("n", "" where default' = 0)?])?
     let u64_arg_spec =
       CommandSpec.leaf(
         "app",
         "",
         Array[OptionSpec](),
-        [ArgSpec.u64("u", "" where default' = 0)])?
+        [ArgSpec.u64("u", "" where default' = 0)?])?
 
     // Inputs outside the documented grammar. Each must produce a SyntaxError.
     let bad_inputs: Array[String] =
@@ -350,8 +382,8 @@ class \nodoc\ iso _TestIntegerFormat is UnitTest
       CommandSpec.leaf(
         "app",
         "",
-        [ OptionSpec.i64("intr", "" where short' = 'I', default' = 0)
-          OptionSpec.u64("uintr", "" where short' = 'U', default' = 0)
+        [ OptionSpec.i64("intr", "" where short' = 'I', default' = 0)?
+          OptionSpec.u64("uintr", "" where short' = 'U', default' = 0)?
         ])?
 
     match CommandParser(env_spec).parse(["app"], ["APP_INTR=0x10"])
@@ -374,13 +406,13 @@ class \nodoc\ iso _TestFloatFormat is UnitTest
       CommandSpec.leaf(
         "app",
         "",
-        [OptionSpec.f64("fl", "" where short' = 'F', default' = 0.0)])?
+        [OptionSpec.f64("fl", "" where short' = 'F', default' = 0.0)?])?
     let f64_arg_spec =
       CommandSpec.leaf(
         "app",
         "",
         Array[OptionSpec](),
-        [ArgSpec.f64("f", "" where default' = 0.0)])?
+        [ArgSpec.f64("f", "" where default' = 0.0)?])?
 
     let bad_inputs: Array[String] =
       [ "Inf"; "-Inf"; "inf"; "-inf"; "infinity"; "-infinity"
@@ -463,7 +495,7 @@ class \nodoc\ iso _TestFloatFormat is UnitTest
       CommandSpec.leaf(
         "app",
         "",
-        [OptionSpec.f64("fl", "" where short' = 'F', default' = 0.0)])?
+        [OptionSpec.f64("fl", "" where short' = 'F', default' = 0.0)?])?
 
     match CommandParser(env_spec).parse(["app"], ["APP_FL=1e5"])
     | let se: SyntaxError => None
@@ -485,10 +517,10 @@ class \nodoc\ iso _TestInvalidOptionFormat is UnitTest
       CommandSpec.leaf(
         "app",
         "",
-        [ OptionSpec.bool("aa", "" where short' = 'a', default' = false)
+        [ OptionSpec.bool("aa", "" where short' = 'a', default' = false)?
         ],
-        [ ArgSpec.string("rest", "" where default' = "none")
-          ArgSpec.i64("num", "" where default' = 0)
+        [ ArgSpec.string("rest", "" where default' = "none")?
+          ArgSpec.i64("num", "" where default' = 0)?
         ])?
 
     // Tokens that look like malformed options should be rejected
@@ -762,11 +794,11 @@ class \nodoc\ iso _TestNegativeNumArg is UnitTest
       CommandSpec.leaf(
         "app",
         "",
-        [ OptionSpec.bool("aa", "" where short' = 'a', default' = false)
-          OptionSpec.i64("num", "" where short' = 'n', default' = 0)
+        [ OptionSpec.bool("aa", "" where short' = 'a', default' = false)?
+          OptionSpec.i64("num", "" where short' = 'n', default' = 0)?
         ],
-        [ ArgSpec.i64("n", "" where default' = 0)
-          ArgSpec.f64("f", "" where default' = 0.0)
+        [ ArgSpec.i64("n", "" where default' = 0)?
+          ArgSpec.f64("f", "" where default' = 0.0)?
         ])?
 
     // Negative integer positional arg
@@ -968,7 +1000,7 @@ class \nodoc\ iso _TestHelpFalse is UnitTest
       CommandSpec.leaf(
         "bools",
         "A sample CLI with four bool options",
-        [ OptionSpec.string("name" where short' = 'n', default' = "John")
+        [ OptionSpec.string("name" where short' = 'n', default' = "John")?
         ])? .> add_help()?
     let args =
       [ "ignored"
@@ -1024,10 +1056,10 @@ primitive _Fixtures
     CommandSpec.leaf(
       "bools",
       "A sample CLI with four bool options",
-      [ OptionSpec.bool("aaa" where short' = 'a')
-        OptionSpec.bool("bbb" where short' = 'b')
-        OptionSpec.bool("ccc" where short' = 'c')
-        OptionSpec.bool("ddd" where short' = 'd')
+      [ OptionSpec.bool("aaa" where short' = 'a')?
+        OptionSpec.bool("bbb" where short' = 'b')?
+        OptionSpec.bool("ccc" where short' = 'c')?
+        OptionSpec.bool("ddd" where short' = 'd')?
       ])?
 
   fun simple_cli_spec(): CommandSpec box ? =>
@@ -1037,20 +1069,20 @@ primitive _Fixtures
     CommandSpec.leaf(
       "simple",
       "A sample program with various short options, optional and required",
-      [ OptionSpec.bool("boolr" where short' = 'B')
-        OptionSpec.bool("boolo" where short' = 'b', default' = true)
-        OptionSpec.string("stringr" where short' = 'S')
-        OptionSpec.string("stringo" where short' = 's', default' = "astring")
-        OptionSpec.i64("intr" where short' = 'I')
-        OptionSpec.i64("into" where short' = 'i', default' = I64(42))
-        OptionSpec.u64("uintr" where short' = 'U')
-        OptionSpec.u64("uinto" where short' = 'u', default' = U64(47))
-        OptionSpec.f64("floatr" where short' = 'F')
-        OptionSpec.f64("floato" where short' = 'f', default' = F64(42.0))
-        OptionSpec.string_seq("stringso" where short' = 'z')
+      [ OptionSpec.bool("boolr" where short' = 'B')?
+        OptionSpec.bool("boolo" where short' = 'b', default' = true)?
+        OptionSpec.string("stringr" where short' = 'S')?
+        OptionSpec.string("stringo" where short' = 's', default' = "astring")?
+        OptionSpec.i64("intr" where short' = 'I')?
+        OptionSpec.i64("into" where short' = 'i', default' = I64(42))?
+        OptionSpec.u64("uintr" where short' = 'U')?
+        OptionSpec.u64("uinto" where short' = 'u', default' = U64(47))?
+        OptionSpec.f64("floatr" where short' = 'F')?
+        OptionSpec.f64("floato" where short' = 'f', default' = F64(42.0))?
+        OptionSpec.string_seq("stringso" where short' = 'z')?
       ],
-      [ ArgSpec.string("words" where default' = "hello")
-        ArgSpec.string_seq("argz")
+      [ ArgSpec.string("words" where default' = "hello")?
+        ArgSpec.string_seq("argz")?
       ])?
 
   fun chat_cli_spec(): CommandSpec box ? =>
@@ -1060,27 +1092,27 @@ primitive _Fixtures
     CommandSpec.parent(
       "chat",
       "A sample chat program",
-      [ OptionSpec.bool("admin", "Chat as admin" where default' = false)
-        OptionSpec.string("name", "Your name" where short' = 'n')
+      [ OptionSpec.bool("admin", "Chat as admin" where default' = false)?
+        OptionSpec.string("name", "Your name" where short' = 'n')?
         OptionSpec.f64(
           "volume",
           "Chat volume" where short' = 'v',
-          default' = 1.0)
+          default' = 1.0)?
       ],
       [ CommandSpec.leaf(
           "say",
           "Say something",
           Array[OptionSpec](),
-          [ ArgSpec.string_seq("words", "The words to say")
+          [ ArgSpec.string_seq("words", "The words to say")?
           ])?
         CommandSpec.leaf(
           "emote",
           "Send an emotion",
           [ OptionSpec.f64(
               "speed",
-              "Emote play speed" where default' = F64(1.0))
+              "Emote play speed" where default' = F64(1.0))?
           ],
-          [ ArgSpec.string("emotion", "Emote to send")
+          [ ArgSpec.string("emotion", "Emote to send")?
           ])?
         CommandSpec.parent(
           "config",
@@ -1090,7 +1122,7 @@ primitive _Fixtures
               "server",
               "Server configuration",
               Array[OptionSpec](),
-              [ ArgSpec.string("address", "Address of the server")
+              [ ArgSpec.string("address", "Address of the server")?
               ])?
           ])?
       ])? .> add_help()?
@@ -1107,13 +1139,13 @@ primitive _Fixtures
           "debug",
           "Configure debug output: 0=off, 1=err, 2=warn, 3=info, 4=fine."
           where short' = 'g',
-          default' = 0)
+          default' = 0)?
       ],
       [ CommandSpec.leaf(
           "exec",
           "For executing shell commands which require user interaction",
           Array[OptionSpec](),
-          [ ArgSpec.string_seq("args", "Arguments to run.")
+          [ ArgSpec.string_seq("args", "Arguments to run.")?
           ])?
       ])?
 
@@ -1122,7 +1154,7 @@ primitive _Fixtures
       CommandSpec.parent(
         "cmd",
         "Main command",
-        [ OptionSpec.string("arg", "an arg" where default' = "foo") ])?
+        [ OptionSpec.string("arg", "an arg" where default' = "foo")? ])?
     let sub = CommandSpec.leaf("sub", "Sub command")?
 
     root.add_command(sub)?

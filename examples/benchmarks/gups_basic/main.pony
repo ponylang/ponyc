@@ -22,21 +22,21 @@ class val Config
           OptionSpec.i64(
             "table",
             "Log2 of the total table size."
-            where default' = 20)
+            where default' = 20)?
           OptionSpec.i64(
             "iterate",
             "Number of iterations."
-            where default' = 10000)
+            where default' = 10000)?
           OptionSpec.i64(
-            "chunk", "Chunk size." where default' = 1024)
+            "chunk", "Chunk size." where default' = 1024)?
           OptionSpec.i64(
             "streamers",
             "Number of streamers."
-            where default' = 4)
+            where default' = 4)?
           OptionSpec.i64(
             "updaters",
             "Number of updaters."
-            where default' = 8)
+            where default' = 8)?
         ])? .> add_help()?
     let cmd =
       match \exhaustive\ CommandParser(cs).parse(

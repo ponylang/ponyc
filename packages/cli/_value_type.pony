@@ -6,6 +6,27 @@ primitive _CommandSpecParent
 
 type _CommandSpecType is (_CommandSpecLeaf | _CommandSpecParent )
 
+primitive _AssertName
+  fun apply(nm: String): String ? =>
+    if nm.size() == 0 then error end
+    var first = true
+    for b in nm.values() do
+      if first then
+        if not (((b >= 'A') and (b <= 'Z')) or ((b >= 'a') and (b <= 'z'))) then
+          error
+        end
+        first = false
+      else
+        if (b != '-') and (b != '_') and
+          not ((b >= '0') and (b <= '9')) and
+          not ((b >= 'A') and (b <= 'Z')) and
+          not ((b >= 'a') and (b <= 'z')) then
+          error
+        end
+      end
+    end
+    nm
+
 class CommandSpec
   """
   CommandSpec describes the specification of a parent or leaf command. Each
@@ -40,7 +61,7 @@ class CommandSpec
     arguments.
     """
     _type = _CommandSpecParent
-    _name = _assert_name(name')?
+    _name = _AssertName(name')?
     _descr = descr'
     for o in options'.values() do
       _options.update(o.name(), o)
@@ -60,7 +81,7 @@ class CommandSpec
     commands.
     """
     _type = _CommandSpecLeaf
-    _name = _assert_name(name')?
+    _name = _AssertName(name')?
     _descr = descr'
     for o in options'.values() do
       _options.update(o.name(), o)
@@ -68,26 +89,6 @@ class CommandSpec
     for a in args'.values() do
       _args.push(a)
     end
-
-  fun tag _assert_name(nm: String): String ? =>
-    if nm.size() == 0 then error end
-    var first = true
-    for b in nm.values() do
-      if first then
-        if not (((b >= 'A') and (b <= 'Z')) or ((b >= 'a') and (b <= 'z'))) then
-          error
-        end
-        first = false
-      else
-        if (b != '-') and (b != '_') and
-          not ((b >= '0') and (b <= '9')) and
-          not ((b >= 'A') and (b <= 'Z')) and
-          not ((b >= 'a') and (b <= 'z')) then
-          error
-        end
-      end
-    end
-    nm
 
   fun ref add_command(cmd: CommandSpec box) ? =>
     """
@@ -102,7 +103,7 @@ class CommandSpec
     """
     _help_name = hname
     _help_info = descr'
-    let help_option = OptionSpec.bool(_help_name, _help_info, 'h', false)
+    let help_option = OptionSpec.bool(_help_name, _help_info, 'h', false)?
     _options.update(_help_name, help_option)
     if is_parent() then
       let help_cmd =
@@ -111,7 +112,7 @@ class CommandSpec
           "",
           Array[OptionSpec](),
           [
-            ArgSpec.string_seq("command")
+            ArgSpec.string_seq("command")?
           ])?
       _commands.update(_help_name, help_cmd)
     end
@@ -197,7 +198,7 @@ class val OptionSpec
     name': String,
     descr': String = "",
     short': (U8 | None) = None,
-    default': (Bool | None) = None)
+    default': (Bool | None) = None) ?
   =>
     """
     Creates an Option with a Bool typed value that can be used like
@@ -205,7 +206,7 @@ class val OptionSpec
     to yield an option value like
       `cmd.option("opt").bool() == true`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     _short = short'
     (_typ, _default, _required) = _init(_BoolType, default')
@@ -214,7 +215,7 @@ class val OptionSpec
     name': String,
     descr': String = "",
     short': (U8 | None) = None,
-    default': (String | None) = None)
+    default': (String | None) = None) ?
   =>
     """
     Creates an Option with a String typed value that can be used like
@@ -222,7 +223,7 @@ class val OptionSpec
     to yield an option value like
       `cmd.option("file").string() == "dir/filename"`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     _short = short'
     (_typ, _default, _required) = _init(_StringType, default')
@@ -230,7 +231,7 @@ class val OptionSpec
   new val i64(name': String,
     descr': String = "",
     short': (U8 | None) = None,
-    default': (I64 | None) = None)
+    default': (I64 | None) = None) ?
   =>
     """
     Creates an Option with an I64 typed value that can be used like
@@ -238,7 +239,7 @@ class val OptionSpec
     to yield an option value like
       `cmd.option("count").i64() == I64(42)`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     _short = short'
     (_typ, _default, _required) = _init(_I64Type, default')
@@ -246,7 +247,7 @@ class val OptionSpec
   new val u64(name': String,
     descr': String = "",
     short': (U8 | None) = None,
-    default': (U64 | None) = None)
+    default': (U64 | None) = None) ?
   =>
     """
     Creates an Option with an U64 typed value that can be used like
@@ -254,7 +255,7 @@ class val OptionSpec
     to yield an option value like
       `cmd.option("count").u64() == U64(47)`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     _short = short'
     (_typ, _default, _required) = _init(_U64Type, default')
@@ -262,7 +263,7 @@ class val OptionSpec
   new val f64(name': String,
     descr': String = "",
     short': (U8 | None) = None,
-    default': (F64 | None) = None)
+    default': (F64 | None) = None) ?
   =>
     """
     Creates an Option with a F64 typed value that can be used like
@@ -270,7 +271,7 @@ class val OptionSpec
     to yield an option value like
       `cmd.option("ratio").f64() == F64(1.039)`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     _short = short'
     (_typ, _default, _required) = _init(_F64Type, default')
@@ -278,7 +279,7 @@ class val OptionSpec
   new val string_seq(
     name': String,
     descr': String = "",
-    short': (U8 | None) = None)
+    short': (U8 | None) = None) ?
   =>
     """
     Creates an Option with a ReadSeq[String] typed value that can be used like
@@ -286,10 +287,18 @@ class val OptionSpec
     to yield a sequence of three strings equivalent to
       `cmd.option("ratio").string_seq() (equiv) ["file1"; "file2"; "file3"]`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     _short = short'
     (_typ, _default, _required) = _init(_StringSeqType, _StringSeq.empty())
+
+  new val _placeholder(name': String) =>
+    _name = name'
+    _descr = ""
+    _short = None
+    _typ = _BoolType
+    _default = false
+    _required = false
 
   fun name(): String =>
     """
@@ -379,7 +388,7 @@ class val ArgSpec
   new val bool(
     name': String,
     descr': String = "",
-    default': (Bool | None) = None)
+    default': (Bool | None) = None) ?
   =>
     """
     Creates an Arg with a Bool typed value that can be used like
@@ -387,14 +396,14 @@ class val ArgSpec
     to yield an arg value like
       `cmd.arg("opt").bool() == true`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     (_typ, _default, _required) = _init(_BoolType, default')
 
   new val string(
     name': String,
     descr': String = "",
-    default': (String | None) = None)
+    default': (String | None) = None) ?
   =>
     """
     Creates an Arg with a String typed value that can be used like
@@ -402,13 +411,13 @@ class val ArgSpec
     to yield an arg value
       `cmd.arg("file").string() == "filename"`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     (_typ, _default, _required) = _init(_StringType, default')
 
   new val i64(name': String,
     descr': String = "",
-    default': (I64 | None) = None)
+    default': (I64 | None) = None) ?
   =>
     """
     Creates an Arg with an I64 typed value that can be used like
@@ -416,13 +425,13 @@ class val ArgSpec
     to yield an arg value like
       `cmd.arg("count").i64() == I64(42)`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     (_typ, _default, _required) = _init(_I64Type, default')
 
   new val u64(name': String,
     descr': String = "",
-    default': (U64 | None) = None)
+    default': (U64 | None) = None) ?
   =>
     """
     Creates an Arg with an U64 typed value that can be used like
@@ -430,13 +439,13 @@ class val ArgSpec
     to yield an arg value like
       `cmd.arg("count").u64() == U64(47)`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     (_typ, _default, _required) = _init(_U64Type, default')
 
   new val f64(name': String,
     descr': String = "",
-    default': (F64 | None) = None)
+    default': (F64 | None) = None) ?
   =>
     """
     Creates an Arg with a F64 typed value that can be used like
@@ -444,13 +453,13 @@ class val ArgSpec
     to yield an arg value like
       `cmd.arg("ratio").f64() == F64(1.039)`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     (_typ, _default, _required) = _init(_F64Type, default')
 
   new val string_seq(
     name': String,
-    descr': String = "")
+    descr': String = "") ?
   =>
     """
     Creates an Arg with a ReadSeq[String] typed value that can be used like
@@ -458,9 +467,16 @@ class val ArgSpec
     to yield a sequence of three strings equivalent to
       `cmd.arg("file").string_seq() (equiv) ["file1"; "file2"; "file3"]`.
     """
-    _name = name'
+    _name = _AssertName(name')?
     _descr = descr'
     (_typ, _default, _required) = _init(_StringSeqType, _StringSeq.empty())
+
+  new val _placeholder(name': String) =>
+    _name = name'
+    _descr = ""
+    _typ = _BoolType
+    _default = false
+    _required = false
 
   fun name(): String =>
     """

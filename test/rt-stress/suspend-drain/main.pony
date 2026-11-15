@@ -382,25 +382,25 @@ actor Main
             OptionSpec.u64(
               "allocators",
               "Allocating actors"
-              where default' = 8)
+              where default' = 8)?
             OptionSpec.u64(
               "blocks",
               "Blocks per allocator"
-              where default' = 32)
+              where default' = 32)?
             OptionSpec.u64(
               "block-size",
               "Bytes per block"
-              where default' = 524288)
+              where default' = 524288)?
             OptionSpec.u64(
               "min-schedulers",
               "The floor phase 2 must reach; " +
                 "run with --ponyminthreads 1"
-              where default' = 1)
+              where default' = 1)?
             OptionSpec.f64(
               "reclaim-fraction",
               "Payload fraction that must " +
                 "return in phase 3"
-              where default' = 0.5)
+              where default' = 0.5)?
           ],
           [])?
       else

@@ -26,25 +26,25 @@ actor Main
             OptionSpec.string(
               "output",
               "Output directory"
-              where short' = 'o', default' = ".")
+              where short' = 'o', default' = ".")?
             OptionSpec.string(
               "backend",
               "Output backend: mkdocs or info"
-              where short' = 'b', default' = "mkdocs")
+              where short' = 'b', default' = "mkdocs")?
             OptionSpec.bool(
               "include-private",
               "Include private types and methods"
-              where default' = false)
+              where default' = false)?
             OptionSpec.bool(
               "version",
               "Print version and exit"
-              where short' = 'V', default' = false)
+              where short' = 'V', default' = false)?
           ],
           [
             ArgSpec.string(
               "module-dir",
               "Module directory to document (default: CWD)"
-              where default' = ".")
+              where default' = ".")?
           ])? .> add_help()?
       else
         env.err.print("internal error: invalid command spec")

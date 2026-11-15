@@ -1407,91 +1407,91 @@ primitive _Cli
         OptionSpec.u64(
           "seed",
           "engine RNG seed"
-          where default' = 1)
+          where default' = 1)?
         OptionSpec.string(
           "workload",
           "workload kind: mesh | cyclic" +
             " | backpressure | iso | actorref"
-          where default' = "mesh")
+          where default' = "mesh")?
         OptionSpec.u64(
           "pingers",
           "mesh/iso/actorref only" +
             " (ignored otherwise):" +
             " number of mesh actors (>= 1)"
-          where default' = 8)
+          where default' = 8)?
         OptionSpec.u64(
           "generations",
           "cyclic only (ignored otherwise):" +
             " garbage-group generations" +
             " (>= 1)"
-          where default' = 1)
+          where default' = 1)?
         OptionSpec.u64(
           "group",
           "cyclic only (ignored otherwise):" +
             " actors per garbage group" +
             " (>= 2)"
-          where default' = 2)
+          where default' = 2)?
         OptionSpec.u64(
           "producers",
           "backpressure only" +
             " (ignored otherwise):" +
             " flooding producers (>= 1)"
-          where default' = 64)
+          where default' = 64)?
         OptionSpec.u64(
           "messages",
           "backpressure only" +
             " (ignored otherwise):" +
             " work msgs per producer (>= 1)"
-          where default' = 1000)
+          where default' = 1000)?
         OptionSpec.u64(
           "apply-every",
           "backpressure only" +
             " (ignored otherwise):" +
             " received msgs between" +
             " apply/release toggles (>= 1)"
-          where default' = 200)
+          where default' = 200)?
         OptionSpec.u64(
           "node-size",
           "iso only (ignored otherwise):" +
             " bytes per graph node array" +
             " (>= 1)"
-          where default' = 64)
+          where default' = 64)?
         OptionSpec.u64(
           "node-depth",
           "iso only (ignored otherwise):" +
             " graph nesting levels (>= 1)"
-          where default' = 2)
+          where default' = 2)?
         OptionSpec.u64(
           "node-breadth",
           "iso only (ignored otherwise):" +
             " child nodes per graph node"
-          where default' = 1)
+          where default' = 1)?
         OptionSpec.u64(
           "chains",
           "mesh/cyclic/iso/actorref only" +
             " (ignored for backpressure):" +
             " chains to inject (>= 1)"
-          where default' = 8)
+          where default' = 8)?
         OptionSpec.u64(
           "ttl",
           "mesh/cyclic/iso/actorref only" +
             " (ignored for backpressure):" +
             " hops per chain"
-          where default' = 16)
+          where default' = 16)?
         OptionSpec.string(
           "payload",
           "traced payload kind: string | u64"
-          where default' = "string")
+          where default' = "string")?
         OptionSpec.u64(
           "payload-size",
           "string payload size in bytes" +
             " (>= 1)"
-          where default' = 64)
+          where default' = 64)?
         OptionSpec.string(
           "payload-mode",
           "per-send payload allocation:" +
             " forward | fresh"
-          where default' = "forward")
+          where default' = "forward")?
       ])? .> add_help()?
 
   fun config(cmd: Command): (_Config | String) =>

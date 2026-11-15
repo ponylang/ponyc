@@ -132,56 +132,56 @@ actor Main
           [
             OptionSpec.u64("workers",
               "Number of worker actors in the ring"
-              where default' = 8)
+              where default' = 8)?
             OptionSpec.u64("size",
               "Block size in bytes"
-              where default' = 4096)
+              where default' = 4096)?
             OptionSpec.u64("batch",
               "Blocks per circulating batch"
-              where default' = 128)
+              where default' = 128)?
             OptionSpec.u64("scratch",
               "Own blocks a worker leaves in its cache each cycle"
-              where default' = 32)
+              where default' = 32)?
             OptionSpec.u64("tokens",
               "Circulating batches per worker"
-              where default' = 2)
+              where default' = 2)?
             OptionSpec.u64("total",
               "Total batches to process"
-              where default' = 1_000_000)
+              where default' = 1_000_000)?
             OptionSpec.u64("floor",
               "Per-class cache floor override; 0 keeps the profile's"
-              where default' = 0)
+              where default' = 0)?
             OptionSpec.u64("span",
               "Immediate-decommit span override, in arena units; 0 keeps"
-              where default' = 0)
+              where default' = 0)?
             OptionSpec.u64("thresh",
               "Dirty-sweep threshold override, in arena units; 0 keeps"
-              where default' = 0)
+              where default' = 0)?
             OptionSpec.u64("budget",
               "Per-class cache byte budget override; 0 keeps the profile's"
-              where default' = 0)
+              where default' = 0)?
             OptionSpec.u64("retain",
               "Large-retention byte budget override; absent keeps the"
               + " profile's, 0 forces retention off"
-              where default' = U64.max_value())
+              where default' = U64.max_value())?
             OptionSpec.u64("size2",
               "Alternate circulating batches between --size and this;"
               + " 0 = off"
-              where default' = 0)
+              where default' = 0)?
             OptionSpec.u64("grow",
               "Realloc doublings per scratch iteration; 0 = off"
-              where default' = 0)
+              where default' = 0)?
             OptionSpec.u64("grow-once",
               "One realloc per worker from --size to this target, then all"
               + " churn at the target; 0 = off"
-              where default' = 0)
+              where default' = 0)?
             OptionSpec.u64("seed",
               "One-shot cold block per worker, this many bytes; 0 = off"
-              where default' = 0)
+              where default' = 0)?
             OptionSpec.bool("pipeline",
               "Two workers: worker 0 allocates the batch, worker 1 frees"
               + " it; scratch still runs on both"
-              where default' = false)
+              where default' = false)?
           ],
           [])?.>add_help()?
       let cmd =

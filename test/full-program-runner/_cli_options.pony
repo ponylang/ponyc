@@ -71,57 +71,57 @@ primitive _CliOptions
             OptionSpec.string(
               _compiler_path(),
               "Path to the ponyc binary"
-              where short' = 'c', default' = "ponyc")
+              where short' = 'c', default' = "ponyc")?
             OptionSpec.string(
               _str_output(),
               "Output directory for test programs"
-              where short' = 'o', default' = ".")
+              where short' = 'o', default' = ".")?
             OptionSpec.string(
               _str_pony_path(),
               "Path to pass to ponyc --path"
-              where short' = 'p', default' = "")
+              where short' = 'p', default' = "")?
             OptionSpec.string(
               _str_test_lib(),
               "Directory containing the additional test libraries"
-              where short' = 'L', default' = "test_lib")
+              where short' = 'L', default' = "test_lib")?
             OptionSpec.u64(
               _str_timeout_s(),
               "Timeout (in seconds) for any one test"
-              where short' = 't', default' = 60)
+              where short' = 't', default' = 60)?
             OptionSpec.bool(
               _str_debug(),
               "Whether to compile in debug mode"
-              where short' = 'd', default' = false)
+              where short' = 'd', default' = false)?
             OptionSpec.bool(
               _str_thin_lto(),
               "Whether to compile with --thin-lto"
-              where default' = false)
+              where default' = false)?
             OptionSpec.string(
               _str_debugger(),
               "Debugger to use when running"
-              where short' = 'g', default' = "")
+              where short' = 'g', default' = "")?
             OptionSpec.bool(
               _str_verbose(),
               "Whether to print more progress info"
-              where short' = 'v', default' = false)
+              where short' = 'v', default' = false)?
             OptionSpec.u64(
               _str_max_parallel(),
               "Maximum number of tests to run in parallel"
-              where short' = 'P', default' = 1)
+              where short' = 'P', default' = 1)?
             OptionSpec.string(
               _str_only(),
               "Comma-separated list of test names to run"
-              where short' = 'O', default' = "")
+              where short' = 'O', default' = "")?
             OptionSpec.string(
               _str_exclude(),
               "Comma-separated list of directories to exclude"
-              where short' = 'e', default' = "")
+              where short' = 'e', default' = "")?
           ],
           [
             ArgSpec.string(
               "test_path",
               "Directory containing test directories"
-              where default' = ".")
+              where default' = ".")?
           ])? .> add_help()?
       end
 
