@@ -41,6 +41,7 @@ actor \nodoc\ Main is TestList
     test(_TestCountU32)
     test(_TestCountDecodeOverflow)
     test(_TestConditional)
+    test(_TestConditionalEncode)
     test(_TestSkipBits)
     test(_TestVariableSize)
     test(_TestVariableSizeRoundtrip)
@@ -710,6 +711,49 @@ class \nodoc\ iso _TestConditional is UnitTest
       h.assert_eq[USize](0, c)
     else
       h.fail("decode absent failed")
+    end
+
+class \nodoc\ iso _TestConditionalEncode is UnitTest
+  fun name(): String => "binary_codec/Conditional/encode"
+
+  fun apply(h: TestHelper) =>
+    // flag=true, value present: roundtrip succeeds
+    let present = Conditional[U8](true, U8Codec)
+    match \exhaustive\ present.encode(U8(0x42))
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](1, encoded.size())
+      match \exhaustive\ present.decode(encoded, 0)
+      | (let v: (U8 | None), _) =>
+        match v
+        | let u: U8 => h.assert_eq[U8](0x42, u)
+        else h.fail("roundtrip: expected U8")
+        end
+      | let e: DecodeError => h.fail("decode failed: " + e.string())
+      end
+    | let e: EncodeError => h.fail("encode present failed: " + e.string())
+    end
+
+    // flag=false, value=None: encodes zero bytes
+    let absent = Conditional[U8](false, U8Codec)
+    match \exhaustive\ absent.encode(None)
+    | let encoded: Array[U8] val =>
+      h.assert_eq[USize](0, encoded.size())
+    | let e: EncodeError =>
+      h.fail("encode absent None failed: " + e.string())
+    end
+
+    // flag=true, value=None: EncodeViolation
+    match \exhaustive\ present.encode(None)
+    | let _: Array[U8] val =>
+      h.fail("expected EncodeError for flag=true, value=None")
+    | let _: EncodeError => None
+    end
+
+    // flag=false, value present: EncodeViolation
+    match \exhaustive\ absent.encode(U8(0x42))
+    | let _: Array[U8] val =>
+      h.fail("expected EncodeError for flag=false, value present")
+    | let _: EncodeError => None
     end
 
 class \nodoc\ iso _TestSkipBits is UnitTest

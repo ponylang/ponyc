@@ -206,7 +206,11 @@ class val Conditional[A: Any val] is Codec[(A | None)]
         return EncodeViolation("Value present but flag is false")
       end
       _codec._encode_bits(a, writer)
-    | None => writer
+    | None =>
+      if _flag then
+        return EncodeViolation("Flag is true but value is None")
+      end
+      writer
     end
 
 class val SkipBits is Codec[None]
