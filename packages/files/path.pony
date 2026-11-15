@@ -87,7 +87,9 @@ primitive Path
     kept: `clean("../../a")` is `"../../a"`.
     A leading `//` (exactly two separators) is preserved as a network path
     prefix per POSIX; three or more leading separators collapse to one.
-    The result will have no trailing slash unless it is a root directory.
+    The result will have no trailing slash unless it is the bare `"/"` root.
+    A volume root like `"//h/s/"` or `"C:/"` is normalized to the bare
+    volume form (`"//h/s"`, `"C:"`); use `volume()` to detect these.
     If the result would be empty, `"."` will be returned instead.
     """
     let s = recover String(path.size()) end
@@ -253,8 +255,12 @@ primitive Path
 
   fun rel(to: String, target: String): String ? =>
     """
-    Returns a path such that Path.join(to, Path.rel(to, target)) == target.
-    Raises an error if this isn't possible.
+    Returns a relative path from `to` to `target` such that
+    `Path.join(to, Path.rel(to, target)) == Path.clean(target)`.
+    Both arguments are cleaned before comparison, so syntactic
+    differences that `clean` removes (trailing slashes, `.` components)
+    do not affect the result. Raises an error when no relative path
+    exists (e.g. different volumes).
     """
     var to_clean = clean(to)
     var target_clean = clean(target)
