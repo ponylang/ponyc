@@ -263,6 +263,10 @@ primitive Path
       return "."
     end
 
+    if to_clean == "." then
+      return target_clean
+    end
+
     ifdef windows then
       to_clean = abs(to_clean)
       target_clean = abs(target_clean)

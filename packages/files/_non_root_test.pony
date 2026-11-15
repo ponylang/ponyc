@@ -521,6 +521,34 @@ class \nodoc\ iso _TestPathRel is UnitTest
     // Network volume vs no volume
     h.assert_error({()? => Path.rel("//h/s/a", "/b")? })
 
+    // Base of "." — target is already relative to current directory
+    let rd1 = Path.rel(".", "a")?
+    h.assert_eq[String](rd1, "a")
+    h.assert_eq[String](Path.join(".", rd1), "a")
+
+    let rd2 = Path.rel(".", "a/b")?
+    h.assert_eq[String](rd2, "a/b")
+    h.assert_eq[String](Path.join(".", rd2), "a/b")
+
+    // Base of "" cleans to "."
+    let rd3 = Path.rel("", "a")?
+    h.assert_eq[String](rd3, "a")
+
+    // Base of "." with ".." in target
+    let rd4 = Path.rel(".", "../a")?
+    h.assert_eq[String](rd4, "../a")
+    h.assert_eq[String](Path.clean(Path.join(".", rd4)), Path.clean("../a"))
+
+    // Base of "." with absolute target
+    let rd5 = Path.rel(".", "/a/b")?
+    h.assert_eq[String](rd5, "/a/b")
+    h.assert_eq[String](Path.join(".", rd5), "/a/b")
+
+    // Non-trivial base that cleans to "."
+    let rd6 = Path.rel("foo/..", "a")?
+    h.assert_eq[String](rd6, "a")
+    h.assert_eq[String](Path.join("foo/..", rd6), "a")
+
 class \nodoc\ iso _TestPathSplit is UnitTest
   fun name(): String => "files/Path.split"
 
