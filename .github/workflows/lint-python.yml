@@ -2,13 +2,10 @@ name: Lint Python Scripts
 
 on:
   pull_request:
-    # Both jobs (`lint` for .ci-scripts, `lint-rt-stress` for test/rt-stress)
-    # run whenever either tree changes. A PR touching only one still runs the
-    # other's ruff pass over an unchanged tree -- a couple of seconds, not
-    # worth splitting the workflow to avoid.
     paths:
       - '.ci-scripts/**'
       - 'test/rt-stress/**'
+      - 'test/mutation-reports/**'
       - '.github/workflows/lint-python.yml'
 
 concurrency:
@@ -33,13 +30,13 @@ jobs:
           args: check .ci-scripts
 
   lint-rt-stress:
-    name: Lint rt-stress
+    name: Lint test scripts
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Check Python files under test/rt-stress/
+      - name: Check Python test scripts
         # ruff 0.15.12
         uses: docker://ghcr.io/astral-sh/ruff@sha256:e42f3866bb9f701dbc459cdec3f5aca06511e6a38e6e04bfd4d04a2be26d4fd4
         with:
-          args: check test/rt-stress
+          args: check test/rt-stress test/mutation-reports

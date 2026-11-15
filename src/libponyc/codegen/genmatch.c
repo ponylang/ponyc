@@ -284,7 +284,8 @@ static bool check_value(compile_t* c, ast_t* pattern, ast_t* param_type,
   if(r_value == NULL)
     return false;
 
-  LLVMValueRef result = gen_pattern_eq(c, pattern, r_value);
+  LLVMValueRef result = gen_pattern_eq(c, pattern, r_value,
+    next_block != NULL);
 
   if(result == NULL)
     return false;

@@ -1152,6 +1152,7 @@ static bool add_comparable(ast_t* ast, pass_opt_t* opt)
     // This won't be done when we catch up the passes since we've already
     // processed that type.
     ast_setdata(eq, ast);
+    ast_setflag(eq, AST_FLAG_SYNTHESIZED);
     ast_append(members, eq);
     ast_set(ast, stringtab(opt->strtab, "eq"), eq, SYM_DEFINED, false,
       opt->strtab);
@@ -1185,6 +1186,7 @@ static bool add_comparable(ast_t* ast, pass_opt_t* opt)
     // This won't be done when we catch up the passes since we've already
     // processed that type.
     ast_setdata(ne, ast);
+    ast_setflag(ne, AST_FLAG_SYNTHESIZED);
     ast_append(members, ne);
     ast_set(ast, stringtab(opt->strtab, "ne"), ne, SYM_DEFINED, false,
       opt->strtab);

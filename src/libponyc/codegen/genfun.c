@@ -1,4 +1,5 @@
 #include "genfun.h"
+#include "genmutate.h"
 #include "genname.h"
 #include "gencall.h"
 #include "gentrace.h"
@@ -583,11 +584,28 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
       } else {
         LLVMValueRef ret = gen_assign_cast(c, r_type, value, body_type);
 
+        if(ret == NULL)
+        {
+          ast_free_unattached(body_type);
+          ast_free_unattached(r_result);
+          return false;
+        }
+
+        if(c->opt->mutate)
+        {
+          bool suppress_rvr = false;
+
+          // Compiler-generated eq/ne on primitives are not user code and
+          // their mutant records land on the wrong source line.
+          if(ast_checkflag(m->fun->ast, AST_FLAG_SYNTHESIZED))
+            suppress_rvr = true;
+
+          if(!suppress_rvr)
+            ret = mutate_rvr(c, body, ret, r_result, body_type);
+        }
+
         ast_free_unattached(body_type);
         ast_free_unattached(r_result);
-
-        if(ret == NULL)
-          return false;
 
         codegen_scope_lifetime_end(c);
         codegen_debugloc(c, ast_childlast(body));
