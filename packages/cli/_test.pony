@@ -9,6 +9,7 @@ actor \nodoc\ Main is TestList
     test(_TestBadArgName)
     test(_TestBadName)
     test(_TestBadOptionName)
+    test(_TestBoolFormat)
     test(_TestBools)
     test(_TestChat)
     test(_TestDefaults)
@@ -396,6 +397,80 @@ class \nodoc\ iso _TestIntegerFormat is UnitTest
     | let se: SyntaxError => None
     else
       h.fail("U64 env var should reject underscores")
+    end
+
+class \nodoc\ iso _TestBoolFormat is UnitTest
+  fun name(): String => "cli/bool_format"
+
+  fun apply(h: TestHelper) ? =>
+    let bool_opt_spec =
+      CommandSpec.leaf(
+        "app",
+        "",
+        [OptionSpec.bool("flag", "" where short' = 'f', default' = false)?])?
+    let bool_arg_spec =
+      CommandSpec.leaf(
+        "app",
+        "",
+        Array[OptionSpec](),
+        [ArgSpec.bool("b", "" where default' = false)?])?
+
+    let bad_inputs: Array[String] =
+      ["TRUE"; "FALSE"; "True"; "False"; "tRuE"; "fAlSe"; "YES"; "NO"; "1"; "0"]
+
+    for input in bad_inputs.values() do
+      match CommandParser(bool_opt_spec).parse(["app"; "--flag=" + input])
+      | let se: SyntaxError => None
+      else
+        h.fail("Bool option should reject: " + input)
+      end
+
+      match CommandParser(bool_arg_spec).parse(["app"; input])
+      | let se: SyntaxError => None
+      else
+        h.fail("Bool positional arg should reject: " + input)
+      end
+    end
+
+    // Valid lowercase inputs
+    let cmd1 =
+      CommandParser(bool_opt_spec).parse(["app"; "--flag=true"]) as Command
+    h.assert_eq[Bool](true, cmd1.option("flag").bool())
+
+    let cmd2 =
+      CommandParser(bool_opt_spec).parse(["app"; "--flag=false"]) as Command
+    h.assert_eq[Bool](false, cmd2.option("flag").bool())
+
+    let cmd3 =
+      CommandParser(bool_arg_spec).parse(["app"; "true"]) as Command
+    h.assert_eq[Bool](true, cmd3.arg("b").bool())
+
+    let cmd4 =
+      CommandParser(bool_arg_spec).parse(["app"; "false"]) as Command
+    h.assert_eq[Bool](false, cmd4.arg("b").bool())
+
+    // Bool option without explicit value defaults to true
+    let cmd5 =
+      CommandParser(bool_opt_spec).parse(["app"; "--flag"]) as Command
+    h.assert_eq[Bool](true, cmd5.option("flag").bool())
+
+    // Env var with bad input
+    let env_spec =
+      CommandSpec.leaf(
+        "app",
+        "",
+        [OptionSpec.bool("flag", "" where short' = 'f', default' = false)?])?
+
+    match CommandParser(env_spec).parse(["app"], ["APP_FLAG=TRUE"])
+    | let se: SyntaxError => None
+    else
+      h.fail("Bool env var should reject uppercase TRUE")
+    end
+
+    match CommandParser(env_spec).parse(["app"], ["APP_FLAG=True"])
+    | let se: SyntaxError => None
+    else
+      h.fail("Bool env var should reject mixed-case True")
     end
 
 class \nodoc\ iso _TestFloatFormat is UnitTest
