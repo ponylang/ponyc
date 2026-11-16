@@ -18,7 +18,7 @@ void mutate_cleanup(mutate_state_t* state);
 int32_t mutate_next_id(mutate_state_t* state);
 
 void mutate_record(mutate_state_t* state, int32_t id,
-  const char* file, size_t line, size_t column,
+  const char* file, size_t line, size_t column, size_t end_column,
   const char* category, const char* original,
   const char* replacement, int32_t coverage_counter);
 
@@ -26,7 +26,7 @@ void mutate_record(mutate_state_t* state, int32_t id,
 // Each distinct mutant has its own counter. owner is the implementing type
 // definition; shared marks generic sites, including single instantiations.
 int32_t mutate_find_or_record(mutate_state_t* state, ast_t* owner, bool shared,
-  const char* file, size_t line, size_t column,
+  const char* file, size_t line, size_t column, size_t end_column,
   const char* category, const char* original,
   const char* replacement, int32_t* out_coverage);
 

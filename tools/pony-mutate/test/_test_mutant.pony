@@ -18,6 +18,25 @@ class \nodoc\ _TestMutantDescription is UnitTest
       mutate.Mutant(1, 0, "f.pony", 1, 1, "ror", "==", "!=")
     h.assert_eq[String]("ror == -> !=", m.description())
 
+class \nodoc\ _TestMutantEndColumnDefault is UnitTest
+  fun name(): String =>
+    "Mutant: end_column defaults to column + 1 when omitted"
+
+  fun apply(h: TestHelper) =>
+    let m =
+      mutate.Mutant(1, 0, "f.pony", 10, 5, "aor", "+", "-")
+    h.assert_eq[USize](6, m.end_column)
+
+class \nodoc\ _TestMutantEndColumnExplicit is UnitTest
+  fun name(): String =>
+    "Mutant: end_column stores explicit value"
+
+  fun apply(h: TestHelper) =>
+    let m =
+      mutate.Mutant(
+        1, 0, "f.pony", 10, 5, "ror", "==", "!=", None, 7)
+    h.assert_eq[USize](7, m.end_column)
+
 class \nodoc\ _TestMutantOutcomeLtByFile is UnitTest
   fun name(): String => "MutantOutcome: sorts by file first"
 

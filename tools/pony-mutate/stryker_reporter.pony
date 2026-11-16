@@ -119,7 +119,7 @@ primitive StrykerReporter is Reporter
         buf.append("            \"end\": {\"line\": ")
         buf.append(e.mutant.line.string())
         buf.append(", \"column\": ")
-        buf.append((e.mutant.column + 1).string())
+        buf.append(e.mutant.end_column.string())
         buf.append("}\n")
         buf.append("          },\n")
         buf.append("          \"status\": ")
