@@ -270,6 +270,7 @@ actor Runner
 class iso _BaselineNotify is ProcessNotify
   let _runner: Runner tag
   let _start_ns: U64
+  var _done: Bool = false
 
   new iso create(runner: Runner tag, start_ns: U64) =>
     _runner = runner
@@ -279,6 +280,8 @@ class iso _BaselineNotify is ProcessNotify
     process: ProcessMonitor ref,
     child_exit_status: ProcessExitStatus)
   =>
+    if _done then return end
+    _done = true
     let elapsed = Time.nanos() - _start_ns
     let code: I32 =
       match \exhaustive\ child_exit_status
@@ -288,5 +291,7 @@ class iso _BaselineNotify is ProcessNotify
     _runner._baseline_done(code, elapsed)
 
   fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
+    if _done then return end
+    _done = true
     let elapsed = Time.nanos() - _start_ns
     _runner._baseline_done(-1, elapsed)
