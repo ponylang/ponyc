@@ -72,6 +72,9 @@ actor Runner
     end
 
   fun ref _run_baseline() =>
+    // Remove any stale coverage file so only data from this baseline is used.
+    FilePath(FileAuth(_env.root), _binary_path.path + ".coverage").remove()
+
     let notifier = _BaselineNotify(this, Time.nanos())
     let vars = _strip_mutant_id(_base_vars)
     match \exhaustive\ StartProcess(
