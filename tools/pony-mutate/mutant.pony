@@ -63,7 +63,13 @@ primitive MutantTimedOut
   The mutant run exceeded the timeout.
   """
 
-type MutantResult is (MutantKilled | MutantSurvived | MutantTimedOut)
+primitive MutantSpawnError
+  """
+  The worker could not launch the mutant process.
+  """
+
+type MutantResult is
+  (MutantKilled | MutantSurvived | MutantTimedOut | MutantSpawnError)
 
 class val MutantOutcome is Comparable[MutantOutcome]
   """

@@ -44,8 +44,7 @@ class iso _MutantNotify is ProcessNotify
   fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
     if _done then return end
     _done = true
-    let elapsed = Time.nanos() - _start_ns
-    _worker._done(MutantOutcome(_mutant, MutantKilled, elapsed))
+    _worker._done(MutantOutcome(_mutant, MutantSpawnError, 0))
 
 actor _Worker
   """
@@ -112,7 +111,7 @@ actor _Worker
         _timers(consume timer)
       end
     | let err: ProcessError =>
-      _done(MutantOutcome(mutant, MutantKilled, 0))
+      _done(MutantOutcome(mutant, MutantSpawnError, 0))
     end
 
   be _timeout(gen: U64) =>

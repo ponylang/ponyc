@@ -159,6 +159,7 @@ primitive StrykerReporter is Reporter
     | MutantKilled => "Killed"
     | MutantSurvived => "Survived"
     | MutantTimedOut => "Timeout"
+    | MutantSpawnError => "RuntimeError"
     end
 
   fun _escape(s: String val, env: Env, path: String val): String val ? =>

@@ -38,5 +38,5 @@ remain readable as UTF-8 text at the paths recorded in the info file.
 |------|---------|
 | 0    | All mutants were killed (or none to run). |
 | 1    | One or more mutants survived — test gaps detected. |
-| 2    | Error: bad arguments, baseline failure, I/O error. |
+| 2    | Error: bad arguments, baseline failure, spawn error, I/O error. |
 """

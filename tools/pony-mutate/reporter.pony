@@ -31,6 +31,7 @@ primitive TerminalReporter is Reporter
     var killed: USize = 0
     var survived: USize = 0
     var timed_out: USize = 0
+    var spawn_errors: USize = 0
     let survived_list = Array[MutantOutcome]
 
     for o in outcomes.values() do
@@ -40,11 +41,12 @@ primitive TerminalReporter is Reporter
         survived = survived + 1
         survived_list.push(o)
       | MutantTimedOut => timed_out = timed_out + 1
+      | MutantSpawnError => spawn_errors = spawn_errors + 1
       end
     end
 
-    let tested = outcomes.size()
-    let total = tested + no_coverage.size()
+    let tested = killed + survived + timed_out
+    let total = tested + spawn_errors + no_coverage.size()
     let score =
       if tested > 0 then
         (((killed + timed_out).f64() / tested.f64()) * 1000.0).u64()
@@ -68,6 +70,11 @@ primitive TerminalReporter is Reporter
     env.out.print(
       "Timed out:      " + timed_out.string() +
         " (" + _pct(timed_out, total) + ")")
+    if spawn_errors > 0 then
+      env.out.print(
+        "Spawn errors:   " + spawn_errors.string() +
+          " (" + _pct(spawn_errors, total) + ")")
+    end
     if no_coverage.size() > 0 then
       env.out.print(
         "No coverage:    " + no_coverage.size().string() +
