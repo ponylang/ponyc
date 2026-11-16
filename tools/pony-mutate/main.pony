@@ -35,10 +35,9 @@ actor Main
               "operators",
               "Comma-separated mutation categories to run"
               where default' = "")?
-            OptionSpec.string(
+            OptionSpec.string_seq(
               "scope",
-              "Filter mutants to this source file path"
-              where default' = "")?
+              "Filter mutants to source file paths (repeatable)")?
             OptionSpec.u64(
               "test-maxthreads",
               "Set --ponymaxthreads for the test binary (0 = omit flag)"
@@ -96,11 +95,10 @@ actor Main
       let ops_str = cmd.option("operators").string()
       let ops_filter: (String val | None) =
         if ops_str.size() > 0 then ops_str else None end
-      let scope_str = cmd.option("scope").string()
-      let scope_filter: (String val | None) =
-        if scope_str.size() > 0 then scope_str else None end
 
-      let mutants = InfoFile.filter(all_mutants, ops_filter, scope_filter)
+      let mutants =
+        InfoFile.filter(
+          all_mutants, ops_filter, cmd.option("scope").string_seq())
 
       env.err.print(
         "Loaded " + all_mutants.size().string() + " mutants from " +

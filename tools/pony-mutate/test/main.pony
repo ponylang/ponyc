@@ -38,3 +38,7 @@ actor \nodoc\ Main is TestList
     test(_TestInfoFileFilterByScopeLineRange)
     test(_TestInfoFileFilterByScopeLineRangeNoMatch)
     test(_TestInfoFileFilterByScopeLineWithOperator)
+    test(_TestInfoFileFilterByMultipleScopes)
+    test(_TestInfoFileFilterByMultipleScopesExcludes)
+    test(_TestInfoFileFilterByMultipleScopesWithOperator)
+    test(_TestInfoFileFilterByMultipleScopesWithLines)
