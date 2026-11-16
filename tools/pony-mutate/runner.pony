@@ -29,6 +29,7 @@ actor Runner
   var _completed: USize = 0
   var _active: USize = 0
   var _baseline_ns: U64 = 0
+  var _baseline_vars: Array[String] val = recover val Array[String] end
   var _workers: Array[_Worker tag]
 
   new create(
@@ -77,6 +78,7 @@ actor Runner
 
     let notifier = _BaselineNotify(this, Time.nanos())
     let vars = _strip_mutant_id(_base_vars)
+    _baseline_vars = vars
     match \exhaustive\ StartProcess(
       _sp_auth,
       _bp_auth,
@@ -92,11 +94,17 @@ actor Runner
       _env.exitcode(1)
     end
 
-  be _baseline_done(exit_code: I32, duration_ns: U64) =>
+  be _baseline_done(
+    exit_code: I32,
+    duration_ns: U64,
+    child_stdout: String val,
+    child_stderr: String val)
+  =>
     if exit_code != 0 then
       _env.err.print(
         "error: baseline run failed (exit " + exit_code.string() +
           "). The test suite must pass before mutation testing.")
+      _print_baseline_diagnostics(child_stdout, child_stderr)
       _env.exitcode(1)
       return
     end
@@ -270,26 +278,79 @@ actor Runner
       (secs + 0.5).u64().string() + "s"
     end
 
+  fun _print_baseline_diagnostics(
+    child_stdout: String val,
+    child_stderr: String val)
+  =>
+    let err = _env.err
+    err.print("")
+    err.print("Command:")
+    let cmd =
+      recover val
+        let s = String
+        for (i, arg) in _args.pairs() do
+          if i > 0 then s.push(' ') end
+          s.append(arg)
+        end
+        s
+      end
+    err.print("  " + cmd)
+
+    err.print("")
+    err.print("Environment:")
+    for v in _baseline_vars.values() do
+      err.print("  " + v)
+    end
+
+    if child_stdout.size() > 0 then
+      err.print("")
+      err.print("stdout:")
+      err.print(child_stdout)
+    end
+
+    if child_stderr.size() > 0 then
+      err.print("")
+      err.print("stderr:")
+      err.print(child_stderr)
+    end
+
 class iso _BaselineNotify is ProcessNotify
   let _runner: Runner tag
   let _start_ns: U64
+  var _stdout: Array[U8] iso = recover iso Array[U8] end
+  var _stderr: Array[U8] iso = recover iso Array[U8] end
+  var _reported: Bool = false
 
   new iso create(runner: Runner tag, start_ns: U64) =>
     _runner = runner
     _start_ns = start_ns
 
+  fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
+    _stdout.append(consume data)
+
+  fun ref stderr(process: ProcessMonitor ref, data: Array[U8] iso) =>
+    _stderr.append(consume data)
+
   fun ref dispose(
     process: ProcessMonitor ref,
     child_exit_status: ProcessExitStatus)
   =>
+    if _reported then return end
+    _reported = true
     let elapsed = Time.nanos() - _start_ns
     let code: I32 =
       match \exhaustive\ child_exit_status
       | let exited: Exited => exited.exit_code()
       | let signaled: Signaled => -1
       end
-    _runner._baseline_done(code, elapsed)
+    let out = String.from_iso_array(_stdout = recover iso Array[U8] end)
+    let err = String.from_iso_array(_stderr = recover iso Array[U8] end)
+    _runner._baseline_done(code, elapsed, consume out, consume err)
 
   fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
+    if _reported then return end
+    _reported = true
     let elapsed = Time.nanos() - _start_ns
-    _runner._baseline_done(-1, elapsed)
+    let out = String.from_iso_array(_stdout = recover iso Array[U8] end)
+    let err' = String.from_iso_array(_stderr = recover iso Array[U8] end)
+    _runner._baseline_done(-1, elapsed, consume out, consume err')

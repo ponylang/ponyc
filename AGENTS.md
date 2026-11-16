@@ -84,6 +84,7 @@ Run individual tests by name:
 - `ctest --preset debug -R mutation-runner` — end-to-end test of the `pony-mutate` runner tool (scope filtering, operator filtering, terminal report)
 - `ctest --preset debug -R mutation-reports` — controlled reporter output and CLI report-file tests (requires Python 3)
 - `ctest --preset debug -R mutation-scope-check` — verifies `--mutate-scope` rejects file patterns that match no source file
+- `ctest --preset debug -R mutation-baseline-fail` — verifies `pony-mutate` prints diagnostic output when the baseline run fails
 
 Validate reports against the pinned Stryker schema after running `mutation-reports`:
 

@@ -10,6 +10,7 @@ class iso _MutantNotify is ProcessNotify
   let _worker: _Worker tag
   let _mutant: Mutant
   let _start_ns: U64
+  var _reported: Bool = false
 
   new iso create(
     worker: _Worker tag,
@@ -24,6 +25,8 @@ class iso _MutantNotify is ProcessNotify
     process: ProcessMonitor ref,
     child_exit_status: ProcessExitStatus)
   =>
+    if _reported then return end
+    _reported = true
     let elapsed = Time.nanos() - _start_ns
     let result: MutantResult =
       match \exhaustive\ child_exit_status
@@ -39,6 +42,8 @@ class iso _MutantNotify is ProcessNotify
     _worker._done(MutantOutcome(_mutant, result, elapsed))
 
   fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
+    if _reported then return end
+    _reported = true
     let elapsed = Time.nanos() - _start_ns
     _worker._done(MutantOutcome(_mutant, MutantKilled, elapsed))
 
