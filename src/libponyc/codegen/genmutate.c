@@ -1325,6 +1325,82 @@ static bool is_string_return(ast_t* type)
     "builtin") == 0;
 }
 
+// Find a descendant of `ast` that carries a nonzero source length from the
+// lexer. Parser-synthesized nodes (TK_SEQ, TK_CALL, TK_REFERENCE, etc.)
+// have ast_len()==0, but their children often hold the original token with
+// position and length intact.
+static ast_t* find_span_anchor(ast_t* ast)
+{
+  if(ast == NULL)
+    return NULL;
+
+  switch(ast_id(ast))
+  {
+    case TK_CALL:
+    {
+      // TK_CALL's first child is TK_FUNREF/TK_BEREF/etc.
+      ast_t* postfix = ast_child(ast);
+      if(postfix == NULL)
+        return NULL;
+
+      // Try the method name (second child of postfix).
+      ast_t* method = ast_childidx(postfix, 1);
+      if((method != NULL) && (ast_id(method) == TK_ID)
+        && (ast_len(method) > 0))
+        return method;
+
+      // Synthesized apply — use the receiver instead.
+      return find_span_anchor(ast_child(postfix));
+    }
+
+    case TK_FUNREF:
+    case TK_BEREF:
+    case TK_NEWREF:
+    case TK_NEWBEREF:
+    {
+      ast_t* method_name = ast_childidx(ast, 1);
+      if((method_name != NULL) && (ast_id(method_name) == TK_ID)
+        && (ast_len(method_name) > 0))
+        return method_name;
+      return find_span_anchor(ast_child(ast));
+    }
+
+    case TK_FLETREF:
+    case TK_FVARREF:
+    case TK_EMBEDREF:
+    {
+      ast_t* field_name = ast_childidx(ast, 1);
+      if((field_name != NULL) && (ast_len(field_name) > 0))
+        return field_name;
+      return NULL;
+    }
+
+    case TK_REFERENCE:
+    case TK_PARAMREF:
+    case TK_LETREF:
+    case TK_VARREF:
+    {
+      ast_t* name = ast_child(ast);
+      if((name != NULL) && (ast_len(name) > 0))
+        return name;
+      return NULL;
+    }
+
+    case TK_SEQ:
+    {
+      ast_t* last = ast_childlast(ast);
+      return find_span_anchor(last);
+    }
+
+    default:
+    {
+      if(ast_len(ast) > 0)
+        return ast;
+      return NULL;
+    }
+  }
+}
+
 LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
   LLVMValueRef original_value, ast_t* return_type, ast_t* body_type)
 {
@@ -1476,12 +1552,21 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
   if(count == 0)
     return original_value;
 
-  source_t* source = ast_source(ast);
+  ast_t* anchor = ast;
+
+  if(ast_len(ast) == 0)
+  {
+    ast_t* found = find_span_anchor(ast);
+    if(found != NULL)
+      anchor = found;
+  }
+
+  source_t* source = ast_source(anchor);
   const char* file =
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
-  size_t line = ast_line(ast);
-  size_t pos = ast_pos(ast);
-  size_t len = ast_len(ast);
+  size_t line = ast_line(anchor);
+  size_t pos = ast_pos(anchor);
+  size_t len = ast_len(anchor);
   size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
@@ -1553,12 +1638,21 @@ bool mutate_vcr_begin(compile_t* c, ast_t* ast,
   if(!mutate_site_enabled(c, "vcr", ast))
     return false;
 
-  source_t* source = ast_source(ast);
+  ast_t* anchor = ast;
+
+  if(ast_len(ast) == 0)
+  {
+    ast_t* found = find_span_anchor(ast);
+    if(found != NULL)
+      anchor = found;
+  }
+
+  source_t* source = ast_source(anchor);
   const char* file =
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
-  size_t line = ast_line(ast);
-  size_t pos = ast_pos(ast);
-  size_t len = ast_len(ast);
+  size_t line = ast_line(anchor);
+  size_t pos = ast_pos(anchor);
+  size_t len = ast_len(anchor);
   size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t id = record_site(c, file, line, pos, end_col,

@@ -86,7 +86,19 @@ endif()
 
 message(STATUS "PASS: AOR mutant ${_mutant_id} (add->sub) exits 1")
 
-# Pin to _compute's line so another RVR record can't match first.
+# Check that a mutant JSON line has end_column > column + 1 (wider than
+# one column).  Accepts the matched JSON line and a label for diagnostics.
+macro(assert_wider_span _json_line _label)
+    string(REGEX REPLACE ".*\"column\": *([0-9]+).*" "\\1" _col "${_json_line}")
+    string(REGEX REPLACE ".*\"end_column\": *([0-9]+).*" "\\1" _ecol "${_json_line}")
+    math(EXPR _span "${_ecol} - ${_col}")
+    if(_span LESS 2)
+        message(FATAL_ERROR
+            "${_label}: span width ${_span} (col ${_col}..${_ecol}) is not wider than 1\n${_json_line}")
+    endif()
+endmacro()
+
+# Pin to _compute's return expression line.
 execute_process(
     COMMAND grep -n "fun _compute" "${TEST_SRC}/main.pony"
     OUTPUT_VARIABLE _compute_src
@@ -97,7 +109,6 @@ if(NOT _grep_rc EQUAL 0 OR NOT _compute_src)
     message(FATAL_ERROR "could not find 'fun _compute' in test source")
 endif()
 string(REGEX REPLACE "^([0-9]+):.*" "\\1" _compute_lineno "${_compute_src}")
-# The return site is on the line after the fun declaration.
 math(EXPR _rvr_lineno "${_compute_lineno} + 1")
 
 execute_process(
@@ -152,6 +163,7 @@ execute_process(
 if(NOT _grep_rc EQUAL 0 OR NOT _vcr_line)
     message(FATAL_ERROR "could not find vcr call->remove mutant on line ${_vcr_lineno} in JSON")
 endif()
+assert_wider_span("${_vcr_line}" "VCR acc.add")
 
 string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _vcr_id "${_vcr_line}")
 if(NOT _vcr_id MATCHES "^[0-9]+$")
@@ -796,6 +808,7 @@ if(NOT _grep_rc EQUAL 0 OR NOT _vcr_se_line)
     message(FATAL_ERROR
         "could not find vcr call->remove mutant on line ${_vcr_se_lineno} in JSON")
 endif()
+assert_wider_span("${_vcr_se_line}" "VCR acc2.add side-effect")
 
 string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _vcr_se_id "${_vcr_se_line}")
 if(NOT _vcr_se_id MATCHES "^[0-9]+$")
@@ -851,6 +864,7 @@ if(NOT _grep_rc EQUAL 0 OR NOT _vcr_recv_line)
     message(FATAL_ERROR
         "could not find vcr call->remove mutant on line ${_vcr_recv_lineno} in JSON")
 endif()
+assert_wider_span("${_vcr_recv_line}" "VCR _make_recv().add receiver")
 
 string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _vcr_recv_id "${_vcr_recv_line}")
 if(NOT _vcr_recv_id MATCHES "^[0-9]+$")
@@ -903,6 +917,7 @@ if(NOT _grep_rc EQUAL 0 OR NOT _vcr_be_line)
     message(FATAL_ERROR
         "could not find vcr call->remove mutant on line ${_vcr_be_lineno} in JSON")
 endif()
+assert_wider_span("${_vcr_be_line}" "VCR sink.take behaviour")
 
 string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _vcr_be_id "${_vcr_be_line}")
 if(NOT _vcr_be_id MATCHES "^[0-9]+$")
