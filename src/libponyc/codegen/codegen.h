@@ -75,6 +75,7 @@ typedef struct mutant_record_t
   const char* file;
   size_t line;
   size_t column;
+  size_t end_column;
   const char* category;
   const char* original;
   const char* replacement;

@@ -112,14 +112,15 @@ class ReportTests(unittest.TestCase):
                          {str(self.first), str(self.second)})
         text = ''.join(chr(i) for i in range(32)) + '"\\ café'
         expected = {
-            1: (self.first, 1, 1, "Killed"),
-            2: (self.first, 2, 3, "Timeout"),
-            3: (self.second, 1, 2, "Timeout"),
-            4: (self.second, 3, 4, "Survived"),
-            5: (self.first, 2, 1, "Survived"),
-            6: (self.first, 1, 8, "Survived"),
-            7: (self.first, 3, 2, "NoCoverage"),
-            8: (self.second, 2, 4, "NoCoverage"),
+            # (path, line, column, end_column, status)
+            1: (self.first, 1, 1, 2, "Killed"),
+            2: (self.first, 2, 3, 4, "Timeout"),
+            3: (self.second, 1, 2, 3, "Timeout"),
+            4: (self.second, 3, 4, 7, "Survived"),
+            5: (self.first, 2, 1, 2, "Survived"),
+            6: (self.first, 1, 8, 9, "Survived"),
+            7: (self.first, 3, 2, 3, "NoCoverage"),
+            8: (self.second, 2, 4, 5, "NoCoverage"),
         }
         ids = []
         for name, file in data["files"].items():
@@ -128,13 +129,13 @@ class ReportTests(unittest.TestCase):
                     self.assertIsInstance(mutant["id"], str)
                     ident = int(mutant["id"])
                     ids.append(ident)
-                    path, line, column, status = expected[ident]
+                    path, line, column, end_column, status = expected[ident]
                     self.assertEqual(name, str(path))
                     self.assertEqual(mutant["status"], status)
                     self.assertEqual(mutant["location"]["start"],
                                      {"line": line, "column": column})
                     self.assertEqual(mutant["location"]["end"],
-                                     {"line": line, "column": column + 1})
+                                     {"line": line, "column": end_column})
                     self.assertEqual(mutant["replacement"],
                                      text if ident == 1 else "-")
                     self.assertEqual(mutant["mutatorName"],

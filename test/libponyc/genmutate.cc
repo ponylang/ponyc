@@ -122,7 +122,7 @@ TEST_F(GenMutateTest, RecordStoresFields)
 {
   mutate_init(&state);
 
-  mutate_record(&state, 1, "test.pony", 10, 5,
+  mutate_record(&state, 1, "test.pony", 10, 5, 6,
     "arithmetic", "+", "-", 0);
 
   EXPECT_EQ(state.mutant_count, 1u);
@@ -131,6 +131,7 @@ TEST_F(GenMutateTest, RecordStoresFields)
   EXPECT_STREQ(state.mutants[0].file, "test.pony");
   EXPECT_EQ(state.mutants[0].line, 10u);
   EXPECT_EQ(state.mutants[0].column, 5u);
+  EXPECT_EQ(state.mutants[0].end_column, 6u);
   EXPECT_STREQ(state.mutants[0].category, "arithmetic");
   EXPECT_STREQ(state.mutants[0].original, "+");
   EXPECT_STREQ(state.mutants[0].replacement, "-");
@@ -143,7 +144,7 @@ TEST_F(GenMutateTest, RecordGrowsPastInitialAlloc)
   mutate_init(&state);
 
   for(int32_t i = 1; i <= 65; i++)
-    mutate_record(&state, i, "test.pony", (size_t)i, 1,
+    mutate_record(&state, i, "test.pony", (size_t)i, 1, 2,
       "cat", "a", "b", i - 1);
 
   EXPECT_EQ(state.mutant_count, 65u);
@@ -190,7 +191,7 @@ TEST_F(GenMutateTest, WriteInfoEscapesSpecialChars)
   mutate_init(&state);
 
   mutate_record(&state, 1,
-    "path\\with\"special\nchars", 1, 1,
+    "path\\with\"special\nchars", 1, 1, 2,
     "cat\twith\ttabs", "a\rb", "c\\d", 0);
 
   std::string tmpdir = make_temp_dir();
@@ -226,9 +227,9 @@ TEST_F(GenMutateTest, WriteInfoWithMutantRecords)
 {
   mutate_init(&state);
 
-  mutate_record(&state, 1, "foo.pony", 10, 3,
+  mutate_record(&state, 1, "foo.pony", 10, 3, 4,
     "arithmetic", "+", "-", 0);
-  mutate_record(&state, 2, "bar.pony", 20, 7,
+  mutate_record(&state, 2, "bar.pony", 20, 7, 11,
     "conditional", "true", "false", 1);
 
   std::string tmpdir = make_temp_dir();
@@ -250,6 +251,8 @@ TEST_F(GenMutateTest, WriteInfoWithMutantRecords)
   EXPECT_NE(json.find("\"id\": 2"), std::string::npos);
   EXPECT_NE(json.find("\"file\": \"foo.pony\""), std::string::npos);
   EXPECT_NE(json.find("\"category\": \"arithmetic\""), std::string::npos);
+  EXPECT_NE(json.find("\"end_column\": 4"), std::string::npos);
+  EXPECT_NE(json.find("\"end_column\": 11"), std::string::npos);
   EXPECT_NE(json.find("\"coverage_counter\": 0"), std::string::npos);
   EXPECT_NE(json.find("\"coverage_counter\": 1"), std::string::npos);
   EXPECT_NE(json.find("\"type\": null"), std::string::npos);
@@ -264,7 +267,7 @@ TEST_F(GenMutateTest, WriteInfoHandlesLongStrings)
   mutate_init(&state);
 
   std::string long_str(1500, 'x');
-  mutate_record(&state, 1, long_str.c_str(), 1, 1,
+  mutate_record(&state, 1, long_str.c_str(), 1, 1, 2,
     "cat", "a", "b", 0);
 
   std::string tmpdir = make_temp_dir();
@@ -294,7 +297,7 @@ TEST_F(GenMutateTest, FindOrRecordAllocatesNewId)
 
   int32_t out_cov;
   int32_t id = mutate_find_or_record(&state, nullptr, false,
-    "test.pony", 10, 5, "aor", "+", "-", &out_cov);
+    "test.pony", 10, 5, 6, "aor", "+", "-", &out_cov);
 
   EXPECT_EQ(id, 1);
   EXPECT_EQ(out_cov, 0);
@@ -310,12 +313,12 @@ TEST_F(GenMutateTest, FindOrRecordReturnsExistingCoverage)
   state.next_coverage_id = 42;
   int32_t out_cov1;
   mutate_find_or_record(&state, nullptr, false,
-    "test.pony", 10, 5, "aor", "+", "-", &out_cov1);
+    "test.pony", 10, 5, 6, "aor", "+", "-", &out_cov1);
   EXPECT_EQ(out_cov1, 42);
 
   int32_t out_cov2;
   int32_t id2 = mutate_find_or_record(&state, nullptr, false,
-    "test.pony", 10, 5, "aor", "+", "-", &out_cov2);
+    "test.pony", 10, 5, 6, "aor", "+", "-", &out_cov2);
   EXPECT_EQ(id2, 1);
   EXPECT_EQ(out_cov2, 42);
   EXPECT_EQ(state.mutant_count, 1u);
@@ -5842,10 +5845,10 @@ TEST_F(GenMutateTest, MonomorphIdentityDimensions)
   mutate_init(&state);
   int32_t first_cov;
   int32_t first_id = mutate_find_or_record(&state, first, true,
-    "test.pony", 10, 5, "aor", "add", "sub", &first_cov);
+    "test.pony", 10, 5, 8, "aor", "add", "sub", &first_cov);
   int32_t cov;
   EXPECT_EQ(mutate_find_or_record(&state, first, true,
-    "test.pony", 10, 5, "aor", "add", "sub", &cov), first_id);
+    "test.pony", 10, 5, 8, "aor", "add", "sub", &cov), first_id);
   EXPECT_EQ(cov, first_cov);
   EXPECT_EQ(state.mutant_count, 1u);
   EXPECT_EQ(state.next_coverage_id, 1);
@@ -5856,34 +5859,42 @@ TEST_F(GenMutateTest, MonomorphIdentityDimensions)
     const char* file;
     size_t line;
     size_t column;
+    size_t end_column;
     const char* category;
     const char* original;
     const char* replacement;
   };
   key_t keys[] = {
-    {second, "test.pony", 10, 5, "aor", "add", "sub"},
-    {first, "other.pony", 10, 5, "aor", "add", "sub"},
-    {first, "test.pony", 11, 5, "aor", "add", "sub"},
-    {first, "test.pony", 10, 6, "aor", "add", "sub"},
-    {first, "test.pony", 10, 5, "bor", "add", "sub"},
-    {first, "test.pony", 10, 5, "aor", "mul", "sub"},
-    {first, "test.pony", 10, 5, "aor", "add", "mul"}
+    {second, "test.pony", 10, 5, 8, "aor", "add", "sub"},
+    {first, "other.pony", 10, 5, 8, "aor", "add", "sub"},
+    {first, "test.pony", 11, 5, 8, "aor", "add", "sub"},
+    {first, "test.pony", 10, 6, 9, "aor", "add", "sub"},
+    {first, "test.pony", 10, 5, 8, "bor", "add", "sub"},
+    {first, "test.pony", 10, 5, 8, "aor", "mul", "sub"},
+    {first, "test.pony", 10, 5, 8, "aor", "add", "mul"}
   };
   std::set<int32_t> ids = {first_id};
   std::set<int32_t> counters = {first_cov};
   for(auto& key : keys)
   {
     int32_t id = mutate_find_or_record(&state, key.owner, true,
-      key.file, key.line, key.column, key.category, key.original,
-      key.replacement, &cov);
+      key.file, key.line, key.column, key.end_column, key.category,
+      key.original, key.replacement, &cov);
     EXPECT_TRUE(ids.insert(id).second);
     EXPECT_TRUE(counters.insert(cov).second);
     EXPECT_EQ(mutate_find_or_record(&state, key.owner, true,
-      key.file, key.line, key.column, key.category, key.original,
-      key.replacement, &cov), id);
+      key.file, key.line, key.column, key.end_column, key.category,
+      key.original, key.replacement, &cov), id);
   }
   EXPECT_EQ(state.mutant_count, ids.size());
   EXPECT_EQ(state.next_coverage_id, (int32_t)counters.size());
+
+  // end_column is not an identity dimension — varying it alone reuses the id
+  EXPECT_EQ(mutate_find_or_record(&state, first, true,
+    "test.pony", 10, 5, 99, "aor", "add", "sub", &cov), first_id);
+  EXPECT_EQ(cov, first_cov);
+  EXPECT_EQ(state.mutant_count, ids.size());
+
   ast_free(first);
   ast_free(second);
 }
@@ -5896,16 +5907,16 @@ TEST_F(GenMutateTest, MonomorphReplacementEncounterOrders)
     mutate_init(&state);
     int32_t neg_cov, complement_cov;
     int32_t neg = mutate_find_or_record(&state, nullptr, true,
-      "test.pony", 3, 7, "uoi", "result", "neg", &neg_cov);
+      "test.pony", 3, 7, 8, "uoi", "result", "neg", &neg_cov);
     if(integer_first)
       mutate_find_or_record(&state, nullptr, true,
-        "test.pony", 3, 7, "uoi", "result", "complement", &complement_cov);
+        "test.pony", 3, 7, 8, "uoi", "result", "complement", &complement_cov);
     int32_t reused_cov;
     EXPECT_EQ(mutate_find_or_record(&state, nullptr, true,
-      "test.pony", 3, 7, "uoi", "result", "neg", &reused_cov), neg);
+      "test.pony", 3, 7, 8, "uoi", "result", "neg", &reused_cov), neg);
     EXPECT_EQ(reused_cov, neg_cov);
     int32_t complement = mutate_find_or_record(&state, nullptr, true,
-      "test.pony", 3, 7, "uoi", "result", "complement", &complement_cov);
+      "test.pony", 3, 7, 8, "uoi", "result", "complement", &complement_cov);
     EXPECT_NE(neg, complement);
     EXPECT_NE(neg_cov, complement_cov);
     EXPECT_EQ(state.mutant_count, 2u);
@@ -5919,9 +5930,9 @@ TEST_F(GenMutateTest, MonomorphSharedJson)
 {
   mutate_init(&state);
   mutate_find_or_record(&state, nullptr, true,
-    "generic.pony", 3, 7, "uoi", "result", "neg", nullptr);
+    "generic.pony", 3, 7, 8, "uoi", "result", "neg", nullptr);
   mutate_find_or_record(&state, nullptr, false,
-    "concrete.pony", 8, 4, "uoi", "result", "neg", nullptr);
+    "concrete.pony", 8, 4, 5, "uoi", "result", "neg", nullptr);
   std::string tmpdir = make_temp_dir();
   ASSERT_TRUE(mutate_write_info(&state, tmpdir.c_str(), "test"));
   std::string path = make_path(tmpdir, "test.mutants.json");

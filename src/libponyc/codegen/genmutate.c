@@ -72,7 +72,7 @@ int32_t mutate_next_id(mutate_state_t* state)
 }
 
 void mutate_record(mutate_state_t* state, int32_t id,
-  const char* file, size_t line, size_t column,
+  const char* file, size_t line, size_t column, size_t end_column,
   const char* category, const char* original,
   const char* replacement, int32_t coverage_counter)
 {
@@ -96,6 +96,7 @@ void mutate_record(mutate_state_t* state, int32_t id,
   r->file = file;
   r->line = line;
   r->column = column;
+  r->end_column = end_column;
   r->category = category;
   r->original = original;
   r->replacement = replacement;
@@ -103,7 +104,7 @@ void mutate_record(mutate_state_t* state, int32_t id,
 }
 
 int32_t mutate_find_or_record(mutate_state_t* state, ast_t* owner, bool shared,
-  const char* file, size_t line, size_t column,
+  const char* file, size_t line, size_t column, size_t end_column,
   const char* category, const char* original,
   const char* replacement, int32_t* out_coverage)
 {
@@ -125,7 +126,7 @@ int32_t mutate_find_or_record(mutate_state_t* state, ast_t* owner, bool shared,
 
   int32_t id = mutate_next_id(state);
   int32_t coverage_counter = state->next_coverage_id++;
-  mutate_record(state, id, file, line, column, category, original,
+  mutate_record(state, id, file, line, column, end_column, category, original,
     replacement, coverage_counter);
   mutant_record_t* r = &state->mutants[state->mutant_count - 1];
   r->owner = owner;
@@ -138,7 +139,7 @@ int32_t mutate_find_or_record(mutate_state_t* state, ast_t* owner, bool shared,
 }
 
 static int32_t record_site(compile_t* c,
-  const char* file, size_t line, size_t column,
+  const char* file, size_t line, size_t column, size_t end_column,
   const char* category, const char* original, const char* replacement)
 {
   ast_t* owner = NULL;
@@ -156,7 +157,8 @@ static int32_t record_site(compile_t* c,
 
   int32_t coverage_counter;
   int32_t id = mutate_find_or_record(&c->mutate, owner, shared,
-    file, line, column, category, original, replacement, &coverage_counter);
+    file, line, column, end_column, category, original, replacement,
+    &coverage_counter);
   mutate_emit_coverage_inc(c, coverage_counter);
   return id;
 }
@@ -258,6 +260,7 @@ bool mutate_write_info(mutate_state_t* state, const char* output_dir,
     fprintf(f, ", ");
     fprintf(f, "\"line\": %zu, ", r->line);
     fprintf(f, "\"column\": %zu, ", r->column);
+    fprintf(f, "\"end_column\": %zu, ", r->end_column);
     fprintf(f, "\"category\": ");
     write_escaped(f, r->category);
     fprintf(f, ", ");
@@ -545,6 +548,8 @@ LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
@@ -552,7 +557,7 @@ LLVMValueRef mutate_binop(compile_t* c, ast_t* ast,
   {
     const char* cat =
       (variants[i].category != NULL) ? variants[i].category : category;
-    ids[i] = record_site(c, file, line, pos,
+    ids[i] = record_site(c, file, line, pos, end_col,
       cat, original, variants[i].replacement);
   }
 
@@ -639,11 +644,13 @@ LLVMValueRef mutate_sc_flip(compile_t* c, ast_t* ast, bool is_and,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   const char* original = is_and ? "and" : "or";
   const char* replacement = is_and ? "or" : "and";
 
-  int32_t id = record_site(c, file, line, pos,
+  int32_t id = record_site(c, file, line, pos, end_col,
     "bor", original, replacement);
 
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
@@ -664,11 +671,13 @@ void mutate_sc_xor_record(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
-  *and_id_out = record_site(c, file, line, pos,
+  *and_id_out = record_site(c, file, line, pos, end_col,
     "bor", "xor", "and");
 
-  *or_id_out = record_site(c, file, line, pos,
+  *or_id_out = record_site(c, file, line, pos, end_col,
     "bor", "xor", "or");
 }
 
@@ -732,6 +741,8 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
@@ -739,7 +750,7 @@ LLVMValueRef mutate_divrem(compile_t* c, ast_t* ast,
   {
     const char* cat =
       (variants[i].category != NULL) ? variants[i].category : category;
-    ids[i] = record_site(c, file, line, pos,
+    ids[i] = record_site(c, file, line, pos, end_col,
       cat, original, variants[i].replacement);
   }
 
@@ -840,12 +851,14 @@ LLVMValueRef mutate_cmp_values(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
   for(size_t i = 0; i < count; i++)
   {
-    ids[i] = record_site(c, file, line, pos,
+    ids[i] = record_site(c, file, line, pos, end_col,
       category, original, variants[i].replacement);
   }
 
@@ -923,6 +936,8 @@ LLVMValueRef mutate_unary(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
@@ -930,7 +945,7 @@ LLVMValueRef mutate_unary(compile_t* c, ast_t* ast,
   {
     const char* cat =
       (variants[i].category != NULL) ? variants[i].category : category;
-    ids[i] = record_site(c, file, line, pos,
+    ids[i] = record_site(c, file, line, pos, end_col,
       cat, original, variants[i].replacement);
   }
 
@@ -1056,6 +1071,8 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   const char* original = is_shl ? "shl" : "shr";
 
@@ -1067,7 +1084,7 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
   if(do_sor)
   {
     const char* replacement = is_shl ? "shr" : "shl";
-    sor_id = record_site(c, file, line, pos,
+    sor_id = record_site(c, file, line, pos, end_col,
       "sor", original, replacement);
     var_count++;
   }
@@ -1077,7 +1094,7 @@ LLVMValueRef mutate_shift(compile_t* c, ast_t* ast,
     const char* amr_repl = safe
       ? (is_shl ? "shl_unsafe" : "shr_unsafe")
       : (is_shl ? "shl_wrapping" : "shr_wrapping");
-    amr_id = record_site(c, file, line, pos,
+    amr_id = record_site(c, file, line, pos, end_col,
       "amr", original, amr_repl);
     var_count++;
   }
@@ -1202,12 +1219,14 @@ LLVMValueRef mutate_uoi_insert(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
   for(size_t i = 0; i < count; i++)
   {
-    ids[i] = record_site(c, file, line, pos,
+    ids[i] = record_site(c, file, line, pos, end_col,
       "uoi", "result", variant_labels[i]);
   }
 
@@ -1462,12 +1481,14 @@ LLVMValueRef mutate_rvr(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
   for(size_t i = 0; i < count; i++)
   {
-    ids[i] = record_site(c, file, line, pos,
+    ids[i] = record_site(c, file, line, pos, end_col,
       "rvr", "return", labels[i]);
   }
 
@@ -1537,8 +1558,10 @@ bool mutate_vcr_begin(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
-  int32_t id = record_site(c, file, line, pos,
+  int32_t id = record_site(c, file, line, pos, end_col,
     "vcr", "call", "remove");
 
   LLVMValueRef selector = codegen_resolve_global(c, c->mutant_selector);
@@ -1777,18 +1800,20 @@ LLVMValueRef mutate_cr_binop(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(total * sizeof(int32_t));
 
   for(size_t i = 0; i < l_count; i++)
   {
-    ids[i] = record_site(c, file, line, pos,
+    ids[i] = record_site(c, file, line, pos, end_col,
       "cr", "lhs", l_labels[i]);
   }
 
   for(size_t i = 0; i < r_count; i++)
   {
-    ids[l_count + i] = record_site(c, file, line, pos,
+    ids[l_count + i] = record_site(c, file, line, pos, end_col,
       "cr", "rhs", r_labels[i]);
   }
 
@@ -1918,18 +1943,20 @@ LLVMValueRef mutate_cr_divrem(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(total * sizeof(int32_t));
 
   for(size_t i = 0; i < l_count; i++)
   {
-    ids[i] = record_site(c, file, line, pos,
+    ids[i] = record_site(c, file, line, pos, end_col,
       "cr", "lhs", l_labels[i]);
   }
 
   for(size_t i = 0; i < r_count; i++)
   {
-    ids[l_count + i] = record_site(c, file, line, pos,
+    ids[l_count + i] = record_site(c, file, line, pos, end_col,
       "cr", "rhs", r_labels[i]);
   }
 
@@ -2068,18 +2095,20 @@ LLVMValueRef mutate_cr_shift(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(total * sizeof(int32_t));
 
   for(size_t i = 0; i < l_count; i++)
   {
-    ids[i] = record_site(c, file, line, pos,
+    ids[i] = record_site(c, file, line, pos, end_col,
       "cr", "lhs", l_labels[i]);
   }
 
   for(size_t i = 0; i < r_count; i++)
   {
-    ids[l_count + i] = record_site(c, file, line, pos,
+    ids[l_count + i] = record_site(c, file, line, pos, end_col,
       "cr", "rhs", r_labels[i]);
   }
 
@@ -2198,18 +2227,20 @@ LLVMValueRef mutate_cr_cmp(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(total * sizeof(int32_t));
 
   for(size_t i = 0; i < l_count; i++)
   {
-    ids[i] = record_site(c, file, line, pos,
+    ids[i] = record_site(c, file, line, pos, end_col,
       "cr", "lhs", l_labels[i]);
   }
 
   for(size_t i = 0; i < r_count; i++)
   {
-    ids[l_count + i] = record_site(c, file, line, pos,
+    ids[l_count + i] = record_site(c, file, line, pos, end_col,
       "cr", "rhs", r_labels[i]);
   }
 
@@ -2324,12 +2355,14 @@ LLVMValueRef mutate_cr_unary(compile_t* c, ast_t* ast,
     ((source != NULL) && (source->file != NULL)) ? source->file : "";
   size_t line = ast_line(ast);
   size_t pos = ast_pos(ast);
+  size_t len = ast_len(ast);
+  size_t end_col = (len > 0) ? pos + len : pos + 1;
 
   int32_t* ids = (int32_t*)ponyint_pool_alloc_size(count * sizeof(int32_t));
 
   for(size_t i = 0; i < count; i++)
   {
-    ids[i] = record_site(c, file, line, pos,
+    ids[i] = record_site(c, file, line, pos, end_col,
       "cr", "operand", labels[i]);
   }
 

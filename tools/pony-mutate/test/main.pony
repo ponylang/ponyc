@@ -9,6 +9,8 @@ actor \nodoc\ Main is TestList
     // Mutant
     test(_TestMutantLocation)
     test(_TestMutantDescription)
+    test(_TestMutantEndColumnDefault)
+    test(_TestMutantEndColumnExplicit)
 
     // MutantOutcome ordering
     test(_TestMutantOutcomeLtByFile)

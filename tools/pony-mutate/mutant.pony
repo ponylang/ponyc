@@ -7,6 +7,7 @@ class val Mutant
   let file: String val
   let line: USize
   let column: USize
+  let end_column: USize
   let category: String val
   let original: String val
   let replacement: String val
@@ -21,13 +22,15 @@ class val Mutant
     category': String val,
     original': String val,
     replacement': String val,
-    type_name': (String val | None) = None)
+    type_name': (String val | None) = None,
+    end_column': USize = 0)
   =>
     id = id'
     coverage_counter = coverage_counter'
     file = file'
     line = line'
     column = column'
+    end_column = if end_column' == 0 then column' + 1 else end_column' end
     category = category'
     original = original'
     replacement = replacement'

@@ -49,6 +49,10 @@ primitive InfoFile
           let category = m("category")? as String
           let original = m("original")? as String
           let replacement = m("replacement")? as String
+          let end_column: USize =
+            try (m("end_column")? as I64).usize()
+            else column.usize() + 1
+            end
           let cov_counter: I64 =
             try m("coverage_counter")? as I64 else 0 end
           let mtype: (String val | None) =
@@ -63,7 +67,8 @@ primitive InfoFile
               category,
               original,
               replacement,
-              mtype))
+              mtype,
+              end_column))
         end
         (consume mutants, InfoFileOk)
       else
