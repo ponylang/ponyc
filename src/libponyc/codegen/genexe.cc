@@ -3218,6 +3218,13 @@ bool genexe(compile_t* c, ast_t* program)
 
   if(c->opt->mutate)
   {
+    if(!mutate_check_scopes(c->opt, program))
+    {
+      ast_free(main_ast);
+      ast_free(env_ast);
+      return false;
+    }
+
     mutate_init(&c->mutate);
     c->mutant_selector = mutate_declare_selector(c);
     c->mutate_enabled = mutate_declare_enabled(c);

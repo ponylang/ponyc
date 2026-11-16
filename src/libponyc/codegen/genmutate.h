@@ -8,6 +8,7 @@ PONY_EXTERN_C_BEGIN
 
 typedef struct compile_t compile_t;
 typedef struct mutate_state_t mutate_state_t;
+typedef struct pass_opt_t pass_opt_t;
 typedef struct ast_t ast_t;
 
 void mutate_init(mutate_state_t* state);
@@ -237,6 +238,11 @@ LLVMValueRef mutate_declare_coverage(compile_t* c);
 
 // Emit an atomic increment of the coverage counter at cov_id.
 void mutate_emit_coverage_inc(compile_t* c, int32_t cov_id);
+
+// Check that every --mutate-scope with a non-empty file pattern matches at
+// least one source file in the program. Returns false and reports errors for
+// each unmatched scope.
+bool mutate_check_scopes(pass_opt_t* opt, ast_t* program);
 
 // Check whether mutations should be emitted for the given category and
 // source location. Returns false when operator or scope filtering excludes
