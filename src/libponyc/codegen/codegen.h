@@ -78,6 +78,7 @@ typedef struct mutant_record_t
   const char* category;
   const char* original;
   const char* replacement;
+  const char* type_name;
 } mutant_record_t;
 
 typedef struct mutate_state_t

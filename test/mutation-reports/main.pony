@@ -30,7 +30,9 @@ actor \nodoc\ Main
               mutate.MutantOutcome(
                 _mutant(3, second, 1, 2), mutate.MutantTimedOut, 0)
               mutate.MutantOutcome(
-                _mutant(4, second, 3, 4), mutate.MutantSurvived, 0)
+                mutate.Mutant(4, 0, second, 3, 4, "aor", "+", "-", "MyType"),
+                mutate.MutantSurvived,
+                0)
               mutate.MutantOutcome(
                 _mutant(5, first, 2, 1), mutate.MutantSurvived, 0)
               mutate.MutantOutcome(

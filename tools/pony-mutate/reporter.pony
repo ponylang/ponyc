@@ -82,11 +82,17 @@ primitive TerminalReporter is Reporter
       env.out.print("Survived mutants:")
       Sort[Array[MutantOutcome], MutantOutcome](survived_list)
       for o in survived_list.values() do
+        let suffix =
+          match o.mutant.type_name
+          | let t: String val => "  [" + t + "]"
+          else ""
+          end
         env.out.print(
           "  " + o.mutant.location() +
             "  " + o.mutant.category +
             "  " + o.mutant.original +
-            " -> " + o.mutant.replacement)
+            " -> " + o.mutant.replacement +
+            suffix)
       end
     end
 

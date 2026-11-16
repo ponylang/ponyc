@@ -104,6 +104,12 @@ primitive StrykerReporter is Reporter
         buf.append("          \"replacement\": ")
         buf.append(_escape(e.mutant.replacement, env, file)?)
         buf.append(",\n")
+        match e.mutant.type_name
+        | let t: String val =>
+          buf.append("          \"description\": ")
+          buf.append(_escape(t, env, file)?)
+          buf.append(",\n")
+        end
         buf.append("          \"location\": {\n")
         buf.append("            \"start\": {\"line\": ")
         buf.append(e.mutant.line.string())

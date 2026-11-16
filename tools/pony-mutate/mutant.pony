@@ -10,6 +10,7 @@ class val Mutant
   let category: String val
   let original: String val
   let replacement: String val
+  let type_name: (String val | None)
 
   new val create(
     id': I32,
@@ -19,7 +20,8 @@ class val Mutant
     column': USize,
     category': String val,
     original': String val,
-    replacement': String val)
+    replacement': String val,
+    type_name': (String val | None) = None)
   =>
     id = id'
     coverage_counter = coverage_counter'
@@ -29,6 +31,7 @@ class val Mutant
     category = category'
     original = original'
     replacement = replacement'
+    type_name = type_name'
 
   fun location(): String val =>
     """
