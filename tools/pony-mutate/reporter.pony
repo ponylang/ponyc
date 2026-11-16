@@ -8,9 +8,10 @@ interface val Reporter
     outcomes: Array[MutantOutcome] val,
     no_coverage: Array[Mutant] val,
     env: Env)
+    : Bool
     """
-    `no_coverage` lists mutants skipped because their coverage counter was
-    zero during the baseline run.
+    Print the report and return true on success. `no_coverage` lists mutants
+    skipped because their coverage counter was zero during the baseline run.
     """
 
 primitive TerminalReporter is Reporter
@@ -22,6 +23,7 @@ primitive TerminalReporter is Reporter
     outcomes: Array[MutantOutcome] val,
     no_coverage: Array[Mutant] val,
     env: Env)
+    : Bool
   =>
     """
     Print counts, mutation score, and a list of surviving mutants to stdout.
@@ -95,6 +97,7 @@ primitive TerminalReporter is Reporter
             suffix)
       end
     end
+    true
 
   fun _pct(n: USize, total: USize): String val =>
     if total == 0 then

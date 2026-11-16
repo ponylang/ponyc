@@ -36,9 +36,9 @@ execute_process(
     TIMEOUT 120
 )
 
-if(_rc EQUAL 0)
+if(NOT _rc EQUAL 2)
     message(FATAL_ERROR
-        "pony-mutate exited 0, expected non-zero (baseline should fail)"
+        "pony-mutate exited ${_rc}, expected 2 (baseline failure is an error)"
         "\nstdout:\n${_stdout}\nstderr:\n${_stderr}")
 endif()
 

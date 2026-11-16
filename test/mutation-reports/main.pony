@@ -49,19 +49,21 @@ actor \nodoc\ Main
           end
         end
       if (mode == "json") or (mode == "invalid-json") then
-        mutate.StrykerReporter.report(outcomes, uncovered, env)
+        if not mutate.StrykerReporter.report(outcomes, uncovered, env) then
+          env.exitcode(2)
+        end
       elseif mode == "file" then
         if not mutate.StrykerReporter.write_file(
           outcomes, uncovered, env.args(4)?, env)
         then
-          env.exitcode(1)
+          env.exitcode(2)
         end
       else
         mutate.TerminalReporter.report(outcomes, uncovered, env)
       end
     else
       env.err.print("invalid report fixture arguments")
-      env.exitcode(1)
+      env.exitcode(2)
     end
 
   fun _mutant(id: I32, file: String, line: USize, column: USize)

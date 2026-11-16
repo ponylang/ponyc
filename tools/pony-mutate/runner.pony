@@ -89,7 +89,7 @@ actor Runner
     | let err: ProcessError =>
       _env.err.print(
         "error: cannot start baseline: " + err.string())
-      _env.exitcode(1)
+      _env.exitcode(_ExitError())
     end
 
   be _baseline_done(
@@ -103,7 +103,7 @@ actor Runner
         "error: baseline run failed (exit " + exit_code.string() +
           "). The test suite must pass before mutation testing.")
       _print_baseline_diagnostic(child_stdout, child_stderr)
-      _env.exitcode(1)
+      _env.exitcode(_ExitError())
       return
     end
 
@@ -222,20 +222,24 @@ actor Runner
       results.push(o)
     end
     let results': Array[MutantOutcome] val = consume results
-    _reporter.report(results', _no_coverage_mutants, _env)
+    var report_ok = _reporter.report(results', _no_coverage_mutants, _env)
     match _json_file
     | let path: String val =>
       if not StrykerReporter.write_file(
         results', _no_coverage_mutants, path, _env)
       then
-        _env.exitcode(1)
-        return
+        report_ok = false
       end
+    end
+
+    if not report_ok then
+      _env.exitcode(_ExitError())
+      return
     end
 
     for o in results'.values() do
       if o.result is MutantSurvived then
-        _env.exitcode(1)
+        _env.exitcode(_ExitSurvivors())
         return
       end
     end
