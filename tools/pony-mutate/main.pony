@@ -13,7 +13,8 @@ actor Main
             "Exit codes:\n" +
             "  0  All mutants were killed (or none to run).\n" +
             "  1  One or more mutants survived.\n" +
-            "  2  Error (bad arguments, baseline failure, I/O error).",
+            "  2  Error (bad arguments, baseline failure,\n" +
+            "     spawn error, I/O error).",
           [
             OptionSpec.u64(
               "workers",

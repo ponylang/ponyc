@@ -13,6 +13,6 @@ primitive _ExitSurvivors
 primitive _ExitError
   """
   Exit code for operational errors (bad arguments, baseline failure,
-  I/O error).
+  spawn error, I/O error).
   """
   fun apply(): I32 => 2

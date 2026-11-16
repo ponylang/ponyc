@@ -197,6 +197,7 @@ actor Runner
       | MutantKilled => "killed"
       | MutantSurvived => "SURVIVED"
       | MutantTimedOut => "timed out"
+      | MutantSpawnError => "SPAWN ERROR"
       end
     let m = outcome.mutant
     _env.err.print(
@@ -235,6 +236,13 @@ actor Runner
     if not report_ok then
       _env.exitcode(_ExitError())
       return
+    end
+
+    for o in results'.values() do
+      if o.result is MutantSpawnError then
+        _env.exitcode(_ExitError())
+        return
+      end
     end
 
     for o in results'.values() do
