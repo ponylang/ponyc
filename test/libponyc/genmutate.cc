@@ -134,6 +134,7 @@ TEST_F(GenMutateTest, RecordStoresFields)
   EXPECT_STREQ(state.mutants[0].category, "arithmetic");
   EXPECT_STREQ(state.mutants[0].original, "+");
   EXPECT_STREQ(state.mutants[0].replacement, "-");
+  EXPECT_EQ(state.mutants[0].type_name, nullptr);
 }
 
 
@@ -251,6 +252,7 @@ TEST_F(GenMutateTest, WriteInfoWithMutantRecords)
   EXPECT_NE(json.find("\"category\": \"arithmetic\""), std::string::npos);
   EXPECT_NE(json.find("\"coverage_counter\": 0"), std::string::npos);
   EXPECT_NE(json.find("\"coverage_counter\": 1"), std::string::npos);
+  EXPECT_NE(json.find("\"type\": null"), std::string::npos);
 
   remove(path.c_str());
   remove_temp_dir(tmpdir);
@@ -6058,6 +6060,7 @@ TEST_F(GenMutateCodegenTest, MonomorphDefaultImplementers)
       auto functions = selecting_functions(r->id);
       ASSERT_EQ(functions.size(), 2u);
       const char* owner_name = ast_name(ast_child(r->owner));
+      EXPECT_STREQ(r->type_name, owner_name);
       for(auto& fn : functions)
         EXPECT_NE(fn.find(owner_name), std::string::npos);
     }

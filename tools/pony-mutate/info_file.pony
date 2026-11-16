@@ -51,6 +51,8 @@ primitive InfoFile
           let replacement = m("replacement")? as String
           let cov_counter: I64 =
             try m("coverage_counter")? as I64 else 0 end
+          let mtype: (String val | None) =
+            try m("type")? as String else None end
           mutants.push(
             Mutant(
               id.i32(),
@@ -60,7 +62,8 @@ primitive InfoFile
               column.usize(),
               category,
               original,
-              replacement))
+              replacement,
+              mtype))
         end
         (consume mutants, InfoFileOk)
       else

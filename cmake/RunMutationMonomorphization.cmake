@@ -22,16 +22,19 @@ file(READ "${OUTPUT}/mutation-monomorphization.mutants.json" _json)
 string(JSON _count LENGTH "${_json}" mutants)
 math(EXPR _last "${_count} - 1")
 set(_default_ids "")
+set(_default_types "")
 foreach(_index RANGE 0 ${_last})
     foreach(_field id category replacement shared coverage_counter)
         string(JSON _${_field} GET "${_json}" mutants ${_index} ${_field})
     endforeach()
+    string(JSON _type GET "${_json}" mutants ${_index} type)
     if(_shared AND _category STREQUAL "uoi")
         set(_${_replacement}_id "${_id}")
         set(_${_replacement}_counter "${_coverage_counter}")
     elseif(NOT _shared AND _category STREQUAL "aor"
             AND _replacement STREQUAL "sub")
         list(APPEND _default_ids "${_id}")
+        list(APPEND _default_types "${_type}")
     endif()
 endforeach()
 if(NOT DEFINED _neg_id OR NOT DEFINED _complement_id)
@@ -43,6 +46,26 @@ endif()
 list(LENGTH _default_ids _defaults_count)
 if(NOT _defaults_count EQUAL 2)
     message(FATAL_ERROR "expected two independent default copies: ${_json}")
+endif()
+list(GET _default_types 0 _first_type)
+list(GET _default_types 1 _second_type)
+if(_first_type STREQUAL "" OR _second_type STREQUAL "")
+    message(FATAL_ERROR
+        "default copies must have a type field: ${_first_type}, "
+        "${_second_type}")
+endif()
+if(_first_type STREQUAL _second_type)
+    message(FATAL_ERROR
+        "default copies must have distinct types: "
+        "${_first_type} vs ${_second_type}")
+endif()
+set(_expected_types "_First;_Second")
+list(SORT _default_types)
+list(SORT _expected_types)
+if(NOT _default_types STREQUAL _expected_types)
+    message(FATAL_ERROR
+        "default copy types should be _First and _Second, got: "
+        "${_default_types}")
 endif()
 
 function(run_case mode mutant expected)
@@ -106,4 +129,5 @@ else()
     message(FATAL_ERROR "default mutant changed wrong copies: '${_out}'")
 endif()
 message(STATUS
-    "PASS: shared selection, applicable coverage, independent defaults")
+    "PASS: shared selection, applicable coverage, independent defaults,"
+    " type-name tracking")

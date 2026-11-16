@@ -83,7 +83,7 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(survivors, [
             f"  {self.first}:1:8  aor  + -> -",
             f"  {self.first}:2:1  aor  + -> -",
-            f"  {self.second}:3:4  aor  + -> -",
+            f"  {self.second}:3:4  aor  + -> -  [MyType]",
         ])
 
     def check_zero_terminal(self, output, total):
@@ -140,6 +140,10 @@ class ReportTests(unittest.TestCase):
                     self.assertEqual(mutant["mutatorName"],
                                      f"{text}/{text}->{text}" if ident == 1
                                      else "aor/+->-")
+                    if ident == 4:
+                        self.assertEqual(mutant["description"], "MyType")
+                    else:
+                        self.assertNotIn("description", mutant)
         self.assertCountEqual(ids, expected)
 
     def test_json_write_file(self):

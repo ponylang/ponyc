@@ -99,6 +99,7 @@ void mutate_record(mutate_state_t* state, int32_t id,
   r->category = category;
   r->original = original;
   r->replacement = replacement;
+  r->type_name = NULL;
 }
 
 int32_t mutate_find_or_record(mutate_state_t* state, ast_t* owner, bool shared,
@@ -129,6 +130,8 @@ int32_t mutate_find_or_record(mutate_state_t* state, ast_t* owner, bool shared,
   mutant_record_t* r = &state->mutants[state->mutant_count - 1];
   r->owner = owner;
   r->shared = shared;
+  ast_t* name_child = (owner != NULL) ? ast_child(owner) : NULL;
+  r->type_name = (name_child != NULL) ? ast_name(name_child) : NULL;
   if(out_coverage != NULL)
     *out_coverage = coverage_counter;
   return id;
@@ -265,7 +268,14 @@ bool mutate_write_info(mutate_state_t* state, const char* output_dir,
     write_escaped(f, r->replacement);
     fprintf(f, ", ");
     fprintf(f, "\"coverage_counter\": %d, ", r->coverage_counter);
-    fprintf(f, "\"shared\": %s", r->shared ? "true" : "false");
+    fprintf(f, "\"shared\": %s, ", r->shared ? "true" : "false");
+    if(r->type_name != NULL)
+    {
+      fprintf(f, "\"type\": ");
+      write_escaped(f, r->type_name);
+    }
+    else
+      fprintf(f, "\"type\": null");
 
     fprintf(f, "}");
   }
