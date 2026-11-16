@@ -10,6 +10,7 @@ primitive StrykerReporter is Reporter
     outcomes: Array[MutantOutcome] val,
     no_coverage: Array[Mutant] val,
     env: Env)
+    : Bool
   =>
     """
     Print the Stryker JSON report to stdout. Source files must be readable
@@ -17,8 +18,9 @@ primitive StrykerReporter is Reporter
     """
     try
       env.out.print(_build(outcomes, no_coverage, env)?)
+      true
     else
-      env.exitcode(1)
+      false
     end
 
   fun write_file(

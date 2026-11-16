@@ -202,23 +202,23 @@ class ReportTests(unittest.TestCase):
 
     def test_cli_missing_source(self):
         self.first.unlink()
-        result = self.cli("--no-baseline", "--format=json", expected=1)
+        result = self.cli("--no-baseline", "--format=json", expected=2)
         self.assertEqual(result.stdout, "")
         self.assertIn("error: cannot read source " + str(self.first),
                       result.stderr)
         path = self.root / "missing-source.json"
         result = self.cli("--no-baseline", "--json-file=" + str(path),
-                          expected=1)
+                          expected=2)
         self.assertIn("error: cannot read source " + str(self.first),
                       result.stderr)
         self.assertFalse(path.exists())
 
     def test_write_file_failure(self):
         path = self.root / "missing-parent" / "report.json"
-        result = self.fixture_output("file", path, expected=1)
+        result = self.fixture_output("file", path, expected=2)
         self.assertIn("error: cannot write " + str(path), result.stderr)
         self.assertFalse(path.exists())
-        result = self.cli("--json-file=" + str(path), expected=1)
+        result = self.cli("--json-file=" + str(path), expected=2)
         self.assertIn("error: cannot write " + str(path), result.stderr)
         self.assertFalse(path.exists())
 
@@ -228,19 +228,19 @@ class ReportTests(unittest.TestCase):
                         b"\xed\xa0\x80", b"\xf4\x90\x80\x80"):
             with self.subTest(invalid=invalid):
                 self.first.write_bytes(b"// comment " + invalid + b"\n")
-                result = self.fixture_output("json", expected=1)
+                result = self.fixture_output("json", expected=2)
                 self.assertEqual(result.stdout, "")
                 self.assertIn("error: invalid UTF-8 in JSON report for "
                               + str(self.first), result.stderr)
                 path.write_text("previous report", encoding="utf-8")
-                result = self.fixture_output("file", path, expected=1)
+                result = self.fixture_output("file", path, expected=2)
                 self.assertIn("error: invalid UTF-8 in JSON report for "
                               + str(self.first), result.stderr)
                 self.assertEqual(path.read_text(encoding="utf-8"),
                                  "previous report")
 
     def test_invalid_metadata_encoding(self):
-        result = self.fixture_output("invalid-json", expected=1)
+        result = self.fixture_output("invalid-json", expected=2)
         self.assertEqual(result.stdout, "")
         self.assertIn("error: invalid UTF-8 in JSON report for "
                       + str(self.first), result.stderr)
@@ -254,13 +254,13 @@ class ReportTests(unittest.TestCase):
             self.skipTest("Linux sysfs sequence file is unavailable")
         if length >= size:
             self.skipTest("sysfs sequence file does not provide a short read")
-        result = self.fixture_output("json", expected=1)
+        result = self.fixture_output("json", expected=2)
         self.assertEqual(result.stdout, "")
         self.assertIn("error: cannot read source " + str(self.first),
                       result.stderr)
         path = self.root / "short-source.json"
         path.write_text("previous report", encoding="utf-8")
-        result = self.fixture_output("file", path, expected=1)
+        result = self.fixture_output("file", path, expected=2)
         self.assertIn("error: cannot read source " + str(self.first),
                       result.stderr)
         self.assertEqual(path.read_text(encoding="utf-8"), "previous report")
@@ -268,7 +268,7 @@ class ReportTests(unittest.TestCase):
     @unittest.skipUnless(Path("/dev/full").is_char_device(),
                          "requires /dev/full")
     def test_truncate_failure(self):
-        result = self.fixture_output("file", "/dev/full", expected=1)
+        result = self.fixture_output("file", "/dev/full", expected=2)
         self.assertIn("error: cannot write /dev/full", result.stderr)
 
     @unittest.skipUnless(os.name == "posix", "requires POSIX file size limits")
@@ -283,7 +283,7 @@ class ReportTests(unittest.TestCase):
         path = self.root / "write-failure.json"
         result = self.run_process(
             [self.fixture, "file", self.first, self.second, path,
-             "--ponymaxthreads=1", "--ponynoscale"], 1,
+             "--ponymaxthreads=1", "--ponynoscale"], 2,
             preexec_fn=limit_file_size)
         self.assertIn("error: cannot write " + str(path), result.stderr)
         self.assertTrue(path.is_file())

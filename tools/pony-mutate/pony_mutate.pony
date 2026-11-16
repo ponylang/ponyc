@@ -31,4 +31,12 @@ Use `--format=json` for a Stryker JSON report on stdout, or
 `--json-file=report.json` to write one alongside either stdout format.
 JSON reports include source contents, so the original source files must
 remain readable as UTF-8 text at the paths recorded in the info file.
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0    | All mutants were killed (or none to run). |
+| 1    | One or more mutants survived — test gaps detected. |
+| 2    | Error: bad arguments, baseline failure, I/O error. |
 """

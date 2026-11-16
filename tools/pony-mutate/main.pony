@@ -9,7 +9,11 @@ actor Main
       try
         CommandSpec.leaf(
           "pony-mutate",
-          "Mutation testing runner for Pony programs",
+          "Mutation testing runner for Pony programs.\n\n" +
+            "Exit codes:\n" +
+            "  0  All mutants were killed (or none to run).\n" +
+            "  1  One or more mutants survived.\n" +
+            "  2  Error (bad arguments, baseline failure, I/O error).",
           [
             OptionSpec.u64(
               "workers",
@@ -55,7 +59,7 @@ actor Main
           ])? .> add_help()?
       else
         env.err.print("internal error: invalid command spec")
-        env.exitcode(1)
+        env.exitcode(_ExitError())
         return
       end
 
@@ -67,14 +71,14 @@ actor Main
         return
       | let se: SyntaxError =>
         env.err.print(se.string())
-        env.exitcode(1)
+        env.exitcode(_ExitError())
         return
       end
 
     let binary = cmd.arg("binary").string()
     if binary.size() == 0 then
       env.err.print("error: binary path is required")
-      env.exitcode(1)
+      env.exitcode(_ExitError())
       return
     end
 
@@ -131,7 +135,7 @@ actor Main
           env.err.print(
             "error: unknown format '" + output_format +
               "' (expected 'terminal' or 'json')")
-          env.exitcode(1)
+          env.exitcode(_ExitError())
           return
         end
 
@@ -170,5 +174,5 @@ actor Main
         do_baseline)
     | (let err: String val, InfoFileError) =>
       env.err.print("error: " + err)
-      env.exitcode(1)
+      env.exitcode(_ExitError())
     end

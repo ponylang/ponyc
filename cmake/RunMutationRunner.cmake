@@ -42,9 +42,9 @@ execute_process(
 
 # Expect exit 1 — some mutants survive because equivalent substitutions
 # exist for the test program's comparison
-if(_rc EQUAL 0)
+if(NOT _rc EQUAL 1)
     message(FATAL_ERROR
-        "pony-mutate exited 0, expected 1 (some mutants should survive)"
+        "pony-mutate exited ${_rc}, expected 1 (some mutants should survive)"
         "\nstdout:\n${_stdout}\nstderr:\n${_stderr}")
 endif()
 
