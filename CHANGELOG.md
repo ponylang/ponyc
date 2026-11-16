@@ -86,6 +86,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - cli integer options and args now accept only decimal digits ([PR #6611](https://github.com/ponylang/ponyc/pull/6611))
 - NormalizeIRI and IRIEquivalent now reject illegal literal non-ASCII characters ([PR #6622](https://github.com/ponylang/ponyc/pull/6622))
 - cli float options and args now accept only decimal notation ([PR #6627](https://github.com/ponylang/ponyc/pull/6627))
+- cli bool options and args now accept only lowercase true and false ([PR #6645](https://github.com/ponylang/ponyc/pull/6645))
 
 ## [0.78.2] - 2026-11-12
 
