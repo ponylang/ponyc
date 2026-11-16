@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.25)
+
 file(REMOVE_RECURSE "${OUTPUT}")
 file(MAKE_DIRECTORY "${OUTPUT}")
 file(STRINGS "${TEST_SRC}/main.pony" _source)
