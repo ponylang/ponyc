@@ -92,11 +92,17 @@ actor Runner
       _env.exitcode(1)
     end
 
-  be _baseline_done(exit_code: I32, duration_ns: U64) =>
+  be _baseline_done(
+    exit_code: I32,
+    duration_ns: U64,
+    child_stdout: String val,
+    child_stderr: String val)
+  =>
     if exit_code != 0 then
       _env.err.print(
         "error: baseline run failed (exit " + exit_code.string() +
           "). The test suite must pass before mutation testing.")
+      _print_baseline_diagnostic(child_stdout, child_stderr)
       _env.exitcode(1)
       return
     end
@@ -270,14 +276,62 @@ actor Runner
       (secs + 0.5).u64().string() + "s"
     end
 
+  fun _print_baseline_diagnostic(
+    child_stdout: String val,
+    child_stderr: String val)
+  =>
+    _env.err.print("")
+    _env.err.print("Command:")
+    let cmd =
+      recover val
+        let s = String
+        for (i, arg) in _args.pairs() do
+          if i > 0 then s.push(' ') end
+          s.append(arg)
+        end
+        s
+      end
+    _env.err.print("  " + cmd)
+
+    _env.err.print("")
+    _env.err.print("Environment:")
+    let vars = _strip_mutant_id(_base_vars)
+    for v in vars.values() do
+      _env.err.print("  " + v)
+    end
+
+    if child_stdout.size() > 0 then
+      _env.err.print("")
+      _env.err.print("stdout:")
+      _env.err.print(child_stdout)
+    end
+
+    if child_stderr.size() > 0 then
+      _env.err.print("")
+      _env.err.print("stderr:")
+      _env.err.print(child_stderr)
+    end
+
 class iso _BaselineNotify is ProcessNotify
   let _runner: Runner tag
   let _start_ns: U64
   var _done: Bool = false
+  let _stdout_buf: String ref
+  let _stderr_buf: String ref
 
   new iso create(runner: Runner tag, start_ns: U64) =>
     _runner = runner
     _start_ns = start_ns
+    _stdout_buf = String
+    _stderr_buf = String
+
+  fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
+    let d: Array[U8] val = consume data
+    _stdout_buf.append(d)
+
+  fun ref stderr(process: ProcessMonitor ref, data: Array[U8] iso) =>
+    let d: Array[U8] val = consume data
+    _stderr_buf.append(d)
 
   fun ref dispose(
     process: ProcessMonitor ref,
@@ -291,10 +345,12 @@ class iso _BaselineNotify is ProcessNotify
       | let exited: Exited => exited.exit_code()
       | let signaled: Signaled => -1
       end
-    _runner._baseline_done(code, elapsed)
+    _runner._baseline_done(
+      code, elapsed, _stdout_buf.clone(), _stderr_buf.clone())
 
   fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
     if _done then return end
     _done = true
     let elapsed = Time.nanos() - _start_ns
-    _runner._baseline_done(-1, elapsed)
+    _runner._baseline_done(
+      -1, elapsed, _stdout_buf.clone(), _stderr_buf.clone())

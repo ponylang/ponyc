@@ -1106,6 +1106,14 @@ else()
             -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-runtime
             -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationRunner.cmake)
 
+    add_test(NAME mutation-baseline-fail
+        COMMAND ${CMAKE_COMMAND}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DRUNNER=${PONY_OUTPUT_DIR}/pony-mutate${CMAKE_EXECUTABLE_SUFFIX}
+            -DOUTPUT=${PONY_OUTPUT_DIR}/mutation-baseline-fail
+            -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-baseline-fail
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationBaselineFail.cmake)
+
     add_test(NAME mutation-reports
         COMMAND ${CMAKE_COMMAND}
             -DCOMPILER=$<TARGET_FILE:ponyc>
@@ -1131,7 +1139,8 @@ else()
     set_tests_properties(full-programs
         full-program-runner-rejects-broken-config
         stdlib validate-grammar mutation-runtime mutation-monomorphization
-        mutation-runner mutation-reports mutation-string mutation-scope-check
+        mutation-runner mutation-baseline-fail mutation-reports mutation-string
+        mutation-scope-check
         PROPERTIES LABELS ci-core)
     set_tests_properties(tracing-tests
         PROPERTIES LABELS "ci-core;tracing")
