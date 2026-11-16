@@ -625,7 +625,7 @@ class \nodoc\ iso _TestExpect is UnitTest
           | Exited(0) =>
             let expected: Array[String] val =
               ifdef windows then
-                ["he"; "llo "; "ca"; "rl \r"]
+                ["he"; "lloc"; "ar"; "l! \r"]
               else
                 ["he"; "llo "; "th"; "ere!"]
               end
@@ -646,7 +646,7 @@ class \nodoc\ iso _TestExpect is UnitTest
       let path = FilePath(file_auth, _EchoPath(path_resolver)?)
       let args: Array[String] val =
         ifdef windows then
-          ["cmd"; "/c"; "echo"; "hello carl"]
+          ["cmd"; "/c"; "echo"; "hellocarl!"]
         else
           ["echo"; "hello there!"]
         end
