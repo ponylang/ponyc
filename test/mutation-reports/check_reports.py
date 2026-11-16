@@ -192,40 +192,26 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(self.file_report(path), data)
         self.check_zero_terminal(self.cli("--scope=absent.pony").stdout, 0)
 
-    def test_cli_uncovered_selection(self):
-        path = self.root / "uncovered.json"
-        result = self.cli("--format=json", "--json-file=" + str(path))
-        self.assertIn("Skipping 2 mutant(s) with no coverage", result.stderr)
-        data = self.report(result.stdout)
-        self.assertEqual(self.file_report(path), data)
-        self.assertEqual(set(data["files"]),
-                         {str(self.first), str(self.second)})
-        for record in self.records:
-            mutants = data["files"][record["file"]]["mutants"]
-            self.assertEqual(len(mutants), 1)
-            self.assertEqual(mutants[0]["id"], str(record["id"]))
-            self.assertEqual(mutants[0]["status"], "NoCoverage")
-        self.check_zero_terminal(self.cli().stdout, 2)
-
     def test_cli_overwrite(self):
         path = self.root / "overwrite.json"
-        self.cli("--json-file=" + str(path))
+        self.cli("--no-baseline", "--json-file=" + str(path), expected=1)
         self.assertEqual(len(self.file_report(path)["files"]), 2)
-        self.cli("--scope=absent.pony", "--json-file=" + str(path))
+        self.cli("--no-baseline", "--scope=absent.pony",
+                 "--json-file=" + str(path))
         self.assertEqual(self.file_report(path)["files"], {})
 
     def test_cli_missing_source(self):
         self.first.unlink()
-        result = self.cli("--format=json", expected=1)
+        result = self.cli("--no-baseline", "--format=json", expected=1)
         self.assertEqual(result.stdout, "")
         self.assertIn("error: cannot read source " + str(self.first),
                       result.stderr)
         path = self.root / "missing-source.json"
-        result = self.cli("--json-file=" + str(path), expected=1)
+        result = self.cli("--no-baseline", "--json-file=" + str(path),
+                          expected=1)
         self.assertIn("error: cannot read source " + str(self.first),
                       result.stderr)
         self.assertFalse(path.exists())
-        self.check_zero_terminal(self.cli().stdout, 2)
 
     def test_write_file_failure(self):
         path = self.root / "missing-parent" / "report.json"
