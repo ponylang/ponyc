@@ -553,7 +553,10 @@ trait val _ValueType
 
 primitive _BoolType is _ValueType
   fun string(): String => "Bool"
-  fun value_of(s: String): _Value ? => s.bool()?
+
+  fun value_of(s: String): _Value ? =>
+    if (s != "true") and (s != "false") then error end
+    s.bool()?
 
 primitive _StringType is _ValueType
   fun string(): String => "String"
