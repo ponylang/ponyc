@@ -292,6 +292,92 @@ static uint16_t category_to_bit(const char* category)
   return 0;
 }
 
+static bool scope_file_matches(const char* scope_file, size_t scope_len,
+  const char* file, size_t file_len)
+{
+  if(scope_len > file_len)
+    return false;
+
+  if(scope_len == 0)
+    return true;
+
+  const char* p = file;
+
+  while(true)
+  {
+    p = strstr(p, scope_file);
+    if(p == NULL)
+      return false;
+
+    bool left_ok =
+      (p == file) || (p[-1] == '/') || (p[-1] == '\\');
+    const char* end = p + scope_len;
+    bool right_ok =
+      (*end == '\0') || (*end == '/') || (*end == '\\');
+
+    if(left_ok && right_ok)
+      return true;
+
+    p++;
+  }
+}
+
+bool mutate_check_scopes(pass_opt_t* opt, ast_t* program)
+{
+  if(opt->mutate_scope_count == 0)
+    return true;
+
+  errors_t* errors = opt->check.errors;
+  bool ok = true;
+
+  for(size_t i = 0; i < opt->mutate_scope_count; i++)
+  {
+    mutate_scope_t* scope = &opt->mutate_scopes[i];
+    size_t scope_len = strlen(scope->file);
+
+    if(scope_len == 0)
+      continue;
+
+    bool found = false;
+
+    for(ast_t* module = ast_child(program); module != NULL;
+      module = ast_sibling(module))
+    {
+      for(ast_t* file = ast_child(module); file != NULL;
+        file = ast_sibling(file))
+      {
+        if(ast_id(file) != TK_FILE)
+          continue;
+
+        source_t* source = (source_t*)ast_data(file);
+        if((source == NULL) || (source->file == NULL))
+          continue;
+
+        size_t file_len = strlen(source->file);
+        if(scope_file_matches(scope->file, scope_len,
+          source->file, file_len))
+        {
+          found = true;
+          break;
+        }
+      }
+
+      if(found)
+        break;
+    }
+
+    if(!found)
+    {
+      errorf(errors, NULL,
+        "--mutate-scope '%s' didn't match any source file in the compile",
+        scope->file);
+      ok = false;
+    }
+  }
+
+  return ok;
+}
+
 static bool scope_matches(pass_opt_t* opt, const char* file, size_t line)
 {
   size_t file_len = strlen(file);
@@ -301,44 +387,7 @@ static bool scope_matches(pass_opt_t* opt, const char* file, size_t line)
     mutate_scope_t* scope = &opt->mutate_scopes[i];
     size_t scope_len = strlen(scope->file);
 
-    if(scope_len > file_len)
-      continue;
-
-    // Empty scope file matches all files.
-    if(scope_len == 0)
-    {
-      if((scope->start_line == 0) && (scope->end_line == 0))
-        return true;
-
-      if((line >= scope->start_line) && (line <= scope->end_line))
-        return true;
-
-      continue;
-    }
-
-    // Find scope->file as a substring of file on path boundaries.
-    const char* p = file;
-    bool matched = false;
-
-    while(!matched)
-    {
-      p = strstr(p, scope->file);
-      if(p == NULL)
-        break;
-
-      bool left_ok =
-        (p == file) || (p[-1] == '/') || (p[-1] == '\\');
-      const char* end = p + scope_len;
-      bool right_ok =
-        (*end == '\0') || (*end == '/') || (*end == '\\');
-
-      if(left_ok && right_ok)
-        matched = true;
-      else
-        p++;
-    }
-
-    if(!matched)
+    if(!scope_file_matches(scope->file, scope_len, file, file_len))
       continue;
 
     if((scope->start_line == 0) && (scope->end_line == 0))
