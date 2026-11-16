@@ -83,20 +83,21 @@ primitive InfoFile
   fun filter(
     mutants: Array[Mutant] val,
     operators: (String val | None) = None,
-    scope: (String val | None) = None)
+    scope: ReadSeq[String val] val = [])
     : Array[Mutant] val
   =>
     """
     Filter mutants by operator category and/or source file scope.
 
-    The scope string uses the same format as the compiler's `--mutate-scope`:
-    a file path optionally followed by `:line` or `:start-end` to restrict to
-    specific lines.
+    Each scope string uses the same format as the compiler's
+    `--mutate-scope`: a file path optionally followed by `:line` or
+    `:start-end` to restrict to specific lines. When multiple scopes are
+    given, a mutant passes if it matches any of them.
     """
     let op_set = _parse_operators(operators)
-    let scope_parsed = _parse_scope(scope)
+    let scopes = _parse_scopes(scope)
 
-    if (op_set.size() == 0) and (scope_parsed is None) then
+    if (op_set.size() == 0) and (scopes.size() == 0) then
       return mutants
     end
 
@@ -105,20 +106,28 @@ primitive InfoFile
       if (op_set.size() > 0) and not op_set.contains(m.category) then
         continue
       end
-      match scope_parsed
-      | (let sf: String val, let start_line: USize, let end_line: USize) =>
-        if not _file_matches(m.file, sf) then
-          continue
-        end
-        if (start_line > 0) and
-          ((m.line < start_line) or (m.line > end_line))
-        then
-          continue
-        end
+      if (scopes.size() > 0) and not _matches_any_scope(m, scopes) then
+        continue
       end
       result.push(m)
     end
     consume result
+
+  fun _matches_any_scope(
+    m: Mutant,
+    scopes: Array[(String val, USize, USize)] val)
+    : Bool
+  =>
+    for (sf, start_line, end_line) in scopes.values() do
+      if _file_matches(m.file, sf) then
+        if start_line == 0 then
+          return true
+        elseif (m.line >= start_line) and (m.line <= end_line) then
+          return true
+        end
+      end
+    end
+    false
 
   fun _file_matches(file: String val, scope: String val): Bool =>
     """
@@ -174,11 +183,12 @@ primitive InfoFile
       Set[String val]
     end
 
-  fun _parse_scope(scope: (String val | None))
-    : ((String val, USize, USize) | None)
+  fun _parse_scopes(scope: ReadSeq[String val] val)
+    : Array[(String val, USize, USize)] val
   =>
-    match scope
-    | let s: String val if s.size() > 0 =>
+    let out = recover iso Array[(String val, USize, USize)] end
+    for s in scope.values() do
+      if s.size() == 0 then continue end
       try
         let colon = s.rfind(":")?
         let after = s.trim(colon.usize() + 1)
@@ -189,14 +199,13 @@ primitive InfoFile
           let end_str = after.trim(dash.usize() + 1)
           let start_line = start_str.usize()?
           let end_line = end_str.usize()?
-          (before, start_line, end_line)
+          out.push((before, start_line, end_line))
         else
           let line = after.usize()?
-          (before, line, line)
+          out.push((before, line, line))
         end
       else
-        (s, USize(0), USize(0))
+        out.push((s, USize(0), USize(0)))
       end
-    else
-      None
     end
+    consume out

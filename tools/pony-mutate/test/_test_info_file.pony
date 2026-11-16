@@ -55,7 +55,7 @@ class \nodoc\ _TestInfoFileFilterByScope is UnitTest
     let mutants = _FourMutants()
     let result =
       mutate.InfoFile.filter(
-        mutants where scope = "src/main.pony")
+        mutants where scope = ["src/main.pony"])
     h.assert_eq[USize](3, result.size())
 
 class \nodoc\ _TestInfoFileFilterByScopePartialPath is UnitTest
@@ -80,7 +80,7 @@ class \nodoc\ _TestInfoFileFilterByScopePartialPath is UnitTest
       end
     let result =
       mutate.InfoFile.filter(
-        mutants where scope = "main.pony")
+        mutants where scope = ["main.pony"])
     h.assert_eq[USize](1, result.size())
     try
       h.assert_eq[String](
@@ -103,7 +103,7 @@ class \nodoc\ _TestInfoFileFilterByScopeDirectory is UnitTest
             2, 0, "lib/util.pony", 1, 1, "aor", "+", "-")]
       end
     let result =
-      mutate.InfoFile.filter(mutants where scope = "src")
+      mutate.InfoFile.filter(mutants where scope = ["src"])
     h.assert_eq[USize](1, result.size())
     try
       h.assert_eq[String](
@@ -121,7 +121,7 @@ class \nodoc\ _TestInfoFileFilterCombined is UnitTest
     let result =
       mutate.InfoFile.filter(
         mutants
-          where operators = "aor", scope = "src/main.pony")
+          where operators = "aor", scope = ["src/main.pony"])
     h.assert_eq[USize](1, result.size())
     try
       h.assert_eq[I32](1, result(0)?.id)
@@ -163,7 +163,7 @@ class \nodoc\ _TestInfoFileFilterScopeAtStart is UnitTest
       end
     let result =
       mutate.InfoFile.filter(
-        mutants where scope = "main.pony")
+        mutants where scope = ["main.pony"])
     h.assert_eq[USize](1, result.size())
 
 class \nodoc\ _TestInfoFileFilterScopeBackslash is UnitTest
@@ -186,17 +186,18 @@ class \nodoc\ _TestInfoFileFilterScopeBackslash is UnitTest
       end
     let result =
       mutate.InfoFile.filter(
-        mutants where scope = "main.pony")
+        mutants where scope = ["main.pony"])
     h.assert_eq[USize](1, result.size())
 
 class \nodoc\ _TestInfoFileFilterScopeEmpty is UnitTest
   fun name(): String =>
-    "InfoFile.filter: empty scope string acts as no filter"
+    "InfoFile.filter: empty scope array acts as no filter"
 
   fun apply(h: TestHelper) =>
     let mutants = _FourMutants()
+    let scope: Array[String val] val = []
     let result =
-      mutate.InfoFile.filter(mutants where scope = "")
+      mutate.InfoFile.filter(mutants where scope = scope)
     h.assert_eq[USize](4, result.size())
 
 class \nodoc\ _TestInfoFileFilterOperatorEmpty is UnitTest
@@ -234,7 +235,7 @@ class \nodoc\ _TestInfoFileFilterByScopeLine is UnitTest
     let mutants = _FourMutants()
     let result =
       mutate.InfoFile.filter(
-        mutants where scope = "src/main.pony:5")
+        mutants where scope = ["src/main.pony:5"])
     h.assert_eq[USize](1, result.size())
     try
       h.assert_eq[I32](2, result(0)?.id)
@@ -250,7 +251,7 @@ class \nodoc\ _TestInfoFileFilterByScopeLineRange is UnitTest
     let mutants = _FourMutants()
     let result =
       mutate.InfoFile.filter(
-        mutants where scope = "src/main.pony:1-3")
+        mutants where scope = ["src/main.pony:1-3"])
     h.assert_eq[USize](2, result.size())
 
 class \nodoc\ _TestInfoFileFilterByScopeLineRangeNoMatch is UnitTest
@@ -261,7 +262,7 @@ class \nodoc\ _TestInfoFileFilterByScopeLineRangeNoMatch is UnitTest
     let mutants = _FourMutants()
     let result =
       mutate.InfoFile.filter(
-        mutants where scope = "src/main.pony:10-20")
+        mutants where scope = ["src/main.pony:10-20"])
     h.assert_eq[USize](0, result.size())
 
 class \nodoc\ _TestInfoFileFilterByScopeLineWithOperator is UnitTest
@@ -272,10 +273,88 @@ class \nodoc\ _TestInfoFileFilterByScopeLineWithOperator is UnitTest
     let mutants = _FourMutants()
     let result =
       mutate.InfoFile.filter(
-        mutants where operators = "aor", scope = "src/main.pony:1-5")
+        mutants where operators = "aor", scope = ["src/main.pony:1-5"])
     h.assert_eq[USize](1, result.size())
     try
       h.assert_eq[I32](1, result(0)?.id)
+    else
+      h.fail("index out of bounds")
+    end
+
+class \nodoc\ _TestInfoFileFilterByMultipleScopes is UnitTest
+  fun name(): String =>
+    "InfoFile.filter: multiple scopes match mutants from either file"
+
+  fun apply(h: TestHelper) =>
+    let mutants = _FourMutants()
+    let result =
+      mutate.InfoFile.filter(
+        mutants
+          where scope = ["src/main.pony"; "lib/util.pony"])
+    h.assert_eq[USize](4, result.size())
+
+class \nodoc\ _TestInfoFileFilterByMultipleScopesExcludes is UnitTest
+  fun name(): String =>
+    "InfoFile.filter: multiple scopes exclude non-matching files"
+
+  fun apply(h: TestHelper) =>
+    let mutants =
+      recover val
+        [ as mutate.Mutant:
+          mutate.Mutant(
+            1, 0, "src/main.pony", 1, 1, "aor", "+", "-")
+          mutate.Mutant(
+            2, 0, "lib/util.pony", 1, 1, "ror", "==", "!=")
+          mutate.Mutant(
+            3, 0, "test/helper.pony", 1, 1, "bor", "and", "or")]
+      end
+    let result =
+      mutate.InfoFile.filter(
+        mutants
+          where scope = ["src/main.pony"; "lib/util.pony"])
+    h.assert_eq[USize](2, result.size())
+    try
+      h.assert_eq[String](
+        "src/main.pony", result(0)?.file)
+      h.assert_eq[String](
+        "lib/util.pony", result(1)?.file)
+    else
+      h.fail("index out of bounds")
+    end
+
+class \nodoc\ _TestInfoFileFilterByMultipleScopesWithOperator is UnitTest
+  fun name(): String =>
+    "InfoFile.filter: multiple scopes combined with operator"
+
+  fun apply(h: TestHelper) =>
+    let mutants = _FourMutants()
+    let result =
+      mutate.InfoFile.filter(
+        mutants
+          where
+            operators = "aor",
+            scope = ["src/main.pony"; "lib/util.pony"])
+    h.assert_eq[USize](1, result.size())
+    try
+      h.assert_eq[I32](1, result(0)?.id)
+    else
+      h.fail("index out of bounds")
+    end
+
+class \nodoc\ _TestInfoFileFilterByMultipleScopesWithLines is UnitTest
+  fun name(): String =>
+    "InfoFile.filter: multiple scopes with line ranges"
+
+  fun apply(h: TestHelper) =>
+    let mutants = _FourMutants()
+    let result =
+      mutate.InfoFile.filter(
+        mutants
+          where scope = ["src/main.pony:5"; "lib/util.pony:2"])
+    h.assert_eq[USize](2, result.size())
+    try
+      h.assert_eq[I32](2, result(0)?.id)
+      h.assert_eq[I32](3, result(1)?.id)
     else
       h.fail("index out of bounds")
     end
