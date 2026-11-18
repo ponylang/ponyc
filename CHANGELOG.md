@@ -67,6 +67,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix VariableSize body codec seeing the full buffer instead of the declared size ([PR #6641](https://github.com/ponylang/ponyc/pull/6641))
 - Fix SkipBits encoding the wrong number of padding bits for counts above 255 ([PR #6643](https://github.com/ponylang/ponyc/pull/6643))
 - Fix the argument buffer leak when ponyc exits during option parsing ([PR #6680](https://github.com/ponylang/ponyc/pull/6680))
+- Preserve inherited `iftype` specializations when composing traits ([PR #6681](https://github.com/ponylang/ponyc/pull/6681))
 
 ### Added
 
