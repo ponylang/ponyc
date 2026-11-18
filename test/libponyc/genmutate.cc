@@ -1751,6 +1751,138 @@ TEST_F(GenMutateCodegenTest, NomutateOnInheritedDefaultSuppressesMutation)
 }
 
 
+TEST_F(GenMutateCodegenTest, NomutateOnAdoptedDefaultSuppressesNestedLambdas)
+{
+  const char* src =
+    "interface val Inner\n"
+    "  fun apply(x: U64): Bool\n"
+    "interface val Outer\n"
+    "  fun apply(): Inner\n"
+    "trait Signature\n"
+    "  fun \\nomutate\\ get(): Outer\n"
+    "trait Donor\n"
+    "  fun get(): Outer =>\n"
+    "    {(): Inner => {(x: U64): Bool =>\n"
+    "      var y = x\n"
+    "      while y < 10 do y = y + 1 end\n"
+    "      try if y > 5 then true else error end else false end\n"
+    "    }}\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    unmarked()\n"
+    "    marked()\n"
+    "    let plain = {(x: U64): Bool => (x + 1) > 5}\n"
+    "    plain(8)\n"
+    "  fun unmarked() =>\n"
+    "    let obj = object is Donor end\n"
+    "    let outer = obj.get()\n"
+    "    let inner = outer()\n"
+    "    inner(8)\n"
+    "  fun marked() =>\n"
+    "    let obj = object is (Signature & Donor) end\n"
+    "    let outer = obj.get()\n"
+    "    let inner = outer()\n"
+    "    inner(8)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_ROR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_EQ(count_category_at_file("", 11, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 11, "ror"), 0u);
+  EXPECT_EQ(count_category_at_file("", 12, "ror"), 0u);
+  EXPECT_GT(count_category_at_file("", 18, "aor"), 0u);
+  EXPECT_GT(count_category_at_file("", 18, "ror"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, NomutateOnRecursiveDefaultSuppressesSharedLambda)
+{
+  const char* src =
+    "trait Maker\n"
+    "  fun make(rounds: U64): (Maker val | U64) =>\n"
+    "    if rounds == 0 then\n"
+    "      {(x: U64): U64 => x + 1}(rounds)\n"
+    "    else\n"
+    "      object is (Marked & Maker) end\n"
+    "    end\n"
+    "trait Marked\n"
+    "  fun \\nomutate\\ make(rounds: U64): (Maker val | U64)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let initial = object is Maker end\n"
+    "    try\n"
+    "      let child = initial.make(1) as Maker val\n"
+    "      initial.make(0)\n"
+    "      child.make(0)\n"
+    "    end\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_EQ(count_category_at_file("", 4, "aor"), 0u);
+}
+
+TEST_F(GenMutateCodegenTest, CopiedLiteralDefaultsCombineNestedExclusions)
+{
+  const char* src =
+    "interface val Inner\n"
+    "  fun apply(x: U64): Bool\n"
+    "interface val Outer\n"
+    "  fun apply(): Inner\n"
+    "primitive Factory\n"
+    "  fun apply(outer: Outer = "
+    "{(): Inner => {(x: U64): Bool => (x + 1) > 5}}): Outer => outer\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    unmarked()\n"
+    "    no_arithmetic()\n"
+    "    no_relational()\n"
+    "  fun unmarked() =>\n"
+    "    let outer = Factory()\n"
+    "    let inner = outer()\n"
+    "    inner(8)\n"
+    "  fun \\mutate_except(aor)\\ no_arithmetic() => Factory()\n"
+    "  fun \\mutate_except(ror)\\ no_relational() => Factory()\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_ROR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_EQ(count_category_at_file("", 6, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 6, "ror"), 0u);
+  EXPECT_GT(count_category_at_file("", 6, "cr"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, UnreachableAdoptedDefaultDoesNotSuppressLambda)
+{
+  const char* src =
+    "interface val Closure\n"
+    "  fun apply(x: U64): U64\n"
+    "trait Signature\n"
+    "  fun \\nomutate\\ get(): Closure\n"
+    "trait Donor\n"
+    "  fun get(): Closure => {(x: U64): U64 => x + 1}\n"
+    "primitive Unused\n"
+    "  fun apply(): Closure =>\n"
+    "    let obj = object is (Signature & Donor) end\n"
+    "    obj.get()\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let obj = object is Donor end\n"
+    "    let closure = obj.get()\n"
+    "    closure(4)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_EQ(count_category_at_file("", 6, "aor"), 2u);
+}
+
+
 TEST_F(GenMutateCodegenTest, NomutateOnClassSuppressesAllMethods)
 {
   const char* src =

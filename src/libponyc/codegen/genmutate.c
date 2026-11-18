@@ -408,7 +408,11 @@ bool mutate_site_enabled(compile_t* c, const char* category, ast_t* ast)
   if((c->opt->mutate_operators & bit) == 0)
     return false;
 
-  if((ast_mutation_exclusions(ast) & bit) != 0)
+  uint16_t exclusions = ast_mutation_exclusions(ast);
+  if(c->frame != NULL)
+    exclusions |= c->frame->literal_mutation_exclusions;
+
+  if((exclusions & bit) != 0)
     return false;
 
   if(c->opt->mutate_scope_count > 0)

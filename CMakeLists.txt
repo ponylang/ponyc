@@ -1098,6 +1098,13 @@ else()
             -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-monomorphization
             -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationMonomorphization.cmake)
 
+    add_test(NAME mutation-inherited-default
+        COMMAND ${CMAKE_COMMAND}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DOUTPUT=${PONY_OUTPUT_DIR}/mutation-inherited-default
+            -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-inherited-default
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationInheritedDefault.cmake)
+
     add_test(NAME mutation-runner
         COMMAND ${CMAKE_COMMAND}
             -DCOMPILER=$<TARGET_FILE:ponyc>
@@ -1147,6 +1154,7 @@ else()
     set_tests_properties(full-programs
         full-program-runner-rejects-broken-config
         stdlib validate-grammar mutation-runtime mutation-monomorphization
+        mutation-inherited-default
         mutation-runner mutation-baseline-fail mutation-reports mutation-string
         mutation-scope-check mutation-spawn-error
         PROPERTIES LABELS ci-core)
