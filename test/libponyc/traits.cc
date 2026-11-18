@@ -754,6 +754,27 @@ TEST_F(TraitsTest, InterfaceStructuralMissingSpecializations)
 }
 
 
+TEST_F(TraitsTest, LocalMethodGroupAcceptsEquivalentInheritedGuard)
+{
+  const char* src =
+    "trait Group[A: Any val]\n"
+    "  fun check(): U64 => 10\n"
+    "  fun check(): U64 iftype A <: First => 20\n"
+
+    "primitive Combined[A: Any val] is Group[A]\n"
+    "  fun check(): U64 => 30\n"
+    "  fun check(): U64 iftype A <: Second => 40\n"
+
+    "interface val First\n"
+    "  fun value(): U8\n"
+
+    "interface val Second\n"
+    "  fun value(): U8";
+
+  DO(test_compile(src, "verify"));
+}
+
+
 // Member shadowing
 
 TEST_F(TraitsTest, ParamShadowsOwnMethod)
