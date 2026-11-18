@@ -629,7 +629,13 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   // Trait provides default body. Use it and patch up symbol tables.
   pony_assert(ast_id(existing_body) == TK_NONE);
   import_use_aliases(entity, (ast_t*)ast_data(method), opt);
+  bool suppress_mutation = opt->mutate &&
+    ast_is_mutation_suppressed(method_body, opt->strtab);
   ast_replace(&existing_body, method_body);
+
+  if(suppress_mutation)
+    ast_setflag(existing_body, AST_FLAG_NOMUTATE);
+
   ast_visit(&existing_method, rescope, NULL, opt, PASS_ALL);
 
   info->body_donor = (ast_t*)ast_data(method);
