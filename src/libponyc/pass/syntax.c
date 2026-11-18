@@ -1,4 +1,5 @@
 #include "syntax.h"
+#include "mutation.h"
 #include "../ast/id.h"
 #include "../ast/parser.h"
 #include "../ast/stringtab.h"
@@ -1694,14 +1695,31 @@ static ast_result_t syntax_annotation(pass_opt_t* opt, ast_t* ast)
       continue;
     }
 
-    ast_t* arg = ast_child(child);
-    if((arg != NULL) && (ast_id(arg) == TK_INT) &&
-      (strcmp(str, "inline") != 0))
+    if((strcmp(str, "mutate_only") == 0) || (strcmp(str, "mutate_except") == 0))
     {
-      ast_error(opt->check.errors, child,
-        "annotation '%s' does not accept an argument", str);
-      ok = AST_ERROR;
+      if(!mutation_check_selector(opt, child))
+        ok = AST_ERROR;
       continue;
+    }
+
+    ast_t* arg = ast_child(child);
+    if((arg != NULL) && (ast_id(arg) != TK_NONE))
+    {
+      if(strcmp(str, "inline") != 0)
+      {
+        ast_error(opt->check.errors, child,
+          "annotation '%s' does not accept an argument", str);
+        ok = AST_ERROR;
+        continue;
+      }
+
+      if(ast_id(arg) != TK_INT)
+      {
+        ast_error(opt->check.errors, arg,
+          "'inline' annotation argument must be an integer");
+        ok = AST_ERROR;
+        continue;
+      }
     }
 
     if(!check_annotation_location(opt, ast, child, str))

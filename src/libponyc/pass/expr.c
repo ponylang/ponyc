@@ -646,9 +646,8 @@ ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
     case TK_CALL: return expr_pre_call(options, astp);
     case TK_SEQ:
       // Default expressions can be copied into calls in a different scope.
-      if(options->mutate && (options->check.frame->def_arg == ast) &&
-        ast_is_mutation_suppressed(ast, options->strtab))
-        ast_setflag(ast, AST_FLAG_NOMUTATE);
+      if(options->mutate && (options->check.frame->def_arg == ast))
+        ast_exclude_mutations(ast, ast_mutation_exclusions(ast));
       break;
     case TK_IFDEFNOT:
     case TK_IFDEFAND:

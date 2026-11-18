@@ -1,4 +1,5 @@
 #include "traits.h"
+#include "mutation.h"
 #include "sugar.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
@@ -122,7 +123,8 @@ static void setup_local_methods(ast_t* ast)
 }
 
 
-static void tidy_up_method(ast_t* entity, ast_t* method)
+static bool finish_method(ast_t* entity, ast_t* method, pass_opt_t* opt,
+  const mutation_type_policy_t* policy)
 {
   method_t* info = (method_t*)ast_data(method);
   pony_assert(info != NULL);
@@ -133,28 +135,37 @@ static void tidy_up_method(ast_t* entity, ast_t* method)
     body_donor = entity;
 
   ast_setdata(method, body_donor);
+  return (policy == NULL) || mutation_resolve_method(opt, policy, method);
 }
 
-// Tidy up the method_t structures in the given entity.
-static void tidy_up(ast_t* entity)
+static bool finish_methods(ast_t* entity, pass_opt_t* opt, bool composed)
 {
   pony_assert(entity != NULL);
 
   ast_t* members = ast_childidx(entity, 4);
   pony_assert(members != NULL);
 
+  mutation_type_policy_t type_policy = mutation_type_policy(entity);
+  const mutation_type_policy_t* policy = composed ? &type_policy : NULL;
+  bool ok = composed;
   for(ast_t* p = ast_child(members); p != NULL; p = ast_sibling(p))
   {
     if(is_method(p))
     {
-      tidy_up_method(entity, p);
+      if(!finish_method(entity, p, opt, policy))
+        ok = false;
     }
     else if(ast_id(p) == TK_METHODGROUP)
     {
       for(ast_t* m = ast_child(p); m != NULL; m = ast_sibling(m))
-        tidy_up_method(entity, m);
+      {
+        if(!finish_method(entity, m, opt, policy))
+          ok = false;
+      }
     }
   }
+
+  return ok;
 }
 
 
@@ -629,12 +640,8 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   // Trait provides default body. Use it and patch up symbol tables.
   pony_assert(ast_id(existing_body) == TK_NONE);
   import_use_aliases(entity, (ast_t*)ast_data(method), opt);
-  bool suppress_mutation = opt->mutate &&
-    ast_is_mutation_suppressed(method_body, opt->strtab);
   ast_replace(&existing_body, method_body);
-
-  if(suppress_mutation)
-    ast_setflag(existing_body, AST_FLAG_NOMUTATE);
+  mutation_inherit_body_selector(method, existing_body);
 
   ast_visit(&existing_method, rescope, NULL, opt, PASS_ALL);
 
@@ -1024,7 +1031,7 @@ static bool trait_entity(ast_t* entity, pass_opt_t* opt)
     check_member_shadowing(entity, opt) &&
     check_concrete_bodies(entity, opt);
 
-  tidy_up(entity);
+  r = finish_methods(entity, opt, r);
   ast_clearflag(entity, AST_FLAG_RECURSE_1);
   ast_setflag(entity, AST_FLAG_DONE_1);
 

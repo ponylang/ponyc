@@ -296,8 +296,7 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
     ast_add(arg, location);
     ast_setid(arg, TK_SEQ);
 
-    if(ast_checkflag(def_arg, AST_FLAG_NOMUTATE))
-      ast_setflag(arg, AST_FLAG_NOMUTATE);
+    ast_exclude_mutations(arg, ast_mutation_exclusions(def_arg));
 
     if(!ast_passes_subtree(&location, opt, PASS_EXPR))
       return false;

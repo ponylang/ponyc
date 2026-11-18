@@ -306,7 +306,7 @@ lambdaparam
   ;
 
 annotationelem
-  : ID ('(' INT ')')?
+  : ID ('(' (INT | (ID (',' ID)*)) ')')?
   ;
 
 positional

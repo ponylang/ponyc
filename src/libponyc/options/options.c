@@ -9,6 +9,7 @@
 #include "../ast/stringtab.h"
 #include "../ast/treecheck.h"
 #include "../pass/pass.h"
+#include "../pass/mutation.h"
 #include "../pass/timing.h"
 #include "../plugin/plugin.h"
 #include "../libponyrt/options/options.h"
@@ -148,25 +149,8 @@ static uint16_t parse_mutate_operators(const char* val)
       p++;
     size_t len = (size_t)(p - start);
 
-    if((len == 3) && (strncmp(start, "aor", 3) == 0))
-      mask |= MUTATE_OP_AOR;
-    else if((len == 3) && (strncmp(start, "bor", 3) == 0))
-      mask |= MUTATE_OP_BOR;
-    else if((len == 3) && (strncmp(start, "ror", 3) == 0))
-      mask |= MUTATE_OP_ROR;
-    else if((len == 3) && (strncmp(start, "sor", 3) == 0))
-      mask |= MUTATE_OP_SOR;
-    else if((len == 3) && (strncmp(start, "uoi", 3) == 0))
-      mask |= MUTATE_OP_UOI;
-    else if((len == 2) && (strncmp(start, "cr", 2) == 0))
-      mask |= MUTATE_OP_CR;
-    else if((len == 3) && (strncmp(start, "rvr", 3) == 0))
-      mask |= MUTATE_OP_RVR;
-    else if((len == 3) && (strncmp(start, "vcr", 3) == 0))
-      mask |= MUTATE_OP_VCR;
-    else if((len == 3) && (strncmp(start, "amr", 3) == 0))
-      mask |= MUTATE_OP_AMR;
-    else
+    uint16_t bit = mutation_category_bit(start, len);
+    if(bit == 0)
     {
       fprintf(stderr, "Error: unknown mutation category '");
       fwrite(start, 1, len, stderr);
@@ -175,6 +159,7 @@ static uint16_t parse_mutate_operators(const char* val)
       return 0;
     }
 
+    mask |= bit;
     if(*p == ',')
       p++;
   }

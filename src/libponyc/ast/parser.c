@@ -320,11 +320,23 @@ DEF(positional);
   WHILE(TK_COMMA, RULE("argument", rawseq));
   DONE();
 
-// ID ['(' INT ')']
+DEF(annotationint);
+  PRINT_INLINE();
+  TOKEN("annotation argument", TK_INT);
+  DONE();
+
+DEF(annotationids);
+  PRINT_INLINE();
+  AST_NODE(TK_FLATTEN);
+  TOKEN("annotation argument", TK_ID);
+  WHILE(TK_COMMA, TOKEN("annotation argument", TK_ID));
+  DONE();
+
+// ID ['(' (INT | ID {COMMA ID}) ')']
 DEF(annotationelem);
   TOKEN("annotation", TK_ID);
   IF(TK_LPAREN,
-    TOKEN("annotation argument", TK_INT);
+    RULE("annotation argument", annotationint, annotationids);
     SKIP(NULL, TK_RPAREN);
   );
   DONE();

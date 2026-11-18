@@ -57,6 +57,7 @@ enum
   AST_ORPHAN = 0x20,
   AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
     AST_FLAG_MIGHT_SEND | AST_FLAG_RECURSE_1 | AST_FLAG_RECURSE_2),
+  AST_HAS_MUTATION_EXCLUSIONS = 0x40000000,
   AST_ALL_FLAGS = 0x7FFFFFFF
 };
 
@@ -963,16 +964,30 @@ bool ast_has_annotation(ast_t* ast, const char* name, strtable_t* strtab)
   return false;
 }
 
-bool ast_is_mutation_suppressed(ast_t* ast, strtable_t* strtab)
+uint16_t ast_mutation_exclusions(ast_t* ast)
 {
-  for(ast_t* p = ast; p != NULL; p = ast_parent(p))
+  uint16_t exclusions = 0;
+  for(; ast != NULL; ast = ast_parent(ast))
   {
-    if(ast_checkflag(p, AST_FLAG_NOMUTATE) ||
-      ast_has_annotation(p, "nomutate", strtab))
-      return true;
+    if(ast_checkflag(ast, AST_HAS_MUTATION_EXCLUSIONS))
+      exclusions |= token_mutation_exclusions(ast->t);
   }
 
-  return false;
+  return exclusions;
+}
+
+void ast_exclude_mutations(ast_t* ast, uint16_t categories)
+{
+  if(categories == 0)
+    return;
+
+  // A copied token can carry a mask from its original node. The AST flag
+  // determines whether the mask applies to this node.
+  if(ast_checkflag(ast, AST_HAS_MUTATION_EXCLUSIONS))
+    categories |= token_mutation_exclusions(ast->t);
+
+  ast_setflag(ast, AST_HAS_MUTATION_EXCLUSIONS);
+  token_set_mutation_exclusions(ast->t, categories);
 }
 
 bool ast_annotation_value(ast_t* ast, const char* name, strtable_t* strtab,

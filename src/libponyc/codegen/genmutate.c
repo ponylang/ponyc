@@ -7,7 +7,7 @@
 #include "../ast/lexint.h"
 #include "../ast/source.h"
 #include "../ast/token.h"
-#include "../pass/pass.h"
+#include "../pass/mutation.h"
 #include "../pkg/package.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
@@ -291,20 +291,6 @@ bool mutate_write_info(mutate_state_t* state, const char* output_dir,
   return true;
 }
 
-static uint16_t category_to_bit(const char* category)
-{
-  if(strcmp(category, "aor") == 0) return MUTATE_OP_AOR;
-  if(strcmp(category, "bor") == 0) return MUTATE_OP_BOR;
-  if(strcmp(category, "ror") == 0) return MUTATE_OP_ROR;
-  if(strcmp(category, "sor") == 0) return MUTATE_OP_SOR;
-  if(strcmp(category, "uoi") == 0) return MUTATE_OP_UOI;
-  if(strcmp(category, "cr") == 0) return MUTATE_OP_CR;
-  if(strcmp(category, "rvr") == 0) return MUTATE_OP_RVR;
-  if(strcmp(category, "vcr") == 0) return MUTATE_OP_VCR;
-  if(strcmp(category, "amr") == 0) return MUTATE_OP_AMR;
-  return 0;
-}
-
 static bool scope_file_matches(const char* scope_file, size_t scope_len,
   const char* file, size_t file_len)
 {
@@ -418,11 +404,11 @@ bool mutate_site_enabled(compile_t* c, const char* category, ast_t* ast)
   if(ast == NULL)
     return false;
 
-  uint16_t bit = category_to_bit(category);
+  uint16_t bit = mutation_category_bit(category, strlen(category));
   if((c->opt->mutate_operators & bit) == 0)
     return false;
 
-  if(ast_is_mutation_suppressed(ast, c->opt->strtab))
+  if((ast_mutation_exclusions(ast) & bit) != 0)
     return false;
 
   if(c->opt->mutate_scope_count > 0)

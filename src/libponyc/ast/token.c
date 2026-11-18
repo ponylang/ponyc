@@ -15,6 +15,7 @@ struct token_t
   size_t pos;
   size_t len;
   char* printed;
+  uint16_t mutation_exclusions;
   bool newline;
 
   union
@@ -92,6 +93,19 @@ token_id token_get_id(token_t* token)
 {
   pony_assert(token != NULL);
   return token->id;
+}
+
+uint16_t token_mutation_exclusions(token_t* token)
+{
+  return token->mutation_exclusions;
+}
+
+void token_set_mutation_exclusions(token_t* token, uint16_t exclusions)
+{
+#ifndef PONY_NDEBUG
+  pony_assert(!token->frozen);
+#endif
+  token->mutation_exclusions = exclusions;
 }
 
 
