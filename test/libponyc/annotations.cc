@@ -306,3 +306,132 @@ TEST_F(AnnotationsTest, InlineWithoutValue)
   ASSERT_TRUE(ast_annotation_value(ast, "inline", opt.strtab, &value));
   ASSERT_TRUE(value == NULL);
 }
+
+TEST_F(AnnotationsTest, MutationSelectorPlacements)
+{
+  const char* src =
+    "class \\mutate_only(aor, bor, ror, sor, uoi, cr, rvr, vcr, amr)\\ C\n"
+    "  new \\mutate_except(rvr)\\ create() => None\n"
+    "  fun \\inline(10), mutate_only(aor, ror, aor)\\ check() => None\n"
+    "actor \\mutate_only(aor, vcr)\\ A\n"
+    "  be \\mutate_only(vcr)\\ send() => None\n"
+    "trait T\n"
+    "  fun \\mutate_except(cr)\\ defaulted() => None\n"
+    "interface I\n"
+    "  fun \\mutate_only(aor)\\ defaulted() => None\n"
+    "struct \\nomutate, nomutate\\ S\n"
+    "struct \\mutate_except(vcr)\\ Selected\n";
+
+  TEST_COMPILE(src, "traits");
+
+  ast_t* method = lookup_in(lookup_type("C"), "check");
+  lexint_t* value = nullptr;
+  ASSERT_TRUE(ast_annotation_value(method, "inline", opt.strtab, &value));
+  EXPECT_EQ(value->low, 10u);
+}
+
+TEST_F(AnnotationsTest, MutationSelectorArgumentAndPlacementErrors)
+{
+  const char* src =
+    "class \\mutate_only\\ Missing\n"
+    "class \\mutate_only(10)\\ Numeric\n"
+    "class \\mutate_except(aor, unknown)\\ Unknown\n"
+    "class \\mutate_except(aor), nomutate\\ Conflicting\n"
+    "class \\nomutate, mutate_only(aor)\\ AlsoConflicting\n"
+    "class \\mutate_only(aor), mutate_only(ror)\\ Duplicate\n"
+    "class \\custom(aor)\\ Custom\n"
+    "  fun \\inline(aor)\\ inline_id() => None\n"
+    "trait \\mutate_only(aor)\\ T\n"
+    "  fun \\mutate_except(aor)\\ signature()\n"
+    "  fun invalid() => if \\mutate_only(aor)\\ true then None end\n";
+
+  const char* errs[] = {
+    "'mutate_only' requires a list of mutation categories",
+    "'mutate_only' requires a list of mutation categories",
+    "unknown mutation category 'unknown'",
+    "'mutate_except' cannot appear with another mutation annotation",
+    "'mutate_only' cannot appear with another mutation annotation",
+    "'mutate_only' cannot appear with another mutation annotation",
+    "'mutate_only' cannot appear with another mutation annotation",
+    "annotation 'custom' does not accept an argument",
+    "'inline' annotation argument must be an integer",
+    "'mutate_only' can only appear on a concrete type or a method with a body",
+    "'mutate_except' can only appear on a concrete type or a method with a "
+      "body",
+    "'mutate_only' can only appear on a concrete type or a method with a body",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, MutationSelectorRejectsEmptyList)
+{
+  const char* errs[] = {"expected annotation argument after (", NULL};
+  DO(test_expected_errors("class \\mutate_only()\\ C\n", "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, MutationSelectorRejectsTrailingComma)
+{
+  const char* errs[] = {"expected annotation argument after ,", NULL};
+  DO(test_expected_errors("class \\mutate_except(aor,)\\ C\n", "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, MutationSelectorChecksUnusedMethodsAndDefaults)
+{
+  const char* src =
+    "trait Signature\n"
+    "  fun check(x: U64): Bool\n"
+    "trait Default\n"
+    "  fun \\mutate_only(aor, ror)\\ check(x: U64): Bool => (x + 1) > 0\n"
+    "primitive \\mutate_except(ror)\\ Mixed is (Signature & Default)\n"
+    "primitive \\mutate_only(aor)\\ Group[A: Any val]\n"
+    "  fun check(x: U64): Bool => (x + 1) > 0\n"
+    "  fun \\mutate_only(ror)\\ check(x: U64): Bool iftype A <: U8 => x > 0\n";
+
+  const char* errs[] = {
+    "type 'Mixed' excludes mutation category 'ror'",
+    "type 'Group' excludes mutation category 'ror'",
+    NULL
+  };
+  const char* limit[] = {
+    "the type's mutation categories are limited here",
+    NULL
+  };
+  const char** frames[] = {limit, limit, NULL};
+
+  ASSERT_FALSE(opt.mutate);
+  DO(test_expected_error_frames(src, "traits", errs, frames));
+
+  errormsg_t* inherited = errors_get_first(opt.check.errors);
+  EXPECT_EQ(inherited->line, 4u);
+  EXPECT_EQ(inherited->frame->line, 5u);
+  EXPECT_EQ(inherited->next->line, 8u);
+  EXPECT_EQ(inherited->next->frame->line, 6u);
+}
+
+TEST_F(AnnotationsTest, MutationSelectorConflictIgnoresCliMask)
+{
+  const char* src =
+    "primitive \\mutate_except(ror)\\ P\n"
+    "  fun \\mutate_only(ror)\\ check(x: U64): Bool => x > 0\n"
+    "trait Default\n"
+    "  fun \\mutate_only(ror, ror, cr)\\ check(x: U64): Bool => x > 0\n"
+    "primitive \\mutate_only(aor)\\ Mixed is Default\n";
+
+  const char* errs[] = {
+    "type 'P' excludes mutation category 'ror'",
+    "type 'Mixed' excludes mutation category 'ror'",
+    "type 'Mixed' excludes mutation category 'cr'",
+    NULL
+  };
+  const char* limit[] = {
+    "the type's mutation categories are limited here",
+    NULL
+  };
+  const char** frames[] = {limit, limit, limit, NULL};
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_expected_error_frames(src, "traits", errs, frames));
+}

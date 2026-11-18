@@ -282,6 +282,10 @@ Passes Pony structs to C functions, showing both `embed` fields (inline like C n
 
 ## Testing and Benchmarking
 
+### [mutation_annotations](testing/mutation_annotations/)
+
+Prints a fixed balance and checks whether a charge would leave it positive. Uses `nomutate` on the ledger type and `mutate_only(aor, ror)` on the charge check. The example README shows how to inspect the resulting `.mutants.json` file.
+
 ### [pony_bench](testing/pony_bench/)
 
 Runs microbenchmarks using the `pony_bench` package, reporting mean, median, and deviation. Demonstrates synchronous benchmarks with the `MicroBenchmark` trait, asynchronous benchmarks with `AsyncMicroBenchmark`, and `DoNotOptimise` to prevent dead code elimination.

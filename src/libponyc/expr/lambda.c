@@ -999,8 +999,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
 
   bool has_fields = false;
   bool has_behaviours = false;
-  bool suppress_mutations = opt->mutate &&
-    ast_is_mutation_suppressed(ast, opt->strtab);
+  uint16_t exclusions = opt->mutate ? ast_mutation_exclusions(ast) : 0;
 
   while(member != NULL)
   {
@@ -1023,8 +1022,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
         ast_t* method = ast_append(class_members, member);
 
         // The generated type is outside the literal's enclosing scope.
-        if(suppress_mutations)
-          ast_setflag(method, AST_FLAG_NOMUTATE);
+        ast_exclude_mutations(method, exclusions);
 
         break;
       }

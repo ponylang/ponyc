@@ -135,6 +135,8 @@ The same works for `../../tools/pony-lsp/`, `../../tools/pony-doc/`, `../../tool
 
 The compiler supports mutation testing via `--mutate`. This instruments operators and function returns so each can be replaced at runtime by setting `PONY_MUTANT_ID=<n>`. A `.mutants.json` info file lists every instrumented site. `--mutate-operators` and `--mutate-scope` narrow what gets instrumented; see `ponyc --help`.
 
+Use [mutation category annotations](examples/testing/mutation_annotations/README.md) to control instrumentation on types and methods.
+
 The `pony-mutate` tool (built by a normal `cmake --build --preset debug`) automates running all mutants:
 
 ```bash

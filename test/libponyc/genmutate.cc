@@ -6361,3 +6361,387 @@ TEST_F(GenMutateCodegenTest, MonomorphReplacementApplicability)
     verify_module();
   }
 }
+
+
+TEST_F(GenMutateCodegenTest, MutationSelectorPolicyTable)
+{
+  const char* src =
+    "primitive Plain\n"
+    "  fun check(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_only(aor)\\ only(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_except(aor)\\ except(x: U64): Bool => (x + 5) > 7\n"
+    "primitive \\mutate_only(aor, ror)\\ Only\n"
+    "  fun check(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_only(aor)\\ only(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_except(aor, ror)\\ except(x: U64): Bool => (x + 5) > 7\n"
+    "primitive \\mutate_except(aor)\\ Except\n"
+    "  fun check(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_except(aor)\\ repeated(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_except(ror)\\ combined(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_only(ror)\\ only(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\nomutate\\ suppressed(x: U64): Bool => (x + 5) > 7\n"
+    "primitive \\nomutate\\ Silent\n"
+    "  fun check(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_only(aor, ror)\\ only(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_except(aor)\\ except(x: U64): Bool => (x + 5) > 7\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Plain.check(1); Plain.only(1); Plain.except(1)\n"
+    "    Only.check(1); Only.only(1); Only.except(1)\n"
+    "    Except.check(1); Except.repeated(1); Except.combined(1)\n"
+    "    Except.only(1); Except.suppressed(1)\n"
+    "    Silent.check(1); Silent.only(1); Silent.except(1)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_ROR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  const struct
+  {
+    size_t line;
+    bool aor;
+    bool ror;
+    bool cr;
+  } cases[] = {
+    {2, true, true, true}, {3, true, false, false}, {4, false, true, true},
+    {6, true, true, false}, {7, true, false, false}, {8, false, false, false},
+    {10, false, true, true}, {11, false, true, true}, {12, false, false, true},
+    {13, false, true, false}, {14, false, false, false},
+    {16, false, false, false}, {17, true, true, false},
+    {18, false, false, false},
+  };
+
+  for(const auto& entry : cases)
+  {
+    SCOPED_TRACE(entry.line);
+    EXPECT_EQ(count_category_at_file("", entry.line, "aor") > 0, entry.aor);
+    EXPECT_EQ(count_category_at_file("", entry.line, "ror") > 0, entry.ror);
+    EXPECT_EQ(count_category_at_file("", entry.line, "cr") > 0, entry.cr);
+  }
+}
+
+
+TEST_F(GenMutateCodegenTest, MutationSelectorsAllowSecondaryCategories)
+{
+  const char* src =
+    "primitive P\n"
+    "  fun control(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_only(uoi)\\ arithmetic(x: U64): U64 => x + 5\n"
+    "  fun \\mutate_only(cr)\\ comparison(x: U64): Bool => x > 7\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    P.control(8); P.arithmetic(8); P.comparison(8)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators =
+    MUTATE_OP_AOR | MUTATE_OP_ROR | MUTATE_OP_UOI | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  for(const char* category : {"aor", "ror", "uoi", "cr"})
+    EXPECT_GT(count_category_at_file("", 2, category), 0u) << category;
+
+  EXPECT_GT(count_category_at_file("", 3, "uoi"), 0u);
+  EXPECT_EQ(count_category_at_file("", 3, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 3, "cr"), 0u);
+  EXPECT_GT(count_category_at_file("", 4, "cr"), 0u);
+  EXPECT_EQ(count_category_at_file("", 4, "ror"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, MutationSelectorsIntersectCliFilters)
+{
+  const char* src =
+    "primitive \\mutate_only(aor, ror)\\ P\n"
+    "  fun first(x: U64): Bool => (x + 5) > 7\n"
+    "  fun second(x: U64): Bool => (x + 5) > 7\n"
+    "primitive Plain\n"
+    "  fun control(x: U64): Bool => (x + 5) > 7\n"
+    "actor Main\n"
+    "  new create(env: Env) => P.first(8); P.second(8); Plain.control(8)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_ROR | MUTATE_OP_RVR;
+  auto* scopes = (mutate_scope_t*)ponyint_pool_alloc_size(
+    2 * sizeof(mutate_scope_t));
+  const size_t lines[] = {2, 5};
+  for(size_t i = 0; i < 2; i++)
+  {
+    char* file = (char*)ponyint_pool_alloc_size(1);
+    file[0] = '\0';
+    scopes[i] = {file, lines[i], lines[i]};
+  }
+  opt.mutate_scopes = scopes;
+  opt.mutate_scope_count = 2;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_GT(count_category_at_file("", 2, "ror"), 0u);
+  EXPECT_EQ(count_category_at_file("", 2, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 3, "ror"), 0u);
+  EXPECT_GT(count_category_at_file("", 5, "rvr"), 0u);
+  EXPECT_EQ(count_category_at_file("", 2, "rvr"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, MutationSelectorFollowsInheritedBody)
+{
+  const char* src =
+    "trait Signature\n"
+    "  fun check(x: U64 = U64(5) + 1): Bool\n"
+    "trait Donor\n"
+    "  fun \\mutate_only(ror)\\ check(x: U64 = U64(5) + 1): Bool =>\n"
+    "    (x + 1) > 5\n"
+    "primitive \\nomutate\\ Direct is Donor\n"
+    "primitive Mixed is (Signature & Donor)\n"
+    "primitive \\nomutate\\ Reversed is (Donor & Signature)\n"
+    "trait Combined is (Signature & Donor)\n"
+    "primitive \\nomutate\\ Chained is Combined\n"
+    "primitive \\mutate_only(aor)\\ Override is Donor\n"
+    "  fun check(x: U64 = U64(5) + 1): Bool => (x + 1) > 5\n"
+    "trait Narrowable\n"
+    "  fun \\mutate_except(uoi)\\ check(x: U64): Bool => (x + 1) > 5\n"
+    "primitive \\mutate_only(aor, uoi)\\ Arithmetic is Narrowable\n"
+    "primitive \\mutate_only(ror, uoi)\\ Relational is Narrowable\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Direct.check(); Mixed.check(); Reversed.check(); Chained.check(7)\n"
+    "    Override.check(7); Arithmetic.check(7); Relational.check(7)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_ROR | MUTATE_OP_UOI;
+  DO(test_compile(src, "ir"));
+
+  auto owners = [this](size_t line, const char* category)
+  {
+    std::set<std::string> names;
+    for(size_t i = 0; i < compile->mutate.mutant_count; i++)
+    {
+      const mutant_record_t& record = compile->mutate.mutants[i];
+      if(record.line == line && record.file[0] == '\0' &&
+        strcmp(record.category, category) == 0 && record.type_name != nullptr)
+        names.insert(record.type_name);
+    }
+    return names;
+  };
+
+  const std::set<std::string> inherited{
+    "Chained", "Direct", "Mixed", "Reversed"};
+  EXPECT_EQ(owners(5, "ror"), inherited);
+  EXPECT_TRUE(owners(5, "aor").empty());
+  EXPECT_TRUE(owners(5, "uoi").empty());
+  EXPECT_EQ(owners(12, "aor"), std::set<std::string>{"Override"});
+  EXPECT_TRUE(owners(12, "ror").empty());
+  EXPECT_TRUE(owners(12, "uoi").empty());
+  EXPECT_EQ(owners(14, "aor"), std::set<std::string>{"Arithmetic"});
+  EXPECT_EQ(owners(14, "ror"), std::set<std::string>{"Relational"});
+  EXPECT_TRUE(owners(14, "uoi").empty());
+  EXPECT_GT(count_category_at_file("", 2, "aor"), 0u);
+  EXPECT_GT(count_category_at_file("", 2, "uoi"), 0u);
+  EXPECT_EQ(count_category_at_file("", 4, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 4, "uoi"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, MutationSelectorFollowsNestedLambdas)
+{
+  const char* src =
+    "primitive \\nomutate\\ OptIn\n"
+    "  fun \\mutate_only(aor)\\ check(x: U64): Bool =>\n"
+    "    let outer = {(y: U64): Bool =>\n"
+    "      let inner = {(z: U64): Bool => (z + 1) > 5}\n"
+    "      inner(y + 1) and (y > 5)\n"
+    "    }\n"
+    "    outer(x)\n"
+    "primitive Plain\n"
+    "  fun \\mutate_except(aor, ror)\\ check(x: U64): Bool =>\n"
+    "    let inner = {(y: U64): Bool => (y + 1) > 5}\n"
+    "    inner(x)\n"
+    "actor Main\n"
+    "  new create(env: Env) => OptIn.check(4); Plain.check(4)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_ROR;
+  DO(test_compile(src, "ir"));
+
+  for(size_t line : {4u, 5u})
+  {
+    EXPECT_GT(count_category_at_file("", line, "aor"), 0u);
+    EXPECT_EQ(count_category_at_file("", line, "ror"), 0u);
+  }
+  EXPECT_EQ(count_category_at_file("", 10, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 10, "ror"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, CopiedDefaultIntersectsCallerMutationSelector)
+{
+  const char* src =
+    "primitive \\mutate_only(aor, cr)\\ Callee[A: Any val]\n"
+    "  fun apply(x: U64 = U64(5) + 1): U64 => x\n"
+    "  fun delegate(x: U64 = U64(5) + 1): U64 => x\n"
+    "actor Main\n"
+    "  new \\mutate_only(aor, uoi)\\ create(env: Env) =>\n"
+    "    Callee[U8]()\n"
+    "    let partial = Callee[U8]~delegate()\n"
+    "    partial()\n"
+    "    Callee[U8](U64(5) + 1)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_UOI | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  for(size_t line : {2u, 3u})
+  {
+    SCOPED_TRACE(line);
+    EXPECT_GT(count_category_at_file("", line, "aor"), 0u);
+    EXPECT_EQ(count_category_at_file("", line, "uoi"), 0u);
+    EXPECT_EQ(count_category_at_file("", line, "cr"), 0u);
+  }
+  EXPECT_GT(count_category_at_file("", 9, "aor"), 0u);
+  EXPECT_GT(count_category_at_file("", 9, "uoi"), 0u);
+  EXPECT_EQ(count_category_at_file("", 9, "cr"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, MutationSelectorFollowsMethodGroupVariant)
+{
+  const char* src =
+    "trait Group[A: Any val]\n"
+    "  fun \\mutate_only(aor)\\ check(x: U64): Bool => (x + 1) > 5\n"
+    "  fun \\mutate_only(ror)\\ check(x: U64): Bool iftype A <: U8 =>\n"
+    "    (x + 1) > 5\n"
+    "primitive Concrete[A: Any val] is Group[A]\n"
+    "actor Main\n"
+    "  new create(env: Env) => Concrete[U8].check(4); Concrete[U64].check(4)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_ROR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_GT(count_category_at_file("", 2, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 2, "ror"), 0u);
+  EXPECT_EQ(count_category_at_file("", 4, "aor"), 0u);
+  EXPECT_GT(count_category_at_file("", 4, "ror"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, MutationSelectorFollowsMovedObjectMethods)
+{
+  const char* src =
+    "trait Default\n"
+    "  fun inherited(x: U64): Bool => (x + 1) > 5\n"
+    "primitive Outer\n"
+    "  fun \\mutate_only(aor)\\ apply(x: U64): Bool =>\n"
+    "    let obj = object is Default\n"
+    "      let value: Bool = (x + 1) > 5\n"
+    "      fun local(y: U64): Bool => (y + 1) > 5\n"
+    "      fun \\mutate_only(ror)\\ disjoint(y: U64): Bool => (y + 1) > 5\n"
+    "    end\n"
+    "    obj.value and obj.local(x) and obj.disjoint(x)"
+      " and obj.inherited(x)\n"
+    "actor Main\n"
+    "  new create(env: Env) => Outer(8)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_ROR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_GT(count_category_at_file("", 2, "aor"), 0u);
+  EXPECT_GT(count_category_at_file("", 2, "ror"), 0u);
+  for(size_t line : {6u, 7u})
+  {
+    EXPECT_GT(count_category_at_file("", line, "aor"), 0u);
+    EXPECT_EQ(count_category_at_file("", line, "ror"), 0u);
+  }
+  EXPECT_EQ(count_category_at_file("", 8, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 8, "ror"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, MutationSelectorFollowsConstructorInitializers)
+{
+  const char* declarations =
+    "class \\nomutate\\ Ledger\n"
+    "  let nonempty: Bool = (U64(5) + 1) > 0\n"
+    "  new \\mutate_only(aor)\\ create() => None\n"
+    "  new silent() => None\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_ROR;
+  for(bool opted_in : {true, false})
+  {
+    const char* call = opted_in ? "    Ledger\n" : "    Ledger.silent()\n";
+    SCOPED_TRACE(call);
+    std::string src = std::string(declarations) + call;
+    DO(test_compile(src.c_str(), "ir"));
+
+    EXPECT_EQ(count_category_at_file("", 2, "aor") > 0, opted_in);
+    EXPECT_EQ(count_category_at_file("", 2, "ror"), 0u);
+  }
+}
+
+
+TEST_F(GenMutateCodegenTest, MutationSelectorKeepsSignatureDefaultsSeparate)
+{
+  const char* src =
+    "trait Signature\n"
+    "  fun \\nomutate\\ apply(x: U64 = U64(5) + 1): U64\n"
+    "trait Selected\n"
+    "  fun \\mutate_only(aor)\\ apply(x: U64 = U64(5) + 1): U64 => x + 1\n"
+    "trait Bare\n"
+    "  fun apply(x: U64 = U64(5) + 1): U64 => x + 1\n"
+    "primitive SelectedBody is (Signature & Selected)\n"
+    "primitive BareBody is (Signature & Bare)\n"
+    "actor Main\n"
+    "  new create(env: Env) => SelectedBody(); BareBody(); BareBody(7)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_UOI;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_EQ(count_category_at_file("", 2, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 2, "uoi"), 0u);
+  EXPECT_GT(count_category_at_file("", 4, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 4, "uoi"), 0u);
+  EXPECT_EQ(count_category_at_file("", 6, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 6, "uoi"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, MutationSelectorCategoryListsAreSets)
+{
+  const char* src =
+    "primitive Lists\n"
+    "  fun \\mutate_only(aor, ror)\\ first(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_only(ror, aor)\\ reversed(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_only(aor, aor, ror)\\ repeated(x: U64): Bool => (x + 5)"
+      " > 7\n"
+    "  fun \\mutate_except(aor, ror)\\ exclude(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_except(ror, aor)\\ flipped(x: U64): Bool => (x + 5) > 7\n"
+    "  fun \\mutate_except(aor, aor, ror)\\ duplicate(x: U64): Bool =>\n"
+    "    (x + 5) > 7\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Lists.first(8); Lists.reversed(8); Lists.repeated(8)\n"
+    "    Lists.exclude(8); Lists.flipped(8); Lists.duplicate(8)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_ROR | MUTATE_OP_CR;
+  DO(test_compile(src, "ir"));
+
+  for(size_t line : {2u, 3u, 4u})
+  {
+    SCOPED_TRACE(line);
+    EXPECT_GT(count_category_at_file("", line, "aor"), 0u);
+    EXPECT_GT(count_category_at_file("", line, "ror"), 0u);
+    EXPECT_EQ(count_category_at_file("", line, "cr"), 0u);
+  }
+  for(size_t line : {5u, 6u, 8u})
+  {
+    SCOPED_TRACE(line);
+    EXPECT_EQ(count_category_at_file("", line, "aor"), 0u);
+    EXPECT_EQ(count_category_at_file("", line, "ror"), 0u);
+    EXPECT_GT(count_category_at_file("", line, "cr"), 0u);
+  }
+}

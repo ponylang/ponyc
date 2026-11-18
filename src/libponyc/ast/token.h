@@ -313,6 +313,11 @@ void token_freeze(token_t* token);
 /// Report the given token's ID
 token_id token_get_id(token_t* token);
 
+/// Storage for mutation exclusions. Use the AST accessors to read or set
+/// the exclusions on a node.
+uint16_t token_mutation_exclusions(token_t* token);
+void token_set_mutation_exclusions(token_t* token, uint16_t exclusions);
+
 /** Report the given token's literal value.
  * Only valid for TK_STRING and TK_ID tokens.
  * The returned string must not be deleted and is valid for the lifetime of the
