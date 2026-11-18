@@ -1737,6 +1737,140 @@ TEST_F(GenMutateCodegenTest, NomutateOnClassSuppressesAllMethods)
 }
 
 
+TEST_F(GenMutateCodegenTest, NomutateSuppressesNestedLambdas)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    suppressed(1)\n"
+    "    let plain = {(x: U64): U64 => x + 1}\n"
+    "    plain(1)\n"
+    "\n"
+    "  fun \\nomutate\\ suppressed(x: U64): U64 =>\n"
+    "    let outer = {(y: U64): U64 =>\n"
+    "      let inner = {(z: U64): U64 => z + 1}\n"
+    "      inner(y + 1)\n"
+    "    }\n"
+    "    outer(x + 1)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_GT(count_category_at_file("", 4, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 9, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 10, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 12, "aor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, NomutateSuppressesObjectLiteralMethods)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Marked.run(1)\n"
+    "\n"
+    "trait Defaults\n"
+    "  fun inherited(x: U64): U64 => x + 1\n"
+    "\n"
+    "primitive \\nomutate\\ Marked\n"
+    "  fun run(x: U64) =>\n"
+    "    let obj = object is Defaults\n"
+    "      let value: U64 = x + 1\n"
+    "      new other(y: U64) =>\n"
+    "        value = y + 1\n"
+    "      fun \\noinline\\ direct(y: U64): U64 => value + y\n"
+    "    end\n"
+    "    obj.other(x).direct(x)\n"
+    "    obj.inherited(x)\n"
+    "    let worker = object\n"
+    "      be run(y: U64) =>\n"
+    "        let result = y + 1\n"
+    "    end\n"
+    "    worker.run(x)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_GT(count_category_at_file("", 6, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 11, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 13, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 14, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 20, "aor"), 0u);
+
+  const char* direct_name = stringtab(opt.strtab, "direct");
+  ast_t* direct = nullptr;
+  for(ast_t* entity = ast_child(file); entity != nullptr;
+    entity = ast_sibling(entity))
+  {
+    direct = ast_get(entity, direct_name, nullptr);
+    if(direct != nullptr)
+      break;
+  }
+  ASSERT_NE(direct, nullptr);
+  EXPECT_TRUE(ast_has_annotation(direct, "noinline", opt.strtab));
+}
+
+
+TEST_F(GenMutateCodegenTest, NomutateSuppressesCopiedDefaultArguments)
+{
+  const char* src =
+    "primitive Calculator\n"
+    "  fun \\nomutate\\ suppressed(x: U64 = U64(1) + U64(2)): U64 => x\n"
+    "  fun allowed(x: U64 = U64(5) + U64(6)): U64 => x\n"
+    "  fun \\nomutate\\ partially_applied(x: U64 = U64(9) + U64(1)): U64 => x\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Calculator.suppressed()\n"
+    "    Calculator.suppressed(U64(2) + U64(3))\n"
+    "    Marked[U64].suppressed[U8]()\n"
+    "    Calculator.allowed()\n"
+    "    let partial = Calculator~partially_applied()\n"
+    "    partial()\n"
+    "\n"
+    "primitive \\nomutate\\ Marked[A: Any val]\n"
+    "  fun suppressed[B: Any val](x: U64 = U64(7) + U64(8)): U64 => x\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_EQ(count_category_at_file("", 2, "aor"), 0u);
+  EXPECT_GT(count_category_at_file("", 3, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 4, "aor"), 0u);
+  EXPECT_GT(count_category_at_file("", 9, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 16, "aor"), 0u);
+}
+
+
+TEST_F(GenMutateCodegenTest, NomutateSuppressesLocationDefault)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Calculator.suppressed()\n"
+    "    Calculator.allowed()\n"
+    "\n"
+    "interface val SourceLoc\n"
+    "  fun tag line(): USize\n"
+    "\n"
+    "primitive Calculator\n"
+    "  fun \\nomutate\\ suppressed(loc: SourceLoc = __loc): USize =>\n"
+    "    loc.line()\n"
+    "  fun allowed(loc: SourceLoc = __loc): USize => loc.line()\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_EQ(count_category_at_file("", 3, "rvr"), 0u);
+  EXPECT_GT(count_category_at_file("", 4, "rvr"), 0u);
+}
+
+
 TEST_F(GenMutateCodegenTest, CoverageCounterDistinctAcrossReplacements)
 {
   const char* src =

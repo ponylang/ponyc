@@ -413,33 +413,6 @@ static bool scope_matches(pass_opt_t* opt, const char* file, size_t line)
   return false;
 }
 
-static bool has_nomutate(ast_t* ast, strtable_t* strtab)
-{
-  ast_t* p = ast;
-  while(p != NULL)
-  {
-    token_id id = ast_id(p);
-    switch(id)
-    {
-      case TK_FUN:
-      case TK_BE:
-      case TK_NEW:
-      case TK_CLASS:
-      case TK_ACTOR:
-      case TK_PRIMITIVE:
-      case TK_STRUCT:
-        if(ast_has_annotation(p, "nomutate", strtab))
-          return true;
-        break;
-
-      default:
-        break;
-    }
-    p = ast_parent(p);
-  }
-  return false;
-}
-
 bool mutate_site_enabled(compile_t* c, const char* category, ast_t* ast)
 {
   if(ast == NULL)
@@ -449,7 +422,7 @@ bool mutate_site_enabled(compile_t* c, const char* category, ast_t* ast)
   if((c->opt->mutate_operators & bit) == 0)
     return false;
 
-  if(has_nomutate(ast, c->opt->strtab))
+  if(ast_is_mutation_suppressed(ast, c->opt->strtab))
     return false;
 
   if(c->opt->mutate_scope_count > 0)
