@@ -169,8 +169,8 @@ static bool finish_methods(ast_t* entity, pass_opt_t* opt, bool composed)
 }
 
 
-// Compare the 2 given signatures to see if they are exactly the same.
-static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
+static bool compare_signature_nodes(ast_t* sig_a, ast_t* sig_b,
+  bool comparing_guards)
 {
   if(sig_a == NULL && sig_b == NULL)
     return true;
@@ -200,7 +200,7 @@ static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
         if(a_child == NULL || b_child == NULL)
           return false;
 
-        if(i != 5 && !compare_signatures(a_child, b_child))
+        if(i != 5 && !compare_signature_nodes(a_child, b_child, false))
           return false;
 
         a_child = ast_sibling(a_child);
@@ -235,10 +235,30 @@ static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
     case TK_INT:     return lexint_cmp(ast_int(sig_a), ast_int(sig_b)) == 0;
     case TK_FLOAT:   return ast_float(sig_a) == ast_float(sig_b);
 
+    case TK_IFTYPEGUARD:
+      // The narrowed type parameter bindings are derived from the operands.
+      return compare_signature_nodes(ast_child(sig_a), ast_child(sig_b),
+        true) && compare_signature_nodes(ast_childidx(sig_a, 1),
+        ast_childidx(sig_b, 1), true);
+
     case TK_NOMINAL:
     case TK_TYPEALIASREF:
       if(ast_data(sig_a) != ast_data(sig_b))
         return false;
+
+      if(comparing_guards && a_id == TK_NOMINAL)
+      {
+        // The resolved definition identifies the nominal type. The written
+        // module qualifier is only used in diagnostics.
+        for(size_t i = 2; i < 5; i++)
+        {
+          if(!compare_signature_nodes(ast_childidx(sig_a, i),
+            ast_childidx(sig_b, i), true))
+            return false;
+        }
+
+        return true;
+      }
 
       break;
 
@@ -251,7 +271,7 @@ static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
 
   while(a_child != NULL && b_child != NULL)
   {
-    if(!compare_signatures(a_child, b_child))
+    if(!compare_signature_nodes(a_child, b_child, comparing_guards))
       return false;
 
     a_child = ast_sibling(a_child);
@@ -532,17 +552,12 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 }
 
 
-// Combine the given inherited method with the existing one, if any, in the
-// given entity.
 // The provided method must already be reified.
-// The trait_ref is the entry in the provides list that causes this method
-// inclusion. Needed for error reporting.
-// Returns true on success, false on failure in which case an error will have
-// been reported.
-static bool add_method_from_trait(ast_t* entity, ast_t* method,
-  ast_t* trait_ref, pass_opt_t* opt)
+static bool merge_inherited_method(ast_t* entity, ast_t* existing_method,
+  ast_t* method, ast_t* trait_ref, pass_opt_t* opt)
 {
   pony_assert(entity != NULL);
+  pony_assert(existing_method != NULL);
   pony_assert(method != NULL);
   pony_assert(trait_ref != NULL);
 
@@ -550,36 +565,6 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
     method_body);
 
   const char* method_name = ast_name(id);
-  ast_t* existing_method = find_method(entity, method_name);
-
-  if(existing_method != NULL && ast_id(existing_method) == TK_METHODGROUP)
-    existing_method = ast_child(existing_method);
-
-  if(existing_method == NULL)
-  {
-    // Save the body donor before add_method overwrites ast_data on the method
-    // node. The body donor may differ from ast_data(trait_ref) when the body
-    // was inherited through a trait chain.
-    ast_t* body_donor = (ast_t*)ast_data(method);
-
-    // We don't have a method yet with this name, add the one from this trait.
-    ast_t* m = add_method(entity, trait_ref, method, "provided", opt);
-
-    if(m == NULL)
-      return false;
-
-    if(ast_id(ast_childidx(m, 7)) != TK_NONE)
-    {
-      if(body_donor != NULL)
-        import_use_aliases(entity, body_donor, opt);
-
-      ast_visit(&m, rescope, NULL, opt, PASS_ALL);
-    }
-
-    return true;
-  }
-
-  // A method with this name already exists.
   method_t* info = (method_t*)ast_data(existing_method);
   pony_assert(info != NULL);
 
@@ -591,7 +576,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
     return true;
 
   // Existing method is also provided, signatures must match exactly.
-  if(!compare_signatures(existing_method, method))
+  if(!compare_signature_nodes(existing_method, method, false))
   {
     pony_assert(info->trait_ref != NULL);
 
@@ -651,6 +636,39 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
 }
 
 
+static bool add_method_from_trait(ast_t* entity, ast_t* method,
+  ast_t* trait_ref, pass_opt_t* opt)
+{
+  const char* name = ast_name(ast_childidx(method, 1));
+  ast_t* existing = find_method(entity, name);
+
+  if(existing != NULL)
+  {
+    if(ast_id(existing) == TK_METHODGROUP)
+      existing = ast_child(existing);
+
+    return merge_inherited_method(entity, existing, method, trait_ref, opt);
+  }
+
+  ast_t* local = add_method(entity, trait_ref, method, "provided", opt);
+
+  if(local == NULL)
+    return false;
+
+  method_t* info = (method_t*)ast_data(local);
+
+  if(ast_id(ast_childidx(local, 7)) != TK_NONE)
+  {
+    if(info->body_donor != NULL)
+      import_use_aliases(entity, info->body_donor, opt);
+
+    ast_visit(&local, rescope, NULL, opt, PASS_ALL);
+  }
+
+  return true;
+}
+
+
 static bool add_methodgroup_from_trait(ast_t* entity, ast_t* group,
   ast_t* trait_ref, pass_opt_t* opt)
 {
@@ -662,50 +680,78 @@ static bool add_methodgroup_from_trait(ast_t* entity, ast_t* group,
   const char* method_name = ast_name(ast_childidx(default_method, 1));
   ast_t* existing = find_method(entity, method_name);
 
-  if(existing == NULL)
+  if((existing != NULL) && (ast_id(existing) == TK_METHODGROUP))
   {
-    // No existing method — add the entire group.
-    ast_t* body_donor = (ast_t*)ast_data(default_method);
-
-    ast_t* local = ast_append(ast_childidx(entity, 4), group);
-    ast_set(entity, method_name, local, SYM_DEFINED, false, opt->strtab);
-
-    // Set up method_t on each child. Save each method's body donor before
-    // attach_method_t overwrites ast_data with the method_t pointer.
-    for(ast_t* m = ast_child(local); m != NULL; m = ast_sibling(m))
+    // Semantic guard equality can require structural subtyping, which
+    // depends on the completed traits pass.
+    for(ast_t* m = default_method; m != NULL; m = ast_sibling(m))
     {
-      ast_t* m_donor = (ast_t*)ast_data(m);
-      method_t* info = attach_method_t(m);
-      info->trait_ref = trait_ref;
-
-      ast_t* m_body = ast_childidx(m, 7);
-      if(ast_id(m_body) != TK_NONE)
-        info->body_donor = m_donor;
-
-      // Strip docstrings.
-      ast_t* doc = ast_childidx(m, 8);
-      if(ast_id(doc) == TK_STRING)
-      {
-        ast_set_name(doc, "", opt->strtab);
-        ast_setid(doc, TK_NONE);
-        ast_settype(doc, NULL);
-      }
+      if(!merge_inherited_method(entity, ast_child(existing), m, trait_ref,
+        opt))
+        return false;
     }
 
-    if(body_donor != NULL)
-      import_use_aliases(entity, body_donor, opt);
-
-    ast_visit(&local, rescope, NULL, opt, PASS_ALL);
     return true;
   }
 
-  // Existing method — fall back to individual method inheritance.
-  // The default and specializations are added one at a time, which handles
-  // signature matching and body resolution for each.
+  ast_t* default_donor = (ast_t*)ast_data(default_method);
+
+  if(existing == NULL)
+  {
+    ast_append(ast_childidx(entity, 4), group);
+    ast_set(entity, method_name, group, SYM_DEFINED, false, opt->strtab);
+  }
+  else
+  {
+    ast_t* match = default_method;
+    ast_t* guard = ast_childidx(existing, 5);
+
+    while((match != NULL) && !compare_signature_nodes(guard,
+      ast_childidx(match, 5), true))
+      match = ast_sibling(match);
+
+    if((match != NULL) &&
+      !merge_inherited_method(entity, existing, match, trait_ref, opt))
+      return false;
+
+    ast_swap(existing, group);
+    symtab_replace(ast_get_symtab(entity), method_name, group);
+
+    if(match != NULL)
+    {
+      ast_swap(match, existing);
+      ast_free_unattached(match);
+    }
+    else
+    {
+      ast_add_sibling(default_method, existing);
+    }
+  }
+
+  if(default_donor != NULL)
+    import_use_aliases(entity, default_donor, opt);
+
   for(ast_t* m = ast_child(group); m != NULL; m = ast_sibling(m))
   {
-    if(!add_method_from_trait(entity, m, trait_ref, opt))
-      return false;
+    if(m == existing)
+      continue;
+
+    ast_t* donor = (ast_t*)ast_data(m);
+    method_t* info = attach_method_t(m);
+    info->trait_ref = trait_ref;
+
+    if(ast_id(ast_childidx(m, 7)) != TK_NONE)
+      info->body_donor = donor;
+
+    ast_t* doc = ast_childidx(m, 8);
+    if(ast_id(doc) == TK_STRING)
+    {
+      ast_set_name(doc, "", opt->strtab);
+      ast_setid(doc, TK_NONE);
+      ast_settype(doc, NULL);
+    }
+
+    ast_visit(&m, rescope, NULL, opt, PASS_ALL);
   }
 
   return true;
