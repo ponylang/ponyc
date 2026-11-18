@@ -131,6 +131,7 @@ typedef struct compile_frame_t
   bool early_termination;
   bool bare_function;
   bool is_partial;
+  uint16_t literal_mutation_exclusions;
   deferred_reification_t* reify;
   ast_t* mutate_ast;
 

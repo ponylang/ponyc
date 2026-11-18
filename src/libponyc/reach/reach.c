@@ -79,6 +79,7 @@ static void reach_instrument_report(reach_t* r)
 #endif
 
 DEFINE_STACK(reach_method_stack, reach_method_stack_t, reach_method_t);
+DEFINE_STACK(reach_literal_stack, reach_literal_stack_t, reach_type_t);
 
 static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   reach_method_name_t* n, token_id cap, ast_t* typeargs, pass_opt_t* opt,
@@ -86,10 +87,10 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
 
 static reach_type_t* add_type(reach_t* r, ast_t* type, pass_opt_t* opt);
 
-static void reachable_method(reach_t* r, deferred_reification_t* reify,
+static reach_type_t* reachable_method(reach_t* r, deferred_reification_t* reify,
   ast_t* type, const char* name, ast_t* typeargs, pass_opt_t* opt);
 
-static void reachable_expr(reach_t* r, deferred_reification_t* reify,
+static void reachable_expr(reach_t* r, reach_method_t* m,
   ast_t* ast, pass_opt_t* opt);
 
 // Infinitely recursive generic instantiation — a generic function or type that
@@ -311,6 +312,7 @@ static void reach_type_free(reach_type_t* t)
   ast_free(t->ast_cap);
   reach_method_names_destroy(&t->methods);
   reach_type_cache_destroy(&t->subtypes);
+  ponyint_list_free(t->nested_literals, NULL);
 
   if(t->field_count > 0)
   {
@@ -1665,9 +1667,10 @@ static reach_type_t* add_type(reach_t* r, ast_t* type, pass_opt_t* opt)
   return NULL;
 }
 
-static void reachable_pattern(reach_t* r, deferred_reification_t* reify,
+static void reachable_pattern(reach_t* r, reach_method_t* m,
   ast_t* ast, pass_opt_t* opt)
 {
+  deferred_reification_t* reify = m->fun;
   switch(ast_id(ast))
   {
     case TK_NONE:
@@ -1690,7 +1693,7 @@ static void reachable_pattern(reach_t* r, deferred_reification_t* reify,
 
       while(child != NULL)
       {
-        reachable_pattern(r, reify, child, opt);
+        reachable_pattern(r, m, child, opt);
         child = ast_sibling(child);
       }
       break;
@@ -1704,15 +1707,15 @@ static void reachable_pattern(reach_t* r, deferred_reification_t* reify,
       {
         // type will be reified in reachable_method
         reachable_method(r, reify, type, stringtab(opt->strtab, "eq"), NULL, opt);
-        reachable_expr(r, reify, ast, opt);
+        reachable_expr(r, m, ast, opt);
       }
       break;
     }
   }
 }
 
-static void reachable_fun(reach_t* r, deferred_reification_t* reify, ast_t* ast,
-  pass_opt_t* opt)
+static reach_type_t* reachable_fun(reach_t* r, deferred_reification_t* reify,
+  ast_t* ast, pass_opt_t* opt)
 {
   AST_GET_CHILDREN(ast, receiver, method);
   ast_t* typeargs = NULL;
@@ -1737,9 +1740,10 @@ static void reachable_fun(reach_t* r, deferred_reification_t* reify, ast_t* ast,
   const char* method_name = ast_name(method);
 
   // type will be reified in reachable_method
-  reachable_method(r, reify, type, method_name, typeargs, opt);
+  reach_type_t* t = reachable_method(r, reify, type, method_name, typeargs, opt);
 
   ast_free_unattached(typeargs);
+  return t;
 }
 
 static void reachable_addressof(reach_t* r, deferred_reification_t* reify,
@@ -1758,11 +1762,59 @@ static void reachable_addressof(reach_t* r, deferred_reification_t* reify,
   }
 }
 
-static void reachable_call(reach_t* r, deferred_reification_t* reify,
+static void exclude_literal_mutations(reach_type_t* literal,
+  uint16_t exclusions)
+{
+  if((exclusions & ~literal->literal_mutation_exclusions) == 0)
+    return;
+
+  // A lowered literal can be shared by several inherited defaults. Every
+  // exclusion at a reachable constructor call applies to that implementation.
+  reach_literal_stack_t* pending = reach_literal_stack_push(NULL, literal);
+  while(pending != NULL)
+  {
+    pending = reach_literal_stack_pop(pending, &literal);
+    if((exclusions & ~literal->literal_mutation_exclusions) == 0)
+      continue;
+
+    literal->literal_mutation_exclusions |= exclusions;
+    for(list_t* edge = literal->nested_literals; edge != NULL;
+      edge = ponyint_list_next(edge))
+    {
+      reach_type_t* nested = (reach_type_t*)ponyint_list_data(edge);
+      pending = reach_literal_stack_push(pending, nested);
+    }
+  }
+}
+
+static void reachable_call(reach_t* r, reach_method_t* m,
   ast_t* ast, pass_opt_t* opt)
 {
+  deferred_reification_t* reify = m->fun;
   AST_GET_CHILDREN(ast, postfix, positional, named, question);
-  reachable_fun(r, reify, postfix, opt);
+  reach_type_t* literal = reachable_fun(r, reify, postfix, opt);
+
+  if(!opt->mutate || m->intrinsic || r->limit_exceeded ||
+    !ast_checkflag(ast, AST_FLAG_OBJECT_LITERAL) ||
+    (literal->literal_mutation_exclusions == MUTATE_OP_ALL) ||
+    (ast_id(reify->thistype) != TK_NOMINAL))
+    return;
+
+  reach_type_t* owner = reach_type(r, reify->thistype, opt);
+  pony_assert(owner != NULL);
+  if(owner->is_trait)
+    return;
+
+  uint16_t exclusions = ast_mutation_exclusions(ast);
+  if(ast_checkflag(reify->ast, AST_FLAG_OBJECT_LITERAL))
+  {
+    exclusions |= owner->literal_mutation_exclusions;
+    if(exclusions != MUTATE_OP_ALL)
+      owner->nested_literals = ponyint_list_push(owner->nested_literals,
+        literal);
+  }
+
+  exclude_literal_mutations(literal, exclusions);
 }
 
 static void reachable_ffi(reach_t* r, deferred_reification_t* reify,
@@ -1811,9 +1863,10 @@ static void reachable_ffi(reach_t* r, deferred_reification_t* reify,
   }
 }
 
-static void reachable_expr(reach_t* r, deferred_reification_t* reify,
+static void reachable_expr(reach_t* r, reach_method_t* m,
   ast_t* ast, pass_opt_t* opt)
 {
+  deferred_reification_t* reify = m->fun;
   Stack* stack = NULL;
 
   while(ast != NULL)
@@ -1854,14 +1907,14 @@ static void reachable_expr(reach_t* r, deferred_reification_t* reify,
       case TK_CASE:
       {
         AST_GET_CHILDREN(ast, pattern, guard, body);
-        reachable_pattern(r, reify, pattern, opt);
+        reachable_pattern(r, m, pattern, opt);
         (void)guard;
         (void)body;
         break;
       }
 
       case TK_CALL:
-        reachable_call(r, reify, ast, opt);
+        reachable_call(r, m, ast, opt);
         break;
 
       case TK_FFICALL:
@@ -1994,7 +2047,7 @@ static void reachable_expr(reach_t* r, deferred_reification_t* reify,
   }
 }
 
-static void reachable_method(reach_t* r, deferred_reification_t* reify,
+static reach_type_t* reachable_method(reach_t* r, deferred_reification_t* reify,
   ast_t* type, const char* name, ast_t* typeargs, pass_opt_t* opt)
 {
   reach_type_t* t;
@@ -2011,7 +2064,7 @@ static void reachable_method(reach_t* r, deferred_reification_t* reify,
   reach_method_name_t* n = add_method_name(t, name, false, opt);
 
   if(n == NULL)
-    return;
+    return t;
 
   reach_method_t* m = add_rmethod(r, t, n, n->cap, typeargs, opt, false);
 
@@ -2022,7 +2075,7 @@ static void reachable_method(reach_t* r, deferred_reification_t* reify,
       // If the method is a finaliser, don't mark the ref and val versions as
       // reachable.
       pony_assert(n->cap == TK_BOX);
-      return;
+      return t;
     }
 
     // TODO: if it doesn't use this-> in a constructor, we could reuse the
@@ -2068,6 +2121,7 @@ static void reachable_method(reach_t* r, deferred_reification_t* reify,
       m = m2;
     }
   }
+  return t;
 }
 
 static void handle_method_stack(reach_t* r, pass_opt_t* opt)
@@ -2083,7 +2137,7 @@ static void handle_method_stack(reach_t* r, pass_opt_t* opt)
     r->method_stack = reach_method_stack_pop(r->method_stack, &m);
 
     ast_t* body = ast_childidx(m->fun->ast, 7);
-    reachable_expr(r, m->fun, body, opt);
+    reachable_expr(r, m, body, opt);
   }
 }
 

@@ -1599,6 +1599,13 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
   frame->fun = fun;
   frame->is_function = true;
   frame->reify = reify;
+  if(c->opt->mutate && (reify != NULL) &&
+    ast_checkflag(reify->ast, AST_FLAG_OBJECT_LITERAL))
+  {
+    reach_type_t* t = reach_type(c->reach, reify->thistype, c->opt);
+    pony_assert(t != NULL);
+    frame->literal_mutation_exclusions = t->literal_mutation_exclusions;
+  }
   frame->bare_function = bare;
   frame->di_file = file;
   frame->di_scope = scope;
@@ -1625,6 +1632,7 @@ void codegen_pushscope(compile_t* c, ast_t* ast)
   frame->reify = frame->prev->reify;
   frame->bare_function = frame->prev->bare_function;
   frame->is_partial = frame->prev->is_partial;
+  frame->literal_mutation_exclusions = frame->prev->literal_mutation_exclusions;
   frame->break_target = frame->prev->break_target;
   frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
@@ -1732,6 +1740,7 @@ void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
   frame->reify = frame->prev->reify;
   frame->bare_function = frame->prev->bare_function;
   frame->is_partial = frame->prev->is_partial;
+  frame->literal_mutation_exclusions = frame->prev->literal_mutation_exclusions;
   frame->break_target = break_target;
   frame->break_novalue_target = break_novalue_target;
   frame->continue_target = continue_target;
@@ -1753,6 +1762,7 @@ void codegen_pushtry(compile_t* c, LLVMBasicBlockRef error_target)
   frame->reify = frame->prev->reify;
   frame->bare_function = frame->prev->bare_function;
   frame->is_partial = frame->prev->is_partial;
+  frame->literal_mutation_exclusions = frame->prev->literal_mutation_exclusions;
   frame->break_target = frame->prev->break_target;
   frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;

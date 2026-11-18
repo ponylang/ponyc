@@ -5,6 +5,7 @@
 #include "../pass/pass.h"
 #include "../type/reify.h"
 #include "../../libponyrt/ds/hash.h"
+#include "../../libponyrt/ds/list.h"
 #include "../../libponyrt/ds/stack.h"
 
 PONY_EXTERN_C_BEGIN
@@ -16,6 +17,7 @@ typedef struct reach_param_t reach_param_t;
 typedef struct reach_type_t reach_type_t;
 
 DECLARE_STACK(reach_method_stack, reach_method_stack_t, reach_method_t);
+DECLARE_STACK(reach_literal_stack, reach_literal_stack_t, reach_type_t);
 DECLARE_HASHMAP(reach_methods, reach_methods_t, reach_method_t);
 DECLARE_HASHMAP(reach_mangled, reach_mangled_t, reach_method_t);
 DECLARE_HASHMAP(reach_method_names, reach_method_names_t,
@@ -101,6 +103,8 @@ struct reach_type_t
   uint32_t vtable_size;
   bool can_be_boxed;
   bool is_trait;
+  uint16_t literal_mutation_exclusions;
+  list_t* nested_literals;
 
   uint32_t field_count;
   reach_field_t* fields;

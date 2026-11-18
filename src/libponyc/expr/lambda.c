@@ -997,6 +997,9 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   ast_t* class_members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
 
+  if(opt->mutate)
+    ast_setflag(call, AST_FLAG_OBJECT_LITERAL);
+
   bool has_fields = false;
   bool has_behaviours = false;
   uint16_t exclusions = opt->mutate ? ast_mutation_exclusions(ast) : 0;
@@ -1020,6 +1023,16 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
       {
         has_behaviours = has_behaviours || (ast_id(member) == TK_BE);
         ast_t* method = ast_append(class_members, member);
+
+        if(opt->mutate)
+        {
+          ast_setflag(method, AST_FLAG_OBJECT_LITERAL);
+          if(ast_id(method) == TK_METHODGROUP)
+          {
+            for(ast_t* m = ast_child(method); m != NULL; m = ast_sibling(m))
+              ast_setflag(m, AST_FLAG_OBJECT_LITERAL);
+          }
+        }
 
         // The generated type is outside the literal's enclosing scope.
         ast_exclude_mutations(method, exclusions);

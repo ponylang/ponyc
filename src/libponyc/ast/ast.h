@@ -51,6 +51,7 @@ enum
   AST_FLAG_MAY_CONTINUE = 0x8000000, // This loop has seen a continue statement in it.
   AST_FLAG_CONST_ARRAY  = 0x10000000, // All elements are constant machine-word literals.
   AST_FLAG_SYNTHESIZED  = 0x20000000, // Compiler-generated method (add_comparable eq/ne).
+  AST_FLAG_OBJECT_LITERAL = 0x80000000u, // Constructor call or literal member.
 };
 
 DECLARE_LIST(astlist, astlist_t, ast_t);
