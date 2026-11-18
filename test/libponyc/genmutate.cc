@@ -1710,6 +1710,47 @@ TEST_F(GenMutateCodegenTest, NomutateOnFunctionSuppressesMutation)
 }
 
 
+TEST_F(GenMutateCodegenTest, NomutateOnInheritedDefaultSuppressesMutation)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Direct.calculate(1)\n"
+    "    Mixed.calculate()\n"
+    "    Reversed.calculate(1)\n"
+    "    Chained.calculate(1)\n"
+    "    Plain.calculate(1)\n"
+    "\n"
+    "trait Signature\n"
+    "  fun calculate(x: U64 = U64(5) + 1): U64\n"
+    "\n"
+    "trait Suppressed\n"
+    "  fun \\nomutate\\ calculate(x: U64 = U64(5) + 1): U64 =>\n"
+    "    x + 1\n"
+    "\n"
+    "trait Unsuppressed\n"
+    "  fun calculate(x: U64 = U64(5) + 1): U64 =>\n"
+    "    x + 1\n"
+    "\n"
+    "primitive Direct is Suppressed\n"
+    "primitive Mixed is (Signature & Suppressed)\n"
+    "primitive Reversed is (Suppressed & Signature)\n"
+    "trait Combined is (Signature & Suppressed)\n"
+    "primitive Chained is Combined\n"
+    "primitive Plain is (Signature & Unsuppressed)\n";
+
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_RVR;
+  DO(test_compile(src, "ir"));
+
+  EXPECT_GT(count_category_at_file("", 10, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 14, "aor"), 0u);
+  EXPECT_EQ(count_category_at_file("", 14, "rvr"), 0u);
+  EXPECT_GT(count_category_at_file("", 18, "aor"), 0u);
+  EXPECT_GT(count_category_at_file("", 18, "rvr"), 0u);
+}
+
+
 TEST_F(GenMutateCodegenTest, NomutateOnClassSuppressesAllMethods)
 {
   const char* src =
