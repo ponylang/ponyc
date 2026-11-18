@@ -57,7 +57,7 @@ enum
   AST_ORPHAN = 0x20,
   AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
     AST_FLAG_MIGHT_SEND | AST_FLAG_RECURSE_1 | AST_FLAG_RECURSE_2),
-  AST_ALL_FLAGS = 0x3FFFFFFF
+  AST_ALL_FLAGS = 0x7FFFFFFF
 };
 
 
@@ -958,6 +958,18 @@ bool ast_has_annotation(ast_t* ast, const char* name, strtable_t* strtab)
         return true;
       elem = ast_sibling(elem);
     }
+  }
+
+  return false;
+}
+
+bool ast_is_mutation_suppressed(ast_t* ast, strtable_t* strtab)
+{
+  for(ast_t* p = ast; p != NULL; p = ast_parent(p))
+  {
+    if(ast_checkflag(p, AST_FLAG_NOMUTATE) ||
+      ast_has_annotation(p, "nomutate", strtab))
+      return true;
   }
 
   return false;

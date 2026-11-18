@@ -999,6 +999,8 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
 
   bool has_fields = false;
   bool has_behaviours = false;
+  bool suppress_mutations = opt->mutate &&
+    ast_is_mutation_suppressed(ast, opt->strtab);
 
   while(member != NULL)
   {
@@ -1015,16 +1017,17 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
         break;
       }
 
-      case TK_BE:
-        // If we have behaviours, we must be an actor.
-        ast_append(class_members, member);
-        has_behaviours = true;
-        break;
-
       default:
-        // Keep all the methods as they are.
-        ast_append(class_members, member);
+      {
+        has_behaviours = has_behaviours || (ast_id(member) == TK_BE);
+        ast_t* method = ast_append(class_members, member);
+
+        // The generated type is outside the literal's enclosing scope.
+        if(suppress_mutations)
+          ast_setflag(method, AST_FLAG_NOMUTATE);
+
         break;
+      }
     }
 
     member = ast_sibling(member);

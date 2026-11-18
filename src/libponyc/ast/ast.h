@@ -51,6 +51,7 @@ enum
   AST_FLAG_MAY_CONTINUE = 0x8000000, // This loop has seen a continue statement in it.
   AST_FLAG_CONST_ARRAY  = 0x10000000, // All elements are constant machine-word literals.
   AST_FLAG_SYNTHESIZED  = 0x20000000, // Compiler-generated method (add_comparable eq/ne).
+  AST_FLAG_NOMUTATE     = 0x40000000,
 };
 
 DECLARE_LIST(astlist, astlist_t, ast_t);
@@ -108,6 +109,7 @@ ast_t* ast_annotation(ast_t* ast);
 void ast_setannotation(ast_t* ast, ast_t* annotation);
 ast_t* ast_consumeannotation(ast_t* ast);
 bool ast_has_annotation(ast_t* ast, const char* name, strtable_t* strtab);
+bool ast_is_mutation_suppressed(ast_t* ast, strtable_t* strtab);
 bool ast_annotation_value(ast_t* ast, const char* name, strtable_t* strtab,
   lexint_t** value);
 void ast_erase(ast_t* ast);
