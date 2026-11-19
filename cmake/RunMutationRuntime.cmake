@@ -185,23 +185,6 @@ endif()
 
 message(STATUS "PASS: VCR mutant ${_vcr_id} (call->remove) exits 1")
 
-execute_process(
-    COMMAND grep -m1 "main.pony.*amr.*add.*add_unsafe" "${_json}"
-    OUTPUT_VARIABLE _amr_line
-    RESULT_VARIABLE _grep_rc
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-if(NOT _grep_rc EQUAL 0 OR NOT _amr_line)
-    message(FATAL_ERROR "could not find amr add->add_unsafe mutant in JSON")
-endif()
-
-string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _amr_id "${_amr_line}")
-if(NOT _amr_id MATCHES "^[0-9]+$")
-    message(FATAL_ERROR "could not extract AMR mutant ID from: ${_amr_line}")
-endif()
-
-message(STATUS "PASS: AMR mutant ${_amr_id} (add->add_unsafe) recorded in JSON")
-
 # Find the line number of "result == 5" in the test source.
 execute_process(
     COMMAND grep -n "result == 5 then" "${TEST_SRC}/main.pony"
@@ -248,24 +231,43 @@ message(STATUS "PASS: CR mutant ${_cr_id} (n->n+1) exits 1")
 
 execute_process(
     COMMAND grep -n "a << b" "${TEST_SRC}/main.pony"
-    OUTPUT_VARIABLE _sor_src_line
+    OUTPUT_VARIABLE _shift_src_line
     RESULT_VARIABLE _grep_rc
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
-if(NOT _grep_rc EQUAL 0 OR NOT _sor_src_line)
+if(NOT _grep_rc EQUAL 0 OR NOT _shift_src_line)
     message(FATAL_ERROR "could not find 'a << b' in test source")
 endif()
-string(REGEX REPLACE "^([0-9]+):.*" "\\1" _sor_lineno "${_sor_src_line}")
+string(REGEX REPLACE "^([0-9]+):.*" "\\1" _shift_lineno "${_shift_src_line}")
+
+set(_amr_fields "\"category\": \"amr\", \"original\": \"shl\", \"replacement\": \"shl_unsafe\"")
+execute_process(
+    COMMAND grep -m1 "main.pony.*\"line\": ${_shift_lineno},.*${_amr_fields}" "${_json}"
+    OUTPUT_VARIABLE _amr_line
+    RESULT_VARIABLE _grep_rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT _grep_rc EQUAL 0 OR NOT _amr_line)
+    message(FATAL_ERROR
+        "could not find amr shl->shl_unsafe mutant on line ${_shift_lineno} in JSON")
+endif()
+
+string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _amr_id "${_amr_line}")
+if(NOT _amr_id MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "could not extract AMR mutant ID from: ${_amr_line}")
+endif()
+
+message(STATUS "PASS: AMR mutant ${_amr_id} (shl->shl_unsafe) recorded in JSON")
 
 execute_process(
-    COMMAND grep -m1 "main.pony.*\"line\": ${_sor_lineno},.*sor.*shl.*shr" "${_json}"
+    COMMAND grep -m1 "main.pony.*\"line\": ${_shift_lineno},.*sor.*shl.*shr" "${_json}"
     OUTPUT_VARIABLE _sor_line
     RESULT_VARIABLE _grep_rc
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 if(NOT _grep_rc EQUAL 0 OR NOT _sor_line)
     message(FATAL_ERROR
-        "could not find sor shl->shr mutant on line ${_sor_lineno} in JSON")
+        "could not find sor shl->shr mutant on line ${_shift_lineno} in JSON")
 endif()
 
 string(REGEX REPLACE ".*\"id\": *([0-9]+).*" "\\1" _sor_id "${_sor_line}")

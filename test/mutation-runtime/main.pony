@@ -61,12 +61,6 @@ actor Main
       env.exitcode(1)
     end
 
-    // Exercise AMR: wrapping arithmetic that overflows.
-    let w: U8 = U8(200) +~ U8(100)
-    if w != U8(44) then
-      env.exitcode(1)
-    end
-
     // Exercise VCR: a void-returning method call.
     let acc = Accumulator
     acc.add(a)

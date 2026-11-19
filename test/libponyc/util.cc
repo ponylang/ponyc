@@ -113,6 +113,8 @@ static const char* const _builtin =
   "  fun div(a: F64): F64 => this / a\n"
   "  fun neg(): F64 => -this\n"
   "  fun add_unsafe(a: F64): F64 => this +~ a\n"
+  "  fun sub_unsafe(a: F64): F64 => this -~ a\n"
+  "  fun mul_unsafe(a: F64): F64 => this *~ a\n"
   "  fun neg_unsafe(): F64 => -~this\n"
   "  fun eq(a: F64): Bool => this == a\n"
   "  fun lt(a: F64): Bool => this < a\n"
