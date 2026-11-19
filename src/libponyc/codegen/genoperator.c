@@ -859,24 +859,6 @@ static LLVMValueRef make_unsafe_fneg(LLVMBuilderRef builder, LLVMValueRef op,
   return result;
 }
 
-static LLVMValueRef make_nsw_neg(LLVMBuilderRef builder, LLVMValueRef op,
-  const char* name)
-{
-  LLVMValueRef result = LLVMBuildNeg(builder, op, name);
-  if(LLVMIsAInstruction(result))
-    LLVMSetNoSignedWrap(result);
-  return result;
-}
-
-static LLVMValueRef make_nuw_neg(LLVMBuilderRef builder, LLVMValueRef op,
-  const char* name)
-{
-  LLVMValueRef result = LLVMBuildNeg(builder, op, name);
-  if(LLVMIsAInstruction(result))
-    LLVMSetNoUnsignedWrap(result);
-  return result;
-}
-
 static bool left_is_signed(compile_t* c, ast_t* left)
 {
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
@@ -887,61 +869,30 @@ static bool left_is_signed(compile_t* c, ast_t* left)
 
 LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL))
+  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
+      && mutate_site_enabled(c, "aor", c->frame->mutate_ast))
   {
-    bool do_aor = mutate_site_enabled(c, "aor", c->frame->mutate_ast);
-    bool do_amr = mutate_site_enabled(c, "amr", c->frame->mutate_ast);
-
-    if(do_aor || do_amr)
+    if(safe)
     {
-      if(safe)
-      {
-        bool sign = left_is_signed(c, left);
-        mutate_variant_t variants[3];
-        size_t count = 0;
-
-        if(do_aor)
-        {
-          variants[count++] = (mutate_variant_t)
-            {LLVMBuildFSub, LLVMBuildSub, "sub", NULL};
-          variants[count++] = (mutate_variant_t)
-            {LLVMBuildFMul, LLVMBuildMul, "mul", NULL};
-        }
-        if(do_amr)
-        {
-          variants[count++] = (mutate_variant_t)
-            {make_unsafe_fadd,
-             sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd,
-             "add_unsafe", "amr"};
-        }
-
-        return mutate_binop(c, c->frame->mutate_ast, left, right,
-          LLVMBuildFAdd, LLVMBuildAdd, "add", "aor", variants, count);
-      }
-
-      bool sign = left_is_signed(c, left);
-      mutate_variant_t variants[3];
-      size_t count = 0;
-
-      if(do_aor)
-      {
-        variants[count++] = (mutate_variant_t)
-          {make_unsafe_fsub,
-           sign ? LLVMBuildNSWSub : LLVMBuildNUWSub, "sub", NULL};
-        variants[count++] = (mutate_variant_t)
-          {make_unsafe_fmul,
-           sign ? LLVMBuildNSWMul : LLVMBuildNUWMul, "mul", NULL};
-      }
-      if(do_amr)
-      {
-        variants[count++] = (mutate_variant_t)
-          {LLVMBuildFAdd, LLVMBuildAdd, "add_wrapping", "amr"};
-      }
-
+      mutate_variant_t variants[] = {
+        {LLVMBuildFSub, LLVMBuildSub, "sub", NULL},
+        {LLVMBuildFMul, LLVMBuildMul, "mul", NULL}
+      };
       return mutate_binop(c, c->frame->mutate_ast, left, right,
-        make_unsafe_fadd, sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd,
-        "add", "aor", variants, count);
+        LLVMBuildFAdd, LLVMBuildAdd, "add", "aor",
+        variants, sizeof(variants) / sizeof(variants[0]));
     }
+
+    bool sign = left_is_signed(c, left);
+    mutate_variant_t variants[] = {
+      {make_unsafe_fsub,
+        sign ? LLVMBuildNSWSub : LLVMBuildNUWSub, "sub", NULL},
+      {make_unsafe_fmul,
+        sign ? LLVMBuildNSWMul : LLVMBuildNUWMul, "mul", NULL}
+    };
+    return mutate_binop(c, c->frame->mutate_ast, left, right,
+      make_unsafe_fadd, sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd,
+      "add", "aor", variants, sizeof(variants) / sizeof(variants[0]));
   }
 
   if(safe)
@@ -955,61 +906,30 @@ LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL))
+  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
+      && mutate_site_enabled(c, "aor", c->frame->mutate_ast))
   {
-    bool do_aor = mutate_site_enabled(c, "aor", c->frame->mutate_ast);
-    bool do_amr = mutate_site_enabled(c, "amr", c->frame->mutate_ast);
-
-    if(do_aor || do_amr)
+    if(safe)
     {
-      if(safe)
-      {
-        bool sign = left_is_signed(c, left);
-        mutate_variant_t variants[3];
-        size_t count = 0;
-
-        if(do_aor)
-        {
-          variants[count++] = (mutate_variant_t)
-            {LLVMBuildFAdd, LLVMBuildAdd, "add", NULL};
-          variants[count++] = (mutate_variant_t)
-            {LLVMBuildFMul, LLVMBuildMul, "mul", NULL};
-        }
-        if(do_amr)
-        {
-          variants[count++] = (mutate_variant_t)
-            {make_unsafe_fsub,
-             sign ? LLVMBuildNSWSub : LLVMBuildNUWSub,
-             "sub_unsafe", "amr"};
-        }
-
-        return mutate_binop(c, c->frame->mutate_ast, left, right,
-          LLVMBuildFSub, LLVMBuildSub, "sub", "aor", variants, count);
-      }
-
-      bool sign = left_is_signed(c, left);
-      mutate_variant_t variants[3];
-      size_t count = 0;
-
-      if(do_aor)
-      {
-        variants[count++] = (mutate_variant_t)
-          {make_unsafe_fadd,
-           sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd, "add", NULL};
-        variants[count++] = (mutate_variant_t)
-          {make_unsafe_fmul,
-           sign ? LLVMBuildNSWMul : LLVMBuildNUWMul, "mul", NULL};
-      }
-      if(do_amr)
-      {
-        variants[count++] = (mutate_variant_t)
-          {LLVMBuildFSub, LLVMBuildSub, "sub_wrapping", "amr"};
-      }
-
+      mutate_variant_t variants[] = {
+        {LLVMBuildFAdd, LLVMBuildAdd, "add", NULL},
+        {LLVMBuildFMul, LLVMBuildMul, "mul", NULL}
+      };
       return mutate_binop(c, c->frame->mutate_ast, left, right,
-        make_unsafe_fsub, sign ? LLVMBuildNSWSub : LLVMBuildNUWSub,
-        "sub", "aor", variants, count);
+        LLVMBuildFSub, LLVMBuildSub, "sub", "aor",
+        variants, sizeof(variants) / sizeof(variants[0]));
     }
+
+    bool sign = left_is_signed(c, left);
+    mutate_variant_t variants[] = {
+      {make_unsafe_fadd,
+        sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd, "add", NULL},
+      {make_unsafe_fmul,
+        sign ? LLVMBuildNSWMul : LLVMBuildNUWMul, "mul", NULL}
+    };
+    return mutate_binop(c, c->frame->mutate_ast, left, right,
+      make_unsafe_fsub, sign ? LLVMBuildNSWSub : LLVMBuildNUWSub,
+      "sub", "aor", variants, sizeof(variants) / sizeof(variants[0]));
   }
 
   if(safe)
@@ -1023,61 +943,30 @@ LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  if(c->opt->mutate && (c->frame->mutate_ast != NULL))
+  if(c->opt->mutate && (c->frame->mutate_ast != NULL)
+      && mutate_site_enabled(c, "aor", c->frame->mutate_ast))
   {
-    bool do_aor = mutate_site_enabled(c, "aor", c->frame->mutate_ast);
-    bool do_amr = mutate_site_enabled(c, "amr", c->frame->mutate_ast);
-
-    if(do_aor || do_amr)
+    if(safe)
     {
-      if(safe)
-      {
-        bool sign = left_is_signed(c, left);
-        mutate_variant_t variants[3];
-        size_t count = 0;
-
-        if(do_aor)
-        {
-          variants[count++] = (mutate_variant_t)
-            {LLVMBuildFAdd, LLVMBuildAdd, "add", NULL};
-          variants[count++] = (mutate_variant_t)
-            {LLVMBuildFSub, LLVMBuildSub, "sub", NULL};
-        }
-        if(do_amr)
-        {
-          variants[count++] = (mutate_variant_t)
-            {make_unsafe_fmul,
-             sign ? LLVMBuildNSWMul : LLVMBuildNUWMul,
-             "mul_unsafe", "amr"};
-        }
-
-        return mutate_binop(c, c->frame->mutate_ast, left, right,
-          LLVMBuildFMul, LLVMBuildMul, "mul", "aor", variants, count);
-      }
-
-      bool sign = left_is_signed(c, left);
-      mutate_variant_t variants[3];
-      size_t count = 0;
-
-      if(do_aor)
-      {
-        variants[count++] = (mutate_variant_t)
-          {make_unsafe_fadd,
-           sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd, "add", NULL};
-        variants[count++] = (mutate_variant_t)
-          {make_unsafe_fsub,
-           sign ? LLVMBuildNSWSub : LLVMBuildNUWSub, "sub", NULL};
-      }
-      if(do_amr)
-      {
-        variants[count++] = (mutate_variant_t)
-          {LLVMBuildFMul, LLVMBuildMul, "mul_wrapping", "amr"};
-      }
-
+      mutate_variant_t variants[] = {
+        {LLVMBuildFAdd, LLVMBuildAdd, "add", NULL},
+        {LLVMBuildFSub, LLVMBuildSub, "sub", NULL}
+      };
       return mutate_binop(c, c->frame->mutate_ast, left, right,
-        make_unsafe_fmul, sign ? LLVMBuildNSWMul : LLVMBuildNUWMul,
-        "mul", "aor", variants, count);
+        LLVMBuildFMul, LLVMBuildMul, "mul", "aor",
+        variants, sizeof(variants) / sizeof(variants[0]));
     }
+
+    bool sign = left_is_signed(c, left);
+    mutate_variant_t variants[] = {
+      {make_unsafe_fadd,
+        sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd, "add", NULL},
+      {make_unsafe_fsub,
+        sign ? LLVMBuildNSWSub : LLVMBuildNUWSub, "sub", NULL}
+    };
+    return mutate_binop(c, c->frame->mutate_ast, left, right,
+      make_unsafe_fmul, sign ? LLVMBuildNSWMul : LLVMBuildNUWMul,
+      "mul", "aor", variants, sizeof(variants) / sizeof(variants[0]));
   }
 
   if(safe)
@@ -1175,79 +1064,6 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
 
   LLVMValueRef neg_result;
 
-  if(c->opt->mutate && (mutate_ast != NULL))
-  {
-    bool do_uoi = mutate_site_enabled(c, "uoi", mutate_ast);
-    bool do_amr = mutate_site_enabled(c, "amr", mutate_ast);
-
-    if(do_uoi || do_amr)
-    {
-      bool fp = is_fp(value);
-      bool is_const_fp = LLVMIsAConstantFP(value) != NULL;
-      bool is_const_int = LLVMIsAConstantInt(value) != NULL;
-
-      if(is_const_fp)
-        neg_result = LLVMBuildFNeg(c->builder, value, "");
-      else if(is_const_int)
-        neg_result = LLVMConstNeg(value);
-      else if(fp)
-        neg_result = (safe ? LLVMBuildFNeg : make_unsafe_fneg)(
-          c->builder, value, "");
-      else if(safe)
-        neg_result = LLVMBuildNeg(c->builder, value, "");
-      else
-      {
-        ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
-        bool sign = is_signed(type);
-        ast_free_unattached(type);
-
-        neg_result = LLVMBuildNeg(c->builder, value, "");
-        if(sign)
-          LLVMSetNoSignedWrap(neg_result);
-        else
-          LLVMSetNoUnsignedWrap(neg_result);
-      }
-
-      mutate_unary_variant_t variants[2];
-      size_t count = 0;
-
-      if(do_uoi)
-      {
-        variants[count++] = (mutate_unary_variant_t)
-          {NULL, NULL, "identity", NULL};
-      }
-      if(do_amr && !is_const_fp && !is_const_int)
-      {
-        if(safe)
-        {
-          ast_t* type =
-            deferred_reify(c->frame->reify, ast_type(ast), c->opt);
-          bool sign = is_signed(type);
-          ast_free_unattached(type);
-
-          variants[count++] = (mutate_unary_variant_t)
-            {make_unsafe_fneg, sign ? make_nsw_neg : make_nuw_neg,
-             "neg_unsafe", "amr"};
-        }
-        else
-        {
-          variants[count++] = (mutate_unary_variant_t)
-            {LLVMBuildFNeg, LLVMBuildNeg, "neg_wrapping", "amr"};
-        }
-      }
-
-      if(count > 0)
-        neg_result = mutate_unary(c, mutate_ast, value, neg_result,
-          "neg", "uoi", variants, count);
-
-      neg_result = mutate_cr_unary(c, mutate_ast, ast, value, neg_result,
-        safe ? LLVMBuildFNeg : make_unsafe_fneg,
-        safe ? LLVMBuildNeg : LLVMBuildNeg);
-
-      goto neg_shadow;
-    }
-  }
-
   if(LLVMIsAConstantFP(value))
     neg_result = LLVMBuildFNeg(c->builder, value, "");
   else if(LLVMIsAConstantInt(value))
@@ -1272,12 +1088,19 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
 
   if(c->opt->mutate && (mutate_ast != NULL))
   {
+    if(mutate_site_enabled(c, "uoi", mutate_ast))
+    {
+      mutate_unary_variant_t variants[] = {
+        {NULL, NULL, "identity", NULL}
+      };
+      neg_result = mutate_unary(c, mutate_ast, value, neg_result,
+        "neg", "uoi", variants, sizeof(variants) / sizeof(variants[0]));
+    }
+
     neg_result = mutate_cr_unary(c, mutate_ast, ast, value, neg_result,
-      safe ? LLVMBuildFNeg : make_unsafe_fneg,
-      safe ? LLVMBuildNeg : LLVMBuildNeg);
+      safe ? LLVMBuildFNeg : make_unsafe_fneg, LLVMBuildNeg);
   }
 
-neg_shadow:
   if(c->opt->mutate)
   {
     LLVMValueRef v_shadow = mutate_shadow_get(c, value);

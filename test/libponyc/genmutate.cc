@@ -2998,7 +2998,7 @@ TEST_F(GenMutateCodegenTest, CrDivByOneRecordsMutant)
 }
 
 
-TEST_F(GenMutateCodegenTest, AmrAddWrappingToUnsafe)
+TEST_F(GenMutateCodegenTest, AmrSkipsWrappingAdd)
 {
   const char* src =
     "actor Main\n"
@@ -3006,16 +3006,16 @@ TEST_F(GenMutateCodegenTest, AmrAddWrappingToUnsafe)
     "    let x = U64(3) + U64(5)\n";
 
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("amr", "add", "add_unsafe"));
-  ASSERT_FALSE(has_mutant("aor", "add", "sub"));
+  EXPECT_TRUE(has_mutant("aor", "add", "sub"));
+  EXPECT_TRUE(has_mutant("aor", "add", "mul"));
+  EXPECT_TRUE(collect_category("amr").empty());
 }
 
 
-TEST_F(GenMutateCodegenTest, AmrAddUnsafeToWrapping)
+TEST_F(GenMutateCodegenTest, AmrSkipsUnsafeAdd)
 {
   const char* src =
     "actor Main\n"
@@ -3025,16 +3025,16 @@ TEST_F(GenMutateCodegenTest, AmrAddUnsafeToWrapping)
     "    let x = y.add_unsafe(z)\n";
 
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("amr", "add", "add_wrapping"));
-  ASSERT_FALSE(has_mutant("aor", "add", "sub"));
+  EXPECT_TRUE(has_mutant("aor", "add", "sub"));
+  EXPECT_TRUE(has_mutant("aor", "add", "mul"));
+  EXPECT_TRUE(collect_category("amr").empty());
 }
 
 
-TEST_F(GenMutateCodegenTest, AmrSubWrappingToUnsafe)
+TEST_F(GenMutateCodegenTest, AmrSkipsWrappingSub)
 {
   const char* src =
     "actor Main\n"
@@ -3042,16 +3042,16 @@ TEST_F(GenMutateCodegenTest, AmrSubWrappingToUnsafe)
     "    let x = U64(10) - U64(3)\n";
 
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("amr", "sub", "sub_unsafe"));
-  ASSERT_FALSE(has_mutant("aor", "sub", "add"));
+  EXPECT_TRUE(has_mutant("aor", "sub", "add"));
+  EXPECT_TRUE(has_mutant("aor", "sub", "mul"));
+  EXPECT_TRUE(collect_category("amr").empty());
 }
 
 
-TEST_F(GenMutateCodegenTest, AmrMulWrappingToUnsafe)
+TEST_F(GenMutateCodegenTest, AmrSkipsWrappingMul)
 {
   const char* src =
     "actor Main\n"
@@ -3061,12 +3061,12 @@ TEST_F(GenMutateCodegenTest, AmrMulWrappingToUnsafe)
     "    let x = y * z\n";
 
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("amr", "mul", "mul_unsafe"));
-  ASSERT_FALSE(has_mutant("aor", "mul", "add"));
+  EXPECT_TRUE(has_mutant("aor", "mul", "add"));
+  EXPECT_TRUE(has_mutant("aor", "mul", "sub"));
+  EXPECT_TRUE(collect_category("amr").empty());
 }
 
 
@@ -3108,7 +3108,7 @@ TEST_F(GenMutateCodegenTest, AmrRemWrappingToUnsafe)
 }
 
 
-TEST_F(GenMutateCodegenTest, AmrNegWrappingToUnsafe)
+TEST_F(GenMutateCodegenTest, AmrSkipsWrappingNeg)
 {
   const char* src =
     "actor Main\n"
@@ -3117,16 +3117,15 @@ TEST_F(GenMutateCodegenTest, AmrNegWrappingToUnsafe)
     "    let x = -y\n";
 
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_UOI;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("amr", "neg", "neg_unsafe"));
-  ASSERT_FALSE(has_mutant("uoi", "neg", "identity"));
+  EXPECT_TRUE(has_mutant("uoi", "neg", "identity"));
+  EXPECT_TRUE(collect_category("amr").empty());
 }
 
 
-TEST_F(GenMutateCodegenTest, AmrNegUnsafeToWrapping)
+TEST_F(GenMutateCodegenTest, AmrSkipsUnsafeNeg)
 {
   const char* src =
     "actor Main\n"
@@ -3135,11 +3134,11 @@ TEST_F(GenMutateCodegenTest, AmrNegUnsafeToWrapping)
     "    let x = y.neg_unsafe()\n";
 
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_UOI;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("amr", "neg", "neg_wrapping"));
+  EXPECT_TRUE(has_mutant("uoi", "neg", "identity"));
+  EXPECT_TRUE(collect_category("amr").empty());
 }
 
 
@@ -3187,13 +3186,15 @@ TEST_F(GenMutateCodegenTest, AmrFilterExcludesOthers)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let a = U64(3) + U64(5)\n"
-    "    let b = a == U64(8)\n";
+    "    let b = a == U64(8)\n"
+    "    let c = a << 1\n";
 
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_AMR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_TRUE(has_mutant("amr", "add", "add_unsafe"));
+  EXPECT_EQ(count_category_at(3, "amr"), 0u);
+  EXPECT_TRUE(has_mutant("amr", "shl", "shl_unsafe"));
   ASSERT_FALSE(has_mutant("aor", "add", "sub"));
   ASSERT_FALSE(has_mutant("ror", "eq", "ne"));
 }
@@ -3204,38 +3205,66 @@ TEST_F(GenMutateCodegenTest, AmrAndAorTogether)
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    let x = U64(3) + U64(5)\n";
+    "    let x = U64(3) + U64(5)\n"
+    "    let y = x / 2\n";
 
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_AMR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("aor", "add", "sub"));
-  ASSERT_TRUE(has_mutant("aor", "add", "mul"));
-  ASSERT_TRUE(has_mutant("amr", "add", "add_unsafe"));
+  EXPECT_TRUE(has_mutant("aor", "add", "sub"));
+  EXPECT_TRUE(has_mutant("aor", "add", "mul"));
+  EXPECT_EQ(count_category_at(3, "amr"), 0u);
+  EXPECT_TRUE(has_mutant("aor", "div", "rem"));
+  EXPECT_TRUE(has_mutant("amr", "div", "div_unsafe"));
 }
 
 
-TEST_F(GenMutateCodegenTest, AmrFpAddWrappingToUnsafe)
+TEST_F(GenMutateCodegenTest, AmrSkipsFloatAddSubMulAndNeg)
 {
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let y: F64 = 3.0\n"
     "    let z: F64 = 5.0\n"
-    "    let x = y + z\n";
+    "    let add = y + z\n"
+    "    let add_unsafe = y +~ z\n"
+    "    let sub = y - z\n"
+    "    let sub_unsafe = y -~ z\n"
+    "    let mul = y * z\n"
+    "    let mul_unsafe = y *~ z\n"
+    "    let neg = -y\n"
+    "    let neg_unsafe = -~y\n";
 
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_AOR | MUTATE_OP_UOI;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("amr", "add", "add_unsafe"));
+  for(size_t line = 5; line <= 12; line++)
+    EXPECT_EQ(count_category_at_file("", line, "amr"), 0u) << "line " << line;
+
+  for(size_t line = 5; line <= 6; line++)
+  {
+    EXPECT_TRUE(has_mutant_at_line("", line, "aor", "add", "sub")) << line;
+    EXPECT_TRUE(has_mutant_at_line("", line, "aor", "add", "mul")) << line;
+  }
+  for(size_t line = 7; line <= 8; line++)
+  {
+    EXPECT_TRUE(has_mutant_at_line("", line, "aor", "sub", "add")) << line;
+    EXPECT_TRUE(has_mutant_at_line("", line, "aor", "sub", "mul")) << line;
+  }
+  for(size_t line = 9; line <= 10; line++)
+  {
+    EXPECT_TRUE(has_mutant_at_line("", line, "aor", "mul", "add")) << line;
+    EXPECT_TRUE(has_mutant_at_line("", line, "aor", "mul", "sub")) << line;
+  }
+
+  EXPECT_TRUE(has_mutant_at_line("", 11, "uoi", "neg", "identity"));
+  EXPECT_TRUE(has_mutant_at_line("", 12, "uoi", "neg", "identity"));
 }
 
 
-TEST_F(GenMutateCodegenTest, AmrSignedAddWrappingToUnsafe)
+TEST_F(GenMutateCodegenTest, AmrSkipsSignedWrappingAdd)
 {
   const char* src =
     "actor Main\n"
@@ -3245,15 +3274,16 @@ TEST_F(GenMutateCodegenTest, AmrSignedAddWrappingToUnsafe)
     "    let x = y + z\n";
 
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("amr", "add", "add_unsafe"));
+  EXPECT_TRUE(has_mutant("aor", "add", "sub"));
+  EXPECT_TRUE(has_mutant("aor", "add", "mul"));
+  EXPECT_TRUE(collect_category("amr").empty());
 }
 
 
-TEST_F(GenMutateCodegenTest, AmrSubUnsafeToWrapping)
+TEST_F(GenMutateCodegenTest, AmrSkipsUnsafeSub)
 {
   const char* src =
     "actor Main\n"
@@ -3263,15 +3293,16 @@ TEST_F(GenMutateCodegenTest, AmrSubUnsafeToWrapping)
     "    let x = y.sub_unsafe(z)\n";
 
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("amr", "sub", "sub_wrapping"));
+  EXPECT_TRUE(has_mutant("aor", "sub", "add"));
+  EXPECT_TRUE(has_mutant("aor", "sub", "mul"));
+  EXPECT_TRUE(collect_category("amr").empty());
 }
 
 
-TEST_F(GenMutateCodegenTest, AmrMulUnsafeToWrapping)
+TEST_F(GenMutateCodegenTest, AmrSkipsUnsafeMul)
 {
   const char* src =
     "actor Main\n"
@@ -3281,11 +3312,12 @@ TEST_F(GenMutateCodegenTest, AmrMulUnsafeToWrapping)
     "    let x = y.mul_unsafe(z)\n";
 
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_AOR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("amr", "mul", "mul_wrapping"));
+  EXPECT_TRUE(has_mutant("aor", "mul", "add"));
+  EXPECT_TRUE(has_mutant("aor", "mul", "sub"));
+  EXPECT_TRUE(collect_category("amr").empty());
 }
 
 
@@ -3361,23 +3393,6 @@ TEST_F(GenMutateCodegenTest, AmrShrUnsafeToWrapping)
 }
 
 
-TEST_F(GenMutateCodegenTest, AmrFpNegWrappingToUnsafe)
-{
-  const char* src =
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let y: F64 = 5.0\n"
-    "    let x = -y\n";
-
-  opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
-  DO(test_compile(src, "ir"));
-
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("amr", "neg", "neg_unsafe"));
-}
-
-
 TEST_F(GenMutateCodegenTest, AmrAndSorTogether)
 {
   const char* src =
@@ -3403,15 +3418,16 @@ TEST_F(GenMutateCodegenTest, AmrAndUoiTogether)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let y: I64 = 5\n"
-    "    let x = -y\n";
+    "    let x = -y\n"
+    "    let z = x / 2\n";
 
   opt.mutate = true;
   opt.mutate_operators = MUTATE_OP_UOI | MUTATE_OP_AMR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_GT(compile->mutate.mutant_count, 0u);
-  ASSERT_TRUE(has_mutant("uoi", "neg", "identity"));
-  ASSERT_TRUE(has_mutant("amr", "neg", "neg_unsafe"));
+  EXPECT_TRUE(has_mutant("uoi", "neg", "identity"));
+  EXPECT_EQ(count_category_at(4, "amr"), 0u);
+  EXPECT_TRUE(has_mutant("amr", "div", "div_unsafe"));
 }
 
 
@@ -3825,7 +3841,6 @@ TEST_F(GenMutateCodegenTest, AllCategoriesOnConstantExpr)
   ASSERT_GT(count_category_at(3, "cr"), 0u);
   ASSERT_EQ(count_category_at(3, "aor"), 0u);
   ASSERT_EQ(count_category_at(3, "uoi"), 0u);
-  ASSERT_EQ(count_category_at(3, "amr"), 0u);
 }
 
 
@@ -3974,7 +3989,7 @@ TEST_F(GenMutateCodegenTest, IndependenceNegBranchConditional)
     "    let a: I64 = (-(1 + 2)) * 3\n"                      // line 4: neg, add, mul
     "    let b: I64 = 100 / 3\n"                              // line 5: safe div
     "    let c: I64 = if not true then x + 5 else x + 7 end\n" // line 6
-    "    let d: I64 = x * b\n";                               // line 7
+    "    let d: I64 = x / b\n";                               // line 7
 
   const char* categories[] = {"aor", "ror", "uoi", "amr"};
   uint32_t cat_flags[] = {
@@ -3988,6 +4003,8 @@ TEST_F(GenMutateCodegenTest, IndependenceNegBranchConditional)
     opt.mutate_operators = cat_flags[ci];
     DO(test_compile(src, "ir"));
     auto alone = collect_category(categories[ci]);
+    if(cat_flags[ci] == MUTATE_OP_AMR)
+      EXPECT_TRUE(has_mutant_at_line("", 7, "amr", "div", "div_unsafe"));
 
     opt.mutate_operators = cat_flags[ci] | MUTATE_OP_CR;
     DO(test_compile(src, "ir"));
@@ -4554,7 +4571,9 @@ TEST_F(GenMutateCodegenTest, SafeDivremNonPathologicalNoShadow)
     "  new create(env: Env) =>\n"
     "    let x: I64 = 100 / 3\n"                            // line 3: safe div
     "    let y: I64 = x * 2\n"                               // line 4
-    "    let a: I64 = (10 % 3) + 3\n";                       // line 5: safe rem
+    "    let a: I64 = (10 % 3) + 3\n"                        // line 5: safe rem
+    "    let b: I64 = (100 / 3) % 2\n"                       // line 6
+    "    let c: I64 = (10 % 3) / 2\n";                       // line 7
 
   // AOR only: safe divrem has no shadow, so * on line 4 has AOR
   opt.mutate = true;
@@ -4570,12 +4589,15 @@ TEST_F(GenMutateCodegenTest, SafeDivremNonPathologicalNoShadow)
   // AMR only vs AMR+CR: should match
   opt.mutate_operators = MUTATE_OP_AMR;
   DO(test_compile(src, "ir"));
-  size_t amr_only = collect_category("amr").size();
+  EXPECT_TRUE(has_mutant_at_line("", 6, "amr", "rem", "rem_unsafe"));
+  EXPECT_TRUE(has_mutant_at_line("", 7, "amr", "div", "div_unsafe"));
+  EXPECT_EQ(count_category_at(6, "amr"), 1u);
+  EXPECT_EQ(count_category_at(7, "amr"), 1u);
+  auto amr_only = collect_category("amr");
 
   opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_CR;
   DO(test_compile(src, "ir"));
-  size_t amr_plus_cr = collect_category("amr").size();
-  ASSERT_EQ(amr_only, amr_plus_cr);
+  EXPECT_EQ(amr_only, collect_category("amr"));
 
   // UOI only vs UOI+CR: should match
   opt.mutate_operators = MUTATE_OP_UOI;
@@ -4593,13 +4615,14 @@ TEST_F(GenMutateCodegenTest, SafeDivremMinNeg1Shadow)
 {
   // min_value / -1 and min_value % -1 are the pathological cases where
   // make_divrem_inner constant-folds (returns a constant, not a phi).
-  // The shadow must match. Nested expressions test this: the div result
-  // feeds directly into * so the shadow propagates within the expression.
+  // The constant result must keep its shadow in a nested expression.
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let t: I64 = (-9223372036854775808 / -1) * 2\n"    // line 3: min/-1 div * 2
-    "    let v: I64 = (-9223372036854775808 % -1) * 3\n";   // line 4: min/-1 rem * 3
+    "    let v: I64 = (-9223372036854775808 % -1) * 3\n"    // line 4: min/-1 rem * 3
+    "    let d: I64 = (-9223372036854775808 / -1) / 2\n"    // line 5
+    "    let r: I64 = (-9223372036854775808 % -1) / 3\n";   // line 6
 
   // With a correct shadow, (-min/-1) is a known constant so the * has
   // both operands constant and AOR is suppressed.
@@ -4623,6 +4646,11 @@ TEST_F(GenMutateCodegenTest, SafeDivremMinNeg1Shadow)
     opt.mutate_operators = cat_flags[ci];
     DO(test_compile(src, "ir"));
     auto alone = collect_category(categories[ci]);
+    if(cat_flags[ci] == MUTATE_OP_AMR)
+    {
+      EXPECT_EQ(count_category_at(5, "amr"), 0u);
+      EXPECT_EQ(count_category_at(6, "amr"), 0u);
+    }
 
     opt.mutate_operators = cat_flags[ci] | MUTATE_OP_CR;
     DO(test_compile(src, "ir"));
@@ -4657,45 +4685,23 @@ TEST_F(GenMutateCodegenTest, SafeDivFeedingShiftCompiles)
 }
 
 
-TEST_F(GenMutateCodegenTest, ConstantDivNoAor)
+TEST_F(GenMutateCodegenTest, ConstantDivNoAorOrAmr)
 {
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    let x: U64 = 10 / 2\n";    // line 3
+    "    let x: U64 = 10 / 2\n"     // line 3
+    "    let y: U64 = 10\n"
+    "    let z: U64 = y / 2\n";     // line 5
 
   opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AOR;
+  opt.mutate_operators = MUTATE_OP_AOR | MUTATE_OP_AMR;
   DO(test_compile(src, "ir"));
 
-  ASSERT_EQ(count_category_at(3, "aor"), 0u);
-}
-
-
-TEST_F(GenMutateCodegenTest, ConstantNegNoAmr)
-{
-  // -1: constant operand, no AMR
-  const char* src =
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let y: I64 = 10\n"
-    "    let x: I64 = y + -1\n";  // line 4
-
-  opt.mutate = true;
-  opt.mutate_operators = MUTATE_OP_AMR;
-  DO(test_compile(src, "ir"));
-
-  // No AMR for neg at line 4 (constant operand 1)
-  // AMR at the add on line 4 is fine (y is variable)
-  size_t amr_neg_count = 0;
-  for(size_t i = 0; i < compile->mutate.mutant_count; i++)
-  {
-    mutant_record_t* r = &compile->mutate.mutants[i];
-    if(r->line == 4 && strcmp(r->category, "amr") == 0 &&
-       strcmp(r->original, "neg") == 0)
-      amr_neg_count++;
-  }
-  ASSERT_EQ(amr_neg_count, 0u);
+  EXPECT_EQ(count_category_at(3, "aor"), 0u);
+  EXPECT_EQ(count_category_at(3, "amr"), 0u);
+  EXPECT_TRUE(has_mutant_at_line("", 5, "aor", "div", "rem"));
+  EXPECT_TRUE(has_mutant_at_line("", 5, "amr", "div", "div_unsafe"));
 }
 
 
