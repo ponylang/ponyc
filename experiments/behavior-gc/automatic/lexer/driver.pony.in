@@ -1,0 +1,74 @@
+use @printf[I32](fmt: Pointer[U8] tag, ...)
+use @pony_exitcode[None](code: I32)
+
+class \nodoc\ Batch
+  let tokens: Array[_Token] val
+  let complete: Bool
+
+  new create(lexer: _Lexer, source: Source) =>
+    match \exhaustive\ lexer(source)
+    | let a: Array[_Token] iso =>
+      tokens = consume a
+      complete = true
+    | let offset: USize =>
+      @printf("error %s %zu\n".cstring(), source.path().cstring(), offset)
+      tokens = recover val Array[_Token] end
+      complete = false
+    end
+
+  fun emit() =>
+    for (label, pos) in tokens.values() do
+      @printf(
+        "%s\t%s\t%zu\t%zu\t%s\n".cstring(),
+        pos.source().path().cstring(),
+        label.text().cstring(),
+        pos.offset(),
+        pos.length(),
+        pos.string().cstring())
+    end
+
+actor \nodoc\ Probe
+  let _lexer: _Lexer = _Lexer
+  var _round: USize = 0
+  var _ok: Bool = true
+  var _one: (Batch | None) = None
+  var _two: (Batch | None) = None
+
+  new create() => measure()
+
+  be measure() =>
+    let outer = Batch(_lexer, Inputs.outer())
+    middle()
+    _one = outer
+    verify()
+
+  fun \noinline\ ref middle() =>
+    let inner = Batch(_lexer, Inputs.inner())
+    phase()
+    _two = inner
+
+  fun \noinline\ ref phase() =>
+    lex_unit()
+    finish()
+
+  fun \noinline\ ref lex_unit() =>
+    let item = Batch(_lexer, Inputs.unit(_round))
+    _ok = _ok and item.complete
+    item.emit()
+    _round = _round + 1
+
+  fun \noinline\ ref finish() => None
+
+  be verify() =>
+    try
+      let outer = _one as Batch
+      let inner = _two as Batch
+      outer.emit()
+      inner.emit()
+      if _ok and outer.complete and inner.complete then @pony_exitcode(0) end
+    end
+
+actor \nodoc\ Main
+  new create(env: Env) =>
+    @pony_exitcode(1)
+    Probe
