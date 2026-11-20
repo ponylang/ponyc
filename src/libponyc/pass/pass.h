@@ -309,6 +309,7 @@ typedef struct pass_opt_t
   // is authoritative for libc detection and must never be overridden by a
   // host probe. See target_libc_is_musl (genexe).
   bool user_triple;
+  bool gc_root_audit;
 
   strlist_t* module_search_paths;
   strlist_t* safe_modules;
@@ -356,7 +357,6 @@ typedef struct pass_opt_t
 
   size_t mutate_scope_count;
   struct mutate_scope_t* mutate_scopes;
-  bool gc_root_audit;
 } pass_opt_t;
 
 #define MUTATE_OP_AOR  (1 << 0)

@@ -199,6 +199,7 @@ struct _PassOpt
   var parse_trace: Bool = false
   // Mirrors pass_opt_t.user_triple (pass.h).
   var user_triple: Bool = false
+  var gc_root_audit: Bool = false
   var module_search_paths: Pointer[_StrList] =
     module_search_paths.create()
   var safe_packages: Pointer[_StrList] = safe_packages.create()
@@ -239,7 +240,7 @@ struct _PassOpt
   var lib_search_paths: Pointer[_StrList] = lib_search_paths.create()
   var fat_lto: Bool = true
   var mutate: Bool = false
-  var mutate_operators: U8 = 0xFF
+  var mutate_operators: U16 = 0x1FF
   var mutate_scope_count: USize = 0
   var mutate_scopes: Pointer[None] ref = mutate_scopes.create()
 
