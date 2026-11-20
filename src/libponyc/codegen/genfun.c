@@ -637,7 +637,9 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
     false);
   name_params(c, t, m, c_m->func_handler);
 
-  LLVMValueRef value = c->opt->gc_root_audit ?
+  bool audit = c->opt->gc_root_audit &&
+    !ast_has_annotation(m->fun->ast, "noalloc", c->opt->strtab);
+  LLVMValueRef value = audit ?
     gen_root_audit_body(c, t, m, body) : gen_expr(c, body);
 
   if(value == NULL)

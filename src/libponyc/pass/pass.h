@@ -350,13 +350,13 @@ typedef struct pass_opt_t
   strlist_t* lib_search_paths;
 
   bool fat_lto;
-  bool gc_root_audit;
   bool mutate;
 
   uint16_t mutate_operators;
 
   size_t mutate_scope_count;
   struct mutate_scope_t* mutate_scopes;
+  bool gc_root_audit;
 } pass_opt_t;
 
 #define MUTATE_OP_AOR  (1 << 0)

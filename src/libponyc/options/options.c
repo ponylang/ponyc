@@ -309,8 +309,10 @@ static void usage(void)
 #endif
     ,
     "Debugging options:\n"
-    "  --gc-root-audit  Report active roots and GC guards at selected behavior\n"
-    "                   boundaries to stderr. This experiment does not collect.\n"
+    "  --gc-root-audit  Log frame roots to stderr before top-level expressions in\n"
+    "                   ordinary behaviors (except noalloc). Each number is the\n"
+    "                   first equal slot in that snapshot. Frame-ready assumes\n"
+    "                   normal heap and FFI invariants. The audit never collects.\n"
     "  --verbose, -V    Verbosity level.\n"
     "    =0             Only print errors.\n"
     "    =1             Print info on compiler stages.\n"

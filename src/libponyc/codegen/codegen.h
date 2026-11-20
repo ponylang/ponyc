@@ -141,7 +141,6 @@ typedef struct compile_frame_t
 typedef struct compile_t
 {
   pass_opt_t* opt;
-  struct root_audit_t* root_audit;
   reach_t* reach;
   genned_strings_t strings;
   ffi_decls_t ffi_decls;
@@ -265,6 +264,7 @@ typedef struct compile_t
   LLVMValueRef mutate_enabled;
   LLVMValueRef coverage_counters;
   shadow_map_t shadow_map;
+  struct root_audit_t* root_audit;
 } compile_t;
 
 bool codegen_merge_runtime_bitcode(compile_t* c);

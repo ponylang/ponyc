@@ -186,11 +186,12 @@ void gen_root_audit_site(compile_t* c, ast_t* sequence, ast_t* previous,
   LLVMValueRef args[] = {
     codegen_ctx(c), LLVMGetParam(codegen_fun(c), 0), a->method,
     LLVMConstInt(c->i32, ast_line(next), false),
+    LLVMConstInt(c->i32, ast_pos(next), false),
     ready ? nil : codegen_string(c, a->refusal, strlen(a->refusal)),
     LLVMConstInt(c->intptr, ready ? a->count : 0, false),
     ready ? a->roots : nil, ready ? a->modes : nil
   };
-  gencall_runtime(c, "ponyint_gc_root_audit", args, 8, "");
+  gencall_runtime(c, "ponyint_gc_root_audit", args, 9, "");
 }
 
 LLVMValueRef gen_root_audit_body(compile_t* c, reach_type_t* t,
@@ -204,10 +205,8 @@ LLVMValueRef gen_root_audit_body(compile_t* c, reach_type_t* t,
     audit.refusal = "receiver-layout";
   else
   {
-    LLVMValueRef capacity = LLVMConstInt(c->intptr,
-      m->param_count + 1 + ast_childcount(body), false);
-    audit.roots = LLVMBuildArrayAlloca(c->builder, c->ptr, capacity, "roots");
-    audit.modes = LLVMBuildArrayAlloca(c->builder, c->ptr, capacity, "modes");
+    audit.roots = LLVMBuildAlloca(c->builder, c->ptr, "roots");
+    audit.modes = LLVMBuildAlloca(c->builder, c->ptr, "modes");
     LLVMValueRef fun = codegen_fun(c);
     add_root(c, LLVMGetParam(fun, 0), "receiver");
 
@@ -227,6 +226,12 @@ LLVMValueRef gen_root_audit_body(compile_t* c, reach_type_t* t,
   }
 
   LLVMValueRef result = gen_expr(c, body);
+  if(audit.roots != NULL)
+  {
+    LLVMValueRef count = LLVMConstInt(c->intptr, audit.count, false);
+    LLVMSetOperand(audit.roots, 0, count);
+    LLVMSetOperand(audit.modes, 0, count);
+  }
   c->root_audit = NULL;
   return result;
 }

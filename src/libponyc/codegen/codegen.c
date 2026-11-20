@@ -381,10 +381,10 @@ static void init_runtime_decls(compile_t* c)
 
   if(c->opt->gc_root_audit)
   {
-    LLVMTypeRef audit_params[] = {c->ptr, c->ptr, c->ptr, c->i32, c->ptr,
-      c->intptr, c->ptr, c->ptr};
+    LLVMTypeRef audit_params[] = {c->ptr, c->ptr, c->ptr, c->i32, c->i32,
+      c->ptr, c->intptr, c->ptr, c->ptr};
     LLVMAddFunction(c->module, "ponyint_gc_root_audit",
-      LLVMFunctionType(c->void_type, audit_params, 8, false));
+      LLVMFunctionType(c->void_type, audit_params, 9, false));
   }
 
   // i8* pony_ctx()
