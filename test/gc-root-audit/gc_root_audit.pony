@@ -38,6 +38,8 @@ actor \nodoc\ Worker
     audit_roots(this, a, a, 11)
     audit_transfer(recover iso Parcel(5) end, Sink)
     audit_constructor()
+    audit_readable("leaf")
+    audit_opaque("leaf")
 
   be \noalloc\ set_sentinel() => _ran = true
 
@@ -71,7 +73,14 @@ actor \nodoc\ Worker
 
   be hold(resource: Resource) => None
 
+  be audit_readable(text: String val) => None
+
+  be audit_opaque(text: String tag) => None
+
 actor \nodoc\ Main
   new create(env: Env) =>
     @pony_exitcode(1)
     Worker
+    env.err.print("application print")
+    env.err.write("application write\n")
+    env.err.flush()

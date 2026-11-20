@@ -1,20 +1,22 @@
 Sink.take 29:12 refused receiver-layout
 Sink.take 30:12 refused receiver-layout
-Worker.audit_constructor 45:23 frame-ready receiver=0
-Worker.audit_constructor 46:5 refused unsupported-prefix
-Worker.audit_roots 49:21 frame-ready receiver=0 actor=0 val=2 tag=2
-Worker.audit_roots 50:21 frame-ready receiver=0 actor=0 val=2 tag=2 val=4
-Worker.audit_roots 50:51 frame-ready receiver=0 actor=0 val=2 tag=2 val=4 val=4
-Worker.audit_roots 51:25 frame-ready receiver=0 actor=0 val=2 tag=2 val=4 val=4 box=2
-Worker.audit_roots 52:28 frame-ready receiver=0 actor=0 val=2 tag=2 val=4 val=4 box=2 ref=7
-Worker.audit_roots 53:5 frame-ready receiver=0 actor=0 val=2 tag=2 val=4 val=4 box=2 ref=7 trn=8
-Worker.audit_roots 56:16 refused unsupported-prefix
-Worker.audit_roots 57:18 refused unsupported-prefix
-Worker.audit_tuple 59:49 refused unsupported-root
-Worker.audit_transfer 62:14 frame-ready receiver=0 iso=1 actor=2
-Worker.audit_transfer 63:5 refused unsupported-prefix
-Worker.with_resource 66:32 frame-ready receiver=0
-Worker.with_resource 67:21 refused unsupported-prefix finalisers
-Worker.with_resource 68:9 refused unsupported-prefix finalisers
-Worker.audit_finalisers 70:28 refused finalisers receiver=0
-Worker.hold 72:34 refused finalisers receiver=0 val=1
+Worker.audit_constructor 47:23 frame-ready receiver=0
+Worker.audit_constructor 48:5 refused unsupported-prefix
+Worker.audit_roots 51:21 frame-ready receiver=0 actor=0 val=2 tag=2
+Worker.audit_roots 52:21 frame-ready receiver=0 actor=0 val=2 tag=2 val=4
+Worker.audit_roots 52:51 frame-ready receiver=0 actor=0 val=2 tag=2 val=4 val=4
+Worker.audit_roots 53:25 frame-ready receiver=0 actor=0 val=2 tag=2 val=4 val=4 box=2
+Worker.audit_roots 54:28 frame-ready receiver=0 actor=0 val=2 tag=2 val=4 val=4 box=2 ref=7
+Worker.audit_roots 55:5 frame-ready receiver=0 actor=0 val=2 tag=2 val=4 val=4 box=2 ref=7 trn=8
+Worker.audit_roots 58:16 refused unsupported-prefix
+Worker.audit_roots 59:18 refused unsupported-prefix
+Worker.audit_tuple 61:49 refused unsupported-root
+Worker.audit_transfer 64:14 frame-ready receiver=0 iso=1 actor=2
+Worker.audit_transfer 65:5 refused unsupported-prefix
+Worker.with_resource 68:32 frame-ready receiver=0
+Worker.with_resource 69:21 refused unsupported-prefix finalisers
+Worker.with_resource 70:9 refused unsupported-prefix finalisers
+Worker.audit_finalisers 72:28 refused finalisers receiver=0
+Worker.hold 74:34 refused finalisers receiver=0 val=1
+Worker.audit_readable 76:42 refused unsupported-root
+Worker.audit_opaque 78:40 frame-ready receiver=0 tag=1
