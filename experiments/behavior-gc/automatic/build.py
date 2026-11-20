@@ -21,10 +21,11 @@ def object_file(out, lib, original, contents, *flags):
     variables = dict(line.split(' = ', 1) for line in
         (config / lib / 'CMakeFiles' / (lib + '.dir/flags.make')).read_text().splitlines()
         if ' = ' in line)
-    cmd = ['/usr/sbin/clang']
-    for key in ['C_DEFINES', 'C_INCLUDES', 'C_FLAGS']:
+    language = 'CXX' if original.suffix == '.cc' else 'C'
+    cmd = ['/usr/sbin/clang++' if language == 'CXX' else '/usr/sbin/clang']
+    for key in [language + suffix for suffix in ('_DEFINES', '_INCLUDES', '_FLAGS')]:
         cmd.extend(shlex.split(variables[key]))
-    obj = path.with_suffix('.c.o')
+    obj = path.with_suffix(path.suffix + '.o')
     subprocess.run([*cmd, *flags, '-I', original.parent, '-c', path, '-o', obj], check=True)
     return obj
 
@@ -34,7 +35,7 @@ def archive(src, dst, obj):
     subprocess.run(['ar', 'rcs', dst, obj], check=True)
 
 
-def build(out, threshold_only=False):
+def build(out, threshold_only=False, *, threshold_first=False):
     out.mkdir()
     (out / 'bin').mkdir()
     (out / 'packages').symlink_to(repo / 'packages')
@@ -47,10 +48,28 @@ def build(out, threshold_only=False):
     value = gen_expr(c, child);
     if(ticket != NULL && value != NULL && value != GEN_NOVALUE)
       frame_call(c, "ponyint_frame_pop", &ticket, 1);''')
+    if threshold_first:
+        s = replace(s, 'LLVMBuildLoad2(c->builder, c->ptr, slot, "")', 'slot')
+        s = replace(s, '  return gencall_runtime(c, name, args, (int)count, "");',
+            '  LLVMValueRef r = gencall_runtime(c, name, args, (int)count, "");\n'
+            '  LLVMSetMetadataStr(r, "pony.gc.frame", LLVMMDNodeInContext(c->context, NULL, 0));\n'
+            '  return r;')
     flags = ['-DFRAME_THRESHOLD_ONLY'] if threshold_only else []
     obj = object_file(out, 'libponyc', path, s, *flags)
     lib = out / 'libponyc.a'
     archive(config/'libponyc/libponyc.a', lib, obj)
+    if threshold_first:
+        path = repo / 'src/libponyc/codegen/genopt.cc'
+        opt = replace(path.read_text(), '#include <llvm/IR/Module.h>',
+            '#include <llvm/IR/Module.h>\n#include <llvm/Analysis/ValueTracking.h>\n'
+            '#include <llvm/Transforms/Utils/BasicBlockUtils.h>\n'
+            '#include <llvm/Transforms/Utils/Cloning.h>')
+        opt = replace(opt, 'static bool pony_opt_module(',
+            (here/'threshold/lower.inc').read_text() + '\nstatic bool pony_opt_module(')
+        opt = replace(opt, '  LLVMDIBuilderFinalize(di);',
+            '  LLVMDIBuilderFinalize(di);\n  lowerThresholdPolls(*unwrap(module));')
+        obj = object_file(out, 'libponyc', path, opt)
+        subprocess.run(['ar', 'rcs', lib, obj], check=True)
     link = shlex.split((config/'ponyc/CMakeFiles/ponyc.dir/link.txt').read_text())
     link[link.index('../libponyc/libponyc.a')] = str(lib)
     link[link.index('-o') + 1] = str(out/'bin/ponyc')
@@ -73,7 +92,8 @@ def build(out, threshold_only=False):
   (void)frame_collect(ctx, actor, NULL, 0);
 }
 '''
-    runtime = s[:start] + gc + (here/'runtime.inc').read_text() + '\n' + s[end:]
+    extra = (here/'threshold/runtime.inc').read_text() if threshold_first else ''
+    runtime = s[:start] + gc + (here/'runtime.inc').read_text() + extra + '\n' + s[end:]
     obj = object_file(out, 'libponyrt', path, runtime, *flags)
     archive(repo/'build/debug/libponyrt-pic.a', out/'bin/libponyrt-pic.a', obj)
 

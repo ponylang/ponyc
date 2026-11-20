@@ -8,20 +8,20 @@ import sys
 
 from workload import fixture, records, TINY, INNER
 
-here = Path(__file__).resolve().parent
-sys.path.insert(0, str(here.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from run import compile_fixture, native_stock
 
+here = Path(__file__).resolve().parent
 modules = ['packages/builtin/compare.pony', 'packages/builtin/nullable_pointer.pony',
            'packages/collections/range.pony', 'packages/collections/ring_buffer.pony']
 
 
-def cycle_count(trace):
+def cycle_count(trace, behavior='Probe.measure'):
     events = json.loads(trace.read_text())
     if events[0]['name'] != 'start_trace' or events[-1]['name'] != 'end_trace':
         raise ValueError('incomplete trace')
     bounds = [(i,e) for i,e in enumerate(events) if e['name']=='actor_behavior_run'
-              and e['args']['behavior_name']=='Probe.measure']
+              and e['args']['behavior_name']==behavior]
     (begin,b),(end,e) = bounds
     if (b['ph'],e['ph']) != ('b','e') or (b['tid'],b['id']) != (e['tid'],e['id']):
         raise ValueError('mismatched behavior endpoints')

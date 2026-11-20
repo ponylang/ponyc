@@ -32,13 +32,29 @@ static ast_t* direct_method(compile_t* c, ast_t* call, ast_t* actor_def)
   return ast_id(name) == TK_ID ? ast_get(actor_def, ast_name(name), NULL) : NULL;
 }
 
+static bool declares_local(ast_t* expr)
+{
+  switch(ast_id(expr))
+  {
+    case TK_LET:
+    case TK_VAR:
+    case TK_MATCH_CAPTURE:
+      return true;
+    default: {}
+  }
+  for(ast_t* child = ast_child(expr); child != NULL; child = ast_sibling(child))
+    if(declares_local(child))
+      return true;
+  return false;
+}
+
 static const char* first_local(ast_t* stmt)
 {
   if(stmt == NULL || ast_id(stmt) != TK_ASSIGN)
     return NULL;
   AST_GET_CHILDREN(stmt, decl, init);
   if(ast_id(decl) != TK_LET || ast_id(init) != TK_CALL ||
-    ast_id(ast_child(init)) != TK_NEWREF)
+    ast_id(ast_child(init)) != TK_NEWREF || declares_local(init))
     return NULL;
   ast_t* type = ast_type(ast_child(decl));
   if(type == NULL || ast_id(type) != TK_NOMINAL || cap_single(type) != TK_REF ||
