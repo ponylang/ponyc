@@ -14,7 +14,13 @@ class \nodoc\ val Resource
   fun _final() => @puts("resource finalized".cstring())
 
 class \nodoc\ Parcel
-  var n: U64 = 0
+  var n: U64
+
+  new ref create(n': U64) => n = n'
+  new trn create_trn(n': U64) => n = n'
+
+class \nodoc\ val Effect
+  new val create() => @puts("constructed".cstring())
 
 actor \nodoc\ Sink
   var parcel: (Parcel | None) = None
@@ -24,15 +30,27 @@ actor \nodoc\ Sink
     parcel = consume item
 
 actor \nodoc\ Worker
+  var _ran: Bool = false
+
   new create() =>
     let a = Leaf(7)
+    set_sentinel()
     audit_roots(this, a, a, 11)
-    audit_transfer(recover iso Parcel end, Sink)
+    audit_transfer(recover iso Parcel(5) end, Sink)
+    audit_constructor()
+
+  be \noalloc\ set_sentinel() => _ran = true
+
+  be audit_constructor() =>
+    let e: Effect val = Effect
+    None
 
   be audit_roots(peer: Worker tag, a: Leaf val, b: Leaf tag, n: U64) =>
     let x: Leaf val = Leaf(n)
-    let y: Leaf val = x
-    if (peer is this) and (a is b) and (x is y) and (x.n == n) then
+    let y: Leaf val = x; let alias_of_a: Leaf box = a
+    let mut: Parcel ref = Parcel(n)
+    let unique: Parcel trn = Parcel.create_trn(n)
+    if _ran and (peer is this) and (a is b) and (x is y) and (x.n == n) then
       @pony_exitcode(0)
     end
     audit_tuple((a, a))

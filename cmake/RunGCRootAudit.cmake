@@ -1,43 +1,27 @@
 cmake_minimum_required(VERSION 3.25)
 
-file(STRINGS "${TEST_SRC}/gc_root_audit.pony" source)
-
-function(check_site method expression expected)
-    list(FIND source "${expression}" index)
-    if(index EQUAL -1)
-        message(FATAL_ERROR "Fixture expression missing: ${expression}")
-    endif()
-    math(EXPR line "${index} + 1")
-    string(REGEX MATCHALL
-        "(^|\n)gc-root-audit [^ ]+_tag_${method}_[^ ]+ ${line} [^\n]*"
-        observations "${diagnostics}")
-    list(LENGTH observations count)
-    if(NOT count EQUAL 1 OR NOT observations MATCHES " ${expected}$")
-        message(FATAL_ERROR
-            "${mode} ${threads} threads: expected '${expected}' at "
-            "${method} line ${line}, got '${observations}'\n${diagnostics}")
-    endif()
-endfunction()
+file(STRINGS "${TEST_SRC}/expected.txt" expected)
+list(SORT expected)
 
 function(check_audit)
-    set(params "receiver=0 actor=0 val=2 tag=2")
-    check_site(audit_roots "    let x: Leaf val = Leaf(n)"
-        "frame-ready ${params}")
-    check_site(audit_roots "    let y: Leaf val = x"
-        "frame-ready ${params} val=4")
-    check_site(audit_roots
-        "    if (peer is this) and (a is b) and (x is y) and (x.n == n) then"
-        "frame-ready ${params} val=4 val=4")
-    check_site(audit_roots "    audit_tuple((a, a))" "refused unsupported-prefix")
-    check_site(audit_tuple "  be audit_tuple(pair: (Leaf val, Leaf val)) => None"
-        "refused unsupported-root")
-    check_site(audit_transfer "    sink.take(consume item)"
-        "frame-ready receiver=0 iso=1 actor=2")
-    check_site(audit_transfer "    @puts(\"sent\".cstring())"
-        "refused unsupported-prefix")
-    check_site(take "    item.n = 17" "refused receiver-layout")
-    check_site(audit_finalisers "  be audit_finalisers() => None"
-        "refused finalisers receiver=0")
+    string(REPLACE "\n" ";" lines "${diagnostics}")
+    set(observed)
+    foreach(line IN LISTS lines)
+        if(line MATCHES "^gc-root-audit (Worker|Sink|Main)_")
+            string(REGEX REPLACE
+                "^gc-root-audit (Worker|Sink|Main)_tag_([a-z_]+)_[A-Za-z0-9]+ "
+                "\\1.\\2 " record "${line}")
+            list(APPEND observed "${record}")
+        endif()
+    endforeach()
+    list(SORT observed)
+    if(NOT observed STREQUAL expected)
+        list(JOIN observed "\n" records)
+        list(JOIN expected "\n" wanted)
+        message(FATAL_ERROR
+            "${mode} (${schedulers} schedulers) expected:\n${wanted}\n"
+            "Observed:\n${records}")
+    endif()
 endfunction()
 
 if(WIN32)
@@ -61,15 +45,19 @@ foreach(mode default debug optimized)
         message(FATAL_ERROR "${mode} compiler exited ${status}\n${out}\n${err}")
     endif()
 
-    foreach(threads 1 2)
+    foreach(schedulers single default)
+        set(runtime_flags)
+        if(schedulers STREQUAL "single")
+            list(APPEND runtime_flags --ponymaxthreads=1 --ponynoscale)
+        endif()
         execute_process(
-            COMMAND "${dir}/audit${suffix}"
-                --ponymaxthreads=${threads} --ponynoscale
+            COMMAND "${dir}/audit${suffix}" ${runtime_flags}
             RESULT_VARIABLE status OUTPUT_VARIABLE out ERROR_VARIABLE diagnostics
             TIMEOUT 30)
-        if(NOT status STREQUAL "0" OR NOT out MATCHES "resource finalized")
+        if(NOT status STREQUAL "0" OR NOT out MATCHES "resource finalized"
+            OR NOT out MATCHES "constructed")
             message(FATAL_ERROR
-                "${mode} ${threads} threads exited ${status}\n${out}\n${diagnostics}")
+                "${mode} (${schedulers} schedulers) exited ${status}\n${out}\n${diagnostics}")
         endif()
         string(REPLACE "\r\n" "\n" diagnostics "${diagnostics}")
         if(mode STREQUAL "default")
