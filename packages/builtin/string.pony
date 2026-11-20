@@ -1,10 +1,6 @@
 use @memcmp[I32](dst: Pointer[None] tag, src: Pointer[None] tag, len: USize)
 use @memset[Pointer[None]](dst: Pointer[None], set: U32, len: USize)
 use @memmove[Pointer[None]](dst: Pointer[None], src: Pointer[None], len: USize)
-use @strtof[F32](nptr: Pointer[U8] tag, endptr: Pointer[Pointer[U8] box] ref)
-use @strtod[F64](nptr: Pointer[U8] tag, endptr: Pointer[Pointer[U8] box] ref)
-use @pony_os_clear_errno[None]()
-use @pony_os_errno[I32]()
 
 class val String is (ResizableSeq[U8] & Comparable[String box] & Stringable)
   """
@@ -1607,6 +1603,12 @@ actor Main
     Convert this string starting at the given offset
     to a 32-bit floating point number ([F32](builtin-F32.md)).
 
+    Accepted input matches C strtod in the C locale: optional leading
+    whitespace and sign, decimal or hexadecimal (`0x`) floating point, and
+    the Inf/Infinity and NaN literals (case insensitive; a NaN may carry a
+    parenthesized payload, which is ignored). The result is correctly
+    rounded to nearest, ties to even, on every platform.
+
     This method errors if this string cannot be parsed to a float,
     if the result would overflow,
     the offset exceeds the size of this string or
@@ -1625,16 +1627,7 @@ actor Main
     """
     let index = offset_to_index(offset)
     if index < _size then
-      let ptr = this.cstring()
-      var endp: Pointer[U8] box = Pointer[U8]
-      @pony_os_clear_errno()
-      let res = @strtof(ptr.offset(index), addressof endp)
-      let errno: I32 = @pony_os_errno()
-      if (endp != ptr.offset(_size)) or ((errno != 0) and res.infinite()) then
-        error
-      else
-        res
-      end
+      _StrToFloat.f32(_ptr, _size, index)?
     else
       error
     end
@@ -1643,6 +1636,12 @@ actor Main
     """
     Convert this string starting at the given offset
     to a 64-bit floating point number ([F64](builtin-F64.md)).
+
+    Accepted input matches C strtod in the C locale: optional leading
+    whitespace and sign, decimal or hexadecimal (`0x`) floating point, and
+    the Inf/Infinity and NaN literals (case insensitive; a NaN may carry a
+    parenthesized payload, which is ignored). The result is correctly
+    rounded to nearest, ties to even, on every platform.
 
     This method errors if this string cannot be parsed to a float,
     if the result would overflow,
@@ -1662,16 +1661,7 @@ actor Main
     """
     let index = offset_to_index(offset)
     if index < _size then
-      let ptr = this.cstring()
-      var endp: Pointer[U8] box = Pointer[U8]
-      @pony_os_clear_errno()
-      let res = @strtod(ptr.offset(index), addressof endp)
-      let errno: I32 = @pony_os_errno()
-      if (endp != ptr.offset(_size)) or ((errno != 0) and res.infinite()) then
-        error
-      else
-        res
-      end
+      _StrToFloat.f64(_ptr, _size, index)?
     else
       error
     end
