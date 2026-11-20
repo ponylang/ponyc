@@ -1,10 +1,16 @@
+import argparse
 import shlex
 import shutil
 import subprocess
 from pathlib import Path
 
 repo = Path.cwd()
-trial = Path(__file__).resolve().parent
+parser = argparse.ArgumentParser()
+parser.add_argument('--trial', type=Path, default=Path(__file__).resolve().parent)
+parser.add_argument('--site-marker', default='let replacement =')
+parser.add_argument('--site-token', default='=')
+options = parser.parse_args()
+trial = options.trial.resolve()
 runtime = repo / 'src/libponyrt'
 binary = trial / 'bin'
 objects = trial / 'objects'
@@ -41,8 +47,8 @@ for line in flags_path.read_text().splitlines():
         key, value = line.split(' = ', 1)
         flags[key] = shlex.split(value)
 cc = ['/usr/sbin/clang', *flags['C_DEFINES'], *flags['C_INCLUDES'], *flags['C_FLAGS']]
-site, = [(idx, line.index('=') + 1) for idx, line in enumerate(
-    (trial / 'fixture/main.pony').read_text().splitlines(), 1) if 'let replacement =' in line]
+site, = [(idx, line.index(options.site_token) + 1) for idx, line in enumerate(
+    (trial / 'fixture/main.pony').read_text().splitlines(), 1) if options.site_marker in line]
 subprocess.run([*cc, '-I', runtime / 'actor', '-c', objects / 'actor.c',
                 '-o', objects / 'actor.c.o'], check=True)
 subprocess.run([*cc, f'-DSITE_LINE={site[0]}', f'-DSITE_COLUMN={site[1]}',

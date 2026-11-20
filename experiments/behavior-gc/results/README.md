@@ -1,6 +1,6 @@
 # Recorded runs
 
-[Threshold-driven collection](ordinary/README.md) reports heap charge, worker chunk capacity, chunk reuse and peak process RSS. [Forced collection](forced/README.md) records what happened to the live local and the dead temporary at a single selected site.
+[Threshold-driven collection](ordinary/README.md) reports heap charge, worker chunk capacity, chunk reuse and peak process RSS. [Forced collection](forced/README.md) records what happened to the live local and the dead temporary at a single selected site. The [suspended-caller runs](caller/runs.csv) record caller payloads, slot reuse and collection counts in both codegen modes. The [archive](caller/runs.tar.gz) contains their runtime output, traces and native disassembly.
 
 Each `runs.tar.gz` contains text evidence. The ordinary archive contains native traces, counters, control outputs, workload inputs, timing-fixture IR, and 32-bit target ABI and ELF header records. The forced archive contains its native, merged-runtime and sanitizer records. The diagnostics archive contains the earlier compiler audit and calibration results. The replay directory holds the independently rebuilt native run. Build artifacts can be regenerated with the harnesses. Absolute checkout and experiment paths in the archived text have been shortened.
 
