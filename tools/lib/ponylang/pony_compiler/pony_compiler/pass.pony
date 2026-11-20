@@ -176,10 +176,9 @@ struct _PassTimers
 
 struct _PassOpt
   """
-  Layout mirror of libponyc's pass_opt_t (pass.h), reached over FFI.
-  The two must have identical memory layout: a field added, removed,
-  or reordered on either side shifts every offset below it, and this
-  side then reads garbage. Keep them in step.
+  Storage for libponyc's pass_opt_t (pass.h). C initializes the entire
+  struct and reads and writes its fields by offset. Both layouts must
+  agree on the size of the struct and the offset of every field.
   """
   var limit: I32 = PassParse()
   var programm_pass: I32 = PassParse()

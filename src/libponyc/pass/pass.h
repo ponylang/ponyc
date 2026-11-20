@@ -277,11 +277,8 @@ typedef struct pass_timers_t pass_timers_t;
 
 /** Pass options.
  *
- * Any field change here must be mirrored in _PassOpt (pass.pony), through which
- * the Pony tools reach these options over FFI. Adding, removing, or reordering
- * a field -- even a bool that lands in existing padding -- shifts every offset
- * below it, and the tools then read garbage. Add a new field at the end, where
- * it moves nothing above it.
+ * Pony tools allocate _PassOpt (pass.pony) and pass its address to C.
+ * Both structs must have the same size and field offsets on each target.
  */
 typedef struct pass_opt_t
 {
