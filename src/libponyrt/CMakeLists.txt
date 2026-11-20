@@ -20,6 +20,7 @@ set(_c_src
     gc/delta.c
     gc/gc.c
     gc/objectmap.c
+    gc/root_audit.c
     gc/trace.c
     lang/directory.c
     lang/errno.c

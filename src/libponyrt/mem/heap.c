@@ -235,6 +235,31 @@ static uint32_t get_large_chunk_finaliser(chunk_t* chunk)
   return !!(((uintptr_t)chunk->m & LARGE_CHUNK_FINALISER_BITMASK) == LARGE_CHUNK_FINALISER_BITMASK);
 }
 
+bool ponyint_heap_has_finalisers(const heap_t* heap)
+{
+  for(size_t i = 0; i < HEAP_SIZECLASSES; i++)
+  {
+    for(chunk_t* c = heap->small_free[i]; c != NULL; c = c->next)
+    {
+      if(c->small.finalisers != 0)
+        return true;
+    }
+
+    for(chunk_t* c = heap->small_full[i]; c != NULL; c = c->next)
+    {
+      if(c->small.finalisers != 0)
+        return true;
+    }
+  }
+
+  for(chunk_t* c = heap->large; c != NULL; c = c->next)
+  {
+    if(get_large_chunk_finaliser(c) != 0)
+      return true;
+  }
+  return false;
+}
+
 static void set_large_chunk_finaliser(chunk_t* chunk, uint32_t finaliser)
 {
   pony_assert(!get_chunk_is_small_chunk(chunk));

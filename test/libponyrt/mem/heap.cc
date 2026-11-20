@@ -209,3 +209,36 @@ TEST(Heap, Init)
   ponyint_pool_free_size(1024, actor);
 #endif
 }
+
+TEST(Heap, PendingFinalisers)
+{
+  pony_actor_t actor{};
+  heap_t* heap = &actor.heap;
+  ponyint_heap_init(heap);
+  _pony_type_t type{};
+  type.final = [](void*) {};
+
+  EXPECT_FALSE(ponyint_heap_has_finalisers(heap));
+  uint32_t index = ponyint_heap_index(HEAP_MIN);
+  auto small = (pony_type_t**)ponyint_heap_alloc_small(&actor, heap, index,
+    TRACK_ALL_FINALISERS);
+  *small = &type;
+  EXPECT_TRUE(ponyint_heap_has_finalisers(heap));
+
+  while(heap->small_free[index] != nullptr)
+    ponyint_heap_alloc_small(&actor, heap, index, TRACK_NO_FINALISERS);
+  EXPECT_TRUE(ponyint_heap_has_finalisers(heap));
+
+  ponyint_heap_final(heap);
+  EXPECT_FALSE(ponyint_heap_has_finalisers(heap));
+
+  auto large = (pony_type_t**)ponyint_heap_alloc_large(&actor, heap,
+    HEAP_MAX + 1, TRACK_ALL_FINALISERS);
+  *large = &type;
+  ponyint_heap_alloc_large(&actor, heap, HEAP_MAX + 1, TRACK_NO_FINALISERS);
+  EXPECT_TRUE(ponyint_heap_has_finalisers(heap));
+
+  ponyint_heap_final(heap);
+  EXPECT_FALSE(ponyint_heap_has_finalisers(heap));
+  ponyint_heap_destroy(heap);
+}

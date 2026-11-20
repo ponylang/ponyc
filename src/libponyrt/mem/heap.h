@@ -58,6 +58,8 @@ void ponyint_heap_destroy(heap_t* heap);
 
 void ponyint_heap_final(heap_t* heap);
 
+bool ponyint_heap_has_finalisers(const heap_t* heap);
+
 __pony_spec_malloc__(
   void* ponyint_heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size,
     uint32_t track_finalisers_mask)
