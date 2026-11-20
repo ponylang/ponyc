@@ -1,0 +1,21 @@
+variant,codegen,threads,raised_threshold,cycles,values
+enabled,debug,1,0,1,139 152 135
+enabled,debug,1,1,0,139 152 135
+enabled,debug,2,0,1,140 153 136
+enabled,debug,2,1,0,140 153 136
+enabled,optimized,1,0,1,139 152 135
+enabled,optimized,1,1,0,139 152 135
+enabled,optimized,2,0,1,140 153 136
+enabled,optimized,2,1,0,140 153 136
+stock,debug,1,0,0,139 152 135
+stock,debug,2,0,0,140 153 136
+stock,optimized,1,0,0,139 152 135
+stock,optimized,2,0,0,140 153 136
+omit-outer,debug,1,0,0,139 152 135
+omit-outer,debug,2,0,0,140 153 136
+omit-outer,optimized,1,0,0,139 152 135
+omit-outer,optimized,2,0,0,140 153 136
+omit-inner,debug,1,0,0,139 152 135
+omit-inner,debug,2,0,0,140 153 136
+omit-inner,optimized,1,0,0,139 152 135
+omit-inner,optimized,2,0,0,140 153 136
