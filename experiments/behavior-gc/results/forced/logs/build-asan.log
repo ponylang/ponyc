@@ -1,0 +1,172 @@
+[  0%] Refreshing pony_version.h
+[  0%] Built target pony_version
+[  7%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/actor/actor.c.o
+[  7%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/actor/messageq.c.o
+[  7%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/asio/asio.c.o
+[ 14%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/asio/emscripten.c.o
+[ 14%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/asio/epoll.c.o
+[ 14%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/asio/event.c.o
+[ 21%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/asio/kqueue.c.o
+[ 21%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/asio/sock_notify.c.o
+[ 21%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/ds/fun.c.o
+[ 21%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/ds/hash.c.o
+[ 28%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/ds/list.c.o
+[ 28%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/ds/stack.c.o
+[ 28%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/gc/actormap.c.o
+[ 35%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/gc/cycle.c.o
+[ 35%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/gc/delta.c.o
+[ 35%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/gc/gc.c.o
+[ 42%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/gc/objectmap.c.o
+[ 42%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/gc/root_audit.c.o
+[ 42%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/gc/trace.c.o
+[ 42%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/lang/directory.c.o
+[ 50%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/lang/errno.c.o
+[ 50%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/lang/io.c.o
+[ 50%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/lang/paths.c.o
+[ 57%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/lang/process.c.o
+[ 57%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/lang/socket.c.o
+[ 57%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/lang/ssl.c.o
+[ 64%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/lang/stat.c.o
+[ 64%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/lang/stdfd.c.o
+[ 64%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/lang/time.c.o
+[ 64%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/mem/alloc.c.o
+[ 71%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/mem/heap.c.o
+[ 71%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/mem/pagemap.c.o
+[ 71%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/mem/pool.c.o
+[ 78%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/mem/pool_arena.c.o
+[ 78%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/mem/pool_memalign.c.o
+[ 78%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/options/options.c.o
+[ 85%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/platform/ponyassert.c.o
+[ 85%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/platform/threads.c.o
+[ 85%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/sched/cpu.c.o
+[ 85%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/sched/mpmcq.c.o
+[ 92%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/sched/mutemap.c.o
+[ 92%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/sched/scheduler.c.o
+[ 92%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/sched/start.c.o
+[100%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/sched/systematic_testing.c.o
+[100%] Building C object src/libponyrt/CMakeFiles/libponyrt.dir/tracing/tracing.c.o
+[100%] Linking C static library libponyrt.a
+[100%] Built target libponyrt
+[100%] Compiling crtbeginS.o (PIC)
+[100%] Compiling crtendS.o (PIC)
+[100%] Compiling crtbeginT.o (static)
+[100%] Compiling crtend.o (static)
+[100%] Built target crt_objects
+[  2%] Built target crt_objects
+[  2%] Refreshing pony_version.h
+[  2%] Built target pony_version
+[  2%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ponyc.c.o
+[  4%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ponydoc.c.o
+[  4%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/ast.c.o
+[  4%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/bnfprint.c.o
+[  6%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/error.c.o
+[  6%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/frame.c.o
+[  6%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/id.c.o
+[  6%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/lexer.c.o
+[  8%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/lexint.c.o
+[  8%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/parser.c.o
+[  8%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/parserapi.c.o
+[ 10%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/printbuf.c.o
+[ 10%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/source.c.o
+[ 10%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/stringtab.c.o
+[ 12%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/symtab.c.o
+[ 12%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/token.c.o
+[ 12%] Building C object src/libponyc/CMakeFiles/libponyc.dir/ast/treecheck.c.o
+[ 12%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/codegen.c.o
+[ 14%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genbox.c.o
+[ 14%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/gencall.c.o
+[ 14%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genrootaudit.c.o
+[ 16%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/gencontrol.c.o
+[ 16%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/gendesc.c.o
+[ 16%] Building CXX object src/libponyc/CMakeFiles/libponyc.dir/codegen/gencshim.cc.o
+[ 18%] Building CXX object src/libponyc/CMakeFiles/libponyc.dir/codegen/genexe.cc.o
+[ 18%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genexport.c.o
+[ 18%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genexpr.c.o
+[ 18%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genfun.c.o
+[ 20%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genident.c.o
+[ 20%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genmatch.c.o
+[ 20%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genmutate.c.o
+[ 22%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genname.c.o
+[ 22%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/gentagged.c.o
+[ 22%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genobj.c.o
+[ 24%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genoperator.c.o
+[ 24%] Building CXX object src/libponyc/CMakeFiles/libponyc.dir/codegen/gensplit.cc.o
+[ 24%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genprim.c.o
+[ 24%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/genreference.c.o
+[ 26%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/gentrace.c.o
+[ 26%] Building C object src/libponyc/CMakeFiles/libponyc.dir/codegen/gentype.c.o
+[ 26%] Building CXX object src/libponyc/CMakeFiles/libponyc.dir/codegen/gendebug.cc.o
+[ 28%] Building CXX object src/libponyc/CMakeFiles/libponyc.dir/codegen/genopt.cc.o
+[ 28%] Building CXX object src/libponyc/CMakeFiles/libponyc.dir/codegen/host.cc.o
+[ 28%] Building C object src/libponyc/CMakeFiles/libponyc.dir/expr/array.c.o
+[ 30%] Building C object src/libponyc/CMakeFiles/libponyc.dir/expr/call.c.o
+[ 30%] Building C object src/libponyc/CMakeFiles/libponyc.dir/expr/control.c.o
+[ 30%] Building C object src/libponyc/CMakeFiles/libponyc.dir/expr/ffi.c.o
+[ 30%] Building C object src/libponyc/CMakeFiles/libponyc.dir/expr/infer.c.o
+[ 32%] Building C object src/libponyc/CMakeFiles/libponyc.dir/expr/lambda.c.o
+[ 32%] Building C object src/libponyc/CMakeFiles/libponyc.dir/expr/literal.c.o
+[ 32%] Building C object src/libponyc/CMakeFiles/libponyc.dir/expr/match.c.o
+[ 34%] Building C object src/libponyc/CMakeFiles/libponyc.dir/expr/operator.c.o
+[ 34%] Building C object src/libponyc/CMakeFiles/libponyc.dir/expr/postfix.c.o
+[ 34%] Building C object src/libponyc/CMakeFiles/libponyc.dir/expr/reference.c.o
+[ 36%] Building C object src/libponyc/CMakeFiles/libponyc.dir/options/options.c.o
+[ 36%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/completeness.c.o
+[ 36%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/expr.c.o
+[ 36%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/finalisers.c.o
+[ 38%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/flatten.c.o
+[ 38%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/import.c.o
+[ 38%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/names.c.o
+[ 40%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/mutation.c.o
+[ 40%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/pass.c.o
+[ 40%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/refer.c.o
+[ 42%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/scope.c.o
+[ 42%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/sugar.c.o
+[ 42%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/syntax.c.o
+[ 42%] Building CXX object src/libponyc/CMakeFiles/libponyc.dir/pass/timing.cc.o
+[ 44%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/traits.c.o
+[ 44%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/typealias_recursion.c.o
+[ 44%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pass/verify.c.o
+[ 46%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pkg/buildflagset.c.o
+[ 46%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pkg/ifdef.c.o
+[ 46%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pkg/package.c.o
+[ 48%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pkg/platformfuns.c.o
+[ 48%] Building CXX object src/libponyc/CMakeFiles/libponyc.dir/pkg/program.cc.o
+[ 48%] Building C object src/libponyc/CMakeFiles/libponyc.dir/pkg/use.c.o
+[ 48%] Building C object src/libponyc/CMakeFiles/libponyc.dir/platform/nixenv.c.o
+[ 51%] Building C object src/libponyc/CMakeFiles/libponyc.dir/platform/paths.c.o
+[ 51%] Building C object src/libponyc/CMakeFiles/libponyc.dir/platform/vcvars.c.o
+[ 51%] Building C object src/libponyc/CMakeFiles/libponyc.dir/plugin/plugin.c.o
+[ 53%] Building C object src/libponyc/CMakeFiles/libponyc.dir/reach/paint.c.o
+[ 53%] Building C object src/libponyc/CMakeFiles/libponyc.dir/reach/reach.c.o
+[ 53%] Building C object src/libponyc/CMakeFiles/libponyc.dir/reach/subtype.c.o
+[ 55%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/alias.c.o
+[ 55%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/assemble.c.o
+[ 55%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/cap.c.o
+[ 55%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/compattype.c.o
+[ 57%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/lookup.c.o
+[ 57%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/matchtype.c.o
+[ 57%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/reify.c.o
+[ 59%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/safeto.c.o
+[ 59%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/sanitise.c.o
+[ 59%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/subtype.c.o
+[ 61%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/subtype_cache.c.o
+[ 61%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/subtype_ffi.c.o
+[ 61%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/type_assume.c.o
+[ 61%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/typealias.c.o
+[ 63%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/typeparam.c.o
+[ 63%] Building C object src/libponyc/CMakeFiles/libponyc.dir/type/viewpoint.c.o
+[ 63%] Building C object src/libponyc/CMakeFiles/libponyc.dir/verify/call.c.o
+[ 65%] Building C object src/libponyc/CMakeFiles/libponyc.dir/verify/control.c.o
+[ 65%] Building C object src/libponyc/CMakeFiles/libponyc.dir/verify/fun.c.o
+[ 65%] Building C object src/libponyc/CMakeFiles/libponyc.dir/verify/type.c.o
+[ 67%] Linking CXX static library libponyc.a
+[ 67%] Built target libponyc
+[ 69%] Building CXX object src/libponylto/CMakeFiles/libponylto.dir/heap_to_stack.cc.o
+[ 69%] Building CXX object src/libponylto/CMakeFiles/libponylto.dir/noalloc_check.cc.o
+[ 69%] Building CXX object src/libponylto/CMakeFiles/libponylto.dir/plugin.cc.o
+[ 69%] Linking CXX static library libponylto.a
+[ 69%] Built target libponylto
+[ 97%] Built target libponyrt
+[ 97%] Building C object src/ponyc/CMakeFiles/ponyc.dir/main.c.o
+[100%] Linking CXX executable <experiment>/validation-3MVHo5/asan/debug-address_sanitizer-undefined_behavior_sanitizer-pool_memalign/ponyc
+[100%] Built target ponyc

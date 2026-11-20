@@ -1,0 +1,600 @@
+[  1%] Built target crt_objects
+[  1%] Refreshing pony_version.h
+[  1%] Built target pony_version
+[ 63%] Built target libponyc
+[ 65%] Built target libponylto
+[ 92%] Built target libponyrt
+[ 94%] Built target ponyc
+[ 96%] Built target tools_lib_stamp
+[ 96%] Built target libponyc-standalone
+[ 96%] Generating <checkout>/build/debug/pony-mutate-tests
+Building pony-mutate-tests...
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/tools/pony-mutate/test -> <checkout>/tools/pony-mutate/test
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections -> <checkout>/packages/collections
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building .. -> <checkout>/tools/pony-mutate
+Building backpressure -> <checkout>/packages/backpressure
+Building process -> <checkout>/packages/process
+Building cli -> <checkout>/packages/cli
+Building json -> <checkout>/packages/json
+Building iregex -> <checkout>/packages/iregex
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying test
+Verifying test.builtin
+Verifying test.pony_test
+Verifying test.random
+Verifying test.collections
+Verifying test.time
+Verifying test.persistent
+Verifying test.itertools
+Verifying test.files
+Verifying test.buffered
+Verifying test.term
+Verifying test.promises
+Verifying test.strings
+Verifying test.constrained_types
+Verifying test.signals
+Verifying test.capsicum
+Verifying test.format
+Verifying test.pony_mutate
+Verifying test.backpressure
+Verifying test.process
+Verifying test.cli
+Verifying test.json
+Verifying test.iregex
+Merging runtime
+Emitting 23 per-module LLVM modules
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.main.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.builtin.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.pony_test.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.random.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.collections.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.time.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.persistent.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.itertools.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.files.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.buffered.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.term.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.promises.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.strings.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.constrained_types.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.signals.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.capsicum.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.format.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.pony_mutate.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.backpressure.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.process.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.cli.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.json.bc
+Writing <checkout>/build/build_debug/../debug/pony-mutate-tests.iregex.bc
+Linking <checkout>/build/build_debug/../debug/pony-mutate-tests
+[ 96%] Built target pony-mutate-tests
+[ 96%] Generating <checkout>/build/debug/pony-compiler-tests
+Building pony-compiler-tests...
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/tools/lib/ponylang/pony_compiler/tests -> <checkout>/tools/lib/ponylang/pony_compiler/tests
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building ../pony_compiler -> <checkout>/tools/lib/ponylang/pony_compiler/pony_compiler
+Building cli -> <checkout>/packages/cli
+Building assert -> <checkout>/packages/assert
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying tests
+Verifying tests.builtin
+Verifying tests.collections
+Verifying tests.pony_test
+Verifying tests.random
+Verifying tests.time
+Verifying tests.persistent
+Verifying tests.itertools
+Verifying tests.files
+Verifying tests.buffered
+Verifying tests.term
+Verifying tests.promises
+Verifying tests.strings
+Verifying tests.constrained_types
+Verifying tests.signals
+Verifying tests.capsicum
+Verifying tests.format
+Verifying tests.pony_compiler
+Verifying tests.cli
+Verifying tests.assert
+Merging runtime
+Emitting 20 per-module LLVM modules
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.main.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.builtin.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.collections.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.pony_test.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.random.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.time.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.persistent.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.itertools.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.files.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.buffered.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.term.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.promises.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.strings.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.constrained_types.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.signals.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.capsicum.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.format.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.pony_compiler.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.cli.bc
+Writing <checkout>/build/build_debug/../debug/pony-compiler-tests.assert.bc
+Linking <checkout>/build/build_debug/../debug/pony-compiler-tests
+[ 96%] Built target pony-compiler-tests
+[ 96%] Generating <checkout>/build/debug/pony-doc-tests
+Building pony-doc-tests...
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/tools/pony-doc/test -> <checkout>/tools/pony-doc/test
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections -> <checkout>/packages/collections
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building .. -> <checkout>/tools/pony-doc
+Building pony_compiler -> <checkout>/tools/lib/ponylang/pony_compiler/pony_compiler
+Building cli -> <checkout>/packages/cli
+Building assert -> <checkout>/packages/assert
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying test
+Verifying test.builtin
+Verifying test.pony_test
+Verifying test.random
+Verifying test.collections
+Verifying test.time
+Verifying test.persistent
+Verifying test.itertools
+Verifying test.files
+Verifying test.buffered
+Verifying test.term
+Verifying test.promises
+Verifying test.strings
+Verifying test.constrained_types
+Verifying test.signals
+Verifying test.capsicum
+Verifying test.format
+Verifying test.pony_doc
+Verifying test.pony_compiler
+Verifying test.cli
+Verifying test.assert
+Merging runtime
+Emitting 21 per-module LLVM modules
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.main.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.builtin.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.pony_test.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.random.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.collections.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.time.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.persistent.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.itertools.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.files.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.buffered.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.term.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.promises.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.strings.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.constrained_types.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.signals.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.capsicum.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.format.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.pony_doc.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.pony_compiler.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.cli.bc
+Writing <checkout>/build/build_debug/../debug/pony-doc-tests.assert.bc
+Linking <checkout>/build/build_debug/../debug/pony-doc-tests
+[ 96%] Built target pony-doc-tests
+[ 96%] Generating <checkout>/build/debug/pony-lint-tests
+Building pony-lint-tests...
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/tools/pony-lint/test -> <checkout>/tools/pony-lint/test
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections -> <checkout>/packages/collections
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building .. -> <checkout>/tools/pony-lint
+Building pony_compiler -> <checkout>/tools/lib/ponylang/pony_compiler/pony_compiler
+Building cli -> <checkout>/packages/cli
+Building assert -> <checkout>/packages/assert
+Building json -> <checkout>/packages/json
+Building iregex -> <checkout>/packages/iregex
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying test
+Verifying test.builtin
+Verifying test.pony_test
+Verifying test.random
+Verifying test.collections
+Verifying test.time
+Verifying test.persistent
+Verifying test.itertools
+Verifying test.files
+Verifying test.buffered
+Verifying test.term
+Verifying test.promises
+Verifying test.strings
+Verifying test.constrained_types
+Verifying test.signals
+Verifying test.capsicum
+Verifying test.format
+Verifying test.pony_lint
+Verifying test.pony_compiler
+Verifying test.cli
+Verifying test.assert
+Verifying test.json
+Verifying test.iregex
+Merging runtime
+Emitting 23 per-module LLVM modules
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.main.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.builtin.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.pony_test.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.random.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.collections.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.time.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.persistent.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.itertools.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.files.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.buffered.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.term.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.promises.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.strings.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.constrained_types.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.signals.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.capsicum.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.format.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.pony_lint.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.pony_compiler.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.cli.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.assert.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.json.bc
+Writing <checkout>/build/build_debug/../debug/pony-lint-tests.iregex.bc
+Linking <checkout>/build/build_debug/../debug/pony-lint-tests
+[ 96%] Built target pony-lint-tests
+[ 98%] Generating <checkout>/build/debug/pony-lsp-tests
+Building pony-lsp-tests...
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/tools/pony-lsp/test -> <checkout>/tools/pony-lsp/test
+Building .. -> <checkout>/tools/pony-lsp
+Building files -> <checkout>/packages/files
+Building time -> <checkout>/packages/time
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building format -> <checkout>/packages/format
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building assert -> <checkout>/packages/assert
+Building pony_compiler -> <checkout>/tools/lib/ponylang/pony_compiler/pony_compiler
+Building cli -> <checkout>/packages/cli
+Building json -> <checkout>/packages/json
+Building iregex -> <checkout>/packages/iregex
+Building workspace -> <checkout>/tools/pony-lsp/workspace
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying test
+Verifying test.builtin
+Verifying test.pony_lsp
+Verifying test.files
+Verifying test.time
+Verifying test.collections
+Verifying test.pony_test
+Verifying test.random
+Verifying test.persistent
+Verifying test.itertools
+Verifying test.format
+Verifying test.buffered
+Verifying test.term
+Verifying test.promises
+Verifying test.strings
+Verifying test.constrained_types
+Verifying test.signals
+Verifying test.capsicum
+Verifying test.assert
+Verifying test.pony_compiler
+Verifying test.cli
+Verifying test.json
+Verifying test.iregex
+Verifying test.workspace
+Merging runtime
+Emitting 24 per-module LLVM modules
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.main.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.builtin.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.pony_lsp.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.files.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.time.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.collections.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.pony_test.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.random.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.persistent.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.itertools.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.format.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.buffered.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.term.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.promises.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.strings.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.constrained_types.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.signals.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.capsicum.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.assert.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.pony_compiler.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.cli.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.json.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.iregex.bc
+Writing <checkout>/build/build_debug/../debug/pony-lsp-tests.workspace.bc
+Linking <checkout>/build/build_debug/../debug/pony-lsp-tests
+[ 98%] Built target pony-lsp-tests
+[100%] Generating <checkout>/build/debug/pony-dep-tests
+Building pony-dep-tests...
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/tools/pony-dep/test -> <checkout>/tools/pony-dep/test
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections -> <checkout>/packages/collections
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building .. -> <checkout>/tools/pony-dep
+Building runtime_info -> <checkout>/packages/runtime_info
+Building cli -> <checkout>/packages/cli
+Building pony_compiler -> <checkout>/tools/lib/ponylang/pony_compiler/pony_compiler
+Building assert -> <checkout>/packages/assert
+Building net -> <checkout>/packages/net
+Building notifier -> <checkout>/packages/net/notifier
+Building http_client -> <checkout>/packages/http_client
+Building json -> <checkout>/packages/json
+Building iregex -> <checkout>/packages/iregex
+Building uri -> <checkout>/packages/uri
+Building ./template -> <checkout>/packages/uri/template
+Building encode/base64 -> <checkout>/packages/encode/base64
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying test
+Verifying test.builtin
+Verifying test.pony_test
+Verifying test.random
+Verifying test.collections
+Verifying test.time
+Verifying test.persistent
+Verifying test.itertools
+Verifying test.files
+Verifying test.buffered
+Verifying test.term
+Verifying test.promises
+Verifying test.strings
+Verifying test.constrained_types
+Verifying test.signals
+Verifying test.capsicum
+Verifying test.format
+Verifying test.pony_dep
+Verifying test.runtime_info
+Verifying test.cli
+Verifying test.pony_compiler
+Verifying test.assert
+Verifying test.net
+Verifying test.notifier
+Verifying test.http_client
+Verifying test.json
+Verifying test.iregex
+Verifying test.uri
+Verifying test.template
+Verifying test.base64
+Merging runtime
+Emitting 30 per-module LLVM modules
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.main.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.builtin.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.pony_test.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.random.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.collections.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.time.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.persistent.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.itertools.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.files.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.buffered.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.term.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.promises.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.strings.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.constrained_types.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.signals.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.capsicum.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.format.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.pony_dep.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.runtime_info.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.cli.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.pony_compiler.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.assert.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.net.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.notifier.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.http_client.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.json.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.iregex.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.uri.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.template.bc
+Writing <checkout>/build/build_debug/../debug/pony-dep-tests.base64.bc
+Linking <checkout>/build/build_debug/../debug/pony-dep-tests
+[100%] Built target pony-dep-tests
+[100%] Generating <checkout>/build/debug/pony-agent-server-tests
+Building pony-agent-server-tests...
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/tools/pony-agent-server/test -> <checkout>/tools/pony-agent-server/test
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections -> <checkout>/packages/collections
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building pony_compiler -> <checkout>/tools/lib/ponylang/pony_compiler/pony_compiler
+Building cli -> <checkout>/packages/cli
+Building assert -> <checkout>/packages/assert
+Building .. -> <checkout>/tools/pony-agent-server
+Building json -> <checkout>/packages/json
+Building iregex -> <checkout>/packages/iregex
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying test
+Verifying test.builtin
+Verifying test.pony_test
+Verifying test.random
+Verifying test.collections
+Verifying test.time
+Verifying test.persistent
+Verifying test.itertools
+Verifying test.files
+Verifying test.buffered
+Verifying test.term
+Verifying test.promises
+Verifying test.strings
+Verifying test.constrained_types
+Verifying test.signals
+Verifying test.capsicum
+Verifying test.format
+Verifying test.pony_compiler
+Verifying test.cli
+Verifying test.assert
+Verifying test.pony_agent_server
+Verifying test.json
+Verifying test.iregex
+Merging runtime
+Emitting 23 per-module LLVM modules
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.main.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.builtin.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.pony_test.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.random.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.collections.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.time.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.persistent.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.itertools.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.files.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.buffered.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.term.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.promises.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.strings.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.constrained_types.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.signals.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.capsicum.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.format.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.pony_compiler.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.cli.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.assert.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.pony_agent_server.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.json.bc
+Writing <checkout>/build/build_debug/../debug/pony-agent-server-tests.iregex.bc
+Linking <checkout>/build/build_debug/../debug/pony-agent-server-tests
+[100%] Built target pony-agent-server-tests
+[100%] Built target tool-tests

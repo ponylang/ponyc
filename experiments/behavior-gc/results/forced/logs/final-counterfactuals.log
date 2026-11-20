@@ -1,0 +1,4 @@
+start floor: boundary test rejected incorrect floor
+runtime floor: boundary test rejected incorrect floor
+missing start thread check: trace controls caught the incorrect success
+unrecorded GC category: trace controls caught the incorrect success

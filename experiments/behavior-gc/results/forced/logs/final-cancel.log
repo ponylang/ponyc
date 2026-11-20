@@ -1,0 +1,3 @@
+SIGTERM: guard and both private process groups stopped
+SIGINT: guard and both private process groups stopped
+SIGHUP: guard and both private process groups stopped

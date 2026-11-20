@@ -1,0 +1,19 @@
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/calibrate-retained/controls/retained/source -> <experiment>/validation-3MVHo5/calibrate-retained/controls/retained/source
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying source
+Verifying source.builtin
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/calibrate-retained/controls/retained/debug/measure.main.bc
+Writing <experiment>/validation-3MVHo5/calibrate-retained/controls/retained/debug/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/calibrate-retained/controls/retained/debug/measure
+FAIL debug off: expected rejection of retained field mismatch, exit 0
+site=Probe_tag_measure_pWo 13:21 frame=receiver,ref slot_bytes=32
+completed=0 reused=0 kept=138 replacement=211

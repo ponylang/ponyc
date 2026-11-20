@@ -1,0 +1,22 @@
+--- a/examples/networking/http-client/multipart-upload/main.pony
++++ b/examples/networking/http-client/multipart-upload/main.pony
+@@ -60,9 +60,16 @@
+       recover val
+         "Hello from Pony!\n".array()
+       end
+-    let form = MultipartFormData
+-      .> field("username", "alice")
+-      .> file("document", "hello.txt", "text/plain", file_data)
++    let form =
++      try
++        MultipartFormData
++          .> field("username", "alice")
++          .> file("document", "hello.txt", "text/plain", file_data)?
++      else
++        _out.print("Invalid file content type")
++        _http.close()
++        return
++      end
+     let req = Request.post("/post")
+       .multipart_body(form)
+       .header("Accept", "application/json")

@@ -1,0 +1,4 @@
+ordinary guards 0 0 0 0 0 0 1
+local guards 0 0 0 1 0 0 0
+foreign guards 0 0 0 0 1 0 0
+final guards 0 0 0 0 0 1 0

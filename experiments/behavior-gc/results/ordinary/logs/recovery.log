@@ -1,0 +1,6 @@
+observed 1 FIFO first -> run_small -> last; nested collections 1
+observed 2 FIFO first -> run_small -> last; nested collections 1
+clean 1 FIFO first -> run_small -> last; nested collections 1
+clean 2 FIFO first -> run_small -> last; nested collections 1
+stock 1 FIFO first -> run_small -> last; nested collections 0
+stock 2 FIFO first -> run_small -> last; nested collections 0

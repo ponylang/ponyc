@@ -1,0 +1,34 @@
+[  0%] Refreshing pony_version.h
+[  1%] Built target libponylto
+[  1%] Built target pony_version
+[  1%] Built target ponylink
+[  2%] Built target crt_objects
+[  2%] Built target bare-function-additional
+[  3%] Built target c-callback-additional
+[  3%] Built target codegen-trace-additional
+[  4%] Built target ffi-call-in-initializer-additional
+[  5%] Built target ffi-different-returns-additional
+[  6%] Built target ffi-struct-by-value-additional
+[  6%] Built target ffi-return-arg-reachable-additional
+[  7%] Built target large-dependent-finalisers-additional
+[  7%] Built target identity-digestof-object-additional
+[  9%] Built target small-dependent-finalisers-additional
+[  9%] Built target regression-1118-additional
+[ 10%] Built target tools_lib_stamp
+[ 10%] Built target small-finalisers-additional
+[ 24%] Built target libponyrt
+[ 57%] Built target libponyc
+[ 71%] Built target libponyrt_bc
+[ 75%] Built target libponyrt.tests
+[ 76%] Built target libponyc.benchmarks
+[ 78%] Built target libponyrt.benchmarks
+[ 79%] Built target ponyc
+[ 97%] Built target libponyc.tests
+[ 97%] Built target tests.runner
+[ 97%] Built target libponyc-standalone
+[ 98%] Built target tools.pony-lsp
+[ 98%] Built target tools.pony-lint
+[ 98%] Built target tools.pony-doc
+[ 98%] Built target tools.pony-dep
+[100%] Built target tools.pony-agent-server
+[100%] Built target tools.pony-mutate

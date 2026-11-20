@@ -1,0 +1,27 @@
+i386 pad ptr pool_min heap_min heap_max pool_align 188 4 32 32 512 1024
+i386 graph debug on 64
+i386 graph debug off 0
+i386 graph optimized on 64
+i386 graph optimized off 0
+i386 phase debug on 2
+i386 phase debug off 0
+i386 phase optimized on 2
+i386 phase optimized off 0
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+arm pad ptr pool_min heap_min heap_max pool_align 188 4 32 32 512 1024
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+arm graph debug on 64
+arm graph debug off 0
+arm graph optimized on 64
+arm graph optimized off 0
+arm phase debug on 2
+arm phase debug off 0
+arm phase optimized on 2
+arm phase optimized off 0

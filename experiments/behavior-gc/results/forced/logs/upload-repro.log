@@ -1,0 +1,41 @@
+Building builtin -> <checkout>/packages/builtin
+Building ../../examples/networking/http-client/multipart-upload -> <checkout>/examples/networking/http-client/multipart-upload
+Building http_client -> <checkout>/packages/http_client
+Building json -> <checkout>/packages/json
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building iregex -> <checkout>/packages/iregex
+Building net -> <checkout>/packages/net
+Building notifier -> <checkout>/packages/net/notifier
+Building uri -> <checkout>/packages/uri
+Building ./template -> <checkout>/packages/uri/template
+Building encode/base64 -> <checkout>/packages/encode/base64
+Error:
+<checkout>/examples/networking/http-client/multipart-upload/main.pony:65:63: call is not partial but the method is - a question mark is required after this call
+      .> file("document", "hello.txt", "text/plain", file_data)
+                                                              ^
+    Info:
+    <checkout>/packages/http_client/multipart_form_data.pony:59:29: method is here
+        : MultipartFormData ref ?
+                                ^
+Error:
+<checkout>/examples/networking/http-client/multipart-upload/main.pony:55:24: function signature is not marked as partial but the function body can raise an error
+  fun ref on_connected() =>
+                       ^
+    Info:
+    <checkout>/examples/networking/http-client/multipart-upload/main.pony:65:7: an error can be raised here
+          .> file("document", "hello.txt", "text/plain", file_data)
+          ^

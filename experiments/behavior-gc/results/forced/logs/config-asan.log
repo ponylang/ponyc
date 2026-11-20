@@ -1,0 +1,35 @@
+-- The C compiler identification is Clang 23.1.3
+-- The CXX compiler identification is Clang 23.1.3
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/sbin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/sbin/clang++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Enabling use option: pool_memalign
+-- Enabling use option: address_sanitizer
+-- Enabling use option: undefined_behavior_sanitizer
+-- Looking for histedit.h
+-- Looking for histedit.h - found
+-- Found LibEdit: /usr/include (found version "2.11")
+-- Found ZLIB: /usr/lib/libz.so (found version "1.3.2")
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Looking for LIBRESSL_VERSION_NUMBER
+-- Looking for LIBRESSL_VERSION_NUMBER - not found
+-- SSL for stdlib net: -Dopenssl_3.0.x (3.6.5)
+-- Captured sanitizer link fragment for -fsanitize=address,undefined
+-- CMAKE_SYSTEM_INFO_FILE: Platform/Linux
+-- CMAKE_SYSTEM_NAME:      Linux
+-- CMAKE_SYSTEM_PROCESSOR: x86_64
+-- CMAKE_SYSTEM:           Linux-6.6.87.2-microsoft-standard-WSL2
+Compiler architecture is x86_64
+Sanitizers enabled — skipping IPO/LTO
+-- Configuring done (5.3s)
+-- Generating done (0.1s)
+-- Build files have been written to: <experiment>/validation-3MVHo5/asan/config

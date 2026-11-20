@@ -1,0 +1,55 @@
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/calibrate-replacement/controls/retained/source -> <experiment>/validation-3MVHo5/calibrate-replacement/controls/retained/source
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying source
+Verifying source.builtin
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/calibrate-replacement/controls/retained/debug/measure.main.bc
+Writing <experiment>/validation-3MVHo5/calibrate-replacement/controls/retained/debug/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/calibrate-replacement/controls/retained/debug/measure
+debug off rejected retained field mismatch
+debug on rejected retained field mismatch
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/calibrate-replacement/controls/retained/source -> <experiment>/validation-3MVHo5/calibrate-replacement/controls/retained/source
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying source
+Verifying source.builtin
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/calibrate-replacement/controls/retained/optimized/measure.main.bc
+Writing <experiment>/validation-3MVHo5/calibrate-replacement/controls/retained/optimized/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/calibrate-replacement/controls/retained/optimized/measure
+optimized off rejected retained field mismatch
+optimized on rejected retained field mismatch
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/calibrate-replacement/controls/replacement/source -> <experiment>/validation-3MVHo5/calibrate-replacement/controls/replacement/source
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying source
+Verifying source.builtin
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/calibrate-replacement/controls/replacement/debug/measure.main.bc
+Writing <experiment>/validation-3MVHo5/calibrate-replacement/controls/replacement/debug/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/calibrate-replacement/controls/replacement/debug/measure
+FAIL debug off: expected rejection of replacement field mismatch, exit 0
+site=Probe_tag_measure_pWo 13:21 frame=receiver,ref slot_bytes=32
+completed=0 reused=0 kept=137 replacement=212

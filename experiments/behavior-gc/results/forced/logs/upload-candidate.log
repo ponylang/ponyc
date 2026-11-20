@@ -1,0 +1,86 @@
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/examples-overlay/examples/networking/http-client/multipart-upload -> <experiment>/validation-3MVHo5/examples-overlay/examples/networking/http-client/multipart-upload
+Building http_client -> <checkout>/packages/http_client
+Building json -> <checkout>/packages/json
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building iregex -> <checkout>/packages/iregex
+Building net -> <checkout>/packages/net
+Building notifier -> <checkout>/packages/net/notifier
+Building uri -> <checkout>/packages/uri
+Building ./template -> <checkout>/packages/uri/template
+Building encode/base64 -> <checkout>/packages/encode/base64
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying multipart-upload
+Verifying multipart-upload.builtin
+Verifying multipart-upload.http_client
+Verifying multipart-upload.json
+Verifying multipart-upload.persistent
+Verifying multipart-upload.collections
+Verifying multipart-upload.pony_test
+Verifying multipart-upload.random
+Verifying multipart-upload.time
+Verifying multipart-upload.itertools
+Verifying multipart-upload.files
+Verifying multipart-upload.buffered
+Verifying multipart-upload.term
+Verifying multipart-upload.promises
+Verifying multipart-upload.strings
+Verifying multipart-upload.constrained_types
+Verifying multipart-upload.signals
+Verifying multipart-upload.capsicum
+Verifying multipart-upload.format
+Verifying multipart-upload.iregex
+Verifying multipart-upload.net
+Verifying multipart-upload.notifier
+Verifying multipart-upload.uri
+Verifying multipart-upload.template
+Verifying multipart-upload.base64
+Merging runtime
+Emitting 25 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.main.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.builtin.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.http_client.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.json.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.persistent.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.collections.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.pony_test.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.random.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.time.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.itertools.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.files.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.buffered.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.term.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.promises.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.strings.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.constrained_types.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.signals.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.capsicum.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.format.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.iregex.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.net.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.notifier.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.uri.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.template.bc
+Writing <experiment>/validation-3MVHo5/example-check/multipart-upload.base64.bc
+Linking <experiment>/validation-3MVHo5/example-check/multipart-upload

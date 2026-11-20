@@ -1,0 +1,1 @@
+*.csv -text whitespace=trailing-space,cr-at-eol

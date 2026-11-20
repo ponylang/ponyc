@@ -1,0 +1,12 @@
+Test project <checkout>/build/build_debug
+    Start 12: full-programs
+1/2 Test #12: full-programs ....................   Passed  766.24 sec
+    Start 15: stdlib
+2/2 Test #15: stdlib ...........................   Passed  455.85 sec
+
+100% tests passed out of 2
+
+Label Time Summary:
+ci-core    = 1222.09 sec*proc (2 tests)
+
+Total Test time (real) = 1222.09 sec

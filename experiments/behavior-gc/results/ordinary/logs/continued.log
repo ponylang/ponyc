@@ -1,0 +1,54 @@
+regex debug small observed 8 [301056, 299392, 1088, 2028]
+regex debug small sample 0 [2386944, 2386432, 2386432, 0]
+regex debug large observed 64 [301056, 299392, 1088, 18268]
+regex debug large sample 0 [19091456, 19091456, 19091456, 0]
+regex debug small clean 8 ['', '', '', '']
+regex debug large clean 64 ['', '', '', '']
+regex debug small stock 0 ['', '', '', '']
+regex debug large stock 0 ['', '', '', '']
+regex optimized small observed 8 [185344, 183808, 1088, 1237]
+regex optimized small sample 0 [1462272, 1461760, 1461760, 0]
+regex optimized large observed 64 [185344, 183808, 1088, 11149]
+regex optimized large sample 0 [11694080, 11694080, 11694080, 0]
+regex optimized small clean 8 ['', '', '', '']
+regex optimized large clean 64 ['', '', '', '']
+regex optimized small stock 0 ['', '', '', '']
+regex optimized large stock 0 ['', '', '', '']
+grammar debug small observed 8 [5118976, 5117152, 13920, 34699]
+grammar debug small sample 0 [40825856, 40825856, 40825856, 0]
+grammar debug large observed 64 [5118976, 5117152, 13920, 312403]
+grammar debug large sample 0 [326606848, 326606848, 326606848, 0]
+grammar debug small clean 8 ['', '', '', '']
+grammar debug large clean 64 ['', '', '', '']
+grammar debug small stock 0 ['', '', '', '']
+grammar debug large stock 0 ['', '', '', '']
+grammar optimized small observed 8 [670720, 670080, 13920, 4362]
+grammar optimized small sample 0 [5250048, 5249280, 5249280, 0]
+grammar optimized large observed 64 [670720, 670080, 13920, 39362]
+grammar optimized large sample 0 [41994240, 41994240, 41994240, 0]
+grammar optimized small clean 8 ['', '', '', '']
+grammar optimized large clean 64 ['', '', '', '']
+grammar optimized small stock 0 ['', '', '', '']
+grammar optimized large stock 0 ['', '', '', '']
+IR normal ['14']
+IR wrong-file []
+IR audit []
+IR mutate []
+rejected incomplete trace
+rejected unpaired collection
+rejected actor
+rejected site
+rejected completion
+rejected capacity
+rejected collection disabled
+graph raised threshold enclosed zero collections
+regex raised threshold enclosed zero collections
+grammar raised threshold enclosed zero collections
+debug small observed [20, 23712, 16384, 1, 1, 10208, 27648, 27648, 0] [21, 80768, 20416, 1, 1, 20992, 82944, 82944, 16]
+debug small sample [20, 23712, 16384, 1, 0, 23712, 27648, 27648, 0] [21, 94272, 16384, 1, 0, 94272, 96256, 96256, 0]
+debug large observed [25, 94368, 16384, 1, 1, 40928, 98304, 98304, 0] [26, 322688, 81856, 1, 1, 83200, 325632, 325632, 54]
+debug large sample [25, 94368, 16384, 1, 0, 94368, 98304, 98304, 0] [26, 376128, 16384, 1, 0, 376128, 377856, 377856, 0]
+optimized small observed [20, 23648, 16384, 1, 1, 10208, 26624, 26624, 0] [21, 76608, 20416, 1, 1, 20992, 78848, 78848, 16]
+optimized small sample [20, 23648, 16384, 1, 0, 23648, 26624, 26624, 0] [21, 90048, 16384, 1, 0, 90048, 92160, 92160, 0]
+optimized large observed [25, 94304, 16384, 1, 1, 40928, 97280, 97280, 0] [26, 306240, 81856, 1, 1, 83200, 309248, 309248, 54]
+optimized large sample [25, 94304, 16384, 1, 0, 94304, 97280, 97280, 0] [26, 359616, 16384, 1, 0, 359616, 361472, 361472, 0]

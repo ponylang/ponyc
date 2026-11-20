@@ -1,0 +1,58 @@
+clean 16384 completed behaviors, zero nested GC
+stock 16384 completed behaviors, zero nested GC
+graph merged-debug-fat 1 False passed
+graph merged-debug-fat 1 True passed
+graph merged-debug-fat 2 False passed
+graph merged-debug-fat 2 True passed
+phase merged-debug-fat 1 False passed
+phase merged-debug-fat 1 True passed
+phase merged-debug-fat 2 False passed
+phase merged-debug-fat 2 True passed
+graph merged-debug-thin 1 False passed
+graph merged-debug-thin 1 True passed
+graph merged-debug-thin 2 False passed
+graph merged-debug-thin 2 True passed
+phase merged-debug-thin 1 False passed
+phase merged-debug-thin 1 True passed
+phase merged-debug-thin 2 False passed
+phase merged-debug-thin 2 True passed
+graph merged-optimized-fat 1 False passed
+graph merged-optimized-fat 1 True passed
+graph merged-optimized-fat 2 False passed
+graph merged-optimized-fat 2 True passed
+phase merged-optimized-fat 1 False passed
+phase merged-optimized-fat 1 True passed
+phase merged-optimized-fat 2 False passed
+phase merged-optimized-fat 2 True passed
+graph merged-optimized-thin 1 False passed
+graph merged-optimized-thin 1 True passed
+graph merged-optimized-thin 2 False passed
+graph merged-optimized-thin 2 True passed
+phase merged-optimized-thin 1 False passed
+phase merged-optimized-thin 1 True passed
+phase merged-optimized-thin 2 False passed
+phase merged-optimized-thin 2 True passed
+graph sanitized-debug 1 False passed
+graph sanitized-debug 1 True passed
+graph sanitized-debug 2 False passed
+graph sanitized-debug 2 True passed
+phase sanitized-debug 1 False passed
+phase sanitized-debug 1 True passed
+phase sanitized-debug 2 False passed
+phase sanitized-debug 2 True passed
+graph sanitized-optimized 1 False passed
+graph sanitized-optimized 1 True passed
+graph sanitized-optimized 2 False passed
+graph sanitized-optimized 2 True passed
+phase sanitized-optimized 1 False passed
+phase sanitized-optimized 1 True passed
+phase sanitized-optimized 2 False passed
+phase sanitized-optimized 2 True passed
+oracle rejected binding
+oracle rejected checksum
+oracle rejected acceptance
+oracle rejected retained-regex
+oracle rejected consumption
+oracle rejected golden
+oracle rejected state-count
+oracle rejected negative-input

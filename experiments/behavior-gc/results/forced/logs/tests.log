@@ -1,0 +1,2349 @@
+Test project <checkout>/build/build_debug
+      Start  1: check-version
+ 1/28 Test  #1: check-version ...............................   Passed    0.00 sec
+      Start  2: libponyrt.tests
+ 2/28 Test  #2: libponyrt.tests .............................   Passed    6.83 sec
+      Start  3: libponyc.tests
+ 3/28 Test  #3: libponyc.tests ..............................   Passed   39.41 sec
+      Start  4: check-runtime-bitcode
+ 4/28 Test  #4: check-runtime-bitcode .......................   Passed    0.01 sec
+      Start  5: pony-doc-tests
+ 5/28 Test  #5: pony-doc-tests ..............................   Passed    3.85 sec
+      Start  6: pony-lsp-tests
+ 6/28 Test  #6: pony-lsp-tests ..............................   Passed   12.84 sec
+      Start  7: pony-lint-tests
+ 7/28 Test  #7: pony-lint-tests .............................   Passed   20.49 sec
+      Start  8: pony-dep-tests
+ 8/28 Test  #8: pony-dep-tests ..............................   Passed    2.57 sec
+      Start  9: pony-agent-server-tests
+ 9/28 Test  #9: pony-agent-server-tests .....................   Passed   16.02 sec
+      Start 10: pony-mutate-tests
+10/28 Test #10: pony-mutate-tests ...........................   Passed    0.07 sec
+      Start 11: pony-compiler-tests
+11/28 Test #11: pony-compiler-tests .........................   Passed   19.90 sec
+      Start 12: full-programs
+12/28 Test #12: full-programs ...............................   Passed  497.38 sec
+      Start 13: full-program-runner-rejects-broken-config
+13/28 Test #13: full-program-runner-rejects-broken-config ...   Passed    0.09 sec
+      Start 14: installed-c-shim-pony-header
+14/28 Test #14: installed-c-shim-pony-header ................   Passed    3.99 sec
+      Start 15: stdlib
+15/28 Test #15: stdlib ......................................   Passed  214.82 sec
+      Start 16: examples
+16/28 Test #16: examples ....................................***Failed  275.45 sec
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/actors/counter -> <checkout>/examples/actors/counter
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying counter
+Verifying counter.builtin
+Verifying counter.collections
+Verifying counter.pony_test
+Verifying counter.random
+Verifying counter.time
+Verifying counter.persistent
+Verifying counter.itertools
+Verifying counter.files
+Verifying counter.buffered
+Verifying counter.term
+Verifying counter.promises
+Verifying counter.strings
+Verifying counter.constrained_types
+Verifying counter.signals
+Verifying counter.capsicum
+Verifying counter.format
+Merging runtime
+Emitting 17 per-module LLVM modules
+Writing <checkout>/examples/actors/counter/counter.main.bc
+Writing <checkout>/examples/actors/counter/counter.builtin.bc
+Writing <checkout>/examples/actors/counter/counter.collections.bc
+Writing <checkout>/examples/actors/counter/counter.pony_test.bc
+Writing <checkout>/examples/actors/counter/counter.random.bc
+Writing <checkout>/examples/actors/counter/counter.time.bc
+Writing <checkout>/examples/actors/counter/counter.persistent.bc
+Writing <checkout>/examples/actors/counter/counter.itertools.bc
+Writing <checkout>/examples/actors/counter/counter.files.bc
+Writing <checkout>/examples/actors/counter/counter.buffered.bc
+Writing <checkout>/examples/actors/counter/counter.term.bc
+Writing <checkout>/examples/actors/counter/counter.promises.bc
+Writing <checkout>/examples/actors/counter/counter.strings.bc
+Writing <checkout>/examples/actors/counter/counter.constrained_types.bc
+Writing <checkout>/examples/actors/counter/counter.signals.bc
+Writing <checkout>/examples/actors/counter/counter.capsicum.bc
+Writing <checkout>/examples/actors/counter/counter.format.bc
+Linking <checkout>/examples/actors/counter/counter
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/actors/mailbox -> <checkout>/examples/actors/mailbox
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying mailbox
+Verifying mailbox.builtin
+Verifying mailbox.collections
+Verifying mailbox.pony_test
+Verifying mailbox.random
+Verifying mailbox.time
+Verifying mailbox.persistent
+Verifying mailbox.itertools
+Verifying mailbox.files
+Verifying mailbox.buffered
+Verifying mailbox.term
+Verifying mailbox.promises
+Verifying mailbox.strings
+Verifying mailbox.constrained_types
+Verifying mailbox.signals
+Verifying mailbox.capsicum
+Verifying mailbox.format
+Merging runtime
+Emitting 17 per-module LLVM modules
+Writing <checkout>/examples/actors/mailbox/mailbox.main.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.builtin.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.collections.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.pony_test.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.random.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.time.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.persistent.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.itertools.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.files.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.buffered.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.term.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.promises.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.strings.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.constrained_types.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.signals.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.capsicum.bc
+Writing <checkout>/examples/actors/mailbox/mailbox.format.bc
+Linking <checkout>/examples/actors/mailbox/mailbox
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/actors/message-ubench -> <checkout>/examples/actors/message-ubench
+Building assert -> <checkout>/packages/assert
+Building cli -> <checkout>/packages/cli
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying message-ubench
+Verifying message-ubench.builtin
+Verifying message-ubench.assert
+Verifying message-ubench.cli
+Verifying message-ubench.collections
+Verifying message-ubench.pony_test
+Verifying message-ubench.random
+Verifying message-ubench.time
+Verifying message-ubench.persistent
+Verifying message-ubench.itertools
+Verifying message-ubench.files
+Verifying message-ubench.buffered
+Verifying message-ubench.term
+Verifying message-ubench.promises
+Verifying message-ubench.strings
+Verifying message-ubench.constrained_types
+Verifying message-ubench.signals
+Verifying message-ubench.capsicum
+Verifying message-ubench.format
+Merging runtime
+Emitting 19 per-module LLVM modules
+Writing <checkout>/examples/actors/message-ubench/message-ubench.main.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.builtin.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.assert.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.cli.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.collections.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.pony_test.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.random.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.time.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.persistent.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.itertools.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.files.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.buffered.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.term.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.promises.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.strings.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.constrained_types.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.signals.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.capsicum.bc
+Writing <checkout>/examples/actors/message-ubench/message-ubench.format.bc
+Linking <checkout>/examples/actors/message-ubench/message-ubench
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/actors/mixed -> <checkout>/examples/actors/mixed
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying mixed
+Verifying mixed.builtin
+Verifying mixed.collections
+Verifying mixed.pony_test
+Verifying mixed.random
+Verifying mixed.time
+Verifying mixed.persistent
+Verifying mixed.itertools
+Verifying mixed.files
+Verifying mixed.buffered
+Verifying mixed.term
+Verifying mixed.promises
+Verifying mixed.strings
+Verifying mixed.constrained_types
+Verifying mixed.signals
+Verifying mixed.capsicum
+Verifying mixed.format
+Merging runtime
+Emitting 17 per-module LLVM modules
+Writing <checkout>/examples/actors/mixed/mixed.main.bc
+Writing <checkout>/examples/actors/mixed/mixed.builtin.bc
+Writing <checkout>/examples/actors/mixed/mixed.collections.bc
+Writing <checkout>/examples/actors/mixed/mixed.pony_test.bc
+Writing <checkout>/examples/actors/mixed/mixed.random.bc
+Writing <checkout>/examples/actors/mixed/mixed.time.bc
+Writing <checkout>/examples/actors/mixed/mixed.persistent.bc
+Writing <checkout>/examples/actors/mixed/mixed.itertools.bc
+Writing <checkout>/examples/actors/mixed/mixed.files.bc
+Writing <checkout>/examples/actors/mixed/mixed.buffered.bc
+Writing <checkout>/examples/actors/mixed/mixed.term.bc
+Writing <checkout>/examples/actors/mixed/mixed.promises.bc
+Writing <checkout>/examples/actors/mixed/mixed.strings.bc
+Writing <checkout>/examples/actors/mixed/mixed.constrained_types.bc
+Writing <checkout>/examples/actors/mixed/mixed.signals.bc
+Writing <checkout>/examples/actors/mixed/mixed.capsicum.bc
+Writing <checkout>/examples/actors/mixed/mixed.format.bc
+Linking <checkout>/examples/actors/mixed/mixed
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/actors/ring -> <checkout>/examples/actors/ring
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying ring
+Verifying ring.builtin
+Verifying ring.collections
+Verifying ring.pony_test
+Verifying ring.random
+Verifying ring.time
+Verifying ring.persistent
+Verifying ring.itertools
+Verifying ring.files
+Verifying ring.buffered
+Verifying ring.term
+Verifying ring.promises
+Verifying ring.strings
+Verifying ring.constrained_types
+Verifying ring.signals
+Verifying ring.capsicum
+Verifying ring.format
+Merging runtime
+Emitting 17 per-module LLVM modules
+Writing <checkout>/examples/actors/ring/ring.main.bc
+Writing <checkout>/examples/actors/ring/ring.builtin.bc
+Writing <checkout>/examples/actors/ring/ring.collections.bc
+Writing <checkout>/examples/actors/ring/ring.pony_test.bc
+Writing <checkout>/examples/actors/ring/ring.random.bc
+Writing <checkout>/examples/actors/ring/ring.time.bc
+Writing <checkout>/examples/actors/ring/ring.persistent.bc
+Writing <checkout>/examples/actors/ring/ring.itertools.bc
+Writing <checkout>/examples/actors/ring/ring.files.bc
+Writing <checkout>/examples/actors/ring/ring.buffered.bc
+Writing <checkout>/examples/actors/ring/ring.term.bc
+Writing <checkout>/examples/actors/ring/ring.promises.bc
+Writing <checkout>/examples/actors/ring/ring.strings.bc
+Writing <checkout>/examples/actors/ring/ring.constrained_types.bc
+Writing <checkout>/examples/actors/ring/ring.signals.bc
+Writing <checkout>/examples/actors/ring/ring.capsicum.bc
+Writing <checkout>/examples/actors/ring/ring.format.bc
+Linking <checkout>/examples/actors/ring/ring
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/actors/spreader -> <checkout>/examples/actors/spreader
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying spreader
+Verifying spreader.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <checkout>/examples/actors/spreader/spreader.main.bc
+Writing <checkout>/examples/actors/spreader/spreader.builtin.bc
+Linking <checkout>/examples/actors/spreader/spreader
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/actors/timers -> <checkout>/examples/actors/timers
+Building time -> <checkout>/packages/time
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying timers
+Verifying timers.builtin
+Verifying timers.time
+Verifying timers.collections
+Verifying timers.pony_test
+Verifying timers.random
+Verifying timers.persistent
+Verifying timers.itertools
+Verifying timers.files
+Verifying timers.buffered
+Verifying timers.term
+Verifying timers.promises
+Verifying timers.strings
+Verifying timers.constrained_types
+Verifying timers.signals
+Verifying timers.capsicum
+Verifying timers.format
+Merging runtime
+Emitting 17 per-module LLVM modules
+Writing <checkout>/examples/actors/timers/timers.main.bc
+Writing <checkout>/examples/actors/timers/timers.builtin.bc
+Writing <checkout>/examples/actors/timers/timers.time.bc
+Writing <checkout>/examples/actors/timers/timers.collections.bc
+Writing <checkout>/examples/actors/timers/timers.pony_test.bc
+Writing <checkout>/examples/actors/timers/timers.random.bc
+Writing <checkout>/examples/actors/timers/timers.persistent.bc
+Writing <checkout>/examples/actors/timers/timers.itertools.bc
+Writing <checkout>/examples/actors/timers/timers.files.bc
+Writing <checkout>/examples/actors/timers/timers.buffered.bc
+Writing <checkout>/examples/actors/timers/timers.term.bc
+Writing <checkout>/examples/actors/timers/timers.promises.bc
+Writing <checkout>/examples/actors/timers/timers.strings.bc
+Writing <checkout>/examples/actors/timers/timers.constrained_types.bc
+Writing <checkout>/examples/actors/timers/timers.signals.bc
+Writing <checkout>/examples/actors/timers/timers.capsicum.bc
+Writing <checkout>/examples/actors/timers/timers.format.bc
+Linking <checkout>/examples/actors/timers/timers
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/actors/yield -> <checkout>/examples/actors/yield
+Building cli -> <checkout>/packages/cli
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building debug -> <checkout>/packages/debug
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying yield
+Verifying yield.builtin
+Verifying yield.cli
+Verifying yield.collections
+Verifying yield.pony_test
+Verifying yield.random
+Verifying yield.time
+Verifying yield.persistent
+Verifying yield.itertools
+Verifying yield.files
+Verifying yield.buffered
+Verifying yield.term
+Verifying yield.promises
+Verifying yield.strings
+Verifying yield.constrained_types
+Verifying yield.signals
+Verifying yield.capsicum
+Verifying yield.format
+Verifying yield.debug
+Merging runtime
+Emitting 19 per-module LLVM modules
+Writing <checkout>/examples/actors/yield/yield.main.bc
+Writing <checkout>/examples/actors/yield/yield.builtin.bc
+Writing <checkout>/examples/actors/yield/yield.cli.bc
+Writing <checkout>/examples/actors/yield/yield.collections.bc
+Writing <checkout>/examples/actors/yield/yield.pony_test.bc
+Writing <checkout>/examples/actors/yield/yield.random.bc
+Writing <checkout>/examples/actors/yield/yield.time.bc
+Writing <checkout>/examples/actors/yield/yield.persistent.bc
+Writing <checkout>/examples/actors/yield/yield.itertools.bc
+Writing <checkout>/examples/actors/yield/yield.files.bc
+Writing <checkout>/examples/actors/yield/yield.buffered.bc
+Writing <checkout>/examples/actors/yield/yield.term.bc
+Writing <checkout>/examples/actors/yield/yield.promises.bc
+Writing <checkout>/examples/actors/yield/yield.strings.bc
+Writing <checkout>/examples/actors/yield/yield.constrained_types.bc
+Writing <checkout>/examples/actors/yield/yield.signals.bc
+Writing <checkout>/examples/actors/yield/yield.capsicum.bc
+Writing <checkout>/examples/actors/yield/yield.format.bc
+Writing <checkout>/examples/actors/yield/yield.debug.bc
+Linking <checkout>/examples/actors/yield/yield
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/benchmarks/gups_basic -> <checkout>/examples/benchmarks/gups_basic
+Building cli -> <checkout>/packages/cli
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying gups_basic
+Verifying gups_basic.builtin
+Verifying gups_basic.cli
+Verifying gups_basic.collections
+Verifying gups_basic.pony_test
+Verifying gups_basic.random
+Verifying gups_basic.time
+Verifying gups_basic.persistent
+Verifying gups_basic.itertools
+Verifying gups_basic.files
+Verifying gups_basic.buffered
+Verifying gups_basic.term
+Verifying gups_basic.promises
+Verifying gups_basic.strings
+Verifying gups_basic.constrained_types
+Verifying gups_basic.signals
+Verifying gups_basic.capsicum
+Verifying gups_basic.format
+Merging runtime
+Emitting 18 per-module LLVM modules
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.main.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.builtin.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.cli.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.collections.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.pony_test.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.random.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.time.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.persistent.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.itertools.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.files.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.buffered.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.term.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.promises.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.strings.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.constrained_types.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.signals.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.capsicum.bc
+Writing <checkout>/examples/benchmarks/gups_basic/gups_basic.format.bc
+Linking <checkout>/examples/benchmarks/gups_basic/gups_basic
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/benchmarks/gups_opt -> <checkout>/examples/benchmarks/gups_opt
+Building cli -> <checkout>/packages/cli
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying gups_opt
+Verifying gups_opt.builtin
+Verifying gups_opt.cli
+Verifying gups_opt.collections
+Verifying gups_opt.pony_test
+Verifying gups_opt.random
+Verifying gups_opt.time
+Verifying gups_opt.persistent
+Verifying gups_opt.itertools
+Verifying gups_opt.files
+Verifying gups_opt.buffered
+Verifying gups_opt.term
+Verifying gups_opt.promises
+Verifying gups_opt.strings
+Verifying gups_opt.constrained_types
+Verifying gups_opt.signals
+Verifying gups_opt.capsicum
+Verifying gups_opt.format
+Merging runtime
+Emitting 18 per-module LLVM modules
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.main.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.builtin.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.cli.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.collections.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.pony_test.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.random.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.time.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.persistent.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.itertools.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.files.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.buffered.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.term.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.promises.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.strings.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.constrained_types.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.signals.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.capsicum.bc
+Writing <checkout>/examples/benchmarks/gups_opt/gups_opt.format.bc
+Linking <checkout>/examples/benchmarks/gups_opt/gups_opt
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/benchmarks/mandelbrot -> <checkout>/examples/benchmarks/mandelbrot
+Building cli -> <checkout>/packages/cli
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying mandelbrot
+Verifying mandelbrot.builtin
+Verifying mandelbrot.cli
+Verifying mandelbrot.collections
+Verifying mandelbrot.pony_test
+Verifying mandelbrot.random
+Verifying mandelbrot.time
+Verifying mandelbrot.persistent
+Verifying mandelbrot.itertools
+Verifying mandelbrot.files
+Verifying mandelbrot.buffered
+Verifying mandelbrot.term
+Verifying mandelbrot.promises
+Verifying mandelbrot.strings
+Verifying mandelbrot.constrained_types
+Verifying mandelbrot.signals
+Verifying mandelbrot.capsicum
+Verifying mandelbrot.format
+Merging runtime
+Emitting 18 per-module LLVM modules
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.main.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.builtin.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.cli.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.collections.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.pony_test.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.random.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.time.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.persistent.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.itertools.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.files.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.buffered.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.term.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.promises.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.strings.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.constrained_types.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.signals.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.capsicum.bc
+Writing <checkout>/examples/benchmarks/mandelbrot/mandelbrot.format.bc
+Linking <checkout>/examples/benchmarks/mandelbrot/mandelbrot
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/benchmarks/n-body -> <checkout>/examples/benchmarks/n-body
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying n-body
+Verifying n-body.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <checkout>/examples/benchmarks/n-body/n-body.main.bc
+Writing <checkout>/examples/benchmarks/n-body/n-body.builtin.bc
+Linking <checkout>/examples/benchmarks/n-body/n-body
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/c-ffi/cshim -> <checkout>/examples/c-ffi/cshim
+Compiling C shims
+ <checkout>/examples/c-ffi/cshim/answer.c
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying cshim
+Verifying cshim.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <checkout>/examples/c-ffi/cshim/cshim.main.bc
+Writing <checkout>/examples/c-ffi/cshim/cshim.builtin.bc
+Linking <checkout>/examples/c-ffi/cshim/cshim
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/crypto/digest -> <checkout>/examples/crypto/digest
+Building crypto -> <checkout>/packages/crypto
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections -> <checkout>/packages/collections
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying digest
+Verifying digest.builtin
+Verifying digest.crypto
+Verifying digest.pony_test
+Verifying digest.random
+Verifying digest.collections
+Verifying digest.time
+Verifying digest.persistent
+Verifying digest.itertools
+Verifying digest.files
+Verifying digest.buffered
+Verifying digest.term
+Verifying digest.promises
+Verifying digest.strings
+Verifying digest.constrained_types
+Verifying digest.signals
+Verifying digest.capsicum
+Verifying digest.format
+Merging runtime
+Emitting 18 per-module LLVM modules
+Writing <checkout>/examples/crypto/digest/digest.main.bc
+Writing <checkout>/examples/crypto/digest/digest.builtin.bc
+Writing <checkout>/examples/crypto/digest/digest.crypto.bc
+Writing <checkout>/examples/crypto/digest/digest.pony_test.bc
+Writing <checkout>/examples/crypto/digest/digest.random.bc
+Writing <checkout>/examples/crypto/digest/digest.collections.bc
+Writing <checkout>/examples/crypto/digest/digest.time.bc
+Writing <checkout>/examples/crypto/digest/digest.persistent.bc
+Writing <checkout>/examples/crypto/digest/digest.itertools.bc
+Writing <checkout>/examples/crypto/digest/digest.files.bc
+Writing <checkout>/examples/crypto/digest/digest.buffered.bc
+Writing <checkout>/examples/crypto/digest/digest.term.bc
+Writing <checkout>/examples/crypto/digest/digest.promises.bc
+Writing <checkout>/examples/crypto/digest/digest.strings.bc
+Writing <checkout>/examples/crypto/digest/digest.constrained_types.bc
+Writing <checkout>/examples/crypto/digest/digest.signals.bc
+Writing <checkout>/examples/crypto/digest/digest.capsicum.bc
+Writing <checkout>/examples/crypto/digest/digest.format.bc
+Linking <checkout>/examples/crypto/digest/digest
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/crypto/hash-fn -> <checkout>/examples/crypto/hash-fn
+Building crypto -> <checkout>/packages/crypto
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections -> <checkout>/packages/collections
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying hash-fn
+Verifying hash-fn.builtin
+Verifying hash-fn.crypto
+Verifying hash-fn.pony_test
+Verifying hash-fn.random
+Verifying hash-fn.collections
+Verifying hash-fn.time
+Verifying hash-fn.persistent
+Verifying hash-fn.itertools
+Verifying hash-fn.files
+Verifying hash-fn.buffered
+Verifying hash-fn.term
+Verifying hash-fn.promises
+Verifying hash-fn.strings
+Verifying hash-fn.constrained_types
+Verifying hash-fn.signals
+Verifying hash-fn.capsicum
+Verifying hash-fn.format
+Merging runtime
+Emitting 18 per-module LLVM modules
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.main.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.builtin.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.crypto.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.pony_test.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.random.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.collections.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.time.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.persistent.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.itertools.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.files.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.buffered.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.term.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.promises.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.strings.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.constrained_types.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.signals.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.capsicum.bc
+Writing <checkout>/examples/crypto/hash-fn/hash-fn.format.bc
+Linking <checkout>/examples/crypto/hash-fn/hash-fn
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/data-formats/json -> <checkout>/examples/data-formats/json
+Building json -> <checkout>/packages/json
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building iregex -> <checkout>/packages/iregex
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying json
+Verifying json.builtin
+Verifying json.json
+Verifying json.persistent
+Verifying json.collections
+Verifying json.pony_test
+Verifying json.random
+Verifying json.time
+Verifying json.itertools
+Verifying json.files
+Verifying json.buffered
+Verifying json.term
+Verifying json.promises
+Verifying json.strings
+Verifying json.constrained_types
+Verifying json.signals
+Verifying json.capsicum
+Verifying json.format
+Verifying json.iregex
+Merging runtime
+Emitting 19 per-module LLVM modules
+Writing <checkout>/examples/data-formats/json/json.main.bc
+Writing <checkout>/examples/data-formats/json/json.builtin.bc
+Writing <checkout>/examples/data-formats/json/json.json.bc
+Writing <checkout>/examples/data-formats/json/json.persistent.bc
+Writing <checkout>/examples/data-formats/json/json.collections.bc
+Writing <checkout>/examples/data-formats/json/json.pony_test.bc
+Writing <checkout>/examples/data-formats/json/json.random.bc
+Writing <checkout>/examples/data-formats/json/json.time.bc
+Writing <checkout>/examples/data-formats/json/json.itertools.bc
+Writing <checkout>/examples/data-formats/json/json.files.bc
+Writing <checkout>/examples/data-formats/json/json.buffered.bc
+Writing <checkout>/examples/data-formats/json/json.term.bc
+Writing <checkout>/examples/data-formats/json/json.promises.bc
+Writing <checkout>/examples/data-formats/json/json.strings.bc
+Writing <checkout>/examples/data-formats/json/json.constrained_types.bc
+Writing <checkout>/examples/data-formats/json/json.signals.bc
+Writing <checkout>/examples/data-formats/json/json.capsicum.bc
+Writing <checkout>/examples/data-formats/json/json.format.bc
+Writing <checkout>/examples/data-formats/json/json.iregex.bc
+Linking <checkout>/examples/data-formats/json/json
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/getting-started/circle -> <checkout>/examples/getting-started/circle
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying circle
+Verifying circle.builtin
+Verifying circle.collections
+Verifying circle.pony_test
+Verifying circle.random
+Verifying circle.time
+Verifying circle.persistent
+Verifying circle.itertools
+Verifying circle.files
+Verifying circle.buffered
+Verifying circle.term
+Verifying circle.promises
+Verifying circle.strings
+Verifying circle.constrained_types
+Verifying circle.signals
+Verifying circle.capsicum
+Verifying circle.format
+Merging runtime
+Emitting 17 per-module LLVM modules
+Writing <checkout>/examples/getting-started/circle/circle.main.bc
+Writing <checkout>/examples/getting-started/circle/circle.builtin.bc
+Writing <checkout>/examples/getting-started/circle/circle.collections.bc
+Writing <checkout>/examples/getting-started/circle/circle.pony_test.bc
+Writing <checkout>/examples/getting-started/circle/circle.random.bc
+Writing <checkout>/examples/getting-started/circle/circle.time.bc
+Writing <checkout>/examples/getting-started/circle/circle.persistent.bc
+Writing <checkout>/examples/getting-started/circle/circle.itertools.bc
+Writing <checkout>/examples/getting-started/circle/circle.files.bc
+Writing <checkout>/examples/getting-started/circle/circle.buffered.bc
+Writing <checkout>/examples/getting-started/circle/circle.term.bc
+Writing <checkout>/examples/getting-started/circle/circle.promises.bc
+Writing <checkout>/examples/getting-started/circle/circle.strings.bc
+Writing <checkout>/examples/getting-started/circle/circle.constrained_types.bc
+Writing <checkout>/examples/getting-started/circle/circle.signals.bc
+Writing <checkout>/examples/getting-started/circle/circle.capsicum.bc
+Writing <checkout>/examples/getting-started/circle/circle.format.bc
+Linking <checkout>/examples/getting-started/circle/circle
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/getting-started/helloworld -> <checkout>/examples/getting-started/helloworld
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying helloworld
+Verifying helloworld.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <checkout>/examples/getting-started/helloworld/helloworld.main.bc
+Writing <checkout>/examples/getting-started/helloworld/helloworld.builtin.bc
+Linking <checkout>/examples/getting-started/helloworld/helloworld
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/io/files -> <checkout>/examples/io/files
+Building files -> <checkout>/packages/files
+Building time -> <checkout>/packages/time
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building format -> <checkout>/packages/format
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying files
+Verifying files.builtin
+Verifying files.files
+Verifying files.time
+Verifying files.collections
+Verifying files.pony_test
+Verifying files.random
+Verifying files.persistent
+Verifying files.itertools
+Verifying files.format
+Verifying files.buffered
+Verifying files.term
+Verifying files.promises
+Verifying files.strings
+Verifying files.constrained_types
+Verifying files.signals
+Verifying files.capsicum
+Merging runtime
+Emitting 17 per-module LLVM modules
+Writing <checkout>/examples/io/files/files.main.bc
+Writing <checkout>/examples/io/files/files.builtin.bc
+Writing <checkout>/examples/io/files/files.files.bc
+Writing <checkout>/examples/io/files/files.time.bc
+Writing <checkout>/examples/io/files/files.collections.bc
+Writing <checkout>/examples/io/files/files.pony_test.bc
+Writing <checkout>/examples/io/files/files.random.bc
+Writing <checkout>/examples/io/files/files.persistent.bc
+Writing <checkout>/examples/io/files/files.itertools.bc
+Writing <checkout>/examples/io/files/files.format.bc
+Writing <checkout>/examples/io/files/files.buffered.bc
+Writing <checkout>/examples/io/files/files.term.bc
+Writing <checkout>/examples/io/files/files.promises.bc
+Writing <checkout>/examples/io/files/files.strings.bc
+Writing <checkout>/examples/io/files/files.constrained_types.bc
+Writing <checkout>/examples/io/files/files.signals.bc
+Writing <checkout>/examples/io/files/files.capsicum.bc
+Linking <checkout>/examples/io/files/files
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/io/readline -> <checkout>/examples/io/readline
+Building signals -> <checkout>/packages/signals
+Building constrained_types -> <checkout>/packages/constrained_types
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections -> <checkout>/packages/collections
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying readline
+Verifying readline.builtin
+Verifying readline.signals
+Verifying readline.constrained_types
+Verifying readline.pony_test
+Verifying readline.random
+Verifying readline.collections
+Verifying readline.time
+Verifying readline.persistent
+Verifying readline.itertools
+Verifying readline.files
+Verifying readline.buffered
+Verifying readline.term
+Verifying readline.promises
+Verifying readline.strings
+Verifying readline.capsicum
+Verifying readline.format
+Merging runtime
+Emitting 17 per-module LLVM modules
+Writing <checkout>/examples/io/readline/readline.main.bc
+Writing <checkout>/examples/io/readline/readline.builtin.bc
+Writing <checkout>/examples/io/readline/readline.signals.bc
+Writing <checkout>/examples/io/readline/readline.constrained_types.bc
+Writing <checkout>/examples/io/readline/readline.pony_test.bc
+Writing <checkout>/examples/io/readline/readline.random.bc
+Writing <checkout>/examples/io/readline/readline.collections.bc
+Writing <checkout>/examples/io/readline/readline.time.bc
+Writing <checkout>/examples/io/readline/readline.persistent.bc
+Writing <checkout>/examples/io/readline/readline.itertools.bc
+Writing <checkout>/examples/io/readline/readline.files.bc
+Writing <checkout>/examples/io/readline/readline.buffered.bc
+Writing <checkout>/examples/io/readline/readline.term.bc
+Writing <checkout>/examples/io/readline/readline.promises.bc
+Writing <checkout>/examples/io/readline/readline.strings.bc
+Writing <checkout>/examples/io/readline/readline.capsicum.bc
+Writing <checkout>/examples/io/readline/readline.format.bc
+Linking <checkout>/examples/io/readline/readline
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/io/signals -> <checkout>/examples/io/signals
+Building constrained_types -> <checkout>/packages/constrained_types
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections -> <checkout>/packages/collections
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying signals
+Verifying signals.builtin
+Verifying signals.constrained_types
+Verifying signals.pony_test
+Verifying signals.random
+Verifying signals.collections
+Verifying signals.time
+Verifying signals.persistent
+Verifying signals.itertools
+Verifying signals.files
+Verifying signals.buffered
+Verifying signals.term
+Verifying signals.promises
+Verifying signals.strings
+Verifying signals.signals
+Verifying signals.capsicum
+Verifying signals.format
+Merging runtime
+Emitting 17 per-module LLVM modules
+Writing <checkout>/examples/io/signals/signals.main.bc
+Writing <checkout>/examples/io/signals/signals.builtin.bc
+Writing <checkout>/examples/io/signals/signals.constrained_types.bc
+Writing <checkout>/examples/io/signals/signals.pony_test.bc
+Writing <checkout>/examples/io/signals/signals.random.bc
+Writing <checkout>/examples/io/signals/signals.collections.bc
+Writing <checkout>/examples/io/signals/signals.time.bc
+Writing <checkout>/examples/io/signals/signals.persistent.bc
+Writing <checkout>/examples/io/signals/signals.itertools.bc
+Writing <checkout>/examples/io/signals/signals.files.bc
+Writing <checkout>/examples/io/signals/signals.buffered.bc
+Writing <checkout>/examples/io/signals/signals.term.bc
+Writing <checkout>/examples/io/signals/signals.promises.bc
+Writing <checkout>/examples/io/signals/signals.strings.bc
+Writing <checkout>/examples/io/signals/signals.signals.bc
+Writing <checkout>/examples/io/signals/signals.capsicum.bc
+Writing <checkout>/examples/io/signals/signals.format.bc
+Linking <checkout>/examples/io/signals/signals
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/language-features/commandline -> <checkout>/examples/language-features/commandline
+Building cli -> <checkout>/packages/cli
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying commandline
+Verifying commandline.builtin
+Verifying commandline.cli
+Verifying commandline.collections
+Verifying commandline.pony_test
+Verifying commandline.random
+Verifying commandline.time
+Verifying commandline.persistent
+Verifying commandline.itertools
+Verifying commandline.files
+Verifying commandline.buffered
+Verifying commandline.term
+Verifying commandline.promises
+Verifying commandline.strings
+Verifying commandline.constrained_types
+Verifying commandline.signals
+Verifying commandline.capsicum
+Verifying commandline.format
+Merging runtime
+Emitting 18 per-module LLVM modules
+Writing <checkout>/examples/language-features/commandline/commandline.main.bc
+Writing <checkout>/examples/language-features/commandline/commandline.builtin.bc
+Writing <checkout>/examples/language-features/commandline/commandline.cli.bc
+Writing <checkout>/examples/language-features/commandline/commandline.collections.bc
+Writing <checkout>/examples/language-features/commandline/commandline.pony_test.bc
+Writing <checkout>/examples/language-features/commandline/commandline.random.bc
+Writing <checkout>/examples/language-features/commandline/commandline.time.bc
+Writing <checkout>/examples/language-features/commandline/commandline.persistent.bc
+Writing <checkout>/examples/language-features/commandline/commandline.itertools.bc
+Writing <checkout>/examples/language-features/commandline/commandline.files.bc
+Writing <checkout>/examples/language-features/commandline/commandline.buffered.bc
+Writing <checkout>/examples/language-features/commandline/commandline.term.bc
+Writing <checkout>/examples/language-features/commandline/commandline.promises.bc
+Writing <checkout>/examples/language-features/commandline/commandline.strings.bc
+Writing <checkout>/examples/language-features/commandline/commandline.constrained_types.bc
+Writing <checkout>/examples/language-features/commandline/commandline.signals.bc
+Writing <checkout>/examples/language-features/commandline/commandline.capsicum.bc
+Writing <checkout>/examples/language-features/commandline/commandline.format.bc
+Linking <checkout>/examples/language-features/commandline/commandline
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/language-features/constrained_type -> <checkout>/examples/language-features/constrained_type
+Building constrained_types -> <checkout>/packages/constrained_types
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections -> <checkout>/packages/collections
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying constrained_type
+Verifying constrained_type.builtin
+Verifying constrained_type.constrained_types
+Verifying constrained_type.pony_test
+Verifying constrained_type.random
+Verifying constrained_type.collections
+Verifying constrained_type.time
+Verifying constrained_type.persistent
+Verifying constrained_type.itertools
+Verifying constrained_type.files
+Verifying constrained_type.buffered
+Verifying constrained_type.term
+Verifying constrained_type.promises
+Verifying constrained_type.strings
+Verifying constrained_type.signals
+Verifying constrained_type.capsicum
+Verifying constrained_type.format
+Merging runtime
+Emitting 17 per-module LLVM modules
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.main.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.builtin.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.constrained_types.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.pony_test.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.random.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.collections.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.time.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.persistent.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.itertools.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.files.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.buffered.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.term.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.promises.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.strings.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.signals.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.capsicum.bc
+Writing <checkout>/examples/language-features/constrained_type/constrained_type.format.bc
+Linking <checkout>/examples/language-features/constrained_type/constrained_type
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/language-features/ifdef -> <checkout>/examples/language-features/ifdef
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying ifdef
+Verifying ifdef.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <checkout>/examples/language-features/ifdef/ifdef.main.bc
+Writing <checkout>/examples/language-features/ifdef/ifdef.builtin.bc
+Linking <checkout>/examples/language-features/ifdef/ifdef
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/language-features/iftype-specialization -> <checkout>/examples/language-features/iftype-specialization
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying iftype-specialization
+Verifying iftype-specialization.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <checkout>/examples/language-features/iftype-specialization/iftype-specialization.main.bc
+Writing <checkout>/examples/language-features/iftype-specialization/iftype-specialization.builtin.bc
+Linking <checkout>/examples/language-features/iftype-specialization/iftype-specialization
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/language-features/lambda -> <checkout>/examples/language-features/lambda
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying lambda
+Verifying lambda.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <checkout>/examples/language-features/lambda/lambda.main.bc
+Writing <checkout>/examples/language-features/lambda/lambda.builtin.bc
+Linking <checkout>/examples/language-features/lambda/lambda
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/language-features/noalloc -> <checkout>/examples/language-features/noalloc
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying noalloc
+Verifying noalloc.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <checkout>/examples/language-features/noalloc/noalloc.main.bc
+Writing <checkout>/examples/language-features/noalloc/noalloc.builtin.bc
+Linking <checkout>/examples/language-features/noalloc/noalloc
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/language-features/printargs -> <checkout>/examples/language-features/printargs
+Building cli -> <checkout>/packages/cli
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying printargs
+Verifying printargs.builtin
+Verifying printargs.cli
+Verifying printargs.collections
+Verifying printargs.pony_test
+Verifying printargs.random
+Verifying printargs.time
+Verifying printargs.persistent
+Verifying printargs.itertools
+Verifying printargs.files
+Verifying printargs.buffered
+Verifying printargs.term
+Verifying printargs.promises
+Verifying printargs.strings
+Verifying printargs.constrained_types
+Verifying printargs.signals
+Verifying printargs.capsicum
+Verifying printargs.format
+Merging runtime
+Emitting 18 per-module LLVM modules
+Writing <checkout>/examples/language-features/printargs/printargs.main.bc
+Writing <checkout>/examples/language-features/printargs/printargs.builtin.bc
+Writing <checkout>/examples/language-features/printargs/printargs.cli.bc
+Writing <checkout>/examples/language-features/printargs/printargs.collections.bc
+Writing <checkout>/examples/language-features/printargs/printargs.pony_test.bc
+Writing <checkout>/examples/language-features/printargs/printargs.random.bc
+Writing <checkout>/examples/language-features/printargs/printargs.time.bc
+Writing <checkout>/examples/language-features/printargs/printargs.persistent.bc
+Writing <checkout>/examples/language-features/printargs/printargs.itertools.bc
+Writing <checkout>/examples/language-features/printargs/printargs.files.bc
+Writing <checkout>/examples/language-features/printargs/printargs.buffered.bc
+Writing <checkout>/examples/language-features/printargs/printargs.term.bc
+Writing <checkout>/examples/language-features/printargs/printargs.promises.bc
+Writing <checkout>/examples/language-features/printargs/printargs.strings.bc
+Writing <checkout>/examples/language-features/printargs/printargs.constrained_types.bc
+Writing <checkout>/examples/language-features/printargs/printargs.signals.bc
+Writing <checkout>/examples/language-features/printargs/printargs.capsicum.bc
+Writing <checkout>/examples/language-features/printargs/printargs.format.bc
+Linking <checkout>/examples/language-features/printargs/printargs
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/backpressure/backpressure -> <checkout>/examples/networking/backpressure/backpressure
+Building net -> <checkout>/packages/net
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building notifier -> <checkout>/packages/net/notifier
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying backpressure
+Verifying backpressure.builtin
+Verifying backpressure.net
+Verifying backpressure.collections
+Verifying backpressure.pony_test
+Verifying backpressure.random
+Verifying backpressure.time
+Verifying backpressure.persistent
+Verifying backpressure.itertools
+Verifying backpressure.files
+Verifying backpressure.buffered
+Verifying backpressure.term
+Verifying backpressure.promises
+Verifying backpressure.strings
+Verifying backpressure.constrained_types
+Verifying backpressure.signals
+Verifying backpressure.capsicum
+Verifying backpressure.format
+Verifying backpressure.notifier
+Merging runtime
+Emitting 19 per-module LLVM modules
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.main.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.builtin.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.net.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.collections.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.pony_test.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.random.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.time.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.persistent.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.itertools.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.files.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.buffered.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.term.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.promises.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.strings.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.constrained_types.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.signals.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.capsicum.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.format.bc
+Writing <checkout>/examples/networking/backpressure/backpressure/backpressure.notifier.bc
+Linking <checkout>/examples/networking/backpressure/backpressure/backpressure
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/backpressure/fan-in -> <checkout>/examples/networking/backpressure/fan-in
+Building assert -> <checkout>/packages/assert
+Building cli -> <checkout>/packages/cli
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying fan-in
+Verifying fan-in.builtin
+Verifying fan-in.assert
+Verifying fan-in.cli
+Verifying fan-in.collections
+Verifying fan-in.pony_test
+Verifying fan-in.random
+Verifying fan-in.time
+Verifying fan-in.persistent
+Verifying fan-in.itertools
+Verifying fan-in.files
+Verifying fan-in.buffered
+Verifying fan-in.term
+Verifying fan-in.promises
+Verifying fan-in.strings
+Verifying fan-in.constrained_types
+Verifying fan-in.signals
+Verifying fan-in.capsicum
+Verifying fan-in.format
+Merging runtime
+Emitting 19 per-module LLVM modules
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.main.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.builtin.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.assert.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.cli.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.collections.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.pony_test.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.random.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.time.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.persistent.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.itertools.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.files.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.buffered.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.term.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.promises.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.strings.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.constrained_types.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.signals.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.capsicum.bc
+Writing <checkout>/examples/networking/backpressure/fan-in/fan-in.format.bc
+Linking <checkout>/examples/networking/backpressure/fan-in/fan-in
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/backpressure/overload -> <checkout>/examples/networking/backpressure/overload
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying overload
+Verifying overload.builtin
+Verifying overload.collections
+Verifying overload.pony_test
+Verifying overload.random
+Verifying overload.time
+Verifying overload.persistent
+Verifying overload.itertools
+Verifying overload.files
+Verifying overload.buffered
+Verifying overload.term
+Verifying overload.promises
+Verifying overload.strings
+Verifying overload.constrained_types
+Verifying overload.signals
+Verifying overload.capsicum
+Verifying overload.format
+Merging runtime
+Emitting 17 per-module LLVM modules
+Writing <checkout>/examples/networking/backpressure/overload/overload.main.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.builtin.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.collections.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.pony_test.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.random.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.time.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.persistent.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.itertools.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.files.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.buffered.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.term.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.promises.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.strings.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.constrained_types.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.signals.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.capsicum.bc
+Writing <checkout>/examples/networking/backpressure/overload/overload.format.bc
+Linking <checkout>/examples/networking/backpressure/overload/overload
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/connected-udp -> <checkout>/examples/networking/connected-udp
+Building net -> <checkout>/packages/net
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building notifier -> <checkout>/packages/net/notifier
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying connected-udp
+Verifying connected-udp.builtin
+Verifying connected-udp.net
+Verifying connected-udp.collections
+Verifying connected-udp.pony_test
+Verifying connected-udp.random
+Verifying connected-udp.time
+Verifying connected-udp.persistent
+Verifying connected-udp.itertools
+Verifying connected-udp.files
+Verifying connected-udp.buffered
+Verifying connected-udp.term
+Verifying connected-udp.promises
+Verifying connected-udp.strings
+Verifying connected-udp.constrained_types
+Verifying connected-udp.signals
+Verifying connected-udp.capsicum
+Verifying connected-udp.format
+Verifying connected-udp.notifier
+Merging runtime
+Emitting 19 per-module LLVM modules
+Writing <checkout>/examples/networking/connected-udp/connected-udp.main.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.builtin.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.net.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.collections.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.pony_test.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.random.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.time.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.persistent.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.itertools.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.files.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.buffered.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.term.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.promises.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.strings.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.constrained_types.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.signals.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.capsicum.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.format.bc
+Writing <checkout>/examples/networking/connected-udp/connected-udp.notifier.bc
+Linking <checkout>/examples/networking/connected-udp/connected-udp
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/connection-timeout -> <checkout>/examples/networking/connection-timeout
+Building net -> <checkout>/packages/net
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building notifier -> <checkout>/packages/net/notifier
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying connection-timeout
+Verifying connection-timeout.builtin
+Verifying connection-timeout.net
+Verifying connection-timeout.collections
+Verifying connection-timeout.pony_test
+Verifying connection-timeout.random
+Verifying connection-timeout.time
+Verifying connection-timeout.persistent
+Verifying connection-timeout.itertools
+Verifying connection-timeout.files
+Verifying connection-timeout.buffered
+Verifying connection-timeout.term
+Verifying connection-timeout.promises
+Verifying connection-timeout.strings
+Verifying connection-timeout.constrained_types
+Verifying connection-timeout.signals
+Verifying connection-timeout.capsicum
+Verifying connection-timeout.format
+Verifying connection-timeout.notifier
+Merging runtime
+Emitting 19 per-module LLVM modules
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.main.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.builtin.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.net.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.collections.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.pony_test.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.random.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.time.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.persistent.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.itertools.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.files.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.buffered.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.term.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.promises.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.strings.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.constrained_types.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.signals.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.capsicum.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.format.bc
+Writing <checkout>/examples/networking/connection-timeout/connection-timeout.notifier.bc
+Linking <checkout>/examples/networking/connection-timeout/connection-timeout
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/echo-server -> <checkout>/examples/networking/echo-server
+Building net -> <checkout>/packages/net
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building notifier -> <checkout>/packages/net/notifier
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying echo-server
+Verifying echo-server.builtin
+Verifying echo-server.net
+Verifying echo-server.collections
+Verifying echo-server.pony_test
+Verifying echo-server.random
+Verifying echo-server.time
+Verifying echo-server.persistent
+Verifying echo-server.itertools
+Verifying echo-server.files
+Verifying echo-server.buffered
+Verifying echo-server.term
+Verifying echo-server.promises
+Verifying echo-server.strings
+Verifying echo-server.constrained_types
+Verifying echo-server.signals
+Verifying echo-server.capsicum
+Verifying echo-server.format
+Verifying echo-server.notifier
+Merging runtime
+Emitting 19 per-module LLVM modules
+Writing <checkout>/examples/networking/echo-server/echo-server.main.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.builtin.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.net.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.collections.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.pony_test.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.random.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.time.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.persistent.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.itertools.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.files.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.buffered.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.term.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.promises.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.strings.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.constrained_types.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.signals.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.capsicum.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.format.bc
+Writing <checkout>/examples/networking/echo-server/echo-server.notifier.bc
+Linking <checkout>/examples/networking/echo-server/echo-server
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/framed-protocol -> <checkout>/examples/networking/framed-protocol
+Building constrained_types -> <checkout>/packages/constrained_types
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building collections -> <checkout>/packages/collections
+Building time -> <checkout>/packages/time
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building net -> <checkout>/packages/net
+Building notifier -> <checkout>/packages/net/notifier
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying framed-protocol
+Verifying framed-protocol.builtin
+Verifying framed-protocol.constrained_types
+Verifying framed-protocol.pony_test
+Verifying framed-protocol.random
+Verifying framed-protocol.collections
+Verifying framed-protocol.time
+Verifying framed-protocol.persistent
+Verifying framed-protocol.itertools
+Verifying framed-protocol.files
+Verifying framed-protocol.buffered
+Verifying framed-protocol.term
+Verifying framed-protocol.promises
+Verifying framed-protocol.strings
+Verifying framed-protocol.signals
+Verifying framed-protocol.capsicum
+Verifying framed-protocol.format
+Verifying framed-protocol.net
+Verifying framed-protocol.notifier
+Merging runtime
+Emitting 19 per-module LLVM modules
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.main.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.builtin.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.constrained_types.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.pony_test.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.random.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.collections.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.time.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.persistent.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.itertools.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.files.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.buffered.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.term.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.promises.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.strings.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.signals.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.capsicum.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.format.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.net.bc
+Writing <checkout>/examples/networking/framed-protocol/framed-protocol.notifier.bc
+Linking <checkout>/examples/networking/framed-protocol/framed-protocol
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/http-client/basic -> <checkout>/examples/networking/http-client/basic
+Building http_client -> <checkout>/packages/http_client
+Building json -> <checkout>/packages/json
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building iregex -> <checkout>/packages/iregex
+Building net -> <checkout>/packages/net
+Building notifier -> <checkout>/packages/net/notifier
+Building uri -> <checkout>/packages/uri
+Building ./template -> <checkout>/packages/uri/template
+Building encode/base64 -> <checkout>/packages/encode/base64
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying basic
+Verifying basic.builtin
+Verifying basic.http_client
+Verifying basic.json
+Verifying basic.persistent
+Verifying basic.collections
+Verifying basic.pony_test
+Verifying basic.random
+Verifying basic.time
+Verifying basic.itertools
+Verifying basic.files
+Verifying basic.buffered
+Verifying basic.term
+Verifying basic.promises
+Verifying basic.strings
+Verifying basic.constrained_types
+Verifying basic.signals
+Verifying basic.capsicum
+Verifying basic.format
+Verifying basic.iregex
+Verifying basic.net
+Verifying basic.notifier
+Verifying basic.uri
+Verifying basic.template
+Verifying basic.base64
+Merging runtime
+Emitting 25 per-module LLVM modules
+Writing <checkout>/examples/networking/http-client/basic/basic.main.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.builtin.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.http_client.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.json.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.persistent.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.collections.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.pony_test.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.random.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.time.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.itertools.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.files.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.buffered.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.term.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.promises.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.strings.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.constrained_types.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.signals.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.capsicum.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.format.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.iregex.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.net.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.notifier.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.uri.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.template.bc
+Writing <checkout>/examples/networking/http-client/basic/basic.base64.bc
+Linking <checkout>/examples/networking/http-client/basic/basic
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/http-client/bearer-auth -> <checkout>/examples/networking/http-client/bearer-auth
+Building http_client -> <checkout>/packages/http_client
+Building json -> <checkout>/packages/json
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building iregex -> <checkout>/packages/iregex
+Building net -> <checkout>/packages/net
+Building notifier -> <checkout>/packages/net/notifier
+Building uri -> <checkout>/packages/uri
+Building ./template -> <checkout>/packages/uri/template
+Building encode/base64 -> <checkout>/packages/encode/base64
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying bearer-auth
+Verifying bearer-auth.builtin
+Verifying bearer-auth.http_client
+Verifying bearer-auth.json
+Verifying bearer-auth.persistent
+Verifying bearer-auth.collections
+Verifying bearer-auth.pony_test
+Verifying bearer-auth.random
+Verifying bearer-auth.time
+Verifying bearer-auth.itertools
+Verifying bearer-auth.files
+Verifying bearer-auth.buffered
+Verifying bearer-auth.term
+Verifying bearer-auth.promises
+Verifying bearer-auth.strings
+Verifying bearer-auth.constrained_types
+Verifying bearer-auth.signals
+Verifying bearer-auth.capsicum
+Verifying bearer-auth.format
+Verifying bearer-auth.iregex
+Verifying bearer-auth.net
+Verifying bearer-auth.notifier
+Verifying bearer-auth.uri
+Verifying bearer-auth.template
+Verifying bearer-auth.base64
+Merging runtime
+Emitting 25 per-module LLVM modules
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.main.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.builtin.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.http_client.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.json.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.persistent.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.collections.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.pony_test.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.random.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.time.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.itertools.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.files.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.buffered.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.term.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.promises.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.strings.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.constrained_types.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.signals.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.capsicum.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.format.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.iregex.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.net.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.notifier.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.uri.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.template.bc
+Writing <checkout>/examples/networking/http-client/bearer-auth/bearer-auth.base64.bc
+Linking <checkout>/examples/networking/http-client/bearer-auth/bearer-auth
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/http-client/form-post -> <checkout>/examples/networking/http-client/form-post
+Building http_client -> <checkout>/packages/http_client
+Building json -> <checkout>/packages/json
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building iregex -> <checkout>/packages/iregex
+Building net -> <checkout>/packages/net
+Building notifier -> <checkout>/packages/net/notifier
+Building uri -> <checkout>/packages/uri
+Building ./template -> <checkout>/packages/uri/template
+Building encode/base64 -> <checkout>/packages/encode/base64
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying form-post
+Verifying form-post.builtin
+Verifying form-post.http_client
+Verifying form-post.json
+Verifying form-post.persistent
+Verifying form-post.collections
+Verifying form-post.pony_test
+Verifying form-post.random
+Verifying form-post.time
+Verifying form-post.itertools
+Verifying form-post.files
+Verifying form-post.buffered
+Verifying form-post.term
+Verifying form-post.promises
+Verifying form-post.strings
+Verifying form-post.constrained_types
+Verifying form-post.signals
+Verifying form-post.capsicum
+Verifying form-post.format
+Verifying form-post.iregex
+Verifying form-post.net
+Verifying form-post.notifier
+Verifying form-post.uri
+Verifying form-post.template
+Verifying form-post.base64
+Merging runtime
+Emitting 25 per-module LLVM modules
+Writing <checkout>/examples/networking/http-client/form-post/form-post.main.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.builtin.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.http_client.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.json.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.persistent.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.collections.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.pony_test.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.random.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.time.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.itertools.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.files.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.buffered.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.term.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.promises.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.strings.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.constrained_types.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.signals.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.capsicum.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.format.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.iregex.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.net.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.notifier.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.uri.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.template.bc
+Writing <checkout>/examples/networking/http-client/form-post/form-post.base64.bc
+Linking <checkout>/examples/networking/http-client/form-post/form-post
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/http-client/json-api -> <checkout>/examples/networking/http-client/json-api
+Building http_client -> <checkout>/packages/http_client
+Building json -> <checkout>/packages/json
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building iregex -> <checkout>/packages/iregex
+Building net -> <checkout>/packages/net
+Building notifier -> <checkout>/packages/net/notifier
+Building uri -> <checkout>/packages/uri
+Building ./template -> <checkout>/packages/uri/template
+Building encode/base64 -> <checkout>/packages/encode/base64
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying json-api
+Verifying json-api.builtin
+Verifying json-api.http_client
+Verifying json-api.json
+Verifying json-api.persistent
+Verifying json-api.collections
+Verifying json-api.pony_test
+Verifying json-api.random
+Verifying json-api.time
+Verifying json-api.itertools
+Verifying json-api.files
+Verifying json-api.buffered
+Verifying json-api.term
+Verifying json-api.promises
+Verifying json-api.strings
+Verifying json-api.constrained_types
+Verifying json-api.signals
+Verifying json-api.capsicum
+Verifying json-api.format
+Verifying json-api.iregex
+Verifying json-api.net
+Verifying json-api.notifier
+Verifying json-api.uri
+Verifying json-api.template
+Verifying json-api.base64
+Merging runtime
+Emitting 25 per-module LLVM modules
+Writing <checkout>/examples/networking/http-client/json-api/json-api.main.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.builtin.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.http_client.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.json.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.persistent.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.collections.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.pony_test.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.random.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.time.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.itertools.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.files.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.buffered.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.term.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.promises.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.strings.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.constrained_types.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.signals.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.capsicum.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.format.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.iregex.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.net.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.notifier.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.uri.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.template.bc
+Writing <checkout>/examples/networking/http-client/json-api/json-api.base64.bc
+Linking <checkout>/examples/networking/http-client/json-api/json-api
+Building builtin -> <checkout>/packages/builtin
+Building <checkout>/examples/networking/http-client/multipart-upload -> <checkout>/examples/networking/http-client/multipart-upload
+Building http_client -> <checkout>/packages/http_client
+Building json -> <checkout>/packages/json
+Building collections/persistent -> <checkout>/packages/collections/persistent
+Building collections -> <checkout>/packages/collections
+Building pony_test -> <checkout>/packages/pony_test
+Building random -> <checkout>/packages/random
+Building time -> <checkout>/packages/time
+Building itertools -> <checkout>/packages/itertools
+Building files -> <checkout>/packages/files
+Building buffered -> <checkout>/packages/buffered
+Building term -> <checkout>/packages/term
+Building promises -> <checkout>/packages/promises
+Building strings -> <checkout>/packages/strings
+Building constrained_types -> <checkout>/packages/constrained_types
+Building signals -> <checkout>/packages/signals
+Building capsicum -> <checkout>/packages/capsicum
+Building format -> <checkout>/packages/format
+Building iregex -> <checkout>/packages/iregex
+Building net -> <checkout>/packages/net
+Building notifier -> <checkout>/packages/net/notifier
+Building uri -> <checkout>/packages/uri
+Building ./template -> <checkout>/packages/uri/template
+Building encode/base64 -> <checkout>/packages/encode/base64
+Error:
+<checkout>/examples/networking/http-client/multipart-upload/main.pony:65:63: call is not partial but the method is - a question mark is required after this call
+      .> file("document", "hello.txt", "text/plain", file_data)
+                                                              ^
+    Info:
+    <checkout>/packages/http_client/multipart_form_data.pony:59:29: method is here
+        : MultipartFormData ref ?
+                                ^
+Error:
+<checkout>/examples/networking/http-client/multipart-upload/main.pony:55:24: function signature is not marked as partial but the function body can raise an error
+  fun ref on_connected() =>
+                       ^
+    Info:
+    <checkout>/examples/networking/http-client/multipart-upload/main.pony:65:7: an error can be raised here
+          .> file("document", "hello.txt", "text/plain", file_data)
+          ^
+CMake Error at <checkout>/cmake/RunExamples.cmake:60 (message):
+  compiling example
+  <checkout>/examples/networking/http-client/multipart-upload
+  failed (exit 255)
+
+
+
+      Start 17: validate-grammar
+17/28 Test #17: validate-grammar ............................   Passed    0.02 sec
+      Start 18: tracing-tests
+18/28 Test #18: tracing-tests ...............................   Passed   26.56 sec
+      Start 19: gc-root-audit
+19/28 Test #19: gc-root-audit ...............................   Passed    5.26 sec
+      Start 20: mutation-runtime
+20/28 Test #20: mutation-runtime ............................   Passed    4.53 sec
+      Start 21: mutation-monomorphization
+21/28 Test #21: mutation-monomorphization ...................   Passed    2.62 sec
+      Start 22: mutation-inherited-default
+22/28 Test #22: mutation-inherited-default ..................   Passed    4.02 sec
+      Start 23: mutation-runner
+23/28 Test #23: mutation-runner .............................   Passed   13.57 sec
+      Start 24: mutation-baseline-fail
+24/28 Test #24: mutation-baseline-fail ......................   Passed    2.18 sec
+      Start 25: mutation-reports
+25/28 Test #25: mutation-reports ............................   Passed   14.41 sec
+      Start 26: mutation-string
+26/28 Test #26: mutation-string .............................   Passed    5.01 sec
+      Start 27: mutation-scope-check
+27/28 Test #27: mutation-scope-check ........................   Passed    2.95 sec
+      Start 28: mutation-spawn-error
+28/28 Test #28: mutation-spawn-error ........................   Passed    2.20 sec
+
+96% tests passed, 1 tests failed out of 28
+
+Label Time Summary:
+ci-core    = 845.85 sec*proc (20 tests)
+tools      =  75.73 sec*proc (7 tests)
+tracing    =  26.56 sec*proc (1 test)
+
+Total Test time (real) = 1197.04 sec
+
+The following tests FAILED:
+	 16 - examples (Failed)
+Errors while running CTest

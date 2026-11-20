@@ -1,0 +1,117 @@
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/source-copy/fixture -> <experiment>/validation-3MVHo5/source-copy/fixture
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying fixture
+Verifying fixture.builtin
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/source-copy/debug/measure.main.bc
+Writing <experiment>/validation-3MVHo5/source-copy/debug/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/source-copy/debug/measure
+site=Probe_tag_measure_pWo 13:21 frame=receiver,ref slot_bytes=32
+completed=0 reused=0 kept=137 replacement=211
+Probe.measure enclosed 0 complete GC cycles
+site=Probe_tag_measure_pWo 13:21 frame=receiver,ref slot_bytes=32
+completed=1 reused=1 kept=137 replacement=211
+Probe.measure enclosed 1 complete GC cycles
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/source-copy/fixture -> <experiment>/validation-3MVHo5/source-copy/fixture
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying fixture
+Verifying fixture.builtin
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/source-copy/optimized/measure.main.bc
+Writing <experiment>/validation-3MVHo5/source-copy/optimized/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/source-copy/optimized/measure
+site=Probe_tag_measure_pWo 13:21 frame=receiver,ref slot_bytes=32
+completed=0 reused=0 kept=137 replacement=211
+Probe.measure enclosed 0 complete GC cycles
+site=Probe_tag_measure_pWo 13:21 frame=receiver,ref slot_bytes=32
+completed=1 reused=1 kept=137 replacement=211
+Probe.measure enclosed 1 complete GC cycles
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/source-copy/controls/retained/source -> <experiment>/validation-3MVHo5/source-copy/controls/retained/source
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying source
+Verifying source.builtin
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/source-copy/controls/retained/debug/measure.main.bc
+Writing <experiment>/validation-3MVHo5/source-copy/controls/retained/debug/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/source-copy/controls/retained/debug/measure
+debug off rejected retained field mismatch
+debug on rejected retained field mismatch
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/source-copy/controls/retained/source -> <experiment>/validation-3MVHo5/source-copy/controls/retained/source
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying source
+Verifying source.builtin
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/source-copy/controls/retained/optimized/measure.main.bc
+Writing <experiment>/validation-3MVHo5/source-copy/controls/retained/optimized/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/source-copy/controls/retained/optimized/measure
+optimized off rejected retained field mismatch
+optimized on rejected retained field mismatch
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/source-copy/controls/replacement/source -> <experiment>/validation-3MVHo5/source-copy/controls/replacement/source
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying source
+Verifying source.builtin
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/source-copy/controls/replacement/debug/measure.main.bc
+Writing <experiment>/validation-3MVHo5/source-copy/controls/replacement/debug/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/source-copy/controls/replacement/debug/measure
+debug off rejected replacement field mismatch
+debug on rejected replacement field mismatch
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/source-copy/controls/replacement/source -> <experiment>/validation-3MVHo5/source-copy/controls/replacement/source
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying source
+Verifying source.builtin
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/source-copy/controls/replacement/optimized/measure.main.bc
+Writing <experiment>/validation-3MVHo5/source-copy/controls/replacement/optimized/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/source-copy/controls/replacement/optimized/measure
+optimized off rejected replacement field mismatch
+optimized on rejected replacement field mismatch
+Matching, opposite and ten malformed trace cases checked in both Python modes

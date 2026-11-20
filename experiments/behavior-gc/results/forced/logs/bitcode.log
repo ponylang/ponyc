@@ -1,0 +1,100 @@
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/bitcode/fixture -> <experiment>/validation-3MVHo5/bitcode/fixture
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying fixture
+Verifying fixture.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/bitcode/debug-fat/measure.main.bc
+Writing <experiment>/validation-3MVHo5/bitcode/debug-fat/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/bitcode/debug-fat/measure
+Probe.measure enclosed 0 complete GC cycles
+debug fat 1 off: completed=0 reused=0 kept=137 replacement=211
+Probe.measure enclosed 1 complete GC cycles
+debug fat 1 on: completed=1 reused=1 kept=137 replacement=211
+Probe.measure enclosed 0 complete GC cycles
+debug fat 2 off: completed=0 reused=0 kept=137 replacement=211
+Probe.measure enclosed 1 complete GC cycles
+debug fat 2 on: completed=1 reused=1 kept=137 replacement=211
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/bitcode/fixture -> <experiment>/validation-3MVHo5/bitcode/fixture
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying fixture
+Verifying fixture.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/bitcode/debug-thin/measure.main.bc
+Writing <experiment>/validation-3MVHo5/bitcode/debug-thin/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/bitcode/debug-thin/measure
+Probe.measure enclosed 0 complete GC cycles
+debug thin 1 off: completed=0 reused=0 kept=137 replacement=211
+Probe.measure enclosed 1 complete GC cycles
+debug thin 1 on: completed=1 reused=1 kept=137 replacement=211
+Probe.measure enclosed 0 complete GC cycles
+debug thin 2 off: completed=0 reused=0 kept=137 replacement=211
+Probe.measure enclosed 1 complete GC cycles
+debug thin 2 on: completed=1 reused=1 kept=137 replacement=211
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/bitcode/fixture -> <experiment>/validation-3MVHo5/bitcode/fixture
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying fixture
+Verifying fixture.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/bitcode/optimized-fat/measure.main.bc
+Writing <experiment>/validation-3MVHo5/bitcode/optimized-fat/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/bitcode/optimized-fat/measure
+Probe.measure enclosed 0 complete GC cycles
+optimized fat 1 off: completed=0 reused=0 kept=137 replacement=211
+Probe.measure enclosed 1 complete GC cycles
+optimized fat 1 on: completed=1 reused=1 kept=137 replacement=211
+Probe.measure enclosed 0 complete GC cycles
+optimized fat 2 off: completed=0 reused=0 kept=137 replacement=211
+Probe.measure enclosed 1 complete GC cycles
+optimized fat 2 on: completed=1 reused=1 kept=137 replacement=211
+Building builtin -> <checkout>/packages/builtin
+Building <experiment>/validation-3MVHo5/bitcode/fixture -> <experiment>/validation-3MVHo5/bitcode/fixture
+Generating
+ Reachability
+ Selector painting
+ Data prototypes
+ Data types
+ Function prototypes
+ Functions
+ Descriptors
+Verifying fixture
+Verifying fixture.builtin
+Merging runtime
+Emitting 2 per-module LLVM modules
+Writing <experiment>/validation-3MVHo5/bitcode/optimized-thin/measure.main.bc
+Writing <experiment>/validation-3MVHo5/bitcode/optimized-thin/measure.builtin.bc
+Linking <experiment>/validation-3MVHo5/bitcode/optimized-thin/measure
+Probe.measure enclosed 0 complete GC cycles
+optimized thin 1 off: completed=0 reused=0 kept=137 replacement=211
+Probe.measure enclosed 1 complete GC cycles
+optimized thin 1 on: completed=1 reused=1 kept=137 replacement=211
+Probe.measure enclosed 0 complete GC cycles
+optimized thin 2 off: completed=0 reused=0 kept=137 replacement=211
+Probe.measure enclosed 1 complete GC cycles
+optimized thin 2 on: completed=1 reused=1 kept=137 replacement=211
