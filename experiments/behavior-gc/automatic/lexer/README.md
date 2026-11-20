@@ -13,3 +13,18 @@ export PONYCC_DIR=/path/to/ponycc  # a36285efb6eb9b3c3ab62778613781c7b7535420
 export PEG_DIR=/path/to/peg        # 810ff6068018a96486a85a2d46e98ceabdeb3ef5
 python3 "$scratch/guard.py" timeout 900 python3 -B "$exp/lexer/safety.py" "$scratch/build" "$scratch/two"
 ```
+
+## Memory while lexing standard-library modules
+
+The lexer processed the complete sources of `builtin/compare.pony`, `builtin/nullable_pointer.pony`, `collections/range.pony` and `collections/ring_buffer.pony`. One pass covered 6,991 source bytes. Four passes ran inside one behavior. Stock and experimental compilers produced byte-identical token streams, including all 4,089 records in the larger run. Each token's text matched its byte range in the source.
+
+| Input in one behavior | Stock end charge | Enabled end charge | Collections inside behavior | Stock median peak RSS | Enabled median peak RSS |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 4 module invocations | 1,034,752 B | 19,168 B | 4 | 4,480 KiB | 3,840 KiB |
+| 16 module invocations | 4,042,528 B | 19,168 B | 16 | 7,424 KiB | 3,840 KiB |
+
+Both default-threshold runs started at 18,208 charged bytes. With the threshold raised to 1 GiB, stock and experimental builds both started at 71,136 bytes and finished the larger behavior at 4,095,456 bytes. Neither collected during the behavior. GDB read the actor's heap charge at the runtime's behavior entry and return. Peak RSS came from seven separate untraced processes per configuration on x86-64 WSL, with one scheduler and native debug runtime archives for both optimized Pony binaries. The polls ran between module lexes. Parsing, type checking and code generation are outside this measurement. [Managed memory and output hashes](memory.csv) · [Untraced RSS and elapsed time](timing.csv)
+
+```bash
+python3 "$scratch/guard.py" timeout 1200 python3 -B "$exp/lexer/memory.py" "$scratch/build" "$scratch/three"
+```

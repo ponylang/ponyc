@@ -12,19 +12,30 @@ sys.path.insert(0, str(here.parent / 'forced'))
 from trace import check_trace
 
 
-def compile_fixture(build, src, out, debug=False, enabled=True, extra=()):
+def compile_fixture(build, src, out, debug=False, enabled=True, extra=(), stock=None):
     out.mkdir()
     env = os.environ.copy()
     env.pop('GC_FRAME_SOURCE', None)
     if enabled:
         env['GC_FRAME_SOURCE'] = str(src / 'main.pony')
-    cmd = [build / 'bin/ponyc' if enabled else Path('build/debug/ponyc').resolve(),
+    cmd = [build / 'bin/ponyc' if enabled else (stock or Path('build/debug/ponyc').resolve()),
            *(['-d'] if debug else []), '--pic', *extra, '-o', out, '-b', 'work', src]
     with (out / 'compile.log').open('w') as log:
         r = subprocess.run(cmd, env=env, stdout=log, stderr=subprocess.STDOUT)
     if r.returncode:
         raise RuntimeError((out / 'compile.log').read_text())
     return out / 'work'
+
+
+def native_stock(out):
+    out.mkdir()
+    (out / 'bin').mkdir()
+    (out / 'packages').symlink_to(Path('packages').resolve())
+    for name in ['ponyc', 'libponyrt-pic.a']:
+        shutil.copy2(Path('build/debug') / name, out / 'bin' / name)
+    for p in Path('build/debug').glob('crt*.o'):
+        (out / 'bin' / p.name).symlink_to(p.resolve())
+    return out / 'bin/ponyc'
 
 
 def native_calls(binary, name):
