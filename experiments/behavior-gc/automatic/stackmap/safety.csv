@@ -1,0 +1,11 @@
+codegen,case,threshold,cycles
+optimized,137,default,1
+optimized,138,default,0
+optimized,139,default,1
+optimized,137,high,0
+debug,137,default,1
+debug,138,default,0
+debug,139,default,1
+debug,137,high,0
+optimized,unarmed,default,0
+optimized,finalizer,default,0

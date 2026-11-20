@@ -1,0 +1,11 @@
+codegen,seed,threshold,before,initial_limit,after,limit_at_poll,map_roles,recovered
+optimized,137,default,288,16384,65888,16384,4 2 3,2
+optimized,138,default,416,16384,66016,16384,4 2 0,0
+optimized,137,high,288,1073741824,65888,1073741824,,0
+optimized,137,equal,288,16384,65888,65888,,0
+optimized,137,miss,288,16384,65888,16384,4 2,0
+debug,137,default,288,16384,65888,16384,4 2 3,2
+debug,138,default,416,16384,66016,16384,4 2 0,0
+debug,137,high,288,1073741824,65888,1073741824,,0
+debug,137,equal,288,16384,65888,65888,,0
+debug,137,miss,288,16384,65888,16384,4 2,0

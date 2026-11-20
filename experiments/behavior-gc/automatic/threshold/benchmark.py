@@ -39,10 +39,10 @@ def compile_case(builds, kind, source, dest, *, debug=False, extra=()):
     return exe
 
 
-def orders(seed):
+def orders(seed, kinds=KINDS):
     rng = random.Random(seed)
     for _ in range(3):
-        variants = list(KINDS)
+        variants = list(kinds)
         rng.shuffle(variants)
         rows = []
         for start in range(5):
@@ -98,20 +98,20 @@ def native_check(exe, kind):
                 raise ValueError('unconditional instrumentation in ' + name)
 
 
-def micro(builds, out):
+def micro(builds, out, *, kinds=KINDS, compile_one=compile_case, inspect=native_check, seed=6490):
     out.mkdir()
     expected = checksum(ROUNDS)
     exes = {}
-    for kind in KINDS:
-        exe = compile_case(builds, kind, here.parent/'cost/fixture', out/kind)
-        native_check(exe, kind)
+    for kind in kinds:
+        exe = compile_one(builds, kind, here.parent/'cost/fixture', out/kind)
+        inspect(exe, kind)
         trace = exe.parent/'trace.json'
         output(exe, expected, trace_args(trace))
         verify_trace(trace)
         output(exe, expected, [])
         exes[kind] = exe
     rows = []
-    for pair, kinds in enumerate(orders(6490)):
+    for pair, kinds in enumerate(orders(seed, kinds)):
         for order, kind in enumerate(kinds):
             elapsed = output(exes[kind], expected, [])
             rows.append(dict(pair=pair, order=order, variant=kind, behaviors=ROUNDS,
@@ -126,7 +126,7 @@ def duration(data):
     return tokens, int(timer)
 
 
-def lexer(builds, out):
+def lexer(builds, out, *, kinds=KINDS, compile_one=compile_case, inactive=('stock', 'inline')):
     out.mkdir()
     inputs = {name: Path(name).read_bytes() for name in modules}
     src = out/'src'
@@ -137,8 +137,8 @@ def lexer(builds, out):
                     '-o', timer], check=True)
     charges, runs = [], []
     commands = {}
-    for kind in KINDS:
-        exe = compile_case(builds, kind, src, out/kind, extra=flags)
+    for kind in kinds:
+        exe = compile_one(builds, kind, src, out/kind, extra=flags)
         for level in ('default', 'high'):
             directory = exe.parent/level
             directory.mkdir()
@@ -148,14 +148,14 @@ def lexer(builds, out):
             tokens, _ = duration(subprocess.check_output([exe, *args, *trace_args(trace)]))
             count = validate_tokens(tokens, inputs, 16)
             cycles, ident = cycle_count(trace)
-            if count != 4089 or (level == 'high' or kind in ('stock', 'inline')) and cycles:
+            if count != 4089 or (level == 'high' or kind in inactive) and cycles:
                 raise ValueError((kind, level, count, cycles))
             start, end = boundary_charges(exe, args, ident, directory)
             charges.append(dict(variant=kind, threshold=level, tokens=count, cycles=cycles,
                                 start_charge=start, end_charge=end))
             duration(subprocess.check_output(commands[kind, level]))
     write_csv(out/'lexer-memory.csv', charges)
-    for pair, kinds in enumerate(orders(6491)):
+    for pair, kinds in enumerate(orders(6491, kinds)):
         for level in (('default', 'high') if pair % 2 else ('high', 'default')):
             for order, kind in enumerate(kinds):
                 r = subprocess.run([timer, *commands[kind, level]], capture_output=True, check=True)

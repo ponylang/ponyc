@@ -16,6 +16,8 @@ In [paired timing runs](automatic/cost/), the generated code added a median 35 n
 
 A [comparison of threshold checks](automatic/threshold/) found that checking before the outer call missed all 16 lexer collections. Inlining the two calls and checking after each module kept all 16 collections. On short behaviors without collection, the inlined check took a median 0.23 ns more per behavior than stock. The middle half of the paired differences ranged from −2.44 to +6.34 ns.
 
+A [stack-map experiment](automatic/stackmap/) kept both native calls and recovered the two callers' roots only when collection was due. The lexer collected 16 times, returned with 19,168 charged bytes and produced the same 4,089 token records. On short behaviors without collection, the paired median differences from stock were −1.73 and +1.57 ns per behavior in two builds. Eager publication took a median 35.13 and 33.94 ns more per behavior than using stack maps.
+
 ## Reproduce the native runs
 
 Run these commands from the root of a Linux x86-64 checkout of this branch with the debug CMake build complete. The harness uses the Makefiles under `build/build_debug`, vendored LLVM tools, native CRT objects, Clang at `/usr/sbin/clang`, `cc`, GNU `ar`, and Python 3 with assertions enabled. The threshold-driven experiment also reads a clean [PEG checkout](https://github.com/ponylang/peg) at `$PEG_DIR` (default `~/code/ponylang/peg`), pinned to `810ff6068018a96486a85a2d46e98ceabdeb3ef5`. Each run writes its binaries, traces and measurements into its own temporary directory. The memory guard requires 5.5 GiB available at startup and stops the run below 5 GiB.

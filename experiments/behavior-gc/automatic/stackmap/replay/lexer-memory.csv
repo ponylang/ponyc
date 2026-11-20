@@ -1,0 +1,11 @@
+variant,threshold,tokens,cycles,start_charge,end_charge
+stock,default,4089,0,18208,4042528
+stock,high,4089,0,71136,4095456
+eager,default,4089,16,18208,19168
+eager,high,4089,0,71136,4095456
+maps,default,4089,0,18208,4042528
+maps,high,4089,0,71136,4095456
+check,default,4089,0,18208,4042528
+check,high,4089,0,71136,4095456
+mapped,default,4089,16,18208,19168
+mapped,high,4089,0,71136,4095456
