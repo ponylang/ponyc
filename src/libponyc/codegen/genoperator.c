@@ -978,12 +978,23 @@ LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
     sign ? LLVMBuildNSWMul : LLVMBuildNUWMul);
 }
 
+static bool divrem_amr_enabled(compile_t* c, ast_t* left)
+{
+  if(!mutate_site_enabled(c, "amr", c->frame->mutate_ast))
+    return false;
+
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+  bool integer = is_integer(type);
+  ast_free_unattached(type);
+  return integer;
+}
+
 LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(c->opt->mutate && (c->frame->mutate_ast != NULL))
   {
     bool do_aor = mutate_site_enabled(c, "aor", c->frame->mutate_ast);
-    bool do_amr = mutate_site_enabled(c, "amr", c->frame->mutate_ast);
+    bool do_amr = divrem_amr_enabled(c, left);
 
     if(do_aor || do_amr)
     {
@@ -999,8 +1010,7 @@ LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right, bool safe)
       if(do_amr)
       {
         variants[count++] = (mutate_divrem_variant_t)
-          {safe ? make_unsafe_fdiv : LLVMBuildFDiv,
-            LLVMBuildUDiv, LLVMBuildSDiv, true, !safe,
+          {NULL, LLVMBuildUDiv, LLVMBuildSDiv, true, !safe,
             safe ? "div_unsafe" : "div_wrapping", "amr"};
       }
 
@@ -1021,7 +1031,7 @@ LLVMValueRef gen_rem(compile_t* c, ast_t* left, ast_t* right, bool safe)
   if(c->opt->mutate && (c->frame->mutate_ast != NULL))
   {
     bool do_aor = mutate_site_enabled(c, "aor", c->frame->mutate_ast);
-    bool do_amr = mutate_site_enabled(c, "amr", c->frame->mutate_ast);
+    bool do_amr = divrem_amr_enabled(c, left);
 
     if(do_aor || do_amr)
     {
@@ -1037,8 +1047,7 @@ LLVMValueRef gen_rem(compile_t* c, ast_t* left, ast_t* right, bool safe)
       if(do_amr)
       {
         variants[count++] = (mutate_divrem_variant_t)
-          {safe ? make_unsafe_frem : LLVMBuildFRem,
-            LLVMBuildURem, LLVMBuildSRem, false, !safe,
+          {NULL, LLVMBuildURem, LLVMBuildSRem, false, !safe,
             safe ? "rem_unsafe" : "rem_wrapping", "amr"};
       }
 
