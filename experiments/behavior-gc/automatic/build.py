@@ -34,7 +34,7 @@ def archive(src, dst, obj):
     subprocess.run(['ar', 'rcs', dst, obj], check=True)
 
 
-def build(out):
+def build(out, threshold_only=False):
     out.mkdir()
     (out / 'bin').mkdir()
     (out / 'packages').symlink_to(repo / 'packages')
@@ -47,7 +47,8 @@ def build(out):
     value = gen_expr(c, child);
     if(ticket != NULL && value != NULL && value != GEN_NOVALUE)
       frame_call(c, "ponyint_frame_pop", &ticket, 1);''')
-    obj = object_file(out, 'libponyc', path, s)
+    flags = ['-DFRAME_THRESHOLD_ONLY'] if threshold_only else []
+    obj = object_file(out, 'libponyc', path, s, *flags)
     lib = out / 'libponyc.a'
     archive(config/'libponyc/libponyc.a', lib, obj)
     link = shlex.split((config/'ponyc/CMakeFiles/ponyc.dir/link.txt').read_text())
@@ -73,7 +74,7 @@ def build(out):
 }
 '''
     runtime = s[:start] + gc + (here/'runtime.inc').read_text() + '\n' + s[end:]
-    obj = object_file(out, 'libponyrt', path, runtime)
+    obj = object_file(out, 'libponyrt', path, runtime, *flags)
     archive(repo/'build/debug/libponyrt-pic.a', out/'bin/libponyrt-pic.a', obj)
 
 

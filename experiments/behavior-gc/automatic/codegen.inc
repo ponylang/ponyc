@@ -50,6 +50,11 @@ static const char* first_local(ast_t* stmt)
 static LLVMValueRef frame_call(compile_t* c, const char* name,
   LLVMValueRef* args, unsigned count)
 {
+#ifdef FRAME_THRESHOLD_ONLY
+  if(strcmp(name, "ponyint_frame_poll"))
+    return LLVMConstInt(c->i32, 0, false);
+  name = "ponyint_threshold_sample";
+#endif
   if(LLVMGetNamedFunction(c->module, name) == NULL)
   {
     LLVMTypeRef types[5];

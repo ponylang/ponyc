@@ -60,3 +60,13 @@ uint32_t ponyint_frame_poll(pony_actor_t* actor, uint32_t permit)
     return 0;
   return frame_collect(ctx, actor, frames.roots, frames.depth);
 }
+
+#ifdef FRAME_THRESHOLD_ONLY
+uint32_t ponyint_threshold_sample(pony_actor_t* actor, uint32_t permit)
+{
+  (void)permit;
+  if(actor != pony_ctx()->current || actor->heap.used > actor->heap.next_gc)
+    abort();
+  return 0;
+}
+#endif
