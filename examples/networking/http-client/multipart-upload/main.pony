@@ -60,9 +60,16 @@ actor MultipartUploadClient is HTTPClientConnectionActor
       recover val
         "Hello from Pony!\n".array()
       end
-    let form = MultipartFormData
-      .> field("username", "alice")
-      .> file("document", "hello.txt", "text/plain", file_data)
+    let form =
+      try
+        MultipartFormData
+          .> field("username", "alice")
+          .> file("document", "hello.txt", "text/plain", file_data)?
+      else
+        _out.print("Invalid file content type")
+        _http.close()
+        return
+      end
     let req = Request.post("/post")
       .multipart_body(form)
       .header("Accept", "application/json")
