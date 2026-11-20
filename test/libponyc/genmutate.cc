@@ -3264,6 +3264,73 @@ TEST_F(GenMutateCodegenTest, AmrSkipsFloatAddSubMulAndNeg)
 }
 
 
+TEST_F(GenMutateCodegenTest, AmrSkipsFloatDivAndRem)
+{
+  const char* src =
+    "primitive Ops\n"
+    "  fun f32(x: F32, y: F32) =>\n"
+    "    let div = x / y\n"
+    "    let div_unsafe = x /~ y\n"
+    "    let rem = x % y\n"
+    "    let rem_unsafe = x %~ y\n"
+    "  fun f64(x: F64, y: F64) =>\n"
+    "    let div = x / y\n"
+    "    let div_unsafe = x /~ y\n"
+    "    let rem = x % y\n"
+    "    let rem_unsafe = x %~ y\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Ops.f32(3, 5)\n"
+    "    Ops.f64(3, 5)\n";
+
+  set_builtin(nullptr);
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AMR | MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+
+  for(size_t line : {3u, 4u, 8u, 9u})
+  {
+    EXPECT_EQ(count_category_at_file("", line, "amr"), 0u) << line;
+    EXPECT_TRUE(has_mutant_at_line("", line, "aor", "div", "rem")) << line;
+  }
+  for(size_t line : {5u, 6u, 10u, 11u})
+  {
+    EXPECT_EQ(count_category_at_file("", line, "amr"), 0u) << line;
+    EXPECT_TRUE(has_mutant_at_line("", line, "aor", "rem", "div")) << line;
+  }
+}
+
+
+TEST_F(GenMutateCodegenTest, AmrDivAndRemOnlyInIntegerInstantiation)
+{
+  const char* src =
+    "primitive Ops\n"
+    "  fun apply[A: (Number & Real[A] val)](x: A, y: A): (A, A) =>\n"
+    "    let quotient = x / y\n"
+    "    (quotient, x % y)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Ops[U64](3, 5)\n"
+    "    Ops[F64](3, 5)\n";
+
+  set_builtin(nullptr);
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AMR;
+  DO(test_compile(src, "ir"));
+
+  for(size_t line : {3u, 4u})
+  {
+    auto records = site_records(line, "amr");
+    ASSERT_EQ(records.size(), 1u) << line;
+    auto functions = selecting_functions(records[0]->id);
+    EXPECT_FALSE(functions.empty()) << line;
+    for(const auto& name : functions)
+      EXPECT_NE(name.find("_apply_U64_"), std::string::npos) << line
+        << ": " << name;
+  }
+}
+
+
 TEST_F(GenMutateCodegenTest, AmrSkipsSignedWrappingAdd)
 {
   const char* src =
