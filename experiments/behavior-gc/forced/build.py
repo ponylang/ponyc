@@ -27,13 +27,21 @@ def once(text, old, new):
         raise RuntimeError(f'unexpected source shape: {old}')
     return text.replace(old, new)
 variant = once(original, 'static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)',
-    'bool probe_collect(pony_ctx_t* ctx, pony_actor_t* actor, void* leaf)')
+    'bool probe_collect_roots(pony_ctx_t* ctx, pony_actor_t* actor, size_t count, '
+    'void* const* roots, void (*check_marks)(void))')
 variant = once(variant, '    return;', '    return false;')
 variant = once(variant, '  ponyint_mark_done(ctx);',
-    '  if(leaf != NULL)\n    pony_traceunknown(ctx, leaf, PONY_TRACE_MUTABLE);\n\n  ponyint_mark_done(ctx);')
+    '  for(size_t i = 0; i < count; i++)\n'
+    '    pony_traceunknown(ctx, roots[i], PONY_TRACE_MUTABLE);\n\n'
+    '  ponyint_mark_done(ctx);\n  if(check_marks != NULL) check_marks();')
 variant = once(variant, '  TRACING_ACTOR_GC_END(actor);',
     '  TRACING_ACTOR_GC_END(actor);\n  return true;')
-variant += '''static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
+variant += '''bool probe_collect(pony_ctx_t* ctx, pony_actor_t* actor, void* leaf)
+{
+  return probe_collect_roots(ctx, actor, leaf != NULL ? 1 : 0, &leaf, NULL);
+}
+
+static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   (void)probe_collect(ctx, actor, NULL);
 }
