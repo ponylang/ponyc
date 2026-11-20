@@ -350,6 +350,7 @@ typedef struct pass_opt_t
   strlist_t* lib_search_paths;
 
   bool fat_lto;
+  bool gc_root_audit;
   bool mutate;
 
   uint16_t mutate_operators;

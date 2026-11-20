@@ -60,6 +60,7 @@ enum
   OPT_FILENAMES,
   OPT_CHECKTREE,
   OPT_LINT_LLVM,
+  OPT_GC_ROOT_AUDIT,
   OPT_LLVM_ARGS,
 
   OPT_FAT_LTO,
@@ -112,6 +113,7 @@ static opt_arg_t std_args[] =
   {"files", '\0', OPT_ARG_NONE, OPT_FILENAMES},
   {"checktree", '\0', OPT_ARG_NONE, OPT_CHECKTREE},
   {"lint-llvm", '\0', OPT_ARG_NONE, OPT_LINT_LLVM},
+  {"gc-root-audit", '\0', OPT_ARG_NONE, OPT_GC_ROOT_AUDIT},
 #ifndef NDEBUG
   {"llvm-args", '\0', OPT_ARG_REQUIRED, OPT_LLVM_ARGS},
 #endif
@@ -307,6 +309,8 @@ static void usage(void)
 #endif
     ,
     "Debugging options:\n"
+    "  --gc-root-audit  Report active roots and GC guards at selected behavior\n"
+    "                   boundaries to stderr. This experiment does not collect.\n"
     "  --verbose, -V    Verbosity level.\n"
     "    =0             Only print errors.\n"
     "    =1             Print info on compiler stages.\n"
@@ -471,6 +475,7 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         break;
       case OPT_FAT_LTO: opt->fat_lto = true; break;
       case OPT_THIN_LTO: opt->fat_lto = false; break;
+      case OPT_GC_ROOT_AUDIT: opt->gc_root_audit = true; break;
       case OPT_MUTATE: opt->mutate = true; break;
       case OPT_MUTATE_OPERATORS:
       {
