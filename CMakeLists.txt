@@ -1084,6 +1084,13 @@ else()
             -DPONY_USE_SYSTEMATIC_TESTING=${PONY_USE_SYSTEMATIC_TESTING}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunTracingTests.cmake)
 
+    add_test(NAME gc-root-audit
+        COMMAND ${CMAKE_COMMAND}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DOUTPUT=${PONY_OUTPUT_DIR}/gc-root-audit
+            -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/gc-root-audit
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunGCRootAudit.cmake)
+
     add_test(NAME mutation-runtime
         COMMAND ${CMAKE_COMMAND}
             -DCOMPILER=$<TARGET_FILE:ponyc>
@@ -1153,7 +1160,7 @@ else()
 
     set_tests_properties(full-programs
         full-program-runner-rejects-broken-config
-        stdlib validate-grammar mutation-runtime mutation-monomorphization
+        stdlib validate-grammar gc-root-audit mutation-runtime mutation-monomorphization
         mutation-inherited-default
         mutation-runner mutation-baseline-fail mutation-reports mutation-string
         mutation-scope-check mutation-spawn-error
