@@ -141,6 +141,7 @@ typedef struct compile_frame_t
 typedef struct compile_t
 {
   pass_opt_t* opt;
+  struct root_audit_t* root_audit;
   reach_t* reach;
   genned_strings_t strings;
   ffi_decls_t ffi_decls;

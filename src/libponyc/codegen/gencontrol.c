@@ -5,6 +5,7 @@
 #include "genmutate.h"
 #include "genname.h"
 #include "genreference.h"
+#include "genrootaudit.h"
 #include "../pass/expr.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
@@ -15,10 +16,14 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
   ast_t* child = ast_child(ast);
   LLVMValueRef value = NULL;
 
+  ast_t* previous = NULL;
   while(child != NULL)
   {
     if(ast_id(child) == TK_NONE)
       break;
+
+    if(c->root_audit != NULL)
+      gen_root_audit_site(c, ast, previous, child);
 
     value = gen_expr(c, child);
 
@@ -28,6 +33,7 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
     if(value == GEN_NOVALUE)
       break;
 
+    previous = child;
     child = ast_sibling(child);
   }
 

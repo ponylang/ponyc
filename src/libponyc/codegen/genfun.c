@@ -1,4 +1,5 @@
 #include "genfun.h"
+#include "genrootaudit.h"
 #include "genmutate.h"
 #include "genname.h"
 #include "gencall.h"
@@ -636,7 +637,8 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
     false);
   name_params(c, t, m, c_m->func_handler);
 
-  LLVMValueRef value = gen_expr(c, body);
+  LLVMValueRef value = c->opt->gc_root_audit ?
+    gen_root_audit_body(c, t, m, body) : gen_expr(c, body);
 
   if(value == NULL)
     return false;
