@@ -3,8 +3,27 @@
 
 #include <platform.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 PONY_EXTERN_C_BEGIN
+
+static inline void ponyint_stderr_lock(void)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  _lock_file(stderr);
+#else
+  flockfile(stderr);
+#endif
+}
+
+static inline void ponyint_stderr_unlock(void)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  _unlock_file(stderr);
+#else
+  funlockfile(stderr);
+#endif
+}
 
 #ifdef PLATFORM_IS_WINDOWS
 

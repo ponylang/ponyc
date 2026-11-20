@@ -1,6 +1,7 @@
 #include "root_audit.h"
 #include "../actor/actor.h"
 #include "../ds/hash.h"
+#include "../lang/stdfd.h"
 #include "../sched/scheduler.h"
 #include <errno.h>
 #include <inttypes.h>
@@ -33,11 +34,7 @@ PONY_API void ponyint_gc_root_audit(pony_ctx_t* ctx, pony_actor_t* receiver,
   bool finalisers = current && ponyint_heap_has_finalisers(&receiver->heap);
   bool ready = (reason == NULL) && current && !finalisers;
 
-#ifdef PLATFORM_IS_WINDOWS
-  _lock_file(stderr);
-#else
-  flockfile(stderr);
-#endif
+  ponyint_stderr_lock();
   fprintf(stderr, "gc-root-audit %s %" PRIu32 ":%" PRIu32 " %s",
     method, line, column, ready ? "frame-ready" : "refused");
   if(reason != NULL)
@@ -64,11 +61,7 @@ PONY_API void ponyint_gc_root_audit(pony_ctx_t* ctx, pony_actor_t* receiver,
   }
   ponyint_hashmap_destroy(&slots, NULL);
   fputc('\n', stderr);
-#ifdef PLATFORM_IS_WINDOWS
-  _unlock_file(stderr);
-#else
-  funlockfile(stderr);
-#endif
+  ponyint_stderr_unlock();
 #ifdef PLATFORM_IS_WINDOWS
   _set_doserrno(dos_error);
 #endif
