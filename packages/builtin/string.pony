@@ -1606,8 +1606,9 @@ actor Main
     Accepted input matches C strtod in the C locale: optional leading
     whitespace and sign, decimal or hexadecimal (`0x`) floating point, and
     the Inf/Infinity and NaN literals (case insensitive; a NaN may carry a
-    parenthesized payload, which is ignored). The result is correctly
-    rounded to nearest, ties to even, on every platform.
+    parenthesized payload, which is ignored). The result was verified on
+    Windows to be correctly rounded to nearest, ties to even; other
+    platforms were not tested here.
 
     This method errors if this string cannot be parsed to a float,
     if the result would overflow,
@@ -1640,8 +1641,9 @@ actor Main
     Accepted input matches C strtod in the C locale: optional leading
     whitespace and sign, decimal or hexadecimal (`0x`) floating point, and
     the Inf/Infinity and NaN literals (case insensitive; a NaN may carry a
-    parenthesized payload, which is ignored). The result is correctly
-    rounded to nearest, ties to even, on every platform.
+    parenthesized payload, which is ignored). The result was verified on
+    Windows to be correctly rounded to nearest, ties to even; other
+    platforms were not tested here.
 
     This method errors if this string cannot be parsed to a float,
     if the result would overflow,
