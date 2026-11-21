@@ -1127,10 +1127,19 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   ast_free_unattached(type);
   ast_free_unattached(typeargs);
 
-  // VCR: skip None-returning calls when the mutant is active. Placed before
-  // arg/receiver generation so the skip path bypasses evaluating them.
   bool is_constructor =
     (ast_id(postfix) == TK_NEWREF) || (ast_id(postfix) == TK_NEWBEREF);
+  if(is_constructor && t->underlying == TK_STRUCT &&
+    ast_name(ast_child(t->ast)) == c->str_builtin)
+  {
+    const char* name = ast_name(ast_childidx(t->ast, 1));
+    if((name == c->str_Pointer && method_name == c->str_create) ||
+      (name == c->str_NullablePointer && strcmp(method_name, "none") == 0))
+      return LLVMConstNull(c->ptr);
+  }
+
+  // VCR: skip None-returning calls when the mutant is active. Placed before
+  // arg/receiver generation so the skip path bypasses evaluating them.
   bool is_chain =
     (ast_id(postfix) == TK_BECHAIN) || (ast_id(postfix) == TK_FUNCHAIN);
   bool vcr_active = false;

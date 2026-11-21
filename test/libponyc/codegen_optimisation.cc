@@ -311,6 +311,49 @@ TEST_F(CodegenOptimisationTest, NativeCallbackAndStructReferenceStore)
   EXPECT_TRUE(guarded_callback);
 }
 
+TEST_F(CodegenOptimisationTest, NullAndUnknownPointerStores)
+{
+  const char* src =
+    "type Bytes is Pointer[U8]\n"
+    "type MaybeSlot is NullablePointer[Slot]\n"
+    "struct Slot\n"
+    "  var p: Bytes = Bytes\n"
+    "  var n: MaybeSlot = MaybeSlot.none()\n"
+    "  fun ref replace(value: Pointer[U8]) => p = value\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Slot.replace(opaque(Pointer[U8]))\n"
+    "  fun opaque(p: Pointer[U8]): Pointer[U8] => p\n";
+  TEST_COMPILE(src);
+  bool saw_constructor = false;
+  bool guarded_store = false;
+  bool guarded_result = false;
+  for(auto& fn : *llvm::unwrap(compile->module))
+  {
+    bool constructor = fn.getName().contains("Slot_iso_create");
+    saw_constructor |= constructor;
+    for(auto& block : fn)
+      for(auto& inst : block)
+      {
+        auto* call = llvm::dyn_cast<llvm::CallBase>(&inst);
+        if(call == nullptr || call->getCalledFunction() == nullptr ||
+          call->getCalledFunction()->getName() != "ponyint_gc_native_alias")
+          continue;
+        EXPECT_FALSE(constructor);
+        if(fn.getName().contains("Slot_ref_replace") &&
+          llvm::isa_and_nonnull<llvm::StoreInst>(inst.getNextNode()))
+          guarded_store = true;
+        auto* prev = llvm::dyn_cast_or_null<llvm::CallBase>(inst.getPrevNode());
+        if(prev != nullptr && prev->getCalledFunction() != nullptr &&
+          prev->getCalledFunction()->getName().contains("Main_ref_opaque"))
+          guarded_result = true;
+      }
+  }
+  EXPECT_TRUE(saw_constructor);
+  EXPECT_TRUE(guarded_store);
+  EXPECT_TRUE(guarded_result);
+}
+
 TEST_F(CodegenOptimisationTest, BorrowedScalarStackAddress)
 {
   const char* src =

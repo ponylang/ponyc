@@ -544,7 +544,8 @@ static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
   if(r_value == NULL)
     return NULL;
 
-  if(native_storage && gengc_contains_pointer(c_t->mem_type))
+  if(native_storage && !LLVMIsNull(r_value) &&
+    gengc_contains_pointer(c_t->mem_type))
     gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
   LLVMValueRef store = LLVMBuildStore(c->builder, r_value, l_value);
 

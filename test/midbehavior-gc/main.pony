@@ -12,6 +12,11 @@ use @count_final[None]()
 class \nodoc\ _Sentinel
   fun _final() => @count_final()
 
+struct \nodoc\ _NullFields
+  let ptr: Pointer[U8] = Pointer[U8]
+  let nullable: NullablePointer[_NullFields] =
+    NullablePointer[_NullFields].none()
+
 actor \nodoc\ Main
   var _buffer: Array[U64] = Array[U64]
   let _check_final: Bool
@@ -82,6 +87,7 @@ actor \nodoc\ Main
 
   fun \noinline\ ref _allocate(seed: U64, collecting: Bool) =>
     if not collecting then _save(seed) end
+    if not _null_fields() then @pony_exitcode(23) end
     let live = Array[U64].init(seed, 1)
     let identities: Array[USize] iso = recover iso Array[USize] end
     var reused = false
@@ -108,3 +114,7 @@ actor \nodoc\ Main
     else
       @pony_exitcode(3)
     end
+
+  fun \noinline\ _null_fields(): Bool =>
+    let fields = _NullFields
+    fields.ptr.is_null() and fields.nullable.is_none()
