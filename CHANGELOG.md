@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Reduce PonyTest memory use for passing assertions ([PR #6688](https://github.com/ponylang/ponyc/pull/6688))
 - Fix Count and VariableSize silently truncating lengths above 65535 ([PR #6632](https://github.com/ponylang/ponyc/pull/6632))
 - Fix PonyTest regression database collisions between properties ([PR #6530](https://github.com/ponylang/ponyc/pull/6530))
 - Fix MultipartFormData header injection via CR/LF in names and content types ([PR #6523](https://github.com/ponylang/ponyc/pull/6523))
@@ -71,6 +72,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Allow garbage collection during a behavior ([PR #6688](https://github.com/ponylang/ponyc/pull/6688))
 - Add Nix flake package for x86-64 Linux ([PR #6504](https://github.com/ponylang/ponyc/pull/6504))
 - Add mutation testing ([PR #6311](https://github.com/ponylang/ponyc/pull/6311))
 

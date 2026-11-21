@@ -602,3 +602,14 @@ CommandParser(cs).parse(["app"; "--flag=false"])  // false
 
 When one trait declared a method signature and another provided the same method with `iftype` specializations, listing the signature first could cause compilation to fail. The compiler now inherits the full method group in either order. A type can also override just the default or a matching specialization and inherit the other variants.
 
+## Allow garbage collection during a behavior
+
+An actor can now reclaim memory during a long-running behavior, including in programs compiled with `--mutate`. If the behavior repeatedly creates temporary objects, the actor can reuse some of their storage before the behavior returns. User finalizers still run between behaviors.
+
+If the runtime cannot trace all live references in a method or constructor, collection during the behavior may have to wait until that call returns. The runtime also skips collection points inside a behavior while another actor holds a reference to one of this actor's objects or this actor holds a reference to a managed object owned by another actor.
+
+An actor that calls a foreign function that may retain a Pony pointer, including a function the compiler has not classified, collects only between behaviors for the rest of its lifetime. Using a raw pointer can have the same effect unless the compiler recognizes all its uses, such as checking it for null. An actor can still collect after initializing a struct field directly with `Pointer.create()` or `NullablePointer.none()`. A callback from native code can also restrict an actor to collection between behaviors for its lifetime.
+
+## Reduce PonyTest memory use for passing assertions
+
+Unit and property tests that make many passing assertions in one behavior now use less memory when run without `--verbose`. Passing assertions produce diagnostics only in verbose mode. Failures are reported in both modes.
