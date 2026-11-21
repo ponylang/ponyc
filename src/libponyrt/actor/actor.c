@@ -258,7 +258,6 @@ static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 }
 #endif
 
-__attribute__((cold))
 static PONY_NOINLINE void collect_at_boundary(pony_ctx_t* ctx,
   pony_actor_t* actor)
 {
@@ -326,7 +325,7 @@ static PONY_NOINLINE void collect_at_boundary(pony_ctx_t* ctx,
   TRACING_ACTOR_GC_END(actor);
 }
 
-static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
+static PONY_NOINLINE void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   if(actor->heap.used <= actor->heap.next_gc &&
     !has_internal_flag(actor, ACTOR_FLAG_BOUNDARY_GC))
