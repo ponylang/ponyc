@@ -602,3 +602,7 @@ CommandParser(cs).parse(["app"; "--flag=false"])  // false
 
 When one trait declared a method signature and another provided the same method with `iftype` specializations, listing the signature first could cause compilation to fail. The compiler now inherits the full method group in either order. A type can also override just the default or a matching specialization and inherit the other variants.
 
+## Reduce PonyTest memory use for passing assertions
+
+Unit and property tests that make many passing assertions in one behavior now use less memory when run without `--verbose`.
+
