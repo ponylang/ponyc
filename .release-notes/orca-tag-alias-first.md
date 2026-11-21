@@ -1,0 +1,3 @@
+## Fix use-after-free when a message holds a tag and a val or iso of the same object
+
+When one message carried a `tag` alias and a `val` or `iso` alias of the same object, and the `tag` came first in the message, the garbage collector did not record the objects that the `val` or `iso` referenced. The sending actor could then free those objects while the receiving actor still used them, so the receiver read freed memory. A behavior such as `be take(t: Foo tag, v: Foo val)` called as `take(foo, foo)` triggered it. The garbage collector now handles both aliases the same way whichever comes first.
