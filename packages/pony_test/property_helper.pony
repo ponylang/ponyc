@@ -75,7 +75,9 @@ class val PropertyHelper
       fail(_format_loc(loc) + "Assert true failed. " + msg)
       return false
     end
-    log(_format_loc(loc) + "Assert true passed. " + msg, true)
+    if _h._is_verbose() then
+      log(_format_loc(loc) + "Assert true passed. " + msg, true)
+    end
     true
 
   fun assert_false(actual: Bool, msg: String = "", loc: SourceLoc = __loc)
@@ -88,7 +90,9 @@ class val PropertyHelper
       fail(_format_loc(loc) + "Assert false failed. " + msg)
       return false
     end
-    log(_format_loc(loc) + "Assert false passed. " + msg, true)
+    if _h._is_verbose() then
+      log(_format_loc(loc) + "Assert false passed. " + msg, true)
+    end
     true
 
   fun assert_error(test: ITest box, msg: String = "", loc: SourceLoc = __loc)
@@ -102,7 +106,9 @@ class val PropertyHelper
       fail(_format_loc(loc) + "Assert error failed. " + msg)
       false
     else
-      log(_format_loc(loc) + "Assert error passed. " + msg, true)
+      if _h._is_verbose() then
+        log(_format_loc(loc) + "Assert error passed. " + msg, true)
+      end
       true
     end
 
@@ -117,7 +123,9 @@ class val PropertyHelper
     """
     try
       test()?
-      log(_format_loc(loc) + "Assert no error passed. " + msg, true)
+      if _h._is_verbose() then
+        log(_format_loc(loc) + "Assert no error passed. " + msg, true)
+      end
       true
     else
       fail(_format_loc(loc) + "Assert no error failed. " + msg)
@@ -141,11 +149,13 @@ class val PropertyHelper
           (digestof actual).string() + ")")
       return false
     end
-    log(
-      _format_loc(loc) + "Assert is passed. " + msg +
-        " Got (" + (digestof expect).string() + ") is (" +
-        (digestof actual).string() + ")",
-      true)
+    if _h._is_verbose() then
+      log(
+        _format_loc(loc) + "Assert is passed. " + msg +
+          " Got (" + (digestof expect).string() + ") is (" +
+          (digestof actual).string() + ")",
+        true)
+    end
     true
 
   fun assert_isnt[A](
@@ -165,11 +175,13 @@ class val PropertyHelper
           (digestof actual).string() + ")")
       return false
     end
-    log(
-      _format_loc(loc) + "Assert isn't passed. " + msg +
-        " Got (" + (digestof not_expect).string() + ") isnt (" +
-        (digestof actual).string() + ")",
-      true)
+    if _h._is_verbose() then
+      log(
+        _format_loc(loc) + "Assert isn't passed. " + msg +
+          " Got (" + (digestof not_expect).string() + ") isnt (" +
+          (digestof actual).string() + ")",
+        true)
+    end
     true
 
   fun assert_eq[A: (Equatable[A] #read & Stringable #read)](
@@ -189,10 +201,12 @@ class val PropertyHelper
           actual.string() + ")")
       return false
     end
-    log(
-      _format_loc(loc) + "Assert eq passed. " + msg +
-        " Got (" + expect.string() + ") == (" + actual.string() + ")",
-      true)
+    if _h._is_verbose() then
+      log(
+        _format_loc(loc) + "Assert eq passed. " + msg +
+          " Got (" + expect.string() + ") == (" + actual.string() + ")",
+        true)
+    end
     true
 
   fun assert_ne[A: (Equatable[A] #read & Stringable #read)](
@@ -212,10 +226,12 @@ class val PropertyHelper
           actual.string() + ")")
       return false
     end
-    log(
-      _format_loc(loc) + "Assert ne passed. " + msg +
-        " Got (" + not_expect.string() + ") != (" + actual.string() + ")",
-      true)
+    if _h._is_verbose() then
+      log(
+        _format_loc(loc) + "Assert ne passed. " + msg +
+          " Got (" + not_expect.string() + ") != (" + actual.string() + ")",
+        true)
+    end
     true
 
   fun assert_array_eq[A: (Equatable[A] #read & Stringable #read)](
@@ -253,10 +269,12 @@ class val PropertyHelper
           _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")")
       return false
     end
-    log(
-      _format_loc(loc) + "Assert EQ passed. " + msg + " Got (" +
-        _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
-      true)
+    if _h._is_verbose() then
+      log(
+        _format_loc(loc) + "Assert EQ passed. " + msg + " Got (" +
+          _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
+        true)
+    end
     true
 
   fun assert_array_eq_unordered[A: (Equatable[A] #read & Stringable #read)](
@@ -304,10 +322,12 @@ class val PropertyHelper
             "\nExtra: " + _print_array[box->A](extra))
         return false
       end
-      log(
-        _format_loc(loc) + "Assert EQ_UNORDERED passed. " + msg + " Got (" +
-          _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
-        true)
+      if _h._is_verbose() then
+        log(
+          _format_loc(loc) + "Assert EQ_UNORDERED passed. " + msg + " Got (" +
+            _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
+          true)
+      end
       true
     else
       fail("Assert EQ_UNORDERED failed from an internal error.")
