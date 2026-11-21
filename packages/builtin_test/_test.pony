@@ -112,6 +112,9 @@ actor \nodoc\ Main is TestList
     test(_TestStringToFloat)
     test.property(_SubnormalF64RoundtripProperty)
     test.property(_SubnormalF32RoundtripProperty)
+    test.property(_F64HexRoundtripProperty)
+    test.property(_F32HexRoundtripProperty)
+    test.property(_F64IntDecimalProperty)
     test(_TestStringToI8)
     test(_TestStringToIntLarge)
     test(_TestStringToU8)
@@ -346,24 +349,8 @@ class \nodoc\ iso _TestStringToFloat is UnitTest
     h.assert_eq[F64](0, "1.18973e-4932".f64()?)
     h.assert_eq[F32](0, "1.18973e-4932".f32()?)
 
-    // Test that non-null terminated strings are well behaved
-    //
-    // We craft a string that contains 1.1\0, then build a new
-    // string that shares the underlying memory, but that only
-    // contains the first character.
-    //
-    // The implementation of f32 / f64 errors if:
-    // 1. strtof/strtod set errno and the result is infinite (overflow), or
-    // 2. strtof/strtod don't consume the entire string
-    //
-    // (2) is supposed to cover things like "1.23abc",
-    // but it also covers the situations where strtod/strtof
-    // walk past the end of our memory allocation.
-    //
-    // In our example, a buggy version that calls strtof/strtod
-    // without checking for a null terminator will raise an error due to (2),
-    // since C will happily walk the entire buffer until it reaches
-    // \0 at the end of the old allocation for the original string.
+    // A string that shares memory with a longer allocation must parse
+    // only its own bytes: "1.1".trim(0, 1) is "1".
     let str = "1.1".trim(0, 1)
     h.assert_no_error({()? => h.assert_eq[F32](1.0, str.f32()? )}, str + " failed for .f32()")
     h.assert_no_error({()? => h.assert_eq[F64](1.0, str.f64()? )}, str + " failed for .f64()")
@@ -382,6 +369,275 @@ class \nodoc\ iso _TestStringToFloat is UnitTest
     for invalid_float in invalid_float_strings.values() do
       h.assert_error({() ? => invalid_float.f32()? }, invalid_float + " did not fail for .f32()")
       h.assert_error({() ? => invalid_float.f64()? }, invalid_float + " did not fail for .f64()")
+    end
+
+    // rounding to nearest, ties to even
+    h.assert_eq[F64](F64.from_bits(0x3FF0000000000000),
+      "1.00000000000000011102230246251565404236316680908203125".f64()?)
+    h.assert_eq[F64](F64.from_bits(0x3FF0000000000002),
+      "1.00000000000000033306690738754696212708950042724609375".f64()?)
+    h.assert_eq[F32](F32.from_bits(0x3F800000),
+      "1.000000059604644775390625".f32()?)
+    h.assert_eq[F32](F32.from_bits(0x3F800002),
+      "1.000000178813934326171875".f32()?)
+
+    // long digit strings, including a tie broken far past the
+    // significant digits
+    let long_tie = String(960) .> append(
+      "1.00000000000000011102230246251565404236316680908203125")
+    for _ in Range[USize].till(0, 850) do
+      long_tie.push('0')
+    end
+    long_tie.push('1')
+    h.assert_eq[F64](F64.from_bits(0x3FF0000000000001), long_tie.f64()?)
+    let long_int = String(256) .> append("1")
+    for _ in Range[USize].till(0, 199) do
+      long_int.push('0')
+    end
+    h.assert_eq[F64](F64.from_bits(0x6940B8E0ACAC4EAF), long_int.f64()?)
+
+    // overflow errors, values at the edge round to the largest finite
+    h.assert_error({() ? => "1.79769313486231593e308".f64()? }, "f64 overflow")
+    h.assert_error({() ? => "3.4028236e38".f32()? }, "f32 overflow")
+    h.assert_eq[F64](F64.from_bits(0x7FEFFFFFFFFFFFFF),
+      "1.7976931348623158e308".f64()?)
+    h.assert_eq[F32](F32.from_bits(0x7F7FFFFF), "3.4028235e38".f32()?)
+
+    // subnormals and underflow
+    h.assert_eq[F64](F64.from_bits(0x0000000000000001),
+      "4.9406564584124654e-324".f64()?)
+    h.assert_eq[F64](F64.from_bits(0), "2.4703282292062327e-324".f64()?)
+    h.assert_eq[F64](F64.from_bits(2), "7.4109846876186982e-324".f64()?)
+    h.assert_eq[F32](F32.from_bits(0x00000001), "1.4012985e-45".f32()?)
+    h.assert_eq[F64](F64.from_bits(0x80000000000007E8), "-1e-320".f64()?)
+    h.assert_eq[F32](F32.from_bits(0x00800000), "0x1.fffffep-127".f32()?)
+    h.assert_eq[F32](F32.from_bits(0x007FFFFF), "0x1.fffffcp-127".f32()?)
+    h.assert_eq[F32](F32.from_bits(0x00000001), "0x1p-149".f32()?)
+
+    // hexadecimal
+    h.assert_eq[F64](F64.from_bits(0x40A5780000000000), "0XAB.Cp+4".f64()?)
+    h.assert_eq[F64](F64.from_bits(0x0000000000000001),
+      "0x0.0000000000001p-1022".f64()?)
+    h.assert_eq[F64](F64.from_bits(0x0010000000000000),
+      "0x1.fffffffffffffp-1023".f64()?)
+    h.assert_eq[F64](F64.from_bits(0x0010000000000000),
+      "0x1.fffffffffffff8p-1023".f64()?)
+    h.assert_eq[F64](F64.from_bits(0x000FFFFFFFFFFFFF),
+      "0x1.ffffffffffffep-1023".f64()?)
+
+    // signs, zeros, whitespace. Compare raw bits: assert_eq on floats
+    // uses IEEE ==, which cannot see -0.0 or the sign of an infinity.
+    _expect_f64(h, "-0", 0x8000000000000000)
+    _expect_f32(h, "-0.0", 0x80000000)
+    _expect_f64(h, "+0.0e-99999", 0)
+    // intentional strtod parity: leading whitespace and '+' are accepted
+    _expect_f64(h, "\v1.5", 0x3FF8000000000000)
+    _expect_f64(h, "\t\n2.5e1", 0x4039000000000000)
+    _expect_f64(h, "-inf", 0xFFF0000000000000)
+    _expect_f64(h, "inf", 0x7FF0000000000000)
+    _expect_f32(h, "\t-infinity", 0xFF800000)
+    _expect_f32(h, "nan(987)", 0x7FC00000)
+    h.assert_eq[F64](1.25, "x1.25".f64(1)?)
+
+    // more bad input
+    let more_bad_input: Array[String] = [
+      "."
+      "+"
+      "-"
+      ".e5"
+      "0x.p1"
+      "nan("
+      "infi"
+      "1e+"
+      "0x1p"
+      "1.5e1x"
+      "1.5 "
+      " "
+      "- 1"
+      "in"
+      "infinit"
+      "nan(1-2)"
+      "1e"
+      ]
+    for invalid_float in more_bad_input.values() do
+      h.assert_error({() ? => invalid_float.f32()? },
+        invalid_float + " did not fail for .f32()")
+      h.assert_error({() ? => invalid_float.f64()? },
+        invalid_float + " did not fail for .f64()")
+    end
+
+    // sign of zero through each zero-producing path, and sign of
+    // infinity, all by raw bits
+    _expect_f64(h, "-1e-1200", 0x8000000000000000)
+    _expect_f64(h, "-1e-400", 0x8000000000000000)
+    _expect_f64(h, "-2e-324", 0x8000000000000000)
+    _expect_f64(h, "-0x1p-2000", 0x8000000000000000)
+    _expect_f32(h, "-1e-900", 0x80000000)
+
+    // variant coverage: leading point, leading zeros, the hex digit 'e',
+    // \f and \r whitespace, nan payload grammar
+    _expect_f64(h, "0.1", 0x3FB999999999999A)
+    _expect_f64(h, "0.000123", 0x3F201F31F46ED246)
+    _expect_f64(h, ".5", 0x3FE0000000000000)
+    _expect_f64(h, "-.5e1", 0xC014000000000000)
+    _expect_f64(h, "0x.8p1", 0x3FF0000000000000)
+    _expect_f64(h, "00012.5", 0x4029000000000000)
+    _expect_f64(h, "0x1e5", 0x407E500000000000)
+    _expect_f64(h, "\f1", 0x3FF0000000000000)
+    _expect_f64(h, "\r1", 0x3FF0000000000000)
+    _expect_f64(h, "nan()", 0x7FF8000000000000)
+    _expect_f64(h, "nan(abc_1)", 0x7FF8000000000000)
+
+    // leading zeros do not count toward the digit caps
+    let zdec = String(1_000) .> append("0.")
+    for _ in Range[USize].till(0, 900) do
+      zdec.push('0')
+    end
+    zdec.append("1e901")
+    _expect_f64(h, zdec, 0x3FF0000000000000)
+    let zhex = String(500) .> append("0x0.")
+    for _ in Range[USize].till(0, 400) do
+      zhex.push('0')
+    end
+    zhex.append("1p1604")
+    _expect_f64(h, zhex, 0x3FF0000000000000)
+
+    // hex cap: dropped digits compensate in the exponent, and a nonzero
+    // dropped digit sets sticky, breaking the tie
+    let hex_cap = String(400) .> append("0x1.")
+    for _ in Range[USize].till(0, 13) do
+      hex_cap.push('0')
+    end
+    hex_cap.push('8')
+    for _ in Range[USize].till(0, 300) do
+      hex_cap.push('0')
+    end
+    hex_cap.append("p0")
+    let hex_cap_above = String(400) .> append("0x1.")
+    for _ in Range[USize].till(0, 13) do
+      hex_cap_above.push('0')
+    end
+    hex_cap_above.push('8')
+    for _ in Range[USize].till(0, 300) do
+      hex_cap_above.push('0')
+    end
+    hex_cap_above.append("1p0")
+    _expect_f64(h, hex_cap_above, 0x3FF0000000000001)
+    _expect_f64(h, hex_cap, 0x3FF0000000000000)
+
+    // hex overflow and underflow boundaries
+    h.assert_error({() ? => "0x1p1024".f64()? }, "0x1p1024")
+    h.assert_error({() ? => "0x1.fffffffffffff8p1023".f64()? },
+      "tie overflows to infinity")
+    h.assert_error({() ? => "0x1p128".f32()? }, "0x1p128 f32")
+    _expect_f64(h, "0x1p1023", 0x7FE0000000000000)
+    _expect_f32(h, "0x1.fffffep127", 0x7F7FFFFF)
+    _expect_f64(h, "0x1p-1075", 0)
+    _expect_f64(h, "0x1.0000000000001p-1075", 1)
+    _expect_f64(h, "0x1p-2000", 0)
+
+    // carry into the next exponent
+    _expect_f64(h, "1.99999999999999999999", 0x4000000000000000)
+    _expect_f64(h, "0x1.fffffffffffff8p0", 0x4000000000000000)
+    _expect_f32(h, "1.99999999", 0x40000000)
+    _expect_f64(h, "9007199254740993", 0x4340000000000000)
+
+    // decimal cap boundary: the exact 1075-digit expansion of 2^-1075 is
+    // a tie to zero; one more digit past it is the least subnormal
+    let half_min_sub: String = "0." +
+      "0000000000000000000000000000000000000000000000000000000000000000000000" +
+      "0000000000000000000000000000000000000000000000000000000000000000000000" +
+      "0000000000000000000000000000000000000000000000000000000000000000000000" +
+      "0000000000000000000000000000000000000000000000000000000000000000000000" +
+      "0000000000000000000000000000000000000000000247032822920623272088284396" +
+      "4341106861825299013071623822127928412503377536351043759326499181808179" +
+      "9618989828234772285886546332835517796989819938739800539093906315035659" +
+      "5155702263922908583924491051844359318028499365361525003193704576782492" +
+      "1936562366986365848075700158576926990370631192827955855133292783433840" +
+      "9351978015531246597263579574622766465272827220056374006485499977096599" +
+      "4704540208281662262378573934507363390079677619305775067401763246736009" +
+      "6895134053553745851666113422376667860416215968046191446729184030053005" +
+      "7530849048765391711386591646239524912623653881879636239373280423891018" +
+      "6723484976682350898633885879256283027559956575244555072551893136908362" +
+      "5477918694866799496832404970582102851318545139621383772282614543769341" +
+      "2532098591327667236328125"
+    _expect_f64(h, half_min_sub, 0)
+    _expect_f64(h, half_min_sub + "1", 1)
+
+    // f32: tie at the least subnormal, and a tie broken by a digit far
+    // past the 800-digit cap
+    let f32_half_min_sub: String = "0." +
+      "0000000000000000000000000000000000000000000007006492321624085354618647" +
+      "9164495806564013097093825788587853414194489554134293030074331909418106" +
+      "0791015625"
+    _expect_f32(h, f32_half_min_sub, 0)
+    _expect_f32(h, f32_half_min_sub + "1", 1)
+    let f32_long_tie = String(960) .> append("1.000000059604644775390625")
+    for _ in Range[USize].till(0, 850) do
+      f32_long_tie.push('0')
+    end
+    f32_long_tie.push('1')
+    _expect_f32(h, f32_long_tie, 0x3F800001)
+
+    // explicit exponents saturate far beyond what digit counts can
+    // cancel: overflow stays an error, deep negative stays zero
+    h.assert_error({() ? => "1e99999999999999999999".f64()? },
+      "f64 huge exponent")
+    h.assert_error({() ? => "1e99999999999999999999".f32()? },
+      "f32 huge exponent")
+    _expect_f64(h, "1e-99999999999999999999", 0)
+    _expect_f32(h, "1e-99999999999999999999", 0)
+    _expect_f64(h, "0e99999999999999999999", 0)
+    _expect_f64(h, "-0e99999999999999999999", 0x8000000000000000)
+
+    // long inputs: digit counts past the cap must not cancel the
+    // explicit exponent
+    let long_dec = String(1_100_000) .> append("1")
+    for _ in Range[USize].till(0, 1_000_001) do
+      long_dec.push('0')
+    end
+    long_dec.append("e-1000001")
+    _expect_f64(h, long_dec, 0x3FF0000000000000)
+    let long_frac = String(1_100_000) .> append("0.")
+    for _ in Range[USize].till(0, 1_001_200) do
+      long_frac.push('0')
+    end
+    long_frac.append("1e1001201")
+    _expect_f64(h, long_frac, 0x3FF0000000000000)
+    let long_hex = String(300_000) .> append("0x1")
+    for _ in Range[USize].till(0, 250_001) do
+      long_hex.push('0')
+    end
+    long_hex.append("p-1000004")
+    _expect_f64(h, long_hex, 0x3FF0000000000000)
+    let long_hfrac = String(300_000) .> append("0x0.")
+    for _ in Range[USize].till(0, 250_001) do
+      long_hfrac.push('0')
+    end
+    long_hfrac.append("1p1000010")
+    _expect_f64(h, long_hfrac, 0x4010000000000000)
+
+  fun _expect_f64(h: TestHelper, input: String box, want_bits: U64) =>
+    """
+    Parse input as f64 and compare raw bits, so -0.0, NaN payloads and
+    sign-of-infinity are checked exactly. Names the input on failure.
+    """
+    try
+      let got = input.f64()?.bits()
+      h.assert_eq[U64](want_bits, got, input.clone())
+    else
+      h.fail("f64() errored on: " + input)
+    end
+
+  fun _expect_f32(h: TestHelper, input: String box, want_bits: U32) =>
+    """
+    Parse input as f32 and compare raw bits. Names the input on failure.
+    """
+    try
+      let got = input.f32()?.bits()
+      h.assert_eq[U32](want_bits, got, input.clone())
+    else
+      h.fail("f32() errored on: " + input)
     end
 
 class \nodoc\ iso _TestStringToU8 is UnitTest
@@ -3976,4 +4232,167 @@ class \nodoc\ iso _SubnormalF32RoundtripProperty is Property[U32]
     else
       ph.fail("f32() errored on subnormal; bits=" + bits.string() +
         " string=\"" + s + "\"")
+    end
+
+primitive _FloatHexFmt
+  """
+  Exact hexadecimal float text for finite IEEE bit patterns. A libc-free
+  oracle for parse round trips: integer formatting only.
+  """
+
+  fun f64(bits: U64, extra_zeros: USize = 0): String =>
+    _fmt(bits, 52, 11, 1023, 13, extra_zeros)
+
+  fun f32(bits: U32, extra_zeros: USize = 0): String =>
+    _fmt(bits.u64(), 23, 8, 127, 6, extra_zeros)
+
+  fun _fmt(
+    bits: U64,
+    mant_bits: USize,
+    exp_bits: USize,
+    bias: I64,
+    digits: USize,
+    extra_zeros: USize)
+    : String
+  =>
+    // The digit field is digits * 4 bits wide; the mantissa is left
+    // aligned in it, so the value is exact whether or not digits * 4
+    // equals mant_bits.
+    let hd = "0123456789abcdef"
+    let ef = (bits >> mant_bits.u64()) and ((U64(1) << exp_bits.u64()) - 1)
+    let mant = bits and ((U64(1) << mant_bits.u64()) - 1)
+    let st = recover iso String(64) end
+    if ((bits >> (mant_bits + exp_bits).u64()) and 1) == 1 then
+      st.push('-')
+    end
+    if ef == 0 then
+      st.append("0x0.")
+    else
+      st.append("0x1.")
+    end
+    let pad = (digits * 4) - mant_bits
+    var i = digits
+    while i > 0 do
+      i = i - 1
+      let nib = ((mant << pad.u64()) >> (i * 4).u64()) and 0xF
+      st.push(try hd(nib.usize())? else '0' end)
+    end
+    var z = extra_zeros
+    while z > 0 do
+      st.push('0')
+      z = z - 1
+    end
+    if ef == 0 then
+      st.append("p" + (1 - bias).string())
+    else
+      st.append("p" + (ef.i64() - bias).string())
+    end
+    consume st
+
+class \nodoc\ iso _F64HexRoundtripProperty is Property[U64]
+  """
+  Every finite f64 bit pattern round-trips bit-exactly through its exact
+  hexadecimal float text: with extra fraction zeros crossing the digit
+  cap, with the sign flipped, and with leading whitespace.
+  """
+  fun name(): String => "builtin/String.f64/hex-roundtrip"
+
+  fun gen(): Generator[U64] =>
+    Generator[U64](
+      object is GenObj[U64]
+        fun generate(rnd: Randomness): U64 =>
+          let sign = rnd.u64(0, 1) << 63
+          let ef: U64 = match rnd.u64(0, 3)
+          | 0 => rnd.u64(0, 2)
+          | 1 => rnd.u64(1021, 1025)
+          | 2 => rnd.u64(2044, 2046)
+          else
+            rnd.u64(0, 2046)
+          end
+          sign or (ef << 52) or rnd.u64(0, 0x000F_FFFF_FFFF_FFFF)
+      end)
+
+  fun ref property(bits: U64, ph: PropertyHelper) =>
+    let mag = bits and 0x7FFF_FFFF_FFFF_FFFF
+    _check(ph, _FloatHexFmt.f64(bits), bits)
+    _check(ph, "-" + _FloatHexFmt.f64(mag), mag or 0x8000_0000_0000_0000)
+    _check(ph, " \t" + _FloatHexFmt.f64(bits), bits)
+    _check(ph, _FloatHexFmt.f64(bits, 400), bits)
+
+  fun _check(ph: PropertyHelper, input: String box, want: U64) =>
+    try
+      let got = input.f64()?.bits()
+      if got != want then
+        ph.fail("f64 hex round trip: \"" + input + "\" gave bits " +
+          got.string() + ", want " + want.string())
+      end
+    else
+      ph.fail("f64() errored on: \"" + input + "\"")
+    end
+
+class \nodoc\ iso _F32HexRoundtripProperty is Property[U32]
+  """
+  Every finite f32 bit pattern round-trips bit-exactly through its exact
+  hexadecimal float text: with extra fraction zeros crossing the digit
+  cap, with the sign flipped, and with leading whitespace.
+  """
+  fun name(): String => "builtin/String.f32/hex-roundtrip"
+
+  fun gen(): Generator[U32] =>
+    Generator[U32](
+      object is GenObj[U32]
+        fun generate(rnd: Randomness): U32 =>
+          let sign = rnd.u32(0, 1) << 31
+          let ef: U32 = match rnd.u32(0, 3)
+          | 0 => rnd.u32(0, 2)
+          | 1 => rnd.u32(125, 129)
+          | 2 => rnd.u32(252, 254)
+          else
+            rnd.u32(0, 254)
+          end
+          sign or (ef << 23) or rnd.u32(0, 0x007F_FFFF)
+      end)
+
+  fun ref property(bits: U32, ph: PropertyHelper) =>
+    let mag = bits and 0x7FFF_FFFF
+    _check(ph, _FloatHexFmt.f32(bits), bits)
+    _check(ph, "-" + _FloatHexFmt.f32(mag), mag or 0x8000_0000)
+    _check(ph, " \t" + _FloatHexFmt.f32(bits), bits)
+    _check(ph, _FloatHexFmt.f32(bits, 400), bits)
+
+  fun _check(ph: PropertyHelper, input: String box, want: U32) =>
+    try
+      let got = input.f32()?.bits()
+      if got != want then
+        ph.fail("f32 hex round trip: \"" + input + "\" gave bits " +
+          got.string() + ", want " + want.string())
+      end
+    else
+      ph.fail("f32() errored on: \"" + input + "\"")
+    end
+
+class \nodoc\ iso _F64IntDecimalProperty is Property[U64]
+  """
+  Parsing the exact decimal text of an integer below 2^53 gives the same
+  bits as the direct integer to float conversion.
+  """
+  fun name(): String => "builtin/String.f64/integer-decimal"
+
+  fun gen(): Generator[U64] =>
+    Generator[U64](
+      object is GenObj[U64]
+        fun generate(rnd: Randomness): U64 =>
+          rnd.u64(0, 9_007_199_254_740_991)
+      end)
+
+  fun ref property(n: U64, ph: PropertyHelper) =>
+    let direct = n.f64().bits()
+    try
+      let parsed = n.string().f64()?.bits()
+      if parsed != direct then
+        ph.fail("integer " + n.string() + ": parsed bits " +
+          parsed.string() + " != conversion bits " + direct.string())
+      end
+    else
+      ph.fail("f64() errored on integer " + n.string())
     end
