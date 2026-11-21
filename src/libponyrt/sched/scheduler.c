@@ -1668,8 +1668,12 @@ PONY_API void ponyint_gc_native_store(void* address)
 
 PONY_API void ponyint_gc_native_alias(void)
 {
-  if(this_scheduler != NULL && this_scheduler->ctx.current != NULL)
-    this_scheduler->ctx.current->gc_native_alias = true;
+  if(this_scheduler == NULL)
+    return;
+
+  pony_actor_t* actor = this_scheduler->ctx.current;
+  if(actor != NULL && !actor->gc_native_alias)
+    actor->gc_native_alias = true;
 }
 
 PONY_API pony_ctx_t* pony_ctx()

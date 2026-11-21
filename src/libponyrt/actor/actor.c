@@ -1066,8 +1066,6 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   {
     if(!has_sync_flag(to, ACTOR_SYNC_FLAG_MUTED))
     {
-      // if the receiving actor is currently not unscheduled AND it's not
-      // muted, schedule it.
       ponyint_sched_add(ctx, to);
     }
   }

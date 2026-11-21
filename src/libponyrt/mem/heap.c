@@ -323,7 +323,8 @@ PONY_API void ponyint_gc_final_ready(pony_ctx_t* ctx, void* p)
   if(chunk == NULL || owner != ctx->current)
     return;
 
-  owner->gc_wait_finaliser = false;
+  if(owner->gc_wait_finaliser)
+    owner->gc_wait_finaliser = false;
   if(get_chunk_is_small_chunk(chunk))
   {
     if(p == EXTERNAL_PTR(p, get_small_chunk_size(chunk)))
