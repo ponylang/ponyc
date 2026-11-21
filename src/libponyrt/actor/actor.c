@@ -258,6 +258,7 @@ static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 }
 #endif
 
+__attribute__((cold))
 static PONY_NOINLINE void collect_at_boundary(pony_ctx_t* ctx,
   pony_actor_t* actor)
 {
