@@ -1140,6 +1140,11 @@ bool ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
   )
 #endif
 {
+  // A finaliser can request another collection during this sweep.
+  size_t previous_threshold = heap->next_gc;
+  if(previous_threshold == 0)
+    heap->next_gc = heap_initialgc;
+
   size_t used = 0;
 #ifdef USE_RUNTIMESTATS
   size_t mem_allocated = 0;
@@ -1317,6 +1322,9 @@ bool ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
   actor->actorstats.heap_gc_counter++;
 #endif
 
+  if(heap->next_gc == 0)
+    return false;
+
   size_t next_gc = (size_t)((double)heap->used * heap_nextgc_factor);
 
   if(next_gc < heap_initialgc)
@@ -1330,9 +1338,9 @@ bool ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
   bool held = false;
 
   if((num_actor_references_deleted > ACTOR_REFERENCES_DELETED_THRESHOLD)
-    && (next_gc > heap->next_gc))
+    && (next_gc > previous_threshold))
   {
-    next_gc = heap->next_gc;
+    next_gc = previous_threshold;
     held = true;
   }
 

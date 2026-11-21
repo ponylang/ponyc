@@ -261,17 +261,8 @@ static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 static PONY_NOINLINE void collect_at_boundary(pony_ctx_t* ctx,
   pony_actor_t* actor)
 {
-  uint8_t pending = actor->internal_flags & ACTOR_FLAG_BOUNDARY_GC;
-  if(pending != 0)
-  {
-    unset_internal_flag(actor, ACTOR_FLAG_BOUNDARY_GC);
-    if((pending & ACTOR_FLAG_GC_REQUESTED) != 0)
-    {
-      actor->heap.next_gc = 0;
-      if(actor->heap.used == 0 && (pending & ACTOR_FLAG_GC_AFTER_LOCAL) == 0)
-        return;
-    }
-  }
+  if(has_internal_flag(actor, ACTOR_FLAG_GC_AFTER_LOCAL))
+    unset_internal_flag(actor, ACTOR_FLAG_GC_AFTER_LOCAL);
 
   if(actor->gc_wait_boundary || actor->gc_wait_finaliser)
   {
@@ -328,7 +319,7 @@ static PONY_NOINLINE void collect_at_boundary(pony_ctx_t* ctx,
 static PONY_NOINLINE void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   if(actor->heap.used <= actor->heap.next_gc &&
-    !has_internal_flag(actor, ACTOR_FLAG_BOUNDARY_GC))
+    !has_internal_flag(actor, ACTOR_FLAG_GC_AFTER_LOCAL))
     return;
   collect_at_boundary(ctx, actor);
 }
@@ -1228,7 +1219,7 @@ PONY_API void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
 PONY_API void pony_triggergc(pony_ctx_t* ctx)
 {
   pony_assert(ctx->current != NULL);
-  set_internal_flag(ctx->current, ACTOR_FLAG_GC_REQUESTED);
+  ctx->current->heap.next_gc = 0;
 }
 
 bool ponyint_actor_is_pinned(pony_actor_t* actor)
