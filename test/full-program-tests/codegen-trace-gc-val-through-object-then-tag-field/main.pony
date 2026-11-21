@@ -9,6 +9,9 @@ class A
 
 class B
   let a: A = A
+  // A field that can hold an actor makes B a type that might reference one,
+  // so the GC traces B's fields when B is a val.
+  let actor_field: (Main | None) = None
 
 class C
   let b: B val

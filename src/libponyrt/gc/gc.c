@@ -34,7 +34,10 @@ static void acquire_object(pony_ctx_t* ctx, pony_actor_t* actor, void* address,
   object_t* obj = ponyint_actorref_getorput(aref, address, type, 0);
 
   obj->rc += GC_INC_MORE;
-  obj->immutable = immutable;
+
+  // One message can acquire the same object more than once. If any of those
+  // acquires is immutable, the owner must treat the object as immutable.
+  obj->immutable = obj->immutable || immutable;
 }
 
 static void recurse(pony_ctx_t* ctx, void* p, void* f)
@@ -48,25 +51,23 @@ static void recurse(pony_ctx_t* ctx, void* p, void* f)
 
 typedef enum
 {
-  // A repeat visit in this trace round with nothing left to do: this visit is
-  // opaque, or a non-opaque visit already happened.
+  // A repeat visit in this GC epoch that adds nothing: this visit is opaque,
+  // or a non-opaque visit already happened.
   VISIT_DONE,
-  // The first visit to the object in this trace round. Count this round's
-  // reference to the object and to its owner.
+  // The first visit to the object in this GC epoch.
   VISIT_FIRST,
-  // The first non-opaque visit, after one or more opaque visits in this trace
-  // round. This round's reference is already counted; record mutability,
-  // acquiring from the owner when that changes, and trace the fields.
+  // The first non-opaque visit to the object in this GC epoch, after one or
+  // more opaque visits.
   VISIT_DEEPEN
 } visit_t;
 
-// A trace round is one message send, one message receive, or one GC mark.
-// Each message in a merged send is its own round. A round can reach the same
-// object through several aliases, in any order, such as a tag and a val in one
-// message. This round's reference to the object and to its owner is counted
-// once, on the first visit. An opaque (tag) visit does not record mutability
-// or trace the fields, so the first non-opaque visit in the round still has
-// to, even when it comes later.
+// A GC epoch is one value of gc->mark, which ponyint_gc_done advances after
+// each message send, each message receive, and each GC mark. An epoch can
+// reach the same object through several aliases in any order, such as a tag
+// and a val in one message. Work done once per object per epoch happens on
+// the first visit. An opaque (tag) visit does not record mutability or trace
+// the fields, so the first non-opaque visit still does what a non-opaque
+// visit does, even when it comes later.
 //
 // An untyped visit (pony_trace) records no type for the object. A non-opaque
 // visit always has the type, and fills it in.
@@ -273,70 +274,63 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   if(visit == VISIT_DONE)
     return;
 
-  if(visit == VISIT_DEEPEN)
+  if(visit == VISIT_FIRST)
   {
-    if((mutability == PONY_TRACE_IMMUTABLE) && !obj->immutable)
+    // Implicitly send the owner.
+    send_remote_actor(ctx, gc, aref);
+
+    // A self-send hands the object into this actor's own queue and back; it
+    // never leaves the actor. Pin it so the local sweep won't release it to its
+    // owner while it sits in the queue. The reference-count accounting below is
+    // left exactly as for any other remote send: with the object pinned it is no
+    // longer swept and recreated every round-trip, so weighted reference
+    // counting amortises the acquire across many sends as designed instead of
+    // re-borrowing each time. (Correctness does not depend on the pin: the
+    // borrow/decrement below still accounts the in-flight message's reference,
+    // so the owner never collects the object while it is queued. The pin only
+    // avoids the wasteful release-then-reacquire churn.)
+    bool self_send = (ctx->msg_target == ctx->current);
+    if(self_send)
+      obj->self_send_pins++;
+
+    if((mutability == PONY_TRACE_IMMUTABLE) && !obj->immutable &&
+      (obj->rc > 0))
     {
-      // An earlier opaque visit in this message already handed the message
-      // its reference, without telling the owner the object is immutable.
-      // Acquire it as immutable, and keep tracing to protect the contents
-      // until the owner has received the acquire message.
-      obj->rc += GC_INC_MORE;
+      // If we received the object as not immutable (it's not marked as
+      // immutable and it has an RC > 0), but we are now sending it as
+      // immutable, we need to acquire it in order to inform the owner it is now
+      // immutable. But we also need to continue tracing, to protect the
+      // contents until the owner has received the acquire messages.
+      obj->rc += (GC_INC_MORE - 1);
       obj->immutable = true;
       acquire_object(ctx, actor, p, true);
+
+      // Set the to PONY_TRACE_MUTABLE to force recursion.
       mutability = PONY_TRACE_MUTABLE;
+    } else if(obj->rc <= 1) {
+      // If we haven't seen this object, it's an object that is reached from
+      // another immutable object we received, or it's a pointer to an embedded
+      // field received in an iso. Invent some references to this object and
+      // acquire it.
+      if(mutability == PONY_TRACE_IMMUTABLE)
+        obj->immutable = true;
+
+      // Add to the acquire message and decrement.
+      obj->rc += (GC_INC_MORE - 1);
+      acquire_object(ctx, actor, p, obj->immutable);
+    } else {
+      // Decrement.
+      obj->rc--;
     }
-
-    if(mutability == PONY_TRACE_MUTABLE || might_reference_actor(t))
-      recurse(ctx, p, t->trace);
-
-    return;
-  }
-
-  // Implicitly send the owner.
-  send_remote_actor(ctx, gc, aref);
-
-  // A self-send hands the object into this actor's own queue and back; it never
-  // leaves the actor. Pin it so the local sweep won't release it to its owner
-  // while it sits in the queue. The reference-count accounting below is left
-  // exactly as for any other remote send: with the object pinned it is no
-  // longer swept and recreated every round-trip, so weighted reference counting
-  // amortises the acquire across many sends as designed instead of re-borrowing
-  // each time. (Correctness does not depend on the pin: the borrow/decrement
-  // below still accounts the in-flight message's reference, so the owner never
-  // collects the object while it is queued. The pin only avoids the wasteful
-  // release-then-reacquire churn.)
-  bool self_send = (ctx->msg_target == ctx->current);
-  if(self_send)
-    obj->self_send_pins++;
-
-  if((mutability == PONY_TRACE_IMMUTABLE) && !obj->immutable && (obj->rc > 0))
-  {
-    // If we received the object as not immutable (it's not marked as immutable
-    // and it has an RC > 0), but we are now sending it as immutable, we need
-    // to acquire it in order to inform the owner it is now immutable. But we
-    // also need to continue tracing, to protect the contents until the owner
-    // has received the acquire messages.
-    obj->rc += (GC_INC_MORE - 1);
+  } else if((mutability == PONY_TRACE_IMMUTABLE) && !obj->immutable) {
+    // An earlier opaque visit in this message already handed the message its
+    // reference, without telling the owner the object is immutable. Acquire
+    // it as immutable, and keep tracing to protect the contents until the
+    // owner has received the acquire message.
+    obj->rc += GC_INC_MORE;
     obj->immutable = true;
     acquire_object(ctx, actor, p, true);
-
-    // Set the to PONY_TRACE_MUTABLE to force recursion.
     mutability = PONY_TRACE_MUTABLE;
-  } else if(obj->rc <= 1) {
-    // If we haven't seen this object, it's an object that is reached from
-    // another immutable object we received, or it's a pointer to an embedded
-    // field received in an iso. Invent some references to this object and
-    // acquire it.
-    if(mutability == PONY_TRACE_IMMUTABLE)
-      obj->immutable = true;
-
-    // Add to the acquire message and decrement.
-    obj->rc += (GC_INC_MORE - 1);
-    acquire_object(ctx, actor, p, obj->immutable);
-  } else {
-    // Decrement.
-    obj->rc--;
   }
 
   if(mutability == PONY_TRACE_OPAQUE)
@@ -462,7 +456,7 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   {
     // If we hold the object as not immutable (it's not marked as immutable and
     // it has an RC > 0, from a receive or from an earlier opaque visit in this
-    // mark), but we are now marking it as immutable, we need to acquire it in
+    // GC epoch), but we are now marking it as immutable, we need to acquire it in
     // order to inform the owner it is now immutable. But we also need to
     // continue tracing, to protect the contents until the owner has received
     // the acquire messages.

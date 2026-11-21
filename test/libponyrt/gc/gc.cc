@@ -12,13 +12,15 @@
 #include <string>
 #include <vector>
 
-// One trace round (a message send, a message receive, or a GC mark) can reach
+// One GC epoch (a message send, a message receive, or a GC mark) can reach
 // the same object through several aliases in any order, such as a tag and a
 // val in one message. These tests trace every order of a tag alias (T) and a
 // deep alias (D) and check the bookkeeping each order leaves.
 
 namespace
 {
+// A child larger than its parent, so the two are in different size classes
+// and their heap pressure can't be mistaken for each other.
 struct Child
 {
   pony_type_t* type;
@@ -131,7 +133,7 @@ struct Seed
 // the fields are traced when the val visit changes a reference this actor
 // holds as mutable into an immutable one, so they stay protected until the
 // owner has the immutable acquire. This actor holds a mutable reference when
-// it held one before the round, or when it held none and the tag visit came
+// it held one before the epoch, or when it held none and the tag visit came
 // first and acquired one.
 size_t remote_val_traced(const Deep& d, const Seed& seed, const Sequence& s)
 {
@@ -175,7 +177,7 @@ protected:
     ponyint_heap_init(&b.heap);
 
     // A zero-initialised gc_t records the actor's own reference as already
-    // counted in round 0. Start in round 1.
+    // counted in epoch 0. Start in epoch 1.
     ponyint_gc_done(&a.gc);
 
     parent_type.size = sizeof(Parent);
@@ -217,7 +219,7 @@ protected:
     return parent;
   }
 
-  // Trace the visits and drain the trace stack, without finishing the round.
+  // Trace the visits and drain the trace stack, without finishing the epoch.
   void trace(Parent* p, const Deep& d, const Sequence& s)
   {
     parent_traced = 0;
@@ -227,9 +229,9 @@ protected:
     ponyint_gc_handlestack(ctx);
   }
 
-  // Finish the round. Acquire messages are dropped instead of sent, since
+  // Finish the epoch. Acquire messages are dropped instead of sent, since
   // these actors have no scheduler to receive them.
-  void end_round()
+  void end_epoch()
   {
     ponyint_actormap_destroy(&ctx->acquire);
     ponyint_gc_done(&a.gc);
@@ -340,7 +342,7 @@ TEST_F(GcAliasOrder, SendLocal)
         EXPECT_EQ(nullptr, child);
       }
 
-      end_round();
+      end_epoch();
     }
   }
 }
@@ -382,7 +384,7 @@ TEST_F(GcAliasOrder, RecvLocal)
         EXPECT_EQ(1u, child->rc);
       }
 
-      end_round();
+      end_epoch();
     }
   }
 }
@@ -392,7 +394,7 @@ TEST_F(GcAliasOrder, RecvRemote)
   // The first object received from b adds heap pressure for b itself.
   pony_gc_recv(ctx);
   trace(alloc_parent(&b, VAL), VAL, {T});
-  end_round();
+  end_epoch();
 
   for(const Deep& d : deep_cases)
   {
@@ -402,7 +404,7 @@ TEST_F(GcAliasOrder, RecvRemote)
     pony_gc_recv(ctx);
     trace(reference, d, {D});
     size_t deep_only_pressure = a.heap.used - used;
-    end_round();
+    end_epoch();
 
     // The heap pressure a receive of only the tag alias adds.
     reference = alloc_parent(&b, d);
@@ -410,7 +412,7 @@ TEST_F(GcAliasOrder, RecvRemote)
     pony_gc_recv(ctx);
     trace(reference, d, {T});
     size_t tag_only_pressure = a.heap.used - used;
-    end_round();
+    end_epoch();
 
     // This actor doesn't trace a val that can't reference an actor, so it
     // adds pressure beyond the val's own size for what the val reaches.
@@ -455,7 +457,7 @@ TEST_F(GcAliasOrder, RecvRemote)
         EXPECT_EQ(nullptr, child);
       }
 
-      end_round();
+      end_epoch();
     }
   }
 }
@@ -494,7 +496,7 @@ TEST_F(GcAliasOrder, RecvRemoteAlreadyHeld)
         bool traced = !obj->immutable || d.might_reference_actor;
         EXPECT_EQ(traced ? 1u : 0u, parent_traced);
         EXPECT_EQ(traced ? chunk_size(p->child) : 0, a.heap.used - used);
-        end_round();
+        end_epoch();
       }
     }
   }
@@ -564,7 +566,7 @@ TEST_F(GcAliasOrder, SendRemote)
           EXPECT_EQ(acquired_rc(p->child), child->rc + 1);
         }
 
-        end_round();
+        end_epoch();
       }
     }
   }
@@ -590,7 +592,7 @@ TEST_F(GcAliasOrder, MarkRemote)
       trace(reference, d, {D});
       size_t deep_only_pressure = a.heap.used - used;
       size_t deep_only_traced = parent_traced;
-      end_round();
+      end_epoch();
 
       // The heap pressure a mark of only the tag alias adds.
       reference = alloc_parent(&b, d);
@@ -599,7 +601,7 @@ TEST_F(GcAliasOrder, MarkRemote)
       ponyint_gc_mark(ctx);
       trace(reference, d, {T});
       size_t tag_only_pressure = a.heap.used - used;
-      end_round();
+      end_epoch();
 
       // A val this mark doesn't trace adds pressure beyond its own size for
       // what the val reaches. Mark another of b's objects first, so that the
@@ -614,7 +616,7 @@ TEST_F(GcAliasOrder, MarkRemote)
         used = a.heap.used;
         trace(val, d, {D});
         EXPECT_GT(a.heap.used - used, chunk_size(val));
-        end_round();
+        end_epoch();
       }
 
       for(const Sequence& s : all_sequences())
@@ -679,7 +681,7 @@ TEST_F(GcAliasOrder, MarkRemote)
           EXPECT_EQ(acquired_rc(p->child), child->rc);
         }
 
-        end_round();
+        end_epoch();
       }
     }
   }
@@ -699,7 +701,7 @@ TEST_F(GcAliasOrder, SenderGcKeepsChildOfDeepAlias)
 
       pony_gc_send(ctx, &b);
       trace(p, d, s);
-      end_round();
+      end_epoch();
 
       // Nothing in the actor itself refers to the parent.
       collect_a();
@@ -708,25 +710,26 @@ TEST_F(GcAliasOrder, SenderGcKeepsChildOfDeepAlias)
   }
 }
 
-// A round with only tag visits leaves nothing that changes what the next round
-// does on its first visit.
-TEST_F(GcAliasOrder, TagOnlyRoundDoesNotCarryOver)
+// After an epoch with only tag visits, a later epoch still counts its
+// reference on its first visit and traces the fields on its first non-opaque
+// visit.
+TEST_F(GcAliasOrder, TagOnlyEpochDoesNotCarryOver)
 {
   Parent* p = alloc_parent(&a, ISO);
 
   pony_gc_send(ctx, &b);
   trace(p, ISO, {T});
-  end_round();
+  end_epoch();
   EXPECT_EQ(0u, parent_traced);
 
   pony_gc_send(ctx, &b);
   trace(p, ISO, {D, D});
-  end_round();
+  end_epoch();
   EXPECT_EQ(1u, parent_traced);
 
   pony_gc_send(ctx, &b);
   trace(p, ISO, {T, D});
-  end_round();
+  end_epoch();
   EXPECT_EQ(1u, parent_traced);
 
   EXPECT_EQ(3u, local(p)->rc);
@@ -748,34 +751,34 @@ TEST_F(GcAliasOrder, SelfSendPinsOncePerMessage)
     object_t* obj = foreign(p);
     ASSERT_NE(nullptr, obj);
     EXPECT_EQ(1u, obj->self_send_pins);
-    end_round();
+    end_epoch();
   }
 }
 
 // An untyped trace records no type for an object. A later typed visit, in the
-// same round or a later one, supplies it, so the GC can trace the object's
+// same epoch or a later one, supplies it, so the GC can trace the object's
 // fields when it marks it as immutable.
 TEST_F(GcAliasOrder, UntypedTraceTakesTypeFromLaterVisit)
 {
-  Parent* same_round = alloc_parent(&a, VAL);
+  Parent* same_epoch = alloc_parent(&a, VAL);
   pony_gc_send(ctx, &b);
-  pony_trace(ctx, same_round);
-  pony_traceknown(ctx, same_round, &parent_type, PONY_TRACE_IMMUTABLE);
+  pony_trace(ctx, same_epoch);
+  pony_traceknown(ctx, same_epoch, &parent_type, PONY_TRACE_IMMUTABLE);
   ponyint_gc_handlestack(ctx);
-  end_round();
-  EXPECT_EQ(&parent_type, local(same_round)->type);
+  end_epoch();
+  ASSERT_EQ(&parent_type, local(same_epoch)->type);
 
-  Parent* later_round = alloc_parent(&a, VAL);
+  Parent* later_epoch = alloc_parent(&a, VAL);
   pony_gc_send(ctx, &b);
-  pony_trace(ctx, later_round);
-  end_round();
-  EXPECT_EQ(nullptr, local(later_round)->type);
+  pony_trace(ctx, later_epoch);
+  end_epoch();
+  ASSERT_EQ(nullptr, local(later_epoch)->type);
 
   pony_gc_send(ctx, &b);
-  pony_traceknown(ctx, later_round, &parent_type, PONY_TRACE_IMMUTABLE);
+  pony_traceknown(ctx, later_epoch, &parent_type, PONY_TRACE_IMMUTABLE);
   ponyint_gc_handlestack(ctx);
-  end_round();
-  EXPECT_EQ(&parent_type, local(later_round)->type);
+  end_epoch();
+  ASSERT_EQ(&parent_type, local(later_epoch)->type);
 
   // Nothing in the actor itself refers to either parent.
   size_t live = a.heap.used;
@@ -802,8 +805,7 @@ TEST_F(GcAliasOrder, ValThroughAnotherObjectAfterTag)
     {
       pony_gc_send(ctx, &b);
     } else {
-      // This actor received the holder as a val, which counted the parent
-      // and the child as well.
+      // This actor holds the parent as a val.
       seed_foreign(p, VAL_MIGHT_REFERENCE_ACTOR, 1, true);
       ponyint_gc_mark(ctx);
     }
@@ -822,6 +824,6 @@ TEST_F(GcAliasOrder, ValThroughAnotherObjectAfterTag)
     object_t* child = (owner == &a) ? local(p->child) : foreign(p->child);
     ASSERT_NE(nullptr, child);
     EXPECT_EQ(a.gc.mark, child->mark);
-    end_round();
+    end_epoch();
   }
 }
