@@ -260,13 +260,22 @@ static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 
 static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  if(!ponyint_heap_startgc(&actor->heap
-#ifdef USE_RUNTIMESTATS
-  , actor))
-#else
-  ))
-#endif
+  if(actor->gc_requested)
+  {
+    actor->heap.next_gc = 0;
+    actor->gc_requested = false;
+  }
+
+  if(!has_internal_flag(actor, ACTOR_FLAG_BOUNDARY_GC) &&
+    actor->heap.used <= actor->heap.next_gc)
     return;
+
+  unset_internal_flag(actor, ACTOR_FLAG_BOUNDARY_GC);
+  ponyint_heap_startgc(&actor->heap
+#ifdef USE_RUNTIMESTATS
+  , actor
+#endif
+  );
 
 #ifdef USE_RUNTIMESTATS
     uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
@@ -333,6 +342,8 @@ static void send_block(pony_actor_t* actor)
 static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
   pony_msg_t* msg)
 {
+  actor->gc_wait_boundary = false;
+  actor->gc_wait_finaliser = false;
 #ifdef USE_RUNTIMESTATS_MESSAGES
   ctx->schedulerstats.num_inflight_messages--;
 #endif
@@ -1206,7 +1217,7 @@ PONY_API void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
 PONY_API void pony_triggergc(pony_ctx_t* ctx)
 {
   pony_assert(ctx->current != NULL);
-  ctx->current->heap.next_gc = 0;
+  ctx->current->gc_requested = true;
 }
 
 bool ponyint_actor_is_pinned(pony_actor_t* actor)

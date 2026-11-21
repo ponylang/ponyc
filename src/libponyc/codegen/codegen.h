@@ -127,6 +127,11 @@ typedef struct compile_frame_t
   compile_locals_t locals;
   LLVMMetadataRef di_file;
   LLVMMetadataRef di_scope;
+  LLVMValueRef gc_actor;
+  LLVMValueRef gc_parent;
+  ast_t* gc_receiver;
+  hashmap_t* gc_uses;
+  bool gc_loop_poll;
   bool is_function;
   bool early_termination;
   bool bare_function;
@@ -138,9 +143,18 @@ typedef struct compile_frame_t
   struct compile_frame_t* prev;
 } compile_frame_t;
 
+typedef struct gc_argument_t
+{
+  ast_t* expression;
+  struct gc_argument_t* previous;
+} gc_argument_t;
+
 typedef struct compile_t
 {
   pass_opt_t* opt;
+  bool midbehavior_gc;
+  gc_argument_t* gc_arguments;
+  struct compile_method_t* gc_pending;
   reach_t* reach;
   genned_strings_t strings;
   ffi_decls_t ffi_decls;

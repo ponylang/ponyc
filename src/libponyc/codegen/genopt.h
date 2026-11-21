@@ -6,6 +6,8 @@
 
 PONY_EXTERN_C_BEGIN
 
+bool gengc_scalar_intrinsic(LLVMValueRef func);
+
 bool pony_specific_opt(compile_t* c);
 bool target_is_linux(char* triple);
 bool target_is_bsd(char* triple);

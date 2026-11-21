@@ -22,6 +22,18 @@
 class CodegenOptimisationTest : public PassTest
 {
 protected:
+  void check_loop_polls(bool expect_polls)
+  {
+    const char* src =
+      "actor Main\n"
+      "  new create(env: Env) => run(42)\n"
+      "  be run(n: U64) =>\n"
+      "    var i: U64 = 0\n"
+      "    while i < n do i = i + 1 end";
+    TEST_COMPILE(src);
+    EXPECT_EQ(expect_polls, count_calls_to("ponyint_gc_poll") != 0);
+  }
+
   void optimise()
   {
     auto module = llvm::unwrap(compile->module);
@@ -239,4 +251,81 @@ TEST_F(CodegenOptimisationTest, HeapToStackStoreToEscapingNotPromoted)
   size_t after = count_calls_to("pony_alloc_small");
 
   ASSERT_GE(after, before);
+}
+
+TEST_F(CodegenOptimisationTest, NativeCallbackAndStructReferenceStore)
+{
+  const char* src =
+    "type Callback is @{(U32)}\n"
+    "class Payload\n"
+    "struct Slot\n"
+    "  var payload: Payload = Payload\n"
+    "  fun ref replace(p: Payload) => payload = p\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Slot.replace(Payload)\n"
+    "    invoke(@{(i: U32) => None })\n"
+    "  be invoke(cb: Callback) => cb(42)\n";
+
+  define_userflag(opt.user_flags, "midbehavior_gc");
+  TEST_COMPILE(src);
+  bool guarded_store = false;
+  bool guarded_callback = false;
+  auto module = llvm::unwrap(compile->module);
+  for(auto& function : *module)
+  {
+    for(auto& block : function)
+    {
+      for(auto& inst : block)
+      {
+        auto guard = llvm::dyn_cast<llvm::CallBase>(&inst);
+        if(guard == nullptr || guard->getCalledFunction() == nullptr ||
+          guard->getCalledFunction()->getName() != "ponyint_gc_native_alias")
+          continue;
+        auto next = inst.getNextNode();
+        if(function.getName().contains("Slot_ref_replace") &&
+          llvm::isa_and_nonnull<llvm::StoreInst>(next))
+          guarded_store = true;
+        auto callback = llvm::dyn_cast_or_null<llvm::CallBase>(next);
+        if(function.getName().contains("Main_tag_invoke") &&
+          callback != nullptr && callback->isIndirectCall())
+          guarded_callback = true;
+      }
+    }
+  }
+  EXPECT_TRUE(guarded_store);
+  EXPECT_TRUE(guarded_callback);
+}
+
+TEST_F(CodegenOptimisationTest, LocalCollectionReadsAndWritesBeyondItsArguments)
+{
+  define_userflag(opt.user_flags, "midbehavior_gc");
+  TEST_COMPILE("actor Main\n  new create(env: Env) => None");
+  auto* module = llvm::unwrap(compile->module);
+  for(const char* name : {"ponyint_gc_poll", "ponyint_gc_finish"})
+  {
+    auto* function = module->getFunction(name);
+    ASSERT_NE(nullptr, function) << name;
+    auto effects = function->getMemoryEffects();
+    for(auto location : {llvm::IRMemLocation::ArgMem, llvm::IRMemLocation::Other})
+      EXPECT_EQ(llvm::ModRefInfo::ModRef, effects.getModRef(location)) << name;
+  }
+}
+
+TEST_F(CodegenOptimisationTest, OrdinaryBuildOmitsLoopPolls)
+{
+  check_loop_polls(false);
+}
+
+TEST_F(CodegenOptimisationTest, OptInEmitsLoopPolls)
+{
+  define_userflag(opt.user_flags, "midbehavior_gc");
+  check_loop_polls(true);
+}
+
+TEST_F(CodegenOptimisationTest, MutationBuildOmitsOptInLoopPolls)
+{
+  opt.mutate = true;
+  define_userflag(opt.user_flags, "midbehavior_gc");
+  check_loop_polls(false);
 }

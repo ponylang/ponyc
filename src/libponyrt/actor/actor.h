@@ -38,6 +38,7 @@ enum
   ACTOR_FLAG_CD_CONTACTED = 1 << 4,
   ACTOR_FLAG_RC_OVER_ZERO_SEEN = 1 << 5,
   ACTOR_FLAG_PINNED = 1 << 6,
+  ACTOR_FLAG_BOUNDARY_GC = 1 << 7,
 };
 
 enum
@@ -87,11 +88,15 @@ typedef struct pony_actor_t
   PONY_ATOMIC(uint8_t) sync_flags;
 
   // keep things accessed by other actors on a separate cache line
-  alignas(64) heap_t heap; // 52/104 bytes
+  alignas(64) heap_t heap;
   size_t muted; // 4/8 bytes
   // internal flags are only ever accessed from a single scheduler thread
   uint8_t internal_flags; // 4/8 bytes (after alignment)
-  bool sent_to_overloaded;
+  bool sent_to_overloaded : 1;
+  bool gc_native_alias : 1;
+  bool gc_wait_boundary : 1;
+  bool gc_wait_finaliser : 1;
+  bool gc_requested : 1;
   uint16_t batch_size;
   uint32_t live_asio_events;
 #ifdef USE_RUNTIMESTATS

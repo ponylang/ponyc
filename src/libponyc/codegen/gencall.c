@@ -1,4 +1,5 @@
 #include "gencall.h"
+#include "gengc.h"
 #include "genmutate.h"
 #include "genoperator.h"
 #include "genreference.h"
@@ -322,6 +323,102 @@ static LLVMValueRef devirt_candidate_func(compile_t* c, reach_type_t* sub,
   return NULL;
 }
 
+static void return_call(compile_t* c, LLVMValueRef call)
+{
+  if(LLVMTypeOf(call) == c->void_type)
+    LLVMBuildRetVoid(c->builder);
+  else
+    LLVMBuildRet(c->builder, call);
+}
+
+#define GUARDED_DEVIRT_MAX 4
+
+static size_t devirt_count(reach_type_t* t)
+{
+  size_t count = 0;
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* sub;
+  while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
+  {
+    if(sub->underlying == TK_CLASS || sub->underlying == TK_ACTOR ||
+      sub->underlying == TK_PRIMITIVE)
+    {
+      if(++count > GUARDED_DEVIRT_MAX)
+        break;
+    }
+  }
+  return count;
+}
+
+LLVMValueRef gencall_gc_dispatch(compile_t* c, reach_type_t* t,
+  reach_method_t* m, bool loop_polls)
+{
+  // A loop with its own poll can collect between virtual calls. Keep the
+  // ordinary vtable call when selecting collecting targets needs more
+  // branches than guarded devirtualization allows.
+  if(loop_polls && devirt_count(t) > GUARDED_DEVIRT_MAX)
+    return NULL;
+  const char* method_name = ast_name(ast_childidx(m->fun->ast, 1));
+  const char* name = genname_program_fn(m->full_name, ".gc.dispatch",
+    c->opt->strtab);
+  LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
+  if(fun != NULL)
+    return fun;
+
+  LLVMTypeRef ordinary = ((compile_method_t*)m->c_method)->func_type;
+  unsigned n = LLVMCountParamTypes(ordinary);
+  size_t bytes = (n + 2) * sizeof(LLVMValueRef);
+  LLVMValueRef* args = NULL;
+  LLVMValueRef dispatch = NULL;
+  LLVMBasicBlockRef caller = LLVMGetInsertBlock(c->builder);
+  LLVMMetadataRef location = LLVMGetCurrentDebugLocation2(c->builder);
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* sub;
+  while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
+  {
+    if((sub->underlying != TK_CLASS && sub->underlying != TK_ACTOR &&
+      sub->underlying != TK_PRIMITIVE) ||
+      devirt_candidate_func(c, sub, m, method_name) == NULL)
+      continue;
+    reach_method_t* concrete = reach_method(sub, m->cap, method_name,
+      m->typeargs, c->opt);
+    if(!gengc_method_eligible(c, sub, concrete) ||
+      ((compile_method_t*)concrete->c_method)->func_type != ordinary)
+      continue;
+    LLVMValueRef target = genfun_gc_target(c, sub, concrete);
+    LLVMTypeRef type = LLVMGlobalGetValueType(target);
+    if(fun == NULL)
+    {
+      fun = codegen_addfun(c, name, type, true);
+      LLVMSetLinkage(fun, LLVMPrivateLinkage);
+      LLVMSetCurrentDebugLocation2(c->builder, NULL);
+      codegen_startfun(c, fun, NULL, NULL, NULL, false);
+      args = (LLVMValueRef*)ponyint_pool_alloc_size(bytes);
+      LLVMGetParams(fun, args);
+      LLVMValueRef desc = gentagged_fetch_desc_or_heap(c, args[0], t,
+        "gc_dispatch");
+      LLVMBasicBlockRef fallback = codegen_block(c, "ordinary");
+      dispatch = LLVMBuildSwitch(c->builder, gendesc_typeid(c, desc),
+        fallback, 0);
+      LLVMPositionBuilderAtEnd(c->builder, fallback);
+      LLVMValueRef fn = gendesc_vtable(c, desc, m->vtable_index);
+      return_call(c, codegen_call(c, ordinary, fn, args, n, true));
+    }
+    LLVMBasicBlockRef branch = codegen_block(c, "collecting");
+    LLVMAddCase(dispatch, LLVMConstInt(c->i32, sub->type_id, false), branch);
+    LLVMPositionBuilderAtEnd(c->builder, branch);
+    return_call(c, codegen_call(c, type, target, args, n + 2, true));
+  }
+  if(fun != NULL)
+  {
+    codegen_finishfun(c);
+    ponyint_pool_free_size(bytes, args);
+    LLVMPositionBuilderAtEnd(c->builder, caller);
+    LLVMSetCurrentDebugLocation2(c->builder, location);
+  }
+  return fun;
+}
+
 static LLVMValueRef try_single_subtype_devirt(compile_t* c,
   reach_type_t* t, reach_method_t* m, const char* method_name)
 {
@@ -356,7 +453,6 @@ static LLVMValueRef try_single_subtype_devirt(compile_t* c,
   return devirt_candidate_func(c, only_sub, m, method_name);
 }
 
-#define GUARDED_DEVIRT_MAX 4
 
 typedef struct guarded_devirt_candidate_t
 {
@@ -370,31 +466,11 @@ static size_t collect_guarded_devirt_candidates(compile_t* c,
   reach_type_t* t, reach_method_t* m, const char* method_name,
   guarded_devirt_candidate_t* candidates)
 {
-  size_t concrete_count = 0;
+  size_t concrete_count = devirt_count(t);
   size_t candidate_count = 0;
-  size_t si = HASHMAP_BEGIN;
+  size_t si;
   reach_type_t* sub;
-
-  while((sub = reach_type_cache_next(&t->subtypes, &si)) != NULL)
-  {
-    switch(sub->underlying)
-    {
-      case TK_PRIMITIVE:
-      case TK_CLASS:
-      case TK_ACTOR:
-        concrete_count++;
-
-        if(concrete_count > GUARDED_DEVIRT_MAX)
-          return 0;
-
-        break;
-
-      default:
-        break;
-    }
-  }
-
-  if(concrete_count < 2)
+  if(concrete_count < 2 || concrete_count > GUARDED_DEVIRT_MAX)
     return 0;
 
   si = HASHMAP_BEGIN;
@@ -1079,7 +1155,13 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   while(arg != NULL)
   {
+    // The ordinary calling sequence evaluates the first argument before the
+    // receiver or any other argument can leave a temporary live.
+    gc_argument_t first = {arg, c->gc_arguments};
+    if(c->midbehavior_gc && i == 1)
+      c->gc_arguments = &first;
     LLVMValueRef value = gen_expr(c, arg);
+    c->gc_arguments = first.previous;
 
     if(value == NULL)
     {
@@ -1200,7 +1282,15 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       i--;
     }
 
-    if(!bare)
+    if(!bare && c->midbehavior_gc && ast_id(postfix) != TK_FUNCHAIN)
+    {
+      codegen_debugloc(c, ast);
+      r = gengc_call(c, ast, t, m, args, (unsigned)i);
+      if(r == NULL)
+        codegen_debugloc(c, NULL);
+    }
+
+    if(!bare && r == NULL)
     {
       switch(t->underlying)
       {
@@ -1238,6 +1328,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       if(func != NULL)
       {
         codegen_debugloc(c, ast);
+        if(c->midbehavior_gc && t->bare_method == m &&
+          (LLVMIsAFunction(func) == NULL || !LLVMHasMetadataStr(func, "pony.abi")))
+          gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
         r = codegen_call(c, func_type, func, args + arg_offset, i, !bare);
 
         if(is_new_call)
@@ -1261,7 +1354,15 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   // Class constructors return void, expression result is the receiver.
   if(((ast_id(postfix) == TK_NEWREF) || (ast_id(postfix) == TK_NEWBEREF)) &&
      (t->underlying == TK_CLASS))
+  {
     r = args[0];
+    if(c->midbehavior_gc && ((compile_type_t*)t->c_type)->final_fn != NULL &&
+      find_embed_constructor_receiver(ast) == NULL)
+    {
+      LLVMValueRef ready[] = {codegen_ctx(c), r};
+      gencall_runtime(c, "ponyint_gc_final_ready", ready, 2, "");
+    }
+  }
 
   // Chained methods forward their receiver.
   if((ast_id(postfix) == TK_BECHAIN) || (ast_id(postfix) == TK_FUNCHAIN))
@@ -1643,6 +1744,8 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     LLVMValueRef result;
     codegen_debugloc(c, ast);
+    if(c->midbehavior_gc)
+      gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
     result = LLVMBuildCall2(c->builder, thunk_type, thunk_func,
       f_args, thunk_count, "");
     codegen_debugloc(c, NULL);
@@ -1874,6 +1977,10 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     arg = ast_sibling(arg);
   }
+
+  if(c->midbehavior_gc && !gengc_scalar_intrinsic(func) &&
+    !gengc_noncapturing_ffi(c, f_name))
+    gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
 
   LLVMValueRef result;
   codegen_debugloc(c, ast);

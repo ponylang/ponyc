@@ -1,5 +1,6 @@
 #include "codegen.h"
 #include "genmutate.h"
+#include "gengc.h"
 #include "pony_version.h"
 #include "genexe.h"
 #include "genprim.h"
@@ -75,6 +76,7 @@ static void pop_frame(compile_t* c)
 {
   compile_frame_t* frame = c->frame;
   compile_locals_destroy(&frame->locals);
+  gengc_free_uses(frame->gc_uses);
 
   c->frame = frame->prev;
   POOL_FREE(compile_frame_t, frame);
@@ -382,6 +384,20 @@ static void init_runtime_decls(compile_t* c)
   // i8* pony_ctx()
   type = LLVMFunctionType(c->ptr, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_ctx", type);
+
+  params[0] = c->ptr;
+  params[1] = c->ptr;
+  params[2] = c->ptr;
+  type = LLVMFunctionType(c->ptr, params, 2, false);
+  LLVMAddFunction(c->module, "ponyint_gc_poll", type);
+  type = LLVMFunctionType(c->i1, params, 1, false);
+  LLVMAddFunction(c->module, "ponyint_gc_finish", type);
+  type = LLVMFunctionType(c->void_type, params, 2, false);
+  LLVMAddFunction(c->module, "ponyint_gc_final_ready", type);
+  type = LLVMFunctionType(c->void_type, params, 1, false);
+  LLVMAddFunction(c->module, "ponyint_gc_native_store", type);
+  type = LLVMFunctionType(c->void_type, NULL, 0, false);
+  LLVMAddFunction(c->module, "ponyint_gc_native_alias", type);
 
   // __object* pony_create(i8*, __Desc*, i1)
   params[0] = c->ptr;
@@ -707,6 +723,8 @@ static void init_runtime(compile_t* c)
 static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
   c->opt = opt;
+  c->midbehavior_gc = !opt->mutate &&
+    is_userflag_defined(opt->user_flags, "midbehavior_gc");
 
   // Get the first module and the builtin module.
   ast_t* module = ast_child(program);
