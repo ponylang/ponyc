@@ -26,7 +26,6 @@ typedef struct local_chunk_t
   chunk_t* chunk;
   uint32_t slots;
   uint32_t deep;
-  uint32_t previous_index;
 } local_chunk_t;
 
 typedef struct local_mark_t
@@ -84,7 +83,6 @@ static bool mark_chunk(local_mark_t* mark, chunk_t* chunk, uint32_t* index,
     }
     ref = &mark->chunks[mark->count];
     ref->chunk = chunk;
-    ref->previous_index = *index;
     ref->slots = ref->deep = 0;
     *index = (uint32_t)mark->count++;
   }
@@ -184,9 +182,12 @@ static bool can_mark(pony_ctx_t* ctx, pony_actor_t* actor, size_t* foreign_charg
   return true;
 }
 
-static PONY_NOINLINE pony_ctx_t* begin_mark(pony_ctx_t* ctx, pony_actor_t* actor,
-  gc_frame_t* frame)
+static PONY_NOINLINE pony_ctx_t* begin_mark(pony_actor_t* actor, gc_frame_t* frame)
 {
+  pony_ctx_t* ctx = pony_ctx();
+  if(actor != ctx->current)
+    return NULL;
+
   int saved_errno = errno;
 #ifdef PLATFORM_IS_WINDOWS
   DWORD saved_error = GetLastError();
@@ -250,27 +251,13 @@ PONY_API bool ponyint_gc_has_small_room(pony_actor_t* actor)
     HEAP_MAX <= actor->heap.next_gc - actor->heap.used;
 }
 
-PONY_API pony_ctx_t* ponyint_gc_begin(pony_ctx_t* ctx, pony_actor_t* actor,
-  gc_frame_t* frame)
-{
-  if(actor == NULL || actor != ctx->current || actor->gc_native_alias ||
-    actor->heap.used <= actor->heap.next_gc)
-    return NULL;
-  return begin_mark(ctx, actor, frame);
-}
-
-static PONY_NOINLINE pony_ctx_t* poll_current(pony_actor_t* actor,
-  gc_frame_t* frame)
-{
-  return ponyint_gc_begin(pony_ctx(), actor, frame);
-}
-
 PONY_API pony_ctx_t* ponyint_gc_poll(pony_actor_t* actor, gc_frame_t* frame)
 {
-  if(actor == NULL || !actor->heap.gc_due || actor->gc_native_alias ||
-    actor->gc_wait_boundary || actor->gc_wait_finaliser)
+  if(actor == NULL || actor->heap.used <= actor->heap.next_gc ||
+    actor->gc_native_alias || actor->gc_wait_boundary ||
+    actor->gc_wait_finaliser)
     return NULL;
-  return poll_current(actor, frame);
+  return begin_mark(actor, frame);
 }
 
 static bool retain_finaliser(void* arg, void* p, bool traceable)
@@ -292,7 +279,10 @@ PONY_API bool ponyint_gc_finish(pony_ctx_t* trace_ctx)
   if(!mark->refused && !ponyint_heap_visit_finalisers(&actor->heap,
     retain_finaliser, mark))
     mark->refused = true;
-  ponyint_gc_handlestack(trace_ctx);
+  if(mark->refused)
+    ponyint_gc_discardstack(trace_ctx);
+  else
+    ponyint_gc_handlestack(trace_ctx);
   TRACING_ACTOR_GC_MARK_END(actor);
 #ifdef USE_RUNTIMESTATS
   pony_ctx_t* scheduler_ctx = mark->scheduler_ctx;
@@ -301,16 +291,11 @@ PONY_API bool ponyint_gc_finish(pony_ctx_t* trace_ctx)
   scheduler_ctx->schedulerstats.actor_gc_mark_cpu += elapsed;
 #endif
 
-  for(size_t i = 0; i < mark->count; i++)
-  {
-    local_chunk_t* ref = &mark->chunks[i];
-    *ponyint_heap_local_index(ref->chunk) = ref->previous_index;
-  }
   if(!mark->refused)
   {
     TRACING_ACTOR_GC_SWEEP_START(actor);
     TRACING_ACTOR_GC_HEAP_SWEEP_START(actor);
-    actor->internal_flags |= ACTOR_FLAG_BOUNDARY_GC;
+    actor->gc_after_local = true;
     ponyint_heap_startgc(&actor->heap
 #ifdef USE_RUNTIMESTATS
       , actor

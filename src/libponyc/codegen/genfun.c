@@ -658,6 +658,7 @@ LLVMValueRef genfun_gc_target(compile_t* c, reach_type_t* t, reach_method_t* m)
     ponyint_pool_free_size(bytes, params);
     const char* name = genname_program_fn(m->full_name, ".gc", c->opt->strtab);
     cm->gc_func = codegen_addfun(c, name, type, true);
+    LLVMSetVisibility(cm->gc_func, LLVMHiddenVisibility);
     LLVMAttributeRef original = LLVMCreateStringAttribute(c->context,
       "pony-gc-original", sizeof("pony-gc-original") - 1, m->full_name,
       (unsigned)strlen(m->full_name));

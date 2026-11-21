@@ -827,7 +827,7 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
   ASAN_UNPOISON_MEMORY_REGION(m, SIZECLASS_SIZE(sizeclass));
 #endif
 
-  ponyint_heap_used(heap, SIZECLASS_SIZE(sizeclass));
+  heap->used += SIZECLASS_SIZE(sizeclass);
   return m;
 }
 
@@ -930,7 +930,7 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
 
   chunk->next = heap->large;
   heap->large = chunk;
-  ponyint_heap_used(heap, chunk->large.size);
+  heap->used += chunk->large.size;
 
 #if defined(USE_ADDRESS_SANITIZER)
   ASAN_UNPOISON_MEMORY_REGION(get_m(chunk), chunk->large.size);
@@ -987,7 +987,6 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
 void ponyint_heap_used(heap_t* heap, size_t size)
 {
   heap->used += size;
-  heap->gc_due = heap->used > heap->next_gc;
 }
 
 void ponyint_heap_startgc(heap_t* heap
@@ -998,7 +997,6 @@ void ponyint_heap_startgc(heap_t* heap
 #endif
 {
   heap->used = 0;
-  heap->gc_due = false;
 #ifdef USE_RUNTIMESTATS
   actor->actorstats.heap_mem_allocated = 0;
   actor->actorstats.heap_mem_used = 0;
@@ -1018,8 +1016,7 @@ uint32_t* ponyint_heap_local_index(chunk_t* chunk)
 {
   if(!get_chunk_is_small_chunk(chunk))
     return &chunk->large.local_index;
-  // The next heap mark clears this bitmap before reading it. Local tracing
-  // may borrow the word until it either commits its marks or refuses.
+  // A pending clear discards the shallow marks, so this word can hold an index.
   return get_chunk_needs_clearing(chunk) ? &chunk->small.shallow : NULL;
 }
 
@@ -1339,7 +1336,6 @@ bool ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
   }
 
   heap->next_gc = next_gc;
-  heap->gc_due = heap->used > next_gc;
 
   return held;
 }

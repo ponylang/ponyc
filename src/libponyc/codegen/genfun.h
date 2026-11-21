@@ -22,6 +22,8 @@ typedef struct compile_method_t
   LLVMMetadataRef di_method;
   LLVMMetadataRef di_file;
   bool is_partial;
+  bool gc_eligibility_checked;
+  bool gc_eligible;
 } compile_method_t;
 
 LLVMValueRef genfun_gc_target(compile_t* c, reach_type_t* t, reach_method_t* m);

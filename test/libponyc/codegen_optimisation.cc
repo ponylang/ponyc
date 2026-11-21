@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
+#include <vector>
+
 #include <codegen/genopt.h>
 #include <heap_to_stack.h>
 
@@ -22,16 +24,29 @@
 class CodegenOptimisationTest : public PassTest
 {
 protected:
-  void check_loop_polls(bool expect_polls)
+  void check_loop_polls()
   {
     const char* src =
       "actor Main\n"
       "  new create(env: Env) => run(42)\n"
       "  be run(n: U64) =>\n"
       "    var i: U64 = 0\n"
-      "    while i < n do i = i + 1 end";
+      "    while i < n do\n"
+      "      sink(Array[U64])\n"
+      "      i = i + 1\n"
+      "    end\n"
+      "  fun sink(a: Array[U64]) => None";
     TEST_COMPILE(src);
-    EXPECT_EQ(expect_polls, count_calls_to("ponyint_gc_poll") != 0);
+    for(auto& fn : *llvm::unwrap(compile->module))
+      if(fn.getName().contains("Main_tag_run"))
+        for(auto& block : fn)
+          if(block.getName().starts_with("while_body"))
+            for(auto& inst : block)
+              if(auto* call = llvm::dyn_cast<llvm::CallBase>(&inst))
+                if(call->getCalledFunction() != nullptr &&
+                  call->getCalledFunction()->getName() == "ponyint_gc_poll")
+                  return;
+    FAIL() << "expected a collection point in Main.run's allocating loop";
   }
 
   void optimise()
@@ -267,7 +282,6 @@ TEST_F(CodegenOptimisationTest, NativeCallbackAndStructReferenceStore)
     "    invoke(@{(i: U32) => None })\n"
     "  be invoke(cb: Callback) => cb(42)\n";
 
-  define_userflag(opt.user_flags, "midbehavior_gc");
   TEST_COMPILE(src);
   bool guarded_store = false;
   bool guarded_callback = false;
@@ -297,9 +311,52 @@ TEST_F(CodegenOptimisationTest, NativeCallbackAndStructReferenceStore)
   EXPECT_TRUE(guarded_callback);
 }
 
+TEST_F(CodegenOptimisationTest, BorrowedScalarStackAddress)
+{
+  const char* src =
+    "use @memcmp[I32](a: Pointer[U32], b: Pointer[U32], n: USize)\n"
+    "use @escape[None](a: Pointer[U32])\n"
+    "actor Main\n"
+    "  var field: U32 = 0\n"
+    "  new create(env: Env) => run()\n"
+    "  be run() =>\n"
+    "    var local: U32 = 0\n"
+    "    @memcmp(addressof local, addressof local, 4)\n"
+    "    @memcmp(addressof field, addressof local, 4)\n"
+    "    @escape(addressof local)\n";
+  TEST_COMPILE(src);
+  unsigned guards = 0;
+  std::vector<unsigned> comparisons;
+  std::vector<unsigned> escapes;
+  for(auto& fn : *llvm::unwrap(compile->module))
+  {
+    if(!fn.getName().contains("Main_tag_run"))
+      continue;
+    for(auto& block : fn)
+      for(auto& inst : block)
+      {
+        auto* call = llvm::dyn_cast<llvm::CallBase>(&inst);
+        if(call == nullptr || call->getCalledFunction() == nullptr)
+          continue;
+        auto name = call->getCalledFunction()->getName();
+        if(name == "ponyint_gc_native_alias")
+          guards++;
+        if(name == "memcmp")
+        {
+          comparisons.push_back(guards);
+          guards = 0;
+        }
+        if(name == "escape")
+          escapes.push_back(guards);
+      }
+  }
+  EXPECT_EQ((std::vector<unsigned>{0, 1}), comparisons);
+  ASSERT_EQ(1u, escapes.size());
+  EXPECT_GT(escapes[0], 0u);
+}
+
 TEST_F(CodegenOptimisationTest, LocalCollectionReadsAndWritesBeyondItsArguments)
 {
-  define_userflag(opt.user_flags, "midbehavior_gc");
   TEST_COMPILE("actor Main\n  new create(env: Env) => None");
   auto* module = llvm::unwrap(compile->module);
   for(const char* name : {"ponyint_gc_poll", "ponyint_gc_finish"})
@@ -312,20 +369,13 @@ TEST_F(CodegenOptimisationTest, LocalCollectionReadsAndWritesBeyondItsArguments)
   }
 }
 
-TEST_F(CodegenOptimisationTest, OrdinaryBuildOmitsLoopPolls)
+TEST_F(CodegenOptimisationTest, AllocatingLoopEmitsPolls)
 {
-  check_loop_polls(false);
+  check_loop_polls();
 }
 
-TEST_F(CodegenOptimisationTest, OptInEmitsLoopPolls)
-{
-  define_userflag(opt.user_flags, "midbehavior_gc");
-  check_loop_polls(true);
-}
-
-TEST_F(CodegenOptimisationTest, MutationBuildOmitsOptInLoopPolls)
+TEST_F(CodegenOptimisationTest, MutationBuildEmitsLoopPolls)
 {
   opt.mutate = true;
-  define_userflag(opt.user_flags, "midbehavior_gc");
-  check_loop_polls(false);
+  check_loop_polls();
 }

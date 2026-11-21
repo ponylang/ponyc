@@ -189,7 +189,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       break;
 
     case TK_ADDRESS:
-      if(c->midbehavior_gc)
+      if(!gengc_borrowed_address(c, ast))
         gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
       ret = gen_addressof(c, ast);
       break;

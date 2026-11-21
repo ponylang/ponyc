@@ -38,7 +38,6 @@ enum
   ACTOR_FLAG_CD_CONTACTED = 1 << 4,
   ACTOR_FLAG_RC_OVER_ZERO_SEEN = 1 << 5,
   ACTOR_FLAG_PINNED = 1 << 6,
-  ACTOR_FLAG_BOUNDARY_GC = 1 << 7,
 };
 
 enum
@@ -97,6 +96,7 @@ typedef struct pony_actor_t
   bool gc_wait_boundary : 1;
   bool gc_wait_finaliser : 1;
   bool gc_requested : 1;
+  bool gc_after_local : 1;
   uint16_t batch_size;
   uint32_t live_asio_events;
 #ifdef USE_RUNTIMESTATS

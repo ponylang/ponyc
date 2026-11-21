@@ -258,19 +258,20 @@ static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 }
 #endif
 
-static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
+static PONY_NOINLINE void collect_at_boundary(pony_ctx_t* ctx,
+  pony_actor_t* actor)
 {
   if(actor->gc_requested)
   {
     actor->heap.next_gc = 0;
     actor->gc_requested = false;
+    if(actor->heap.used == 0 && !actor->gc_after_local)
+      return;
   }
 
-  if(!has_internal_flag(actor, ACTOR_FLAG_BOUNDARY_GC) &&
-    actor->heap.used <= actor->heap.next_gc)
-    return;
-
-  unset_internal_flag(actor, ACTOR_FLAG_BOUNDARY_GC);
+  actor->gc_after_local = false;
+  actor->gc_wait_boundary = false;
+  actor->gc_wait_finaliser = false;
   ponyint_heap_startgc(&actor->heap
 #ifdef USE_RUNTIMESTATS
   , actor
@@ -318,6 +319,14 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   TRACING_ACTOR_GC_END(actor);
 }
 
+static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  if(actor->heap.used <= actor->heap.next_gc &&
+    !actor->gc_requested && !actor->gc_after_local)
+    return;
+  collect_at_boundary(ctx, actor);
+}
+
 static void maybe_unblock(pony_actor_t* actor)
 {
   if(has_internal_flag(actor, ACTOR_FLAG_BLOCKED)) {
@@ -342,8 +351,6 @@ static void send_block(pony_actor_t* actor)
 static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
   pony_msg_t* msg)
 {
-  actor->gc_wait_boundary = false;
-  actor->gc_wait_finaliser = false;
 #ifdef USE_RUNTIMESTATS_MESSAGES
   ctx->schedulerstats.num_inflight_messages--;
 #endif

@@ -5,9 +5,10 @@
 
 PONY_EXTERN_C_BEGIN
 
-void gengc_free_uses(hashmap_t* uses);
+void gengc_free_liveness(struct gc_liveness_t* liveness);
 bool gengc_contains_pointer(LLVMTypeRef type);
 bool gengc_noncapturing_ffi(compile_t* c, const char* name);
+bool gengc_borrowed_address(compile_t* c, ast_t* expr);
 void gengc_pointer_result(compile_t* c, ast_t* expr, LLVMValueRef value);
 bool gengc_method_eligible(compile_t* c, reach_type_t* t, reach_method_t* m);
 bool gengc_allocating_expr(ast_t* expr);

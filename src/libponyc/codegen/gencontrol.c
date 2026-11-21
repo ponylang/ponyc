@@ -37,7 +37,7 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
       break;
 
     ast_t* next = ast_sibling(child);
-    bool may_poll = c->midbehavior_gc && next != NULL &&
+    bool may_poll = c->frame->function->gc_actor != NULL && next != NULL &&
       ast_id(next) != TK_NONE && gengc_allocating_expr(child);
     LLVMBasicBlockRef block = may_poll ? LLVMGetInsertBlock(c->builder) : NULL;
     LLVMValueRef previous = block == NULL ? NULL : LLVMGetLastInstruction(block);

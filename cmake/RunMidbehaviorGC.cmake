@@ -11,7 +11,7 @@ foreach(mode debug release)
     set(dir "${OUTPUT}/${mode}")
     file(MAKE_DIRECTORY "${dir}")
     execute_process(
-        COMMAND "${COMPILER}" ${flags} -D midbehavior_gc -o "${dir}" "${TEST_SRC}"
+        COMMAND "${COMPILER}" ${flags} -o "${dir}" "${TEST_SRC}"
         COMMAND_ERROR_IS_FATAL ANY)
     execute_process(
         COMMAND "${dir}/midbehavior-gc${CMAKE_EXECUTABLE_SUFFIX}"

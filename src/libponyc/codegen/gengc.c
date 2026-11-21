@@ -32,11 +32,11 @@ bool gengc_noncapturing_ffi(compile_t* c, const char* name)
     "memcmp", "pony_actor_stats", "pony_scheduler_stats",
     "pony_ctx", "pony_os_errno", "pony_os_fstat", "pony_os_lseek", "pony_os_stat",
     "pony_os_stdin_setup", "pony_os_stdout_setup", "pony_triggergc",
-    "ponyint_hash_block",
+    "ponyint_cpu_tick", "ponyint_hash_block",
     "ponyint_hash_block64", "ponyint_o_rdonly"
   };
   if(strcmp(name, "open") == 0 || strcmp(name, "read") == 0 ||
-    strcmp(name, "close") == 0)
+    strcmp(name, "close") == 0 || strcmp(name, "ponyint_clock_gettime") == 0)
     return !target_is_windows(c->opt->triple);
   if(strcmp(name, "_open") == 0 || strcmp(name, "_read") == 0 ||
     strcmp(name, "_close") == 0)
@@ -60,6 +60,13 @@ static bool borrowed_ffi_argument(compile_t* c, ast_t* expr)
   ast_t* ffi = ast_parent(args);
   return ast_id(ffi) == TK_FFICALL &&
     gengc_noncapturing_ffi(c, ast_name(ast_child(ffi)) + 1);
+}
+
+bool gengc_borrowed_address(compile_t* c, ast_t* expr)
+{
+  ast_t* ref = ast_child(expr);
+  return ast_id(ref) == TK_VARREF && borrowed_ffi_argument(c, expr) &&
+    is_machine_word(ast_type(ref));
 }
 
 static bool borrowed_pointer(compile_t* c, ast_t* expr)
@@ -90,17 +97,7 @@ static bool borrowed_pointer(compile_t* c, ast_t* expr)
     strcmp(ast_name(ast_childidx(ctor, 1)), "copy_cstring") == 0;
 }
 
-static bool local_only_borrowed(compile_t* c, ast_t* ast, const char* name)
-{
-  if(ast_id(ast) == TK_LETREF && ast_name(ast_child(ast)) == name)
-    return borrowed_pointer(c, ast);
-  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
-  {
-    if(!local_only_borrowed(c, child, name))
-      return false;
-  }
-  return true;
-}
+static bool local_only_borrowed(compile_t* c, const char* name);
 
 static bool borrowed_result(compile_t* c, ast_t* expr)
 {
@@ -110,13 +107,13 @@ static bool borrowed_result(compile_t* c, ast_t* expr)
   if(ast_id(parent) != TK_ASSIGN || ast_childidx(parent, 1) != expr)
     return false;
   ast_t* left = ast_child(parent);
-  return ast_id(left) == TK_LET && local_only_borrowed(c,
-    ast_childidx(c->frame->reify->ast, 7), ast_name(ast_child(left)));
+  return ast_id(left) == TK_LET &&
+    local_only_borrowed(c, ast_name(ast_child(left)));
 }
 
 void gengc_pointer_result(compile_t* c, ast_t* expr, LLVMValueRef value)
 {
-  if(!c->midbehavior_gc || value == NULL || value == GEN_NOVALUE ||
+  if(value == NULL || value == GEN_NOVALUE ||
     value == GEN_NOTNEEDED || LLVMTypeOf(value) != c->ptr ||
     c->frame->reify == NULL)
     return;
@@ -130,9 +127,16 @@ void gengc_pointer_result(compile_t* c, ast_t* expr, LLVMValueRef value)
       return;
 
   }
-  ast_t* type = deferred_reify(c->frame->reify, ast_type(expr), c->opt);
-  bool raw = is_pointer(type) || is_nullable_pointer(type);
-  ast_free_unattached(type);
+  ast_t* type = ast_type(expr);
+  bool raw;
+  if(ast_id(type) == TK_NOMINAL)
+  {
+    raw = is_pointer(type) || is_nullable_pointer(type);
+  } else {
+    ast_t* reified = deferred_reify(c->frame->reify, type, c->opt);
+    raw = is_pointer(reified) || is_nullable_pointer(reified);
+    ast_free_unattached(reified);
+  }
   if(raw && !LLVMIsNull(value) && !borrowed_result(c, expr))
     gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
 }
@@ -165,11 +169,25 @@ typedef struct gc_use_t
   const char* name;
   size_t last_mention;
   size_t first_consume;
+  bool may_escape;
 } gc_use_t;
+
+typedef struct gc_statement_t
+{
+  ast_t* ast;
+  size_t index;
+  struct gc_statement_t* previous_declaration;
+} gc_statement_t;
+
+typedef struct gc_liveness_t
+{
+  hashmap_t uses;
+  hashmap_t statements;
+} gc_liveness_t;
 
 typedef struct root_site_t
 {
-  hashmap_t* uses;
+  gc_liveness_t* liveness;
   size_t statement;
 } root_site_t;
 
@@ -183,16 +201,47 @@ static void free_use(void* p)
   POOL_FREE(gc_use_t, p);
 }
 
-void gengc_free_uses(hashmap_t* uses)
+static bool same_statement(void* a, void* b)
 {
-  if(uses != NULL)
+  return ((gc_statement_t*)a)->ast == ((gc_statement_t*)b)->ast;
+}
+
+static void free_statement(void* p)
+{
+  POOL_FREE(gc_statement_t, p);
+}
+
+void gengc_free_liveness(gc_liveness_t* liveness)
+{
+  if(liveness != NULL)
   {
-    ponyint_hashmap_destroy(uses, free_use);
-    POOL_FREE(hashmap_t, uses);
+    ponyint_hashmap_destroy(&liveness->uses, free_use);
+    ponyint_hashmap_destroy(&liveness->statements, free_statement);
+    POOL_FREE(gc_liveness_t, liveness);
   }
 }
 
-static void record_uses(compile_t* c, root_site_t site, ast_t* ast)
+static gc_statement_t* get_statement(gc_liveness_t* liveness, ast_t* ast)
+{
+  gc_statement_t key = {ast, 0, NULL};
+  size_t index = HASHMAP_UNKNOWN;
+  return (gc_statement_t*)ponyint_hashmap_get(&liveness->statements, &key,
+    ponyint_hash_ptr(ast), same_statement, &index);
+}
+
+static gc_statement_t* index_statement(root_site_t site, ast_t* ast,
+  gc_statement_t* previous_declaration)
+{
+  gc_statement_t* stmt = POOL_ALLOC(gc_statement_t);
+  stmt->ast = ast;
+  stmt->index = site.statement;
+  stmt->previous_declaration = previous_declaration;
+  ponyint_hashmap_put(&site.liveness->statements, stmt, ponyint_hash_ptr(ast),
+    same_statement);
+  return stmt;
+}
+
+static bool record_uses(compile_t* c, root_site_t site, ast_t* ast)
 {
   const char* name = NULL;
   bool consume = ast_id(ast) == TK_CONSUME;
@@ -204,8 +253,10 @@ static void record_uses(compile_t* c, root_site_t site, ast_t* ast)
       if(!consume)
         name = ast_name(ref);
       break;
-    case TK_PARAMREF:
     case TK_LETREF:
+      name = ast_name(ast_child(ref));
+      break;
+    case TK_PARAMREF:
     case TK_VARREF:
       if(consume)
         name = ast_name(ast_child(ref));
@@ -214,42 +265,79 @@ static void record_uses(compile_t* c, root_site_t site, ast_t* ast)
   }
   if(name != NULL)
   {
-    gc_use_t key = {name, site.statement, SIZE_MAX};
+    gc_use_t key = {name, site.statement, SIZE_MAX, false};
     size_t index = HASHMAP_UNKNOWN;
     size_t hash = ponyint_hash_ptr(name);
-    gc_use_t* use = (gc_use_t*)ponyint_hashmap_get(site.uses, &key, hash,
-      same_name, &index);
+    gc_use_t* use = (gc_use_t*)ponyint_hashmap_get(&site.liveness->uses, &key,
+      hash, same_name, &index);
     if(use == NULL)
     {
       use = POOL_ALLOC(gc_use_t);
       *use = key;
-      ponyint_hashmap_putindex(site.uses, use, hash, same_name, index);
+      ponyint_hashmap_putindex(&site.liveness->uses, use, hash, same_name,
+        index);
     }
     use->last_mention = site.statement;
+    if(ast_id(ast) == TK_LETREF && !borrowed_pointer(c, ast))
+      use->may_escape = true;
     if(consume && use->first_consume == SIZE_MAX)
       use->first_consume = site.statement;
   }
-  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
-    record_uses(c, site, child);
+  bool declares_local = ast_id(ast) == TK_LET || ast_id(ast) == TK_VAR ||
+    ast_id(ast) == TK_MATCH_CAPTURE;
+  ast_t* first = ast_child(ast);
+  bool sequence = ast_id(ast) == TK_SEQ && first != NULL &&
+    ast_sibling(first) != NULL;
+  gc_statement_t* previous = NULL;
+  for(ast_t* child = first; child != NULL; child = ast_sibling(child))
+  {
+    bool declares = record_uses(c, site, child);
+    if(sequence)
+    {
+      gc_statement_t* stmt = index_statement(site, child, previous);
+      if(declares)
+        previous = stmt;
+    }
+    declares_local |= declares;
+  }
+  return declares_local;
 }
 
 // A nested loop can revisit an earlier use in the same top-level statement.
-static root_site_t root_site(compile_t* c, compile_frame_t* f, ast_t* statement)
+static gc_liveness_t* method_liveness(compile_t* c, compile_frame_t* f)
 {
-  if(f->gc_uses == NULL)
+  if(f->gc_liveness == NULL)
   {
-    f->gc_uses = POOL_ALLOC(hashmap_t);
-    ponyint_hashmap_init(f->gc_uses, 0);
-    root_site_t pos = {f->gc_uses, 0};
-    ast_t* body = ast_parent(statement);
+    gc_liveness_t* live = POOL_ALLOC(gc_liveness_t);
+    f->gc_liveness = live;
+    ponyint_hashmap_init(&live->uses, 0);
+    ponyint_hashmap_init(&live->statements, 0);
+    root_site_t pos = {live, 0};
+    gc_statement_t* previous = NULL;
+    ast_t* body = ast_childidx(f->reify->ast, 7);
     for(ast_t* s = ast_child(body); s != NULL; s = ast_sibling(s))
     {
-      record_uses(c, pos, s);
+      gc_statement_t* stmt = index_statement(pos, s, previous);
+      if(record_uses(c, pos, s))
+        previous = stmt;
       pos.statement++;
     }
   }
-  root_site_t site = {f->gc_uses, ast_index(statement)};
-  return site;
+  return f->gc_liveness;
+}
+
+static gc_use_t* get_use(gc_liveness_t* live, const char* name)
+{
+  gc_use_t key = {name, 0, 0, false};
+  size_t index = HASHMAP_UNKNOWN;
+  return (gc_use_t*)ponyint_hashmap_get(&live->uses, &key,
+    ponyint_hash_ptr(name), same_name, &index);
+}
+
+static bool local_only_borrowed(compile_t* c, const char* name)
+{
+  gc_use_t* use = get_use(method_liveness(c, c->frame->function), name);
+  return use == NULL || !use->may_escape;
 }
 
 typedef struct stack_root_t
@@ -268,14 +356,6 @@ static void free_roots(stack_root_t* roots)
     POOL_FREE(stack_root_t, roots);
     roots = next;
   }
-}
-
-static compile_frame_t* function_frame(compile_t* c)
-{
-  compile_frame_t* f = c->frame;
-  while(!f->is_function)
-    f = f->prev;
-  return f;
 }
 
 static bool traceable_slot(ast_t* type)
@@ -316,10 +396,7 @@ static bool add_root(compile_t* c, root_site_t position, const char* name,
     ast_id((ast_t*)ast_data(type)) == TK_ACTOR;
   if(eligible && !actor && gentrace_needed(c, type, type))
   {
-    gc_use_t key = {name, 0, 0};
-    size_t index = HASHMAP_UNKNOWN;
-    gc_use_t* use = (gc_use_t*)ponyint_hashmap_get(position.uses, &key,
-      ponyint_hash_ptr(name), same_name, &index);
+    gc_use_t* use = get_use(position.liveness, name);
     LLVMValueRef slot = codegen_getlocal(c, name);
     eligible = slot != NULL &&
       (use == NULL || use->first_consume > position.statement);
@@ -350,8 +427,14 @@ static bool add_decl(compile_t* c, root_site_t position, ast_t* decl,
 static bool previous_roots(compile_t* c, root_site_t position, ast_t* seq,
   ast_t* site, stack_root_t** roots)
 {
-  for(ast_t* stmt = ast_child(seq); stmt != site; stmt = ast_sibling(stmt))
+  if(ast_child(seq) == site)
+    return true;
+  gc_statement_t* current = get_statement(position.liveness, site);
+  pony_assert(current != NULL);
+  for(gc_statement_t* prior = current->previous_declaration; prior != NULL;
+    prior = prior->previous_declaration)
   {
+    ast_t* stmt = prior->ast;
     if(ast_id(stmt) == TK_ASSIGN)
     {
       AST_GET_CHILDREN(stmt, left, right);
@@ -388,8 +471,8 @@ static bool pattern_roots(compile_t* c, root_site_t position, ast_t* pattern,
 
 static bool collect_roots(compile_t* c, ast_t* site, stack_root_t** roots)
 {
-  compile_frame_t* f = function_frame(c);
-  if(!c->midbehavior_gc || c->opt->mutate || f->gc_actor == NULL)
+  compile_frame_t* f = c->frame->function;
+  if(f->gc_actor == NULL)
     return false;
   ast_t* method = f->reify->ast;
   ast_t* body = ast_childidx(method, 7);
@@ -403,7 +486,8 @@ static bool collect_roots(compile_t* c, ast_t* site, stack_root_t** roots)
   if(ast_id(site) == TK_WHILE && contains_local(ast_child(site)))
     return false;
 
-  root_site_t position = root_site(c, f, through);
+  gc_liveness_t* live = method_liveness(c, f);
+  root_site_t position = {live, get_statement(live, through)->index};
   if(f->gc_receiver != NULL &&
     !add_root(c, position, c->str_this, ast_dup(f->gc_receiver), roots))
     return false;
@@ -570,13 +654,11 @@ static void finish_with_roots(compile_t* c, LLVMValueRef ctx, stack_root_t* root
 
 bool gengc_poll(compile_t* c, ast_t* statement)
 {
-  if(!c->midbehavior_gc)
-    return false;
   stack_root_t* roots = NULL;
   bool eligible = collect_roots(c, statement, &roots);
   if(eligible)
   {
-    compile_frame_t* f = function_frame(c);
+    compile_frame_t* f = c->frame->function;
     LLVMValueRef args[] = {f->gc_actor,
       f->gc_parent != NULL ? f->gc_parent : LLVMConstNull(c->ptr)};
     LLVMValueRef ctx = gencall_runtime(c, "ponyint_gc_poll", args, 2, "");
@@ -706,7 +788,7 @@ bool gengc_allocating_expr(ast_t* expr)
   return false;
 }
 
-bool gengc_method_eligible(compile_t* c, reach_type_t* t, reach_method_t* m)
+static bool method_eligible(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
   if(m->intrinsic || m->forwarding || m->cap == TK_AT ||
     ast_id(m->fun->ast) != TK_FUN ||
@@ -718,6 +800,17 @@ bool gengc_method_eligible(compile_t* c, reach_type_t* t, reach_method_t* m)
     (ast_name(id) == c->str_Array || ast_name(id) == c->str_String))
     return false;
   return gengc_allocating_expr(ast_childidx(m->fun->ast, 7));
+}
+
+bool gengc_method_eligible(compile_t* c, reach_type_t* t, reach_method_t* m)
+{
+  compile_method_t* cm = (compile_method_t*)m->c_method;
+  if(!cm->gc_eligibility_checked)
+  {
+    cm->gc_eligible = method_eligible(c, t, m);
+    cm->gc_eligibility_checked = true;
+  }
+  return cm->gc_eligible;
 }
 
 static bool has_enclosing_poll(compile_t* c)
@@ -733,7 +826,7 @@ static bool has_enclosing_poll(compile_t* c)
 LLVMValueRef gengc_call(compile_t* c, ast_t* site, reach_type_t* t,
   reach_method_t* m, LLVMValueRef* args, unsigned n)
 {
-  if(!c->midbehavior_gc || c->opt->mutate || m->cap == TK_AT ||
+  if(c->frame->function->gc_actor == NULL || m->cap == TK_AT ||
     ast_id(m->fun->ast) != TK_FUN || contains_local(site))
     return NULL;
   stack_root_t* roots = NULL;
@@ -764,7 +857,7 @@ LLVMValueRef gengc_call(compile_t* c, ast_t* site, reach_type_t* t,
     free_roots(roots);
     return NULL;
   }
-  compile_frame_t* f = function_frame(c);
+  compile_frame_t* f = c->frame->function;
   LLVMValueRef parent = f->gc_parent != NULL ? f->gc_parent :
     LLVMConstNull(c->ptr);
   size_t bytes = (n + 2) * sizeof(LLVMValueRef);

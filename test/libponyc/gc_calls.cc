@@ -112,6 +112,51 @@ TEST_F(GcCalls, PurePrefixCannotClearInheritedCollectionDebt)
   EXPECT_EQ(module->getFunction("id"), prefix->getCalledFunction());
 }
 
+TEST_F(GcCalls, FinalLinkReleasesThePrivateEntryTable)
+{
+  llvm::SMDiagnostic diagnostic;
+  module = llvm::parseAssemblyString(R"(
+    @entries = private constant [2 x ptr] [ptr @work, ptr @collect], !pony.gc.pairs !0
+    @keep = internal global i8 0
+    @llvm.compiler.used = appending global [2 x ptr] [ptr @entries, ptr @keep], section "llvm.metadata"
+    declare void @work()
+    declare void @collect(ptr, ptr)
+    !0 = !{}
+  )", diagnostic, ctx);
+  ASSERT_NE(nullptr, module) << diagnostic.getMessage().str();
+  llvm::ModuleAnalysisManager analyses;
+  pony::LowerGcMaps().run(*module, analyses);
+  EXPECT_EQ(nullptr, module->getNamedGlobal("entries"));
+  auto* used = module->getNamedGlobal("llvm.compiler.used");
+  ASSERT_NE(nullptr, used);
+  ASSERT_EQ(1u, used->getInitializer()->getNumOperands());
+  EXPECT_EQ(module->getNamedGlobal("keep"), used->getInitializer()->getOperand(0));
+}
+
+TEST_F(GcCalls, BorrowCleanupKeepsUntaggedInlineAssembly)
+{
+  llvm::SMDiagnostic diagnostic;
+  module = llvm::parseAssemblyString(R"(
+    define ptr @work(ptr %p) {
+      %root = call ptr asm sideeffect "", "=r,0"(ptr %p), !pony.gc.borrow !0
+      %frame = call ptr asm sideeffect "", "=r,0"(ptr %root)
+      ret ptr %frame
+    }
+    !0 = !{}
+    !llvm.module.flags = !{!1}
+    !1 = !{i32 7, !"pony.midbehavior.gc", i32 1}
+  )", diagnostic, ctx);
+  ASSERT_NE(nullptr, module) << diagnostic.getMessage().str();
+  llvm::ModuleAnalysisManager analyses;
+  pony::OptimizeGcCalls().run(*module, analyses);
+  auto* work = module->getFunction("work");
+  auto* call = llvm::dyn_cast<llvm::CallInst>(&work->getEntryBlock().front());
+  ASSERT_NE(nullptr, call);
+  EXPECT_FALSE(call->hasMetadata("pony.gc.borrow"));
+  EXPECT_EQ(work->getArg(0), call->getArgOperand(0));
+  EXPECT_EQ(work->getEntryBlock().getTerminator(), call->getNextNode());
+}
+
 TEST_F(GcCalls, NativeMapRequiresTheActualTracerAndAnUnaliasedRecord)
 {
   for(const std::string mode : {"mapped", "different tracer", "escaped",

@@ -26,14 +26,17 @@ bool isGcRootBorrow(const CallBase& call)
     identity->getConstraintString() == "=r,0";
 }
 
-static bool can_allocate(Function* root, bool early = false)
+static bool can_allocate(Function* root, bool early,
+  SmallPtrSetImpl<Function*>& allocation_free)
 {
+  if(allocation_free.contains(root))
+    return false;
   SmallPtrSet<Function*, 32> seen;
   SmallVector<Function*, 16> work{root};
   while(!work.empty())
   {
     Function* f = work.pop_back_val();
-    if(!seen.insert(f).second)
+    if(allocation_free.contains(f) || !seen.insert(f).second)
       continue;
     for(BasicBlock &bb : *f)
     {
@@ -72,6 +75,7 @@ static bool can_allocate(Function* root, bool early = false)
       }
     }
   }
+  allocation_free.insert(seen.begin(), seen.end());
   return false;
 }
 
@@ -84,7 +88,8 @@ static bool small_allocation(Value* value)
 
 // Count a recursive call as one small allocation. Its path must contain
 // no other allocations, including after the call returns.
-static bool at_most_one_small_allocation(Function &f)
+static bool at_most_one_small_allocation(Function &f,
+  SmallPtrSetImpl<Function*>& allocation_free)
 {
   DenseMap<BasicBlock*, unsigned> reached;
   SmallVector<std::pair<BasicBlock*, unsigned>, 16> work{{&f.getEntryBlock(), 0}};
@@ -108,7 +113,8 @@ static bool at_most_one_small_allocation(Function &f)
            callee->getName() != "ponyint_assert_fail" &&
            !(callee->isIntrinsic() &&
              (!call->mayWriteToMemory() || isa<LifetimeIntrinsic>(call))) &&
-           (callee->isDeclaration() || can_allocate(callee)))) {
+           (callee->isDeclaration() ||
+             can_allocate(callee, false, allocation_free)))) {
           return false;
         }
       } else if(inst.mayWriteToMemory()) {
@@ -127,12 +133,13 @@ static bool at_most_one_small_allocation(Function &f)
   return true;
 }
 
-static bool guard_bounded_call(Function &collecting, Function &ordinary)
+static bool guard_bounded_call(Function &collecting, Function &ordinary,
+  SmallPtrSetImpl<Function*>& allocation_free)
 {
   Function* room = ordinary.getParent()->getFunction("ponyint_gc_has_small_room");
   if(room == nullptr || room->isDeclaration() ||
     collecting.hasFnAttribute("pony-gc-bounded") ||
-    !at_most_one_small_allocation(ordinary))
+    !at_most_one_small_allocation(ordinary, allocation_free))
     return false;
 
   LLVMContext &ctx = ordinary.getContext();
@@ -161,10 +168,12 @@ static bool guard_bounded_call(Function &collecting, Function &ordinary)
   InlineFunctionInfo info;
   InlineFunction(*check, info);
   collecting.addFnAttr("pony-gc-bounded");
+  allocation_free.clear();
   return true;
 }
 
-static bool optimize_pair(Function &collecting, Function* ordinary, bool early)
+static bool optimize_pair(Function &collecting, Function* ordinary, bool early,
+  SmallPtrSetImpl<Function*>& allocation_free)
 {
   if(ordinary->isDeclaration() ||
     ordinary->arg_size() + 2 != collecting.arg_size() ||
@@ -178,9 +187,9 @@ static bool optimize_pair(Function &collecting, Function* ordinary, bool early)
   if(!same_params || collecting.isDeclaration() ||
     !collecting.getArg(ordinary->arg_size())->getType()->isPointerTy())
     return false;
-  if(can_allocate(ordinary, early))
+  if(can_allocate(ordinary, early, allocation_free))
   {
-    return !early && guard_bounded_call(collecting, *ordinary);
+    return !early && guard_bounded_call(collecting, *ordinary, allocation_free);
   }
 
   SmallVector<CallInst*, 8> calls;
@@ -212,22 +221,25 @@ PreservedAnalyses OptimizeGcCalls::run(Module &module, ModuleAnalysisManager &)
   bool changed = false;
   if(!early && module.getModuleFlag("pony.midbehavior.gc") != nullptr)
   {
-    for(Function& f : module)
+    auto* ptr = PointerType::getUnqual(module.getContext());
+    auto* identity = InlineAsm::get(FunctionType::get(ptr, {ptr}, false),
+      "", "=r,0", true);
+    SmallVector<CallInst*> borrows;
+    for(Use& use : identity->uses())
     {
-      for(BasicBlock& bb : f)
-      {
-        for(Instruction& inst : make_early_inc_range(bb))
-        {
-          auto* call = dyn_cast<CallInst>(&inst);
-          if(call == nullptr || !isGcRootBorrow(*call))
-            continue;
-          call->replaceAllUsesWith(call->getArgOperand(0));
-          call->eraseFromParent();
-          changed = true;
-        }
-      }
+      auto* call = dyn_cast<CallInst>(use.getUser());
+      if(call != nullptr && call->isCallee(&use) &&
+        call->getModule() == &module && isGcRootBorrow(*call))
+        borrows.push_back(call);
+    }
+    for(CallInst* call : borrows)
+    {
+      call->replaceAllUsesWith(call->getArgOperand(0));
+      call->eraseFromParent();
+      changed = true;
     }
   }
+  SmallPtrSet<Function*, 32> allocation_free;
   for(GlobalVariable &global : module.globals())
   {
     if(global.getMetadata("pony.gc.pairs") == nullptr ||
@@ -241,7 +253,7 @@ PreservedAnalyses OptimizeGcCalls::run(Module &module, ModuleAnalysisManager &)
       auto* ordinary = dyn_cast<Function>(pairs->getOperand(i));
       auto* collecting = dyn_cast<Function>(pairs->getOperand(i + 1));
       if(ordinary != nullptr && collecting != nullptr)
-        changed |= optimize_pair(*collecting, ordinary, early);
+        changed |= optimize_pair(*collecting, ordinary, early, allocation_free);
     }
   }
   return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();

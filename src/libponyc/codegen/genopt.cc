@@ -603,11 +603,8 @@ static bool pony_opt_module(compile_t* c, LLVMModuleRef module,
 
     if(c->opt->release)
     {
-      if(c->midbehavior_gc)
-      {
-        unwrap(module)->addModuleFlag(Module::Max, "pony.midbehavior.gc", 1u);
-        keep_gc_entry_pairs(*unwrap(module));
-      }
+      unwrap(module)->addModuleFlag(Module::Max, "pony.midbehavior.gc", 1u);
+      keep_gc_entry_pairs(*unwrap(module));
       FunctionPassManager canon;
       canon.addPass(SROAPass(SROAOptions::ModifyCFG));
       canon.addPass(InstCombinePass());

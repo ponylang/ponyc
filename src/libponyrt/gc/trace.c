@@ -50,7 +50,6 @@ PONY_API void pony_send_done(pony_ctx_t* ctx)
   // ASIO and bootstrap paths pass NULL), so nothing reads a stale value.
   ctx->msg_target = NULL;
   ctx->trace_object = NULL;
-  ctx->trace_actor = NULL;
 }
 
 PONY_API void pony_recv_done(pony_ctx_t* ctx)
@@ -59,7 +58,6 @@ PONY_API void pony_recv_done(pony_ctx_t* ctx)
   ponyint_gc_handlestack(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
   ctx->trace_object = NULL;
-  ctx->trace_actor = NULL;
 }
 
 void ponyint_mark_done(pony_ctx_t* ctx)
@@ -79,7 +77,6 @@ void ponyint_mark_done(pony_ctx_t* ctx)
   ponyint_gc_sweep(ctx, ponyint_actor_gc(ctx->current));
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
   ctx->trace_object = NULL;
-  ctx->trace_actor = NULL;
 }
 
 PONY_API void pony_send_next(pony_ctx_t* ctx, pony_actor_t* to)

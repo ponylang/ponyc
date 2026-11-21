@@ -66,7 +66,10 @@ static compile_frame_t* push_frame(compile_t* c)
   compile_locals_init(&frame->locals, 0);
 
   if(c->frame != NULL)
+  {
     frame->prev = c->frame;
+    frame->function = c->frame->function;
+  }
 
   c->frame = frame;
   return frame;
@@ -76,7 +79,7 @@ static void pop_frame(compile_t* c)
 {
   compile_frame_t* frame = c->frame;
   compile_locals_destroy(&frame->locals);
-  gengc_free_uses(frame->gc_uses);
+  gengc_free_liveness(frame->gc_liveness);
 
   c->frame = frame->prev;
   POOL_FREE(compile_frame_t, frame);
@@ -723,8 +726,6 @@ static void init_runtime(compile_t* c)
 static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
   c->opt = opt;
-  c->midbehavior_gc = !opt->mutate &&
-    is_userflag_defined(opt->user_flags, "midbehavior_gc");
 
   // Get the first module and the builtin module.
   ast_t* module = ast_child(program);
@@ -1511,6 +1512,7 @@ LLVMValueRef codegen_resolve_function(compile_t* c, LLVMValueRef fn)
   LLVMTypeRef fn_type = LLVMGlobalGetValueType(fn);
   resolved = LLVMAddFunction(c->module, name, fn_type);
   LLVMSetLinkage(resolved, LLVMExternalLinkage);
+  LLVMSetVisibility(resolved, LLVMGetVisibility(fn));
   copy_function_attributes(fn, resolved);
   return resolved;
 }
@@ -1609,13 +1611,14 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
     pony_assert(LLVMGetGlobalParent(fun) == c->module);
   }
 
-  if(c->opt->mutate)
+  if(c->opt->mutate && c->frame == NULL)
     mutate_shadow_clear(c);
 
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = fun;
   frame->is_function = true;
+  frame->function = frame;
   frame->reify = reify;
   if(c->opt->mutate && (reify != NULL) &&
     ast_checkflag(reify->ast, AST_FLAG_OBJECT_LITERAL))

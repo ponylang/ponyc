@@ -38,7 +38,6 @@ typedef struct heap_t
 
   size_t used;
   size_t next_gc;
-  bool gc_due;
 } heap_t;
 
 enum

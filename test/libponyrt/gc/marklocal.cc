@@ -35,27 +35,19 @@ void trace_frame(pony_ctx_t* ctx, void* p)
   pony_traceunknown(ctx, p, PONY_TRACE_MUTABLE);
 }
 
-bool poll(pony_ctx_t* ctx, pony_actor_t* actor, pony_trace_fn trace, void* frame)
-{
-  pony_ctx_t* marking = ponyint_gc_begin(ctx, actor, nullptr);
-  if(marking == nullptr)
-    return false;
-  if(trace != nullptr)
-    trace(marking, frame);
-  return ponyint_gc_finish(marking);
-}
-
 class LocalGc : public testing::Test
 {
 protected:
-  pony_ctx_t ctx{};
+  pony_ctx_t* ctx;
   pony_actor_t actor{};
   _pony_type_t actor_type{};
   _pony_type_t node_type{};
 
   void SetUp() override
   {
-    ctx.current = &actor;
+    ponyint_register_thread();
+    ctx = pony_ctx();
+    ctx->current = &actor;
     actor.type = &actor_type;
     node_type.size = sizeof(Node);
     node_type.trace = trace_node;
@@ -66,6 +58,17 @@ protected:
   {
     ponyint_gc_destroy(&actor.gc);
     ponyint_heap_destroy(&actor.heap);
+    ponyint_unregister_thread();
+  }
+
+  bool poll(pony_trace_fn trace = nullptr, void* frame = nullptr)
+  {
+    pony_ctx_t* marking = ponyint_gc_poll(&actor, nullptr);
+    if(marking == nullptr)
+      return false;
+    if(trace != nullptr)
+      trace(marking, frame);
+    return ponyint_gc_finish(marking);
   }
 
   Node* node(size_t size = sizeof(Node))
@@ -88,7 +91,7 @@ TEST_F(LocalGc, ReclaimsGarbageAndTracesFrameThroughPromotedObject)
   Node* dead = node();
   size_t before = actor.heap.used;
   actor.heap.next_gc = before;
-  ASSERT_FALSE(poll(&ctx, &actor, trace_frame, &promoted));
+  ASSERT_FALSE(poll(trace_frame, &promoted));
   EXPECT_EQ(before, actor.heap.used);
 
   actor.heap.next_gc--;
@@ -96,7 +99,7 @@ TEST_F(LocalGc, ReclaimsGarbageAndTracesFrameThroughPromotedObject)
 #ifdef PLATFORM_IS_WINDOWS
   SetLastError(ERROR_INVALID_HANDLE);
 #endif
-  bool collected = poll(&ctx, &actor, trace_frame, &promoted);
+  bool collected = poll(trace_frame, &promoted);
 #ifdef PLATFORM_IS_WINDOWS
   DWORD saved_error = GetLastError();
 #endif
@@ -108,7 +111,7 @@ TEST_F(LocalGc, ReclaimsGarbageAndTracesFrameThroughPromotedObject)
   EXPECT_EQ(EDOM, saved_errno);
   EXPECT_EQ(live, actor.heap.used);
   EXPECT_EQ(0u, actor.gc.mark);
-  EXPECT_NE(0, actor.internal_flags & ACTOR_FLAG_BOUNDARY_GC);
+  EXPECT_TRUE(actor.gc_after_local);
   EXPECT_EQ(dead, node());
 }
 
@@ -128,7 +131,7 @@ TEST_F(LocalGc, ForeignDescendantRefusesBeforeSweep)
 #ifdef PLATFORM_IS_WINDOWS
   SetLastError(ERROR_INVALID_HANDLE);
 #endif
-  bool collected = poll(&ctx, &actor, trace_frame, parent);
+  bool collected = poll(trace_frame, parent);
 #ifdef PLATFORM_IS_WINDOWS
   DWORD saved_error = GetLastError();
 #endif
@@ -140,10 +143,10 @@ TEST_F(LocalGc, ForeignDescendantRefusesBeforeSweep)
   EXPECT_EQ(EDOM, saved_errno);
   EXPECT_EQ(before, actor.heap.used);
   EXPECT_EQ(0u, actor.heap.next_gc);
-  EXPECT_EQ(0, actor.internal_flags & ACTOR_FLAG_BOUNDARY_GC);
+  EXPECT_FALSE(actor.gc_after_local);
   parent->child = nullptr;
   ponyint_heap_destroy(&other.heap);
-  EXPECT_TRUE(poll(&ctx, &actor, trace_frame, parent));
+  EXPECT_TRUE(poll(trace_frame, parent));
 }
 
 TEST_F(LocalGc, BoundedCallRequiresRoomForTheLargestSmallAllocation)
@@ -164,11 +167,10 @@ TEST_F(LocalGc, HeapChargesCrossTheStrictThresholdAndSweepResetsIt)
   {
     actor.heap.next_gc = large ? HEAP_MAX : HEAP_MIN;
     ponyint_heap_used(&actor.heap, actor.heap.next_gc);
-    ASSERT_FALSE(actor.heap.gc_due);
+    EXPECT_FALSE(poll());
     node(large ? HEAP_MAX + 1 : HEAP_MIN);
-    ASSERT_TRUE(actor.heap.gc_due);
-    ASSERT_TRUE(poll(&ctx, &actor, nullptr, nullptr));
-    ASSERT_FALSE(actor.heap.gc_due);
+    EXPECT_TRUE(poll());
+    EXPECT_FALSE(poll());
     EXPECT_EQ(0u, actor.heap.used);
   }
 }
@@ -180,23 +182,23 @@ TEST_F(LocalGc, MissingNativeFrameRefusesWithoutSweeping)
   size_t used = actor.heap.used;
   auto* token = reinterpret_cast<gc_frame_t*>(
     reinterpret_cast<uintptr_t>(&actor) | 1);
-  pony_ctx_t* mark = ponyint_gc_begin(&ctx, &actor, token);
+  pony_ctx_t* mark = ponyint_gc_poll(&actor, token);
   ASSERT_NE(nullptr, mark);
   EXPECT_FALSE(ponyint_gc_finish(mark));
   EXPECT_EQ(used, actor.heap.used);
-  EXPECT_EQ(0, actor.internal_flags & ACTOR_FLAG_BOUNDARY_GC);
+  EXPECT_FALSE(actor.gc_after_local);
 }
 
 #if defined(PLATFORM_IS_LINUX) && defined(__x86_64__) && !defined(__ILP32__)
-extern "C" bool gc_test_caller(pony_ctx_t*, pony_actor_t*, unsigned);
+extern "C" bool gc_test_caller(pony_actor_t*, unsigned);
 
 uintptr_t expected_address;
 
-extern "C" bool gc_test_poll(pony_ctx_t* ctx, pony_actor_t* actor,
-  gc_frame_t* token, uintptr_t address)
+extern "C" bool gc_test_poll(pony_actor_t* actor, gc_frame_t* token,
+  uintptr_t address)
 {
   expected_address = address;
-  pony_ctx_t* marking = ponyint_gc_begin(ctx, actor, token);
+  pony_ctx_t* marking = ponyint_gc_poll(actor, token);
   EXPECT_NE(nullptr, marking);
   return marking != nullptr && ponyint_gc_finish(marking);
 }
@@ -227,10 +229,10 @@ gc_test_caller:
   subq $16,%rsp
   .cfi_adjust_cfa_offset 16
   movq $49,8(%rsp)
-  leaq 8(%rsp),%rcx
+  leaq 8(%rsp),%rdx
   movl $37,%ebx
-  movl %edx,%eax
-  leaq 25(%rsp),%rdx
+  movl %esi,%eax
+  leaq 25(%rsp),%rsi
   cmpl $2,%eax
   je 5f
   testl %eax,%eax
@@ -295,14 +297,14 @@ TEST_F(LocalGc, IndexedUnwindRefusesThenCollectsThroughSupportedSite)
   for(unsigned invalid : {0u, 2u})
   {
     SCOPED_TRACE(invalid);
-    EXPECT_FALSE(gc_test_caller(&ctx, &actor, invalid));
+    EXPECT_FALSE(gc_test_caller(&actor, invalid));
     EXPECT_EQ(0u, observed_root);
     EXPECT_EQ(used, actor.heap.used);
     EXPECT_EQ(0u, actor.heap.next_gc);
-    EXPECT_EQ(0, actor.internal_flags & ACTOR_FLAG_BOUNDARY_GC);
+    EXPECT_FALSE(actor.gc_after_local);
   }
 
-  ASSERT_TRUE(gc_test_caller(&ctx, &actor, 1));
+  ASSERT_TRUE(gc_test_caller(&actor, 1));
   EXPECT_EQ(37u, observed_root);
   EXPECT_EQ(expected_address, observed_address);
   EXPECT_EQ(49u, observed_value);
@@ -327,7 +329,7 @@ TEST_F(LocalGc, ShallowAndReadableNeighboursHaveIndependentChildren)
     ponyint_pagemap_get(opaque->child, &owner));
 
   actor.heap.next_gc = 0;
-  pony_ctx_t* marking = ponyint_gc_begin(&ctx, &actor, nullptr);
+  pony_ctx_t* marking = ponyint_gc_poll(&actor, nullptr);
   ASSERT_NE(nullptr, marking);
   pony_trace(marking, opaque);
   pony_traceunknown(marking, readable, PONY_TRACE_MUTABLE);
@@ -370,7 +372,7 @@ TEST_F(LocalGc, AlternateDescriptorsAtOneAddressKeepTheirOwnChildren)
   for(bool reverse : {false, true})
   {
     actor.heap.next_gc = 0;
-    pony_ctx_t* marking = ponyint_gc_begin(&ctx, &actor, nullptr);
+    pony_ctx_t* marking = ponyint_gc_poll(&actor, nullptr);
     ASSERT_NE(nullptr, marking);
     for(unsigned i = 0; i < 3; i++)
       pony_traceknown(marking, root, &types[reverse ? 2 - i : i],
@@ -401,18 +403,18 @@ TEST_F(LocalGc, RetainsConstructedFinalisableObjectsAndTheirChildren)
   large->child = node();
   size_t live = actor.heap.used;
   Node* dead = node();
-  ponyint_gc_final_ready(&ctx, small);
+  ponyint_gc_final_ready(ctx, small);
   actor.heap.next_gc = 0;
   size_t before = actor.heap.used;
-  EXPECT_FALSE(poll(&ctx, &actor, nullptr, nullptr));
+  EXPECT_FALSE(poll());
   EXPECT_EQ(before, actor.heap.used);
   EXPECT_TRUE(actor.gc_wait_finaliser);
-  ponyint_gc_final_ready(&ctx, large);
+  ponyint_gc_final_ready(ctx, large);
   EXPECT_FALSE(actor.gc_wait_finaliser);
   for(size_t i = 0; i < 2; i++)
   {
     actor.heap.next_gc = 0;
-    ASSERT_TRUE(poll(&ctx, &actor, nullptr, nullptr));
+    ASSERT_TRUE(poll());
     EXPECT_EQ(0u, finalised);
     EXPECT_EQ(live, actor.heap.used);
     EXPECT_EQ(dead, node());
@@ -429,7 +431,7 @@ TEST_F(LocalGc, BoundaryMarkKeepsOnlyReadableFinalisersEligible)
     sizeof(Node), TRACK_ALL_FINALISERS));
   resource->type = &node_type;
   resource->child = node();
-  ponyint_gc_final_ready(&ctx, resource);
+  ponyint_gc_final_ready(ctx, resource);
   pony_actor_t* owner;
   chunk_t* chunk = ponyint_pagemap_get(resource, &owner);
   for(bool readable : {true, false})
@@ -453,7 +455,7 @@ TEST_F(LocalGc, BoundaryMarkKeepsOnlyReadableFinalisersEligible)
 #endif
       );
     actor.heap.next_gc = 0;
-    EXPECT_EQ(readable, poll(&ctx, &actor, nullptr, nullptr));
+    EXPECT_EQ(readable, poll());
     EXPECT_EQ(!readable, actor.gc_wait_finaliser);
     EXPECT_EQ(0u, finalised);
   }
@@ -461,18 +463,12 @@ TEST_F(LocalGc, BoundaryMarkKeepsOnlyReadableFinalisersEligible)
 
 TEST_F(LocalGc, NativeStoreChecksWhoOwnsTheDestination)
 {
-  ponyint_register_thread();
-  pony_ctx_t* current = pony_ctx();
-  pony_actor_t* previous = current->current;
-  current->current = &actor;
   Node* owned = node();
   ponyint_gc_native_store(&owned->child);
   EXPECT_FALSE(actor.gc_native_alias);
   Node external{};
   ponyint_gc_native_store(&external.child);
   EXPECT_TRUE(actor.gc_native_alias);
-  current->current = previous;
-  ponyint_unregister_thread();
 }
 
 TEST_F(LocalGc, KeepsHeapChargeForRetainedPeerActors)
@@ -487,29 +483,57 @@ TEST_F(LocalGc, KeepsHeapChargeForRetainedPeerActors)
   size_t rc = ref->rc;
   node();
   actor.heap.next_gc = 0;
-  ASSERT_TRUE(poll(&ctx, &actor, nullptr, nullptr));
+  ASSERT_TRUE(poll());
   EXPECT_EQ(charge, actor.heap.used);
   EXPECT_EQ(rc, ref->rc);
 }
 
-TEST_F(LocalGc, LocalInterestAndActiveReceive)
+TEST_F(LocalGc, LocalReferenceDefersCollectionUntilBoundary)
+{
+  Node* root = node();
+  actor.heap.next_gc = 0;
+  object_t* entry = ponyint_objectmap_getorput(&actor.gc.local, root,
+    &node_type, actor.gc.mark);
+  entry->rc = 1;
+  EXPECT_FALSE(poll());
+  entry->rc = 0;
+  EXPECT_FALSE(poll());
+
+  actor_type.dispatch = [](pony_ctx_t*, pony_actor_t*, pony_msg_t*) {};
+  actor.batch_size = PONY_SCHED_BATCH;
+  ponyint_messageq_init(&actor.q);
+  pony_msg_t* message = pony_alloc_msg(POOL_INDEX(sizeof(pony_msg_t)), 0);
+  ponyint_actor_messageq_push(&actor.q, message, message);
+  ponyint_actor_run(ctx, &actor);
+  ponyint_messageq_destroy(&actor.q, false);
+
+  node();
+  actor.heap.next_gc = 0;
+  EXPECT_TRUE(poll());
+}
+
+TEST_F(LocalGc, SelfSendPinDefersCollection)
+{
+  Node* root = node();
+  actor.heap.next_gc = 0;
+  object_t* entry = ponyint_objectmap_getorput(&actor.gc.local, root,
+    &node_type, actor.gc.mark);
+  entry->self_send_pins = 1;
+  EXPECT_FALSE(poll());
+  EXPECT_TRUE(actor.gc_wait_boundary);
+}
+
+TEST_F(LocalGc, ActiveReceiveDefersCollectionUntilTraceCompletes)
 {
   Node* root = node();
   size_t live = actor.heap.used;
   node();
   actor.heap.next_gc = 0;
-  object_t* entry = ponyint_objectmap_getorput(&actor.gc.local, root,
-    &node_type, actor.gc.mark);
-  entry->rc = 1;
-  EXPECT_FALSE(poll(&ctx, &actor, nullptr, nullptr));
-  entry->rc = 0;
-  entry->self_send_pins = 1;
-  EXPECT_FALSE(poll(&ctx, &actor, nullptr, nullptr));
-  entry->self_send_pins = 0;
-  pony_gc_recv(&ctx);
-  EXPECT_FALSE(poll(&ctx, &actor, nullptr, nullptr));
-  pony_recv_done(&ctx);
-  EXPECT_TRUE(poll(&ctx, &actor, nullptr, nullptr));
+  ponyint_objectmap_getorput(&actor.gc.local, root, &node_type, actor.gc.mark);
+  pony_gc_recv(ctx);
+  EXPECT_FALSE(poll());
+  pony_recv_done(ctx);
+  EXPECT_TRUE(poll());
   EXPECT_EQ(live, actor.heap.used);
 }
 }

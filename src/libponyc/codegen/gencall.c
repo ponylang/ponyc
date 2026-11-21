@@ -1158,7 +1158,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     // The ordinary calling sequence evaluates the first argument before the
     // receiver or any other argument can leave a temporary live.
     gc_argument_t first = {arg, c->gc_arguments};
-    if(c->midbehavior_gc && i == 1)
+    if(i == 1)
       c->gc_arguments = &first;
     LLVMValueRef value = gen_expr(c, arg);
     c->gc_arguments = first.previous;
@@ -1282,7 +1282,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       i--;
     }
 
-    if(!bare && c->midbehavior_gc && ast_id(postfix) != TK_FUNCHAIN)
+    if(!bare && ast_id(postfix) != TK_FUNCHAIN)
     {
       codegen_debugloc(c, ast);
       r = gengc_call(c, ast, t, m, args, (unsigned)i);
@@ -1328,7 +1328,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       if(func != NULL)
       {
         codegen_debugloc(c, ast);
-        if(c->midbehavior_gc && t->bare_method == m &&
+        if(t->bare_method == m &&
           (LLVMIsAFunction(func) == NULL || !LLVMHasMetadataStr(func, "pony.abi")))
           gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
         r = codegen_call(c, func_type, func, args + arg_offset, i, !bare);
@@ -1356,7 +1356,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
      (t->underlying == TK_CLASS))
   {
     r = args[0];
-    if(c->midbehavior_gc && ((compile_type_t*)t->c_type)->final_fn != NULL &&
+    if(((compile_type_t*)t->c_type)->final_fn != NULL &&
       find_embed_constructor_receiver(ast) == NULL)
     {
       LLVMValueRef ready[] = {codegen_ctx(c), r};
@@ -1744,8 +1744,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     LLVMValueRef result;
     codegen_debugloc(c, ast);
-    if(c->midbehavior_gc)
-      gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
+    gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
     result = LLVMBuildCall2(c->builder, thunk_type, thunk_func,
       f_args, thunk_count, "");
     codegen_debugloc(c, NULL);
@@ -1978,7 +1977,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     arg = ast_sibling(arg);
   }
 
-  if(c->midbehavior_gc && !gengc_scalar_intrinsic(func) &&
+  if(!gengc_scalar_intrinsic(func) &&
     !gengc_noncapturing_ffi(c, f_name))
     gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
 

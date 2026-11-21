@@ -236,7 +236,7 @@ static void pointer_apply_unaligned(compile_t* c, void* data, token_id cap)
 
 static void pointer_store(compile_t* c, LLVMTypeRef elem, LLVMValueRef dest)
 {
-  if(c->midbehavior_gc && gengc_contains_pointer(elem))
+  if(gengc_contains_pointer(elem))
     gencall_runtime(c, "ponyint_gc_native_store", &dest, 1, "");
 }
 
@@ -456,8 +456,7 @@ static void pointer_usize(compile_t* c, reach_type_t* t)
   FIND_METHOD("usize", TK_NONE);
   start_function(c, t, m, c->intptr, &c_t->use_type, 1);
 
-  if(c->midbehavior_gc)
-    gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
+  gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
 
   LLVMValueRef ptr = LLVMGetParam(c_m->func, 0);
   LLVMValueRef result = LLVMBuildPtrToInt(c->builder, ptr, c->intptr, "");

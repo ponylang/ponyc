@@ -150,29 +150,13 @@ static bool scalar_result(Type* t)
 
 namespace pony {
 
-PreservedAnalyses LowerGcMaps::run(Module& module, ModuleAnalysisManager& mam)
+static bool lower_gc_maps(Module& module, ModuleAnalysisManager& mam,
+  const SmallPtrSetImpl<Function*>& collecting)
 {
-  if(module.getTargetTriple().getArch() != Triple::x86_64 ||
+  if(collecting.empty() || module.getTargetTriple().getArch() != Triple::x86_64 ||
     !module.getTargetTriple().isOSLinux() ||
     module.getDataLayout().getPointerSize() != sizeof(uint64_t))
-    return PreservedAnalyses::all();
-
-  SmallPtrSet<Function*, 32> collecting;
-  for(GlobalVariable& global : module.globals())
-  {
-    if(global.getMetadata("pony.gc.pairs") == nullptr || !global.hasInitializer())
-      continue;
-    auto* pairs = dyn_cast<ConstantArray>(global.getInitializer());
-    if(pairs == nullptr)
-      continue;
-    for(unsigned i = 1; i < pairs->getNumOperands(); i += 2)
-    {
-      if(auto* f = dyn_cast<Function>(pairs->getOperand(i)))
-        collecting.insert(f);
-    }
-  }
-  if(collecting.empty())
-    return PreservedAnalyses::all();
+    return false;
 
   SmallVector<CallInst*> sites;
   SmallVector<GlobalValue*> traces;
@@ -182,20 +166,20 @@ PreservedAnalyses LowerGcMaps::run(Module& module, ModuleAnalysisManager& mam)
     if(caller.hasGC() || caller.getIntrinsicID() == Intrinsic::experimental_stackmap ||
       caller.getIntrinsicID() == Intrinsic::experimental_patchpoint ||
       caller.getIntrinsicID() == Intrinsic::experimental_gc_statepoint)
-      return PreservedAnalyses::all();
+      return false;
     for(BasicBlock& bb : caller)
       for(Instruction& inst : bb)
       {
         auto* cb = dyn_cast<CallBase>(&inst);
         if(cb != nullptr && cb->getOperandBundle("deopt"))
-          return PreservedAnalyses::all();
+          return false;
         if(auto* call = dyn_cast<CallInst>(&inst))
           if(call->getMetadata("pony.gc.frame") != nullptr)
             sites.push_back(call);
       }
   }
   if(sites.empty())
-    return PreservedAnalyses::all();
+    return false;
   auto& fam = mam.getResult<FunctionAnalysisManagerModuleProxy>(module)
     .getManager();
   for(CallInst* call : sites)
@@ -280,7 +264,7 @@ PreservedAnalyses LowerGcMaps::run(Module& module, ModuleAnalysisManager& mam)
   }
 
   if(changed.empty())
-    return PreservedAnalyses::all();
+    return false;
   appendToCompilerUsed(module, traces);
   for(Function* f : changed)
   {
@@ -293,6 +277,41 @@ PreservedAnalyses LowerGcMaps::run(Module& module, ModuleAnalysisManager& mam)
     cleanup.addPass(SimplifyCFGPass());
     cleanup.run(*f, fam);
   }
-  return PreservedAnalyses::none();
+  return true;
+}
+
+PreservedAnalyses LowerGcMaps::run(Module& module, ModuleAnalysisManager& mam)
+{
+  SmallPtrSet<Function*, 32> collecting;
+  SmallPtrSet<GlobalVariable*, 8> tables;
+  for(GlobalVariable& global : module.globals())
+  {
+    if(!global.hasInitializer() || !global.getMetadata("pony.gc.pairs"))
+      continue;
+    auto* pairs = dyn_cast<ConstantArray>(global.getInitializer());
+    if(pairs == nullptr)
+      continue;
+    for(unsigned i = 1; i < pairs->getNumOperands(); i += 2)
+      if(auto* f = dyn_cast<Function>(pairs->getOperand(i)))
+        collecting.insert(f);
+    if(global.hasLocalLinkage())
+      tables.insert(&global);
+  }
+
+  bool changed = lower_gc_maps(module, mam, collecting);
+  if(!tables.empty())
+  {
+    removeFromUsedLists(module, [&](Constant* value) {
+      return tables.contains(dyn_cast<GlobalVariable>(value));
+    });
+    for(GlobalVariable* table : tables)
+    {
+      table->removeDeadConstantUsers();
+      if(table->use_empty())
+        table->eraseFromParent();
+    }
+    changed = true;
+  }
+  return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
 }
 }
