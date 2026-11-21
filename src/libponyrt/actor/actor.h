@@ -85,18 +85,18 @@ typedef struct pony_actor_t
   messageq_t q;
   // sync flags are access from multiple scheduler threads concurrently
   PONY_ATOMIC(uint8_t) sync_flags;
+  bool gc_native_alias : 1;
+  bool gc_wait_boundary : 1;
+  bool gc_wait_finaliser : 1;
+  bool gc_requested : 1;
+  bool gc_after_local : 1;
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap;
   size_t muted; // 4/8 bytes
   // internal flags are only ever accessed from a single scheduler thread
   uint8_t internal_flags; // 4/8 bytes (after alignment)
-  bool sent_to_overloaded : 1;
-  bool gc_native_alias : 1;
-  bool gc_wait_boundary : 1;
-  bool gc_wait_finaliser : 1;
-  bool gc_requested : 1;
-  bool gc_after_local : 1;
+  bool sent_to_overloaded;
   uint16_t batch_size;
   uint32_t live_asio_events;
 #ifdef USE_RUNTIMESTATS
