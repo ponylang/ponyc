@@ -19,6 +19,8 @@ set(_c_src
     gc/cycle.c
     gc/delta.c
     gc/gc.c
+    gc/frames.c
+    gc/marklocal.c
     gc/objectmap.c
     gc/trace.c
     lang/directory.c

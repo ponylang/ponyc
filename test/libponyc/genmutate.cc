@@ -532,6 +532,23 @@ protected:
     return functions;
   }
 
+  std::set<std::string> selecting_methods(int32_t id)
+  {
+    auto functions = selecting_functions(id);
+    auto methods = functions;
+    for(auto& f : *llvm::unwrap(compile->module))
+    {
+      auto original = f.getFnAttribute("pony-gc-original");
+      if(!original.isValid())
+        continue;
+      auto method = original.getValueAsString().str();
+      auto collecting = f.getName().str();
+      EXPECT_EQ(functions.count(method), functions.count(collecting)) << method;
+      methods.erase(collecting);
+    }
+    return methods;
+  }
+
   std::set<std::string> covering_functions(int32_t counter)
   {
     std::set<std::string> functions;
@@ -6362,7 +6379,7 @@ TEST_F(GenMutateCodegenTest, MonomorphGenericType)
     EXPECT_TRUE(r->shared);
     EXPECT_NE(r->owner, nullptr);
     check_site_wiring(r);
-    auto functions = selecting_functions(r->id);
+    auto functions = selecting_methods(r->id);
     EXPECT_EQ(functions.size(), 4u);
     for(const char* type : {"U8", "U64"})
     {
@@ -6395,7 +6412,7 @@ TEST_F(GenMutateCodegenTest, MonomorphGenericMethod)
   {
     EXPECT_TRUE(r->shared);
     check_site_wiring(r);
-    EXPECT_EQ(selecting_functions(r->id).size(), 4u);
+    EXPECT_EQ(selecting_methods(r->id).size(), 4u);
   }
   verify_module();
 }
@@ -6418,7 +6435,7 @@ TEST_F(GenMutateCodegenTest, MonomorphSingleGenericInstantiation)
   {
     EXPECT_TRUE(r->shared);
     check_site_wiring(r);
-    EXPECT_EQ(selecting_functions(r->id).size(), 2u);
+    EXPECT_EQ(selecting_methods(r->id).size(), 2u);
   }
 }
 
@@ -6448,7 +6465,7 @@ TEST_F(GenMutateCodegenTest, MonomorphDefaultImplementers)
       EXPECT_TRUE(counters.insert(r->coverage_counter).second);
       EXPECT_FALSE(r->shared);
       check_site_wiring(r);
-      auto functions = selecting_functions(r->id);
+      auto functions = selecting_methods(r->id);
       ASSERT_EQ(functions.size(), 2u);
       const char* owner_name = ast_name(ast_child(r->owner));
       EXPECT_STREQ(r->type_name, owner_name);
@@ -6485,7 +6502,7 @@ TEST_F(GenMutateCodegenTest, MonomorphGenericDefaultImplementers)
     owners.insert(r->owner);
     EXPECT_TRUE(r->shared);
     check_site_wiring(r);
-    auto functions = selecting_functions(r->id);
+    auto functions = selecting_methods(r->id);
     ASSERT_EQ(functions.size(), 4u);
     for(auto& fn : functions)
       EXPECT_NE(fn.find(ast_name(ast_child(r->owner))), std::string::npos);
@@ -6517,7 +6534,7 @@ TEST_F(GenMutateCodegenTest, MonomorphCapabilityVariants)
   {
     EXPECT_FALSE(r->shared);
     check_site_wiring(r);
-    EXPECT_EQ(selecting_functions(r->id).size(), 3u);
+    EXPECT_EQ(selecting_methods(r->id).size(), 3u);
   }
   verify_module();
 }
@@ -6548,7 +6565,7 @@ TEST_F(GenMutateCodegenTest, MonomorphReplacementApplicability)
     {
       EXPECT_TRUE(r->shared);
       check_site_wiring(r);
-      auto functions = selecting_functions(r->id);
+      auto functions = selecting_methods(r->id);
       if(strcmp(r->replacement, "neg") == 0)
         EXPECT_EQ(functions.size(), 4u);
       else

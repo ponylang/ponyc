@@ -11,6 +11,9 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
 LLVMValueRef gen_funptr(compile_t* c, ast_t* ast);
 
+LLVMValueRef gencall_gc_dispatch(compile_t* c, reach_type_t* t,
+  reach_method_t* m, bool loop_polls);
+
 LLVMValueRef gen_call(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern,

@@ -1,3 +1,4 @@
+#include "gc_calls.h"
 #include "heap_to_stack.h"
 #include "noalloc_check.h"
 
@@ -78,6 +79,19 @@ public:
     LLVM_VERSION_STRING,
     [](PassBuilder &PB)
     {
+      PB.registerFullLinkTimeOptimizationEarlyEPCallback(
+        [](ModulePassManager &PM, OptimizationLevel Level)
+        {
+          if(Level != OptimizationLevel::O0)
+            PM.addPass(pony::OptimizeGcCalls(true));
+        });
+      PB.registerPipelineEarlySimplificationEPCallback(
+        [](ModulePassManager &PM, OptimizationLevel Level, ThinOrFullLTOPhase phase)
+        {
+          if(Level != OptimizationLevel::O0 && phase == ThinOrFullLTOPhase::ThinLTOPostLink)
+            PM.addPass(pony::OptimizeGcCalls(true));
+        });
+
       PB.registerCGSCCOptimizerLateEPCallback(
         [](CGSCCPassManager &PM, OptimizationLevel Level)
         {
@@ -85,14 +99,27 @@ public:
             PM.addPass(pony::HeapToStack());
         });
 
-      PB.registerOptimizerLastEPCallback(
-        [](ModulePassManager &PM, OptimizationLevel Level,
-           ThinOrFullLTOPhase)
+      PB.registerFullLinkTimeOptimizationLastEPCallback(
+        [](ModulePassManager &PM, OptimizationLevel Level)
         {
           if(Level != OptimizationLevel::O0)
           {
+            PM.addPass(pony::OptimizeGcCalls());
+            PM.addPass(pony::LowerGcMaps());
+          }
+        });
+
+      PB.registerOptimizerLastEPCallback(
+        [](ModulePassManager &PM, OptimizationLevel Level,
+           ThinOrFullLTOPhase phase)
+        {
+          if(Level != OptimizationLevel::O0)
+          {
+            PM.addPass(pony::OptimizeGcCalls());
             PM.addPass(pony::NoAllocCheck());
             PM.addPass(pony::InlineRemainingAllocPass());
+            if(phase == ThinOrFullLTOPhase::ThinLTOPostLink)
+              PM.addPass(pony::LowerGcMaps());
           }
         });
     }

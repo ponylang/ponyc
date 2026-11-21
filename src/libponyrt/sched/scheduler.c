@@ -1,11 +1,13 @@
 #define PONY_WANT_ATOMIC_DEFS
 
 #include "scheduler.h"
+#include "../gc/frames.h"
 #include "systematic_testing.h"
 #include "cpu.h"
 #include "mpmcq.h"
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
+#include "../gc/marklocal.h"
 #include "../asio/asio.h"
 #include "../mem/pagemap.h"
 #include "../mem/pool.h"
@@ -1381,6 +1383,7 @@ static void ponyint_sched_shutdown()
       start++;
   }
 
+  ponyint_gc_maps_destroy();
   ponyint_cycle_terminate(&this_scheduler->ctx);
 
   for(uint32_t i = 0; i < scheduler_count; i++)
@@ -1541,13 +1544,19 @@ bool ponyint_sched_start()
   if(!ponyint_asio_start())
     return false;
 
+  ponyint_gc_maps_init();
+
   uint32_t start = 0;
 
   for(uint32_t i = start; i < scheduler_count; i++)
   {
     if(!ponyint_thread_create(&scheduler[i].tid, run_thread, scheduler[i].cpu,
       &scheduler[i]))
+    {
+      if(i == start)
+        ponyint_gc_maps_destroy();
       return false;
+    }
   }
 
   // custom run loop for pinned actors
@@ -1642,6 +1651,29 @@ void ponyint_unregister_thread()
   this_scheduler = NULL;
 
   ponyint_pool_thread_cleanup();
+}
+
+PONY_API void ponyint_gc_native_store(void* address)
+{
+  if(this_scheduler == NULL)
+    return;
+  pony_actor_t* actor = this_scheduler->ctx.current;
+  if(actor == NULL || actor->gc_native_alias)
+    return;
+
+  pony_actor_t* owner = NULL;
+  if(ponyint_pagemap_get(address, &owner) == NULL || owner != actor)
+    actor->gc_native_alias = true;
+}
+
+PONY_API void ponyint_gc_native_alias(void)
+{
+  if(this_scheduler == NULL)
+    return;
+
+  pony_actor_t* actor = this_scheduler->ctx.current;
+  if(actor != NULL && !actor->gc_native_alias)
+    actor->gc_native_alias = true;
 }
 
 PONY_API pony_ctx_t* pony_ctx()

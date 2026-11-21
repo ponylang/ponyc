@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #endif
 
-#define GC_ACTOR_HEAP_EQUIV 1024
 #define GC_IMMUT_HEAP_EQUIV 1024
 
 DEFINE_STACK(ponyint_gcstack, gcstack_t, void);

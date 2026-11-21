@@ -10,6 +10,7 @@
 #include <platform.h>
 
 #define GC_INC_MORE 256
+#define GC_ACTOR_HEAP_EQUIV 1024
 
 PONY_EXTERN_C_BEGIN
 

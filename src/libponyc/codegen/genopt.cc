@@ -16,6 +16,7 @@
 #include <llvm/Transforms/IPO/Inliner.h>
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar/SROA.h>
+#include <llvm/Transforms/Utils/ModuleUtils.h>
 
 #include <llvm-c/DebugInfo.h>
 
@@ -25,6 +26,19 @@
 #include "ponyassert.h"
 
 using namespace llvm;
+
+bool gengc_scalar_intrinsic(LLVMValueRef func)
+{
+  auto* f = cast<Function>(unwrap(func));
+  if(f->getIntrinsicID() == Intrinsic::not_intrinsic)
+    return false;
+  auto scalar = [](Type* t) { return t->isIntegerTy() || t->isFloatingPointTy(); };
+  FunctionType* ft = f->getFunctionType();
+  if(!scalar(ft->getReturnType()) || !llvm::all_of(ft->params(), scalar))
+    return false;
+  return Intrinsic::getAttributes(f->getContext(), f->getIntrinsicID(), ft)
+    .getMemoryEffects().doesNotAccessMemory();
+}
 
 // Pass to replace pony_ctx calls in a dispatch function by the context passed
 // to the function.
@@ -535,6 +549,34 @@ public:
   }
 };
 
+static void keep_gc_entry_pairs(Module &module)
+{
+  SmallVector<Constant*, 32> entries;
+  for(Function &collecting : module)
+  {
+    Attribute attr = collecting.getFnAttribute("pony-gc-original");
+    if(!attr.isValid() || collecting.isDeclaration())
+      continue;
+    if(Function* ordinary = module.getFunction(attr.getValueAsString()))
+    {
+      entries.push_back(ordinary);
+      entries.push_back(&collecting);
+    }
+    collecting.removeFnAttr("pony-gc-original");
+  }
+  if(entries.empty())
+    return;
+
+  // IPO may change the signatures of internal functions. The table preserves
+  // both original signatures until the link-time GC pass uses them.
+  auto* type = ArrayType::get(entries.front()->getType(), entries.size());
+  auto* pairs = new GlobalVariable(module, type, true,
+    GlobalValue::PrivateLinkage, ConstantArray::get(type, entries),
+    "pony.gc.pairs");
+  pairs->setMetadata("pony.gc.pairs", MDNode::get(module.getContext(), {}));
+  appendToCompilerUsed(module, {pairs});
+}
+
 static bool pony_opt_module(compile_t* c, LLVMModuleRef module,
   LLVMDIBuilderRef di)
 {
@@ -561,6 +603,8 @@ static bool pony_opt_module(compile_t* c, LLVMModuleRef module,
 
     if(c->opt->release)
     {
+      unwrap(module)->addModuleFlag(Module::Max, "pony.midbehavior.gc", 1u);
+      keep_gc_entry_pairs(*unwrap(module));
       FunctionPassManager canon;
       canon.addPass(SROAPass(SROAOptions::ModifyCFG));
       canon.addPass(InstCombinePass());

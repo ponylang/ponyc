@@ -26,7 +26,7 @@ actor _RunSync is _Runner
   be apply() =>
     try
       _bench.before()?
-      _gc_next_behavior()
+      _request_gc()
       _run_iteration()
     else
       _fail()
@@ -69,7 +69,7 @@ actor _RunSync is _Runner
   be _fail() =>
     _ponybench._fail(_name)
 
-  fun ref _gc_next_behavior() =>
+  fun ref _request_gc() =>
     @pony_triggergc(@pony_ctx())
 
 actor _RunAsync is _Runner
@@ -117,12 +117,12 @@ actor _RunAsync is _Runner
     _bench.before_iteration(_before_iteration_cont)
 
   be _before_iteration_done_cont(e: U64) =>
+    _request_gc()
     _run_iteration()
 
   be _run_iteration() =>
     try
       _n = _n + 1
-      _gc_next_behavior()
       _start_time = Time.nanos()
       _bench(_iteration_cont)?
     else
@@ -146,7 +146,7 @@ actor _RunAsync is _Runner
   be _fail() =>
     _ponybench._fail(_name)
 
-  fun ref _gc_next_behavior() =>
+  fun ref _request_gc() =>
     @pony_triggergc(@pony_ctx())
 
 class val AsyncBenchContinue

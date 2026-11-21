@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.25 FATAL_ERROR)
 project(libponylto VERSION ${PONYC_PROJECT_VERSION} LANGUAGES CXX)
 
 add_library(libponylto STATIC
+    gc_calls.cc
+    gc_maps.cc
     heap_to_stack.cc
     noalloc_check.cc
     plugin.cc

@@ -26,12 +26,14 @@ typedef struct chunk_t
       uint32_t slots;
       uint32_t shallow;
       uint32_t finalisers;
+      uint32_t traceable;
     } small;
     struct
     {
       // large chunk
-      // immutable
       size_t size;
+      bool traceable;
+      uint32_t local_index;
     } large;
   };
   struct chunk_t* next;
@@ -312,6 +314,65 @@ static void maybe_clear_chunk(chunk_t* chunk)
   }
 }
 
+PONY_EXTERN_C_BEGIN
+
+PONY_API void ponyint_gc_final_ready(pony_ctx_t* ctx, void* p)
+{
+  pony_actor_t* owner = NULL;
+  chunk_t* chunk = ponyint_pagemap_get(p, &owner);
+  if(chunk == NULL || owner != ctx->current)
+    return;
+
+  if(owner->gc_wait_finaliser)
+    owner->gc_wait_finaliser = false;
+  if(get_chunk_is_small_chunk(chunk))
+  {
+    if(p == EXTERNAL_PTR(p, get_small_chunk_size(chunk)))
+      chunk->small.traceable |= chunk->small.finalisers &
+        FIND_SLOT(p, get_m(chunk));
+  } else if(p == get_m(chunk) && get_large_chunk_finaliser(chunk)) {
+    chunk->large.traceable = true;
+  }
+}
+
+PONY_EXTERN_C_END
+
+static bool visit_small_finalisers(chunk_t* list, heap_final_visit_fn visit,
+  void* arg)
+{
+  for(chunk_t* c = list; c != NULL; c = c->next)
+  {
+    uint32_t remaining = c->small.finalisers;
+    while(remaining != 0)
+    {
+      uint32_t bit = __pony_ctz(remaining);
+      void* p = get_m(c) + (bit << HEAP_MINBITS);
+      if(!visit(arg, p, (c->small.traceable & ((uint32_t)1 << bit)) != 0))
+        return false;
+      remaining &= remaining - 1;
+    }
+  }
+  return true;
+}
+
+bool ponyint_heap_visit_finalisers(heap_t* heap, heap_final_visit_fn visit,
+  void* arg)
+{
+  for(size_t i = 0; i < HEAP_SIZECLASSES; i++)
+  {
+    if(!visit_small_finalisers(heap->small_free[i], visit, arg) ||
+      !visit_small_finalisers(heap->small_full[i], visit, arg))
+      return false;
+  }
+  for(chunk_t* c = heap->large; c != NULL; c = c->next)
+  {
+    if(get_large_chunk_finaliser(c) &&
+      !visit(arg, get_m(c), c->large.traceable))
+      return false;
+  }
+  return true;
+}
+
 static void final_small(chunk_t* chunk, uint32_t force_finalisers_mask)
 {
   pony_assert(get_chunk_is_small_chunk(chunk));
@@ -437,6 +498,7 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full, chunk
 
     maybe_clear_chunk(chunk);
 
+    chunk->small.traceable &= ~chunk->small.slots;
     chunk->small.slots &= chunk->small.shallow;
 
     set_chunk_needs_clearing(chunk);
@@ -528,6 +590,8 @@ static chunk_t* sweep_large(chunk_t* chunk, chunk_t* to_destroy_sized_array[], s
 
     maybe_clear_chunk(chunk);
 
+    chunk->large.traceable = chunk->large.traceable &&
+      !get_large_chunk_slot(chunk);
     set_large_chunk_slot(chunk, get_large_chunk_slot(chunk) & get_large_chunk_shallow(chunk));
 
     set_chunk_needs_clearing(chunk);
@@ -736,6 +800,8 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
 
     // note if a finaliser needs to run or not
     n->small.finalisers = (track_finalisers_mask & 1);
+    n->small.traceable = 0;
+    n->small.shallow = 0;
 
     // Clear the first bit.
     n->small.slots = sizeclass_init[sizeclass];
@@ -860,6 +926,8 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
 
   // note if a finaliser needs to run or not
   set_large_chunk_finaliser(chunk, (track_finalisers_mask & 1));
+  chunk->large.traceable = false;
+  chunk->large.local_index = 0;
 
   chunk->next = heap->large;
   heap->large = chunk;
@@ -922,23 +990,51 @@ void ponyint_heap_used(heap_t* heap, size_t size)
   heap->used += size;
 }
 
-bool ponyint_heap_startgc(heap_t* heap
+void ponyint_heap_startgc(heap_t* heap
 #ifdef USE_RUNTIMESTATS
   , pony_actor_t* actor)
 #else
   )
 #endif
 {
-  if(heap->used <= heap->next_gc)
-    return false;
-
-  // reset used to zero
   heap->used = 0;
 #ifdef USE_RUNTIMESTATS
   actor->actorstats.heap_mem_allocated = 0;
   actor->actorstats.heap_mem_used = 0;
 #endif
-  return true;
+}
+
+uint32_t ponyint_heap_base_slot(chunk_t* chunk, void* p)
+{
+  if(!get_chunk_is_small_chunk(chunk))
+    return p == get_m(chunk) ? 1 : 0;
+  if(p != EXTERNAL_PTR(p, get_small_chunk_size(chunk)))
+    return 0;
+  return FIND_SLOT(p, get_m(chunk));
+}
+
+uint32_t* ponyint_heap_local_index(chunk_t* chunk)
+{
+  if(!get_chunk_is_small_chunk(chunk))
+    return &chunk->large.local_index;
+  // A pending clear discards the shallow marks, so this word can hold an index.
+  return get_chunk_needs_clearing(chunk) ? &chunk->small.shallow : NULL;
+}
+
+void ponyint_heap_mark_slots(chunk_t* chunk, uint32_t slots, bool shallow)
+{
+  maybe_clear_chunk(chunk);
+  if(get_chunk_is_small_chunk(chunk))
+  {
+    if(shallow)
+      chunk->small.shallow &= ~slots;
+    else
+      chunk->small.slots &= ~slots;
+  } else if(shallow) {
+    set_large_chunk_shallow(chunk, 0);
+  } else {
+    set_large_chunk_slot(chunk, 0);
+  }
 }
 
 bool ponyint_heap_mark(chunk_t* chunk, void* p)
@@ -1029,6 +1125,7 @@ void ponyint_heap_free(chunk_t* chunk, void* p)
 
       // clear finaliser
       chunk->small.finalisers &= ~slot;
+      chunk->small.traceable &= ~slot;
     }
 
     // free slot
@@ -1043,6 +1140,11 @@ bool ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
   )
 #endif
 {
+  // A finaliser can request another collection during this sweep.
+  size_t previous_threshold = heap->next_gc;
+  if(previous_threshold == 0)
+    heap->next_gc = heap_initialgc;
+
   size_t used = 0;
 #ifdef USE_RUNTIMESTATS
   size_t mem_allocated = 0;
@@ -1220,6 +1322,9 @@ bool ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
   actor->actorstats.heap_gc_counter++;
 #endif
 
+  if(heap->next_gc == 0)
+    return false;
+
   size_t next_gc = (size_t)((double)heap->used * heap_nextgc_factor);
 
   if(next_gc < heap_initialgc)
@@ -1233,9 +1338,9 @@ bool ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
   bool held = false;
 
   if((num_actor_references_deleted > ACTOR_REFERENCES_DELETED_THRESHOLD)
-    && (next_gc > heap->next_gc))
+    && (next_gc > previous_threshold))
   {
-    next_gc = heap->next_gc;
+    next_gc = previous_threshold;
     held = true;
   }
 

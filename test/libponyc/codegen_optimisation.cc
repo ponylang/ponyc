@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
+#include <vector>
+
 #include <codegen/genopt.h>
 #include <heap_to_stack.h>
 
@@ -22,6 +24,31 @@
 class CodegenOptimisationTest : public PassTest
 {
 protected:
+  void check_loop_polls()
+  {
+    const char* src =
+      "actor Main\n"
+      "  new create(env: Env) => run(42)\n"
+      "  be run(n: U64) =>\n"
+      "    var i: U64 = 0\n"
+      "    while i < n do\n"
+      "      sink(Array[U64])\n"
+      "      i = i + 1\n"
+      "    end\n"
+      "  fun sink(a: Array[U64]) => None";
+    TEST_COMPILE(src);
+    for(auto& fn : *llvm::unwrap(compile->module))
+      if(fn.getName().contains("Main_tag_run"))
+        for(auto& block : fn)
+          if(block.getName().starts_with("while_body"))
+            for(auto& inst : block)
+              if(auto* call = llvm::dyn_cast<llvm::CallBase>(&inst))
+                if(call->getCalledFunction() != nullptr &&
+                  call->getCalledFunction()->getName() == "ponyint_gc_poll")
+                  return;
+    FAIL() << "expected a collection point in Main.run's allocating loop";
+  }
+
   void optimise()
   {
     auto module = llvm::unwrap(compile->module);
@@ -239,4 +266,159 @@ TEST_F(CodegenOptimisationTest, HeapToStackStoreToEscapingNotPromoted)
   size_t after = count_calls_to("pony_alloc_small");
 
   ASSERT_GE(after, before);
+}
+
+TEST_F(CodegenOptimisationTest, NativeCallbackAndStructReferenceStore)
+{
+  const char* src =
+    "type Callback is @{(U32)}\n"
+    "class Payload\n"
+    "struct Slot\n"
+    "  var payload: Payload = Payload\n"
+    "  fun ref replace(p: Payload) => payload = p\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Slot.replace(Payload)\n"
+    "    invoke(@{(i: U32) => None })\n"
+    "  be invoke(cb: Callback) => cb(42)\n";
+
+  TEST_COMPILE(src);
+  bool guarded_store = false;
+  bool guarded_callback = false;
+  auto module = llvm::unwrap(compile->module);
+  for(auto& function : *module)
+  {
+    for(auto& block : function)
+    {
+      for(auto& inst : block)
+      {
+        auto guard = llvm::dyn_cast<llvm::CallBase>(&inst);
+        if(guard == nullptr || guard->getCalledFunction() == nullptr ||
+          guard->getCalledFunction()->getName() != "ponyint_gc_native_alias")
+          continue;
+        auto next = inst.getNextNode();
+        if(function.getName().contains("Slot_ref_replace") &&
+          llvm::isa_and_nonnull<llvm::StoreInst>(next))
+          guarded_store = true;
+        auto callback = llvm::dyn_cast_or_null<llvm::CallBase>(next);
+        if(function.getName().contains("Main_tag_invoke") &&
+          callback != nullptr && callback->isIndirectCall())
+          guarded_callback = true;
+      }
+    }
+  }
+  EXPECT_TRUE(guarded_store);
+  EXPECT_TRUE(guarded_callback);
+}
+
+TEST_F(CodegenOptimisationTest, NullAndUnknownPointerStores)
+{
+  const char* src =
+    "type Bytes is Pointer[U8]\n"
+    "type MaybeSlot is NullablePointer[Slot]\n"
+    "struct Slot\n"
+    "  var p: Bytes = Bytes\n"
+    "  var n: MaybeSlot = MaybeSlot.none()\n"
+    "  fun ref replace(value: Pointer[U8]) => p = value\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Slot.replace(opaque(Pointer[U8]))\n"
+    "  fun opaque(p: Pointer[U8]): Pointer[U8] => p\n";
+  TEST_COMPILE(src);
+  bool saw_constructor = false;
+  bool guarded_store = false;
+  bool guarded_result = false;
+  for(auto& fn : *llvm::unwrap(compile->module))
+  {
+    bool constructor = fn.getName().contains("Slot_iso_create");
+    saw_constructor |= constructor;
+    for(auto& block : fn)
+      for(auto& inst : block)
+      {
+        auto* call = llvm::dyn_cast<llvm::CallBase>(&inst);
+        if(call == nullptr || call->getCalledFunction() == nullptr ||
+          call->getCalledFunction()->getName() != "ponyint_gc_native_alias")
+          continue;
+        EXPECT_FALSE(constructor);
+        if(fn.getName().contains("Slot_ref_replace") &&
+          llvm::isa_and_nonnull<llvm::StoreInst>(inst.getNextNode()))
+          guarded_store = true;
+        auto* prev = llvm::dyn_cast_or_null<llvm::CallBase>(inst.getPrevNode());
+        if(prev != nullptr && prev->getCalledFunction() != nullptr &&
+          prev->getCalledFunction()->getName().contains("Main_ref_opaque"))
+          guarded_result = true;
+      }
+  }
+  EXPECT_TRUE(saw_constructor);
+  EXPECT_TRUE(guarded_store);
+  EXPECT_TRUE(guarded_result);
+}
+
+TEST_F(CodegenOptimisationTest, BorrowedScalarStackAddress)
+{
+  const char* src =
+    "use @memcmp[I32](a: Pointer[U32], b: Pointer[U32], n: USize)\n"
+    "use @escape[None](a: Pointer[U32])\n"
+    "actor Main\n"
+    "  var field: U32 = 0\n"
+    "  new create(env: Env) => run()\n"
+    "  be run() =>\n"
+    "    var local: U32 = 0\n"
+    "    @memcmp(addressof local, addressof local, 4)\n"
+    "    @memcmp(addressof field, addressof local, 4)\n"
+    "    @escape(addressof local)\n";
+  TEST_COMPILE(src);
+  unsigned guards = 0;
+  std::vector<unsigned> comparisons;
+  std::vector<unsigned> escapes;
+  for(auto& fn : *llvm::unwrap(compile->module))
+  {
+    if(!fn.getName().contains("Main_tag_run"))
+      continue;
+    for(auto& block : fn)
+      for(auto& inst : block)
+      {
+        auto* call = llvm::dyn_cast<llvm::CallBase>(&inst);
+        if(call == nullptr || call->getCalledFunction() == nullptr)
+          continue;
+        auto name = call->getCalledFunction()->getName();
+        if(name == "ponyint_gc_native_alias")
+          guards++;
+        if(name == "memcmp")
+        {
+          comparisons.push_back(guards);
+          guards = 0;
+        }
+        if(name == "escape")
+          escapes.push_back(guards);
+      }
+  }
+  EXPECT_EQ((std::vector<unsigned>{0, 1}), comparisons);
+  ASSERT_EQ(1u, escapes.size());
+  EXPECT_GT(escapes[0], 0u);
+}
+
+TEST_F(CodegenOptimisationTest, LocalCollectionReadsAndWritesBeyondItsArguments)
+{
+  TEST_COMPILE("actor Main\n  new create(env: Env) => None");
+  auto* module = llvm::unwrap(compile->module);
+  for(const char* name : {"ponyint_gc_poll", "ponyint_gc_finish"})
+  {
+    auto* function = module->getFunction(name);
+    ASSERT_NE(nullptr, function) << name;
+    auto effects = function->getMemoryEffects();
+    for(auto location : {llvm::IRMemLocation::ArgMem, llvm::IRMemLocation::Other})
+      EXPECT_EQ(llvm::ModRefInfo::ModRef, effects.getModRef(location)) << name;
+  }
+}
+
+TEST_F(CodegenOptimisationTest, AllocatingLoopEmitsPolls)
+{
+  check_loop_polls();
+}
+
+TEST_F(CodegenOptimisationTest, MutationBuildEmitsLoopPolls)
+{
+  opt.mutate = true;
+  check_loop_polls();
 }

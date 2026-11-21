@@ -219,7 +219,7 @@ PONY_API void* pony_alloc_small_final(pony_ctx_t* ctx,
 /// Allocate when we know it's larger than HEAP_MAX.
 PONY_API void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size);
 
-/// Trigger GC next time the current actor is scheduled
+/// Request collection at the current actor's next eligible GC check.
 PONY_API void pony_triggergc(pony_ctx_t* ctx);
 
 /** Start gc tracing for sending.

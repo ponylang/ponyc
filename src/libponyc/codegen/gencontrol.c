@@ -2,6 +2,7 @@
 #include "gencall.h"
 #include "genexpr.h"
 #include "genfun.h"
+#include "gengc.h"
 #include "genmutate.h"
 #include "genname.h"
 #include "genreference.h"
@@ -9,6 +10,21 @@
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
+
+static bool emitted_call(compile_t* c, LLVMBasicBlockRef block,
+  LLVMValueRef previous)
+{
+  if(LLVMGetInsertBlock(c->builder) != block)
+    return true;
+  LLVMValueRef inst = previous == NULL ? LLVMGetFirstInstruction(block) :
+    LLVMGetNextInstruction(previous);
+  for(; inst != NULL; inst = LLVMGetNextInstruction(inst))
+  {
+    if(LLVMIsACallInst(inst) != NULL || LLVMIsAInvokeInst(inst) != NULL)
+      return true;
+  }
+  return false;
+}
 
 LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 {
@@ -20,6 +36,11 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
     if(ast_id(child) == TK_NONE)
       break;
 
+    ast_t* next = ast_sibling(child);
+    bool may_poll = c->frame->function->gc_actor != NULL && next != NULL &&
+      ast_id(next) != TK_NONE && gengc_allocating_expr(child);
+    LLVMBasicBlockRef block = may_poll ? LLVMGetInsertBlock(c->builder) : NULL;
+    LLVMValueRef previous = block == NULL ? NULL : LLVMGetLastInstruction(block);
     value = gen_expr(c, child);
 
     if(value == NULL)
@@ -28,7 +49,9 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
     if(value == GEN_NOVALUE)
       break;
 
-    child = ast_sibling(child);
+    if(may_poll && block != NULL && emitted_call(c, block, previous))
+      gengc_poll(c, next);
+    child = next;
   }
 
   return value;
@@ -268,7 +291,9 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
   // Body.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
+  c->frame->gc_loop_poll = gengc_poll(c, ast);
   LLVMValueRef l_value = gen_expr(c, body);
+  c->frame->gc_loop_poll = false;
 
   if(needed && (ast_type(body) != NULL))
   {
@@ -393,7 +418,9 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   // Body.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
+  c->frame->gc_loop_poll = gengc_poll(c, ast);
   LLVMValueRef value = gen_expr(c, body);
+  c->frame->gc_loop_poll = false;
 
   if(needed && (ast_type(body) != NULL))
   {
