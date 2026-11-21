@@ -16,6 +16,7 @@ actor _TestRunner
   let _group: _Group
   let _test: UnitTest iso
   let _log_verbose: Bool
+  let _env: Env
   let _timers: Timers
   let _helper: TestHelper
   var _test_log: Array[String] iso = recover Array[String] end
@@ -59,8 +60,9 @@ actor _TestRunner
     _test = consume test
     _group = group
     _log_verbose = verbose
+    _env = env
     _timers = timers
-    _helper = TestHelper._create(this, env, verbose)
+    _helper = TestHelper._create(this, _env)
 
   be run() =>
     """
@@ -427,7 +429,9 @@ actor _TestRunner
     | let exec: _PropertyExecution =>
       _dispose_sample_resources()
       _property_phase = _SyncRegressionReplay
-      let reg_helper = PropertyHelper._create(_helper, _prop_sample_id)
+      let reg_helper =
+        PropertyHelper._create(
+          TestHelper._create(this, _env), _prop_sample_id)
       if exec.check_regression(reg_helper) then
         if exec.has_error() then
           _pass = false
@@ -451,7 +455,9 @@ actor _TestRunner
       _prop_sample_id = _prop_sample_id + 1
       _dispose_sample_resources()
 
-      let helper = PropertyHelper._create(_helper, _prop_sample_id)
+      let helper =
+        PropertyHelper._create(
+          TestHelper._create(this, _env), _prop_sample_id)
       exec.run_sample(helper)
 
       if exec.has_error() then
@@ -551,7 +557,9 @@ actor _TestRunner
       _dispose_sample_resources()
       _prop_sample_pass = true
 
-      let helper = PropertyHelper._create(_helper, _prop_sample_id)
+      let helper =
+        PropertyHelper._create(
+          TestHelper._create(this, _env), _prop_sample_id)
       exec.run_sample(helper)
 
       if exec.has_error() then
@@ -660,7 +668,9 @@ actor _TestRunner
     _prop_sample_id = _prop_sample_id + 1
     _prop_sample_pass = true
 
-    let helper = PropertyHelper._create(_helper, _prop_sample_id)
+    let helper =
+      PropertyHelper._create(
+        TestHelper._create(this, _env), _prop_sample_id)
     exec.run_shrink_candidate(helper)
     _sync_shrink_done()
 
@@ -773,7 +783,9 @@ actor _TestRunner
     | let exec: _PropertyExecution =>
       _dispose_sample_resources()
       _property_phase = _AsyncRegressionReplay
-      let helper = PropertyHelper._create(_helper, _prop_sample_id)
+      let helper =
+        PropertyHelper._create(
+          TestHelper._create(this, _env), _prop_sample_id)
       if exec.check_regression(helper) then
         if exec.has_error() then
           fail(exec.error_message())
@@ -796,7 +808,9 @@ actor _TestRunner
       _prop_actions.clear()
       _prop_sample_pass = true
 
-      let sample_helper = PropertyHelper._create(_helper, _prop_sample_id)
+      let sample_helper =
+        PropertyHelper._create(
+          TestHelper._create(this, _env), _prop_sample_id)
       exec.run_sample(sample_helper)
 
       if exec.has_error() then
@@ -976,7 +990,9 @@ actor _TestRunner
     _prop_actions.clear()
     _prop_sample_pass = true
 
-    let helper = PropertyHelper._create(_helper, _prop_sample_id)
+    let helper =
+      PropertyHelper._create(
+        TestHelper._create(this, _env), _prop_sample_id)
     exec.run_shrink_candidate(helper)
 
     _auto_complete_shrink(_prop_sample_id)

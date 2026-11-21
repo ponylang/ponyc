@@ -24,7 +24,6 @@ class val TestHelper
   It is intended to aid identifying what failed.
   """
 
-  let _verbose: Bool
   let _runner: _TestRunner
   let env: Env
     """
@@ -35,12 +34,9 @@ class val TestHelper
     (See [net](net--index.md)) in your tests.
     """
 
-  new val _create(runner: _TestRunner, env': Env, verbose: Bool) =>
+  new val _create(runner: _TestRunner, env': Env) =>
     env = env'
     _runner = runner
-    _verbose = verbose
-
-  fun _is_verbose(): Bool => _verbose
 
   fun log(msg: String, verbose: Bool = false) =>
     """
@@ -72,9 +68,7 @@ class val TestHelper
       fail(_format_loc(loc) + "Assert true failed. " + msg)
       return false
     end
-    if _verbose then
-      log(_format_loc(loc) + "Assert true passed. " + msg, true)
-    end
+    log(_format_loc(loc) + "Assert true passed. " + msg, true)
     true
 
   fun assert_false(actual: Bool, msg: String = "", loc: SourceLoc = __loc)
@@ -87,9 +81,7 @@ class val TestHelper
       fail(_format_loc(loc) + "Assert false failed. " + msg)
       return false
     end
-    if _verbose then
-      log(_format_loc(loc) + "Assert false passed. " + msg, true)
-    end
+    log(_format_loc(loc) + "Assert false passed. " + msg, true)
     true
 
   fun assert_error(test: ITest box, msg: String = "", loc: SourceLoc = __loc)
@@ -103,9 +95,7 @@ class val TestHelper
       fail(_format_loc(loc) + "Assert error failed. " + msg)
       false
     else
-      if _verbose then
-        log(_format_loc(loc) + "Assert error passed. " + msg, true)
-      end
+      log(_format_loc(loc) + "Assert error passed. " + msg, true)
       true
     end
 
@@ -120,9 +110,7 @@ class val TestHelper
     """
     try
       test()?
-      if _verbose then
-        log(_format_loc(loc) + "Assert no error passed. " + msg, true)
-      end
+      log(_format_loc(loc) + "Assert no error passed. " + msg, true)
       true
     else
       fail(_format_loc(loc) + "Assert no error failed. " + msg)
@@ -159,13 +147,11 @@ class val TestHelper
       return false
     end
 
-    if _verbose then
-      log(
-        _format_loc(loc) + "Assert " + check + " passed. " + msg +
-          " Got (" + (digestof expect).string() + ") is (" +
-          (digestof actual).string() + ")",
-        true)
-    end
+    log(
+      _format_loc(loc) + "Assert " + check + " passed. " + msg +
+        " Got (" + (digestof expect).string() + ") is (" +
+        (digestof actual).string() + ")",
+      true)
     true
 
   fun assert_eq[A: (Equatable[A] #read & Stringable #read)]
@@ -189,10 +175,8 @@ class val TestHelper
       return false
     end
 
-    if _verbose then
-      log(_format_loc(loc) + "Assert " + check + " passed. " + msg +
-        " Got (" + expect.string() + ") == (" + actual.string() + ")", true)
-    end
+    log(_format_loc(loc) + "Assert " + check + " passed. " + msg +
+      " Got (" + expect.string() + ") == (" + actual.string() + ")", true)
     true
 
   fun assert_isnt[A](
@@ -225,13 +209,11 @@ class val TestHelper
       return false
     end
 
-    if _verbose then
-      log(
-        _format_loc(loc) + "Assert " + check + " passed. " + msg +
-          " Got (" + (digestof not_expect).string() + ") isnt (" +
-          (digestof actual).string() + ")",
-        true)
-    end
+    log(
+      _format_loc(loc) + "Assert " + check + " passed. " + msg +
+        " Got (" + (digestof not_expect).string() + ") isnt (" +
+        (digestof actual).string() + ")",
+      true)
     true
 
   fun assert_ne[A: (Equatable[A] #read & Stringable #read)]
@@ -256,12 +238,10 @@ class val TestHelper
       return false
     end
 
-    if _verbose then
-      log(
-        _format_loc(loc) + "Assert " + check + " passed. " + msg +
-          " Got (" + not_expect.string() + ") != (" + actual.string() + ")",
-        true)
-    end
+    log(
+      _format_loc(loc) + "Assert " + check + " passed. " + msg +
+        " Got (" + not_expect.string() + ") != (" + actual.string() + ")",
+      true)
     true
 
   fun assert_array_eq[A: (Equatable[A] #read & Stringable #read)](
@@ -311,12 +291,10 @@ class val TestHelper
       return false
     end
 
-    if _verbose then
-      log(
-        _format_loc(loc) + "Assert EQ passed. " + msg + " Got (" +
-          _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
-        true)
-    end
+    log(
+      _format_loc(loc) + "Assert EQ passed. " + msg + " Got (" +
+        _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
+      true)
     true
 
   fun assert_array_eq_unordered[A: (Equatable[A] #read & Stringable #read)](
@@ -374,12 +352,10 @@ class val TestHelper
             "\nExtra: " + _print_array[box->A](extra))
         return false
       end
-      if _verbose then
-        log(
-          _format_loc(loc) + "Assert EQ_UNORDERED passed. " + msg + " Got (" +
-            _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
-          true)
-      end
+      log(
+        _format_loc(loc) + "Assert EQ_UNORDERED passed. " + msg + " Got (" +
+          _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
+        true)
       true
     else
       fail("Assert EQ_UNORDERED failed from an internal error.")

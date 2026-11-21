@@ -3,8 +3,6 @@ actor \nodoc\ Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestAssertionLogging(false))
-    test(_TestAssertionLogging(true))
     test(_TestListPreservesOrder)
     test(_TestShuffleVariesAcrossSeeds)
     test(_TestListShuffleSeedZero)
