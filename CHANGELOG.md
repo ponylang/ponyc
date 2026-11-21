@@ -68,6 +68,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix SkipBits encoding the wrong number of padding bits for counts above 255 ([PR #6643](https://github.com/ponylang/ponyc/pull/6643))
 - Fix the argument buffer leak when ponyc exits during option parsing ([PR #6680](https://github.com/ponylang/ponyc/pull/6680))
 - Preserve inherited `iftype` specializations when composing traits ([PR #6681](https://github.com/ponylang/ponyc/pull/6681))
+- Reduce PonyTest memory use for passing assertions ([PR #6689](https://github.com/ponylang/ponyc/pull/6689))
 
 ### Added
 
