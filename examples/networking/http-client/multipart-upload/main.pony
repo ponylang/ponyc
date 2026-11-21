@@ -60,14 +60,18 @@ actor MultipartUploadClient is HTTPClientConnectionActor
       recover val
         "Hello from Pony!\n".array()
       end
-    let form = MultipartFormData
-      .> field("username", "alice")
-      .> file("document", "hello.txt", "text/plain", file_data)
-    let req = Request.post("/post")
-      .multipart_body(form)
-      .header("Accept", "application/json")
-      .build()
-    _http.send_request(req)
+    try
+      let form = MultipartFormData
+        .> field("username", "alice")
+        .> file("document", "hello.txt", "text/plain", file_data)?
+      let req = Request.post("/post")
+        .multipart_body(form)
+        .header("Accept", "application/json")
+        .build()
+      _http.send_request(req)
+    else
+      _out.print("Failed to build multipart form")
+    end
 
   fun ref on_connection_failure(reason: ConnectionFailureReason) =>
     _out.print("Connection failed")
