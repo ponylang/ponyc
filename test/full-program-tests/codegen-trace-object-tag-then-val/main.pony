@@ -4,8 +4,7 @@ use @gc_local[Pointer[None]](target: Main)
 use @gc_local_snapshot[Pointer[None]](target: Main)
 use @gc_local_snapshot_destroy[None](obj_map: Pointer[None])
 use @objectmap_has_object_rc[Bool](obj_map: Pointer[None], obj: Any tag, rc: USize)
-use @objectmap_has_object_immutable[Bool](obj_map: Pointer[None],
-  obj: Any tag)
+use @objectmap_has_object_immutable[Bool](obj_map: Pointer[None], obj: Any tag)
 use @pony_exitcode[None](code: I32)
 
 class A

@@ -51,17 +51,18 @@ typedef enum
   // The object was already visited in this trace round, at least as deeply
   // as this visit asks for. Nothing to do.
   VISIT_DONE,
-  // The first visit to the object in this trace round. Count the reference.
+  // The first visit to the object in this trace round. Do the once-per-round
+  // reference work.
   VISIT_FIRST,
   // A non-opaque visit after only opaque visits in this trace round. The
-  // reference is already counted; record mutability and trace the fields.
+  // reference work is done; record mutability and trace the fields.
   VISIT_DEEPEN
 } visit_t;
 
 // A trace round is one message send, one message receive, or one GC mark.
 // A round can reach the same object through several aliases, in any order,
-// such as a tag and a val in one message. The object's reference is counted
-// once per round. An opaque (tag) visit does not record mutability or trace
+// such as a tag and a val in one message. The reference work for the object
+// happens once per round, on its first visit. An opaque (tag) visit does not record mutability or trace
 // the fields, so a later non-opaque visit in the same round still has to.
 // Whichever alias comes first, the round counts the object once and does the
 // work the non-opaque visit needs.

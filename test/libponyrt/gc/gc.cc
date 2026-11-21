@@ -41,8 +41,7 @@ void trace_parent(pony_ctx_t* ctx, void* p)
 }
 
 // The deep alias: a val of a type that cannot reference an actor, a val of a
-// type that might (every type the compiler generates says it might), or an
-// iso.
+// type that might, or an iso.
 struct Deep
 {
   const char* name;
@@ -388,6 +387,34 @@ TEST_F(GcAliasOrder, RecvRemote)
 
       end_round();
     }
+  }
+}
+
+// Receiving a val of an object this actor already holds adds no heap
+// pressure, whichever alias comes first: the memory was counted when the
+// object first arrived.
+TEST_F(GcAliasOrder, RecvRemoteAlreadyHeld)
+{
+  const Deep& val = deep_cases[0];
+
+  for(const Sequence& s : all_sequences())
+  {
+    if(!has_deep(s))
+      continue;
+
+    SCOPED_TRACE(describe(val, s));
+    Parent* p = alloc_parent(&b, val);
+    object_t* obj = seed_foreign(p, val, 2, false);
+    foreign_ref()->rc++;
+    size_t used = a.heap.used;
+
+    pony_gc_recv(ctx);
+    trace(p, val, s);
+
+    EXPECT_EQ(3u, obj->rc);
+    EXPECT_TRUE(obj->immutable);
+    EXPECT_EQ(0u, a.heap.used - used);
+    end_round();
   }
 }
 
