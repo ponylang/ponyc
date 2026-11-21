@@ -23,6 +23,7 @@ static object_t* object_alloc(void* address, pony_type_t* type, uint32_t mark)
   obj->rc = 0;
   obj->self_send_pins = 0;
   obj->immutable = false;
+  obj->shallow = false;
   obj->type = type;
 
   // a new object is unmarked
