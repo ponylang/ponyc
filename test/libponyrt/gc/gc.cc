@@ -4,6 +4,7 @@
 #include <gc/gc.h>
 #include <gc/trace.h>
 #include <mem/heap.h>
+#include <mem/pagemap.h>
 #include <sched/scheduler.h>
 
 #include <gtest/gtest.h>
@@ -49,11 +50,11 @@ struct Deep
   bool might_reference_actor;
 };
 
-const Deep deep_cases[] = {
-  {"val", PONY_TRACE_IMMUTABLE, false},
-  {"val-might-reference-actor", PONY_TRACE_IMMUTABLE, true},
-  {"iso", PONY_TRACE_MUTABLE, false},
-};
+const Deep VAL = {"val", PONY_TRACE_IMMUTABLE, false};
+const Deep VAL_MIGHT_REFERENCE_ACTOR =
+  {"val-might-reference-actor", PONY_TRACE_IMMUTABLE, true};
+const Deep ISO = {"iso", PONY_TRACE_MUTABLE, false};
+const Deep deep_cases[] = {VAL, VAL_MIGHT_REFERENCE_ACTOR, ISO};
 
 bool is_val(const Deep& d)
 {
@@ -67,7 +68,10 @@ bool traces_fields(const Deep& d)
   return !is_val(d) || d.might_reference_actor;
 }
 
-using Sequence = std::vector<bool>; // true is a deep visit, false a tag visit
+// A visit through the tag alias or through the deep alias.
+enum Visit { T, D };
+
+using Sequence = std::vector<Visit>;
 
 // Every sequence of 1 to 3 visits.
 std::vector<Sequence> all_sequences()
@@ -79,7 +83,7 @@ std::vector<Sequence> all_sequences()
     {
       Sequence s;
       for(size_t i = 0; i < len; i++)
-        s.push_back(((bits >> i) & 1) != 0);
+        s.push_back(((bits >> i) & 1) ? D : T);
       out.push_back(s);
     }
   }
@@ -88,8 +92,8 @@ std::vector<Sequence> all_sequences()
 
 bool has_deep(const Sequence& s)
 {
-  for(bool deep : s)
-    if(deep)
+  for(Visit v : s)
+    if(v == D)
       return true;
   return false;
 }
@@ -98,9 +102,42 @@ std::string describe(const Deep& d, const Sequence& s)
 {
   std::string out = d.name;
   out += ":";
-  for(bool deep : s)
-    out += deep ? " D" : " T";
+  for(Visit v : s)
+    out += (v == D) ? " D" : " T";
   return out;
+}
+
+struct Seed
+{
+  size_t rc;
+  bool immutable;
+};
+
+const size_t EITHER = (size_t)-1;
+
+// How many times a remote send or mark of a val traces the parent's fields.
+// Tracing continues into the fields until the owner has the immutable acquire.
+// An actor that already holds the object as immutable has nothing to tell the
+// owner. One case is EITHER: an actor that held no reference sends or marks
+// the tag first, then the val. Tag first, it acquires twice and traces the
+// fields; val first, it acquires once as immutable and doesn't. Both are safe.
+size_t remote_val_traced(const Deep& d, const Seed& seed)
+{
+  if(d.might_reference_actor)
+    return 1;
+
+  if(seed.immutable)
+    return 0;
+
+  if(seed.rc > 0)
+    return 1;
+
+  return EITHER;
+}
+
+size_t chunk_size(void* p)
+{
+  return ponyint_heap_size(ponyint_pagemap_get_chunk(p));
 }
 
 class GcAliasOrder : public testing::Test
@@ -168,9 +205,9 @@ protected:
   void trace(Parent* p, const Deep& d, const Sequence& s)
   {
     parent_traced = 0;
-    for(bool deep : s)
+    for(Visit v : s)
       pony_traceknown(ctx, p, type_for(d),
-        deep ? d.mutability : PONY_TRACE_OPAQUE);
+        (v == D) ? d.mutability : PONY_TRACE_OPAQUE);
     ponyint_gc_handlestack(ctx);
   }
 
@@ -324,8 +361,6 @@ TEST_F(GcAliasOrder, RecvLocal)
         EXPECT_EQ(1u, child->rc);
       }
 
-      // Balance the child so later rounds don't see a stale count.
-      child->rc = 0;
       end_round();
     }
   }
@@ -335,7 +370,7 @@ TEST_F(GcAliasOrder, RecvRemote)
 {
   // The first object received from b adds heap pressure for b itself.
   pony_gc_recv(ctx);
-  trace(alloc_parent(&b, deep_cases[0]), deep_cases[0], {false});
+  trace(alloc_parent(&b, VAL), VAL, {T});
   end_round();
 
   for(const Deep& d : deep_cases)
@@ -344,9 +379,14 @@ TEST_F(GcAliasOrder, RecvRemote)
     Parent* reference = alloc_parent(&b, d);
     size_t used = a.heap.used;
     pony_gc_recv(ctx);
-    trace(reference, d, {true});
+    trace(reference, d, {D});
     size_t deep_only_pressure = a.heap.used - used;
     end_round();
+
+    // This actor doesn't trace a val that can't reference an actor, so it
+    // adds pressure beyond the val's own size for what the val reaches.
+    if(!traces_fields(d))
+      EXPECT_GT(deep_only_pressure, chunk_size(reference));
 
     for(const Sequence& s : all_sequences())
     {
@@ -395,36 +435,25 @@ TEST_F(GcAliasOrder, RecvRemote)
 // object first arrived.
 TEST_F(GcAliasOrder, RecvRemoteAlreadyHeld)
 {
-  const Deep& val = deep_cases[0];
-
   for(const Sequence& s : all_sequences())
   {
     if(!has_deep(s))
       continue;
 
-    SCOPED_TRACE(describe(val, s));
-    Parent* p = alloc_parent(&b, val);
-    object_t* obj = seed_foreign(p, val, 2, false);
+    SCOPED_TRACE(describe(VAL, s));
+    Parent* p = alloc_parent(&b, VAL);
+    object_t* obj = seed_foreign(p, VAL, 2, false);
     foreign_ref()->rc++;
     size_t used = a.heap.used;
 
     pony_gc_recv(ctx);
-    trace(p, val, s);
+    trace(p, VAL, s);
 
     EXPECT_EQ(3u, obj->rc);
     EXPECT_TRUE(obj->immutable);
     EXPECT_EQ(0u, a.heap.used - used);
     end_round();
   }
-}
-
-namespace
-{
-struct Seed
-{
-  size_t rc;
-  bool immutable;
-};
 }
 
 TEST_F(GcAliasOrder, SendRemote)
@@ -473,23 +502,17 @@ TEST_F(GcAliasOrder, SendRemote)
             EXPECT_TRUE(acq->immutable);
           }
 
-          // Tracing continues into the fields until the owner has the acquire,
-          // unless this actor already held the object as immutable.
-          size_t expected_traced;
-          if(d.might_reference_actor)
-            expected_traced = 1;
-          else if(seed.immutable)
-            expected_traced = 0;
-          else if(seed.rc > 0)
-            expected_traced = 1;
-          else
-            expected_traced = s[0] ? 0 : 1;
-
-          EXPECT_EQ(expected_traced, parent_traced);
+          size_t expected_traced = remote_val_traced(d, seed);
+          if(expected_traced != EITHER)
+            EXPECT_EQ(expected_traced, parent_traced);
         } else {
           EXPECT_EQ(seed.immutable, obj->immutable);
           EXPECT_EQ(1u, parent_traced);
+        }
 
+        // A traced child goes into the message too, acquired from the owner.
+        if(parent_traced == 1)
+        {
           object_t* child = foreign(p->child);
           ASSERT_NE(nullptr, child);
           EXPECT_EQ(acquired_rc(p->child), child->rc + 1);
@@ -519,10 +542,26 @@ TEST_F(GcAliasOrder, MarkRemote)
       seed_foreign(reference, d, seed.rc, seed.immutable);
       size_t used = a.heap.used;
       ponyint_gc_mark(ctx);
-      trace(reference, d, {true});
+      trace(reference, d, {D});
       size_t deep_only_pressure = a.heap.used - used;
       size_t deep_only_traced = parent_traced;
       end_round();
+
+      // A val this mark doesn't trace adds pressure beyond its own size for
+      // what the val reaches. Mark another of b's objects first, so that the
+      // pressure for b itself isn't counted.
+      if(is_val(d) && (deep_only_traced == 0))
+      {
+        Parent* other = alloc_parent(&b, d);
+        Parent* val = alloc_parent(&b, d);
+        seed_foreign(val, d, seed.rc, seed.immutable);
+        ponyint_gc_mark(ctx);
+        trace(other, d, {T});
+        used = a.heap.used;
+        trace(val, d, {D});
+        EXPECT_GT(a.heap.used - used, chunk_size(val));
+        end_round();
+      }
 
       for(const Sequence& s : all_sequences())
       {
@@ -550,10 +589,6 @@ TEST_F(GcAliasOrder, MarkRemote)
         } else if(is_val(d)) {
           EXPECT_TRUE(obj->immutable);
 
-          // Tracing the fields adds the child's pressure too.
-          if(parent_traced == deep_only_traced)
-            EXPECT_EQ(deep_only_pressure, a.heap.used - used);
-
           if(!seed.immutable)
           {
             object_t* acq = acquired(p);
@@ -561,25 +596,32 @@ TEST_F(GcAliasOrder, MarkRemote)
             EXPECT_TRUE(acq->immutable);
           }
 
-          size_t expected_traced;
-          if(d.might_reference_actor)
-            expected_traced = 1;
-          else if(seed.immutable)
-            expected_traced = 0;
-          else if(seed.rc > 0)
-            expected_traced = 1;
-          else
-            expected_traced = s[0] ? 0 : 1;
-
-          EXPECT_EQ(expected_traced, parent_traced);
+          size_t expected_traced = remote_val_traced(d, seed);
+          if(expected_traced != EITHER)
+            EXPECT_EQ(expected_traced, parent_traced);
         } else {
           EXPECT_EQ(seed.immutable, obj->immutable);
           EXPECT_EQ(1u, parent_traced);
-          EXPECT_EQ(deep_only_pressure, a.heap.used - used);
+        }
 
+        if(has_deep(s))
+        {
+          // Each order adds the same pressure as the deep alias alone, plus
+          // the child's size when it traces the child and the deep alias
+          // alone doesn't.
+          size_t child_pressure = (parent_traced > deep_only_traced) ?
+            chunk_size(p->child) : 0;
+          EXPECT_EQ(deep_only_pressure + child_pressure, a.heap.used - used);
+        }
+
+        // A traced child is marked, and acquired from the owner if this actor
+        // held no references to it.
+        if(parent_traced == 1)
+        {
           object_t* child = foreign(p->child);
           ASSERT_NE(nullptr, child);
           EXPECT_EQ(a.gc.mark, child->mark);
+          EXPECT_EQ(acquired_rc(p->child), child->rc);
         }
 
         end_round();
@@ -588,14 +630,13 @@ TEST_F(GcAliasOrder, MarkRemote)
   }
 }
 
-// The use-after-free behind the bookkeeping: after sending a parent as a tag
-// and then as a val or iso in one message, the sender's GC must keep the child
-// the receiver can reach.
+// After a message carries a parent as a tag and as a val or iso, in either
+// order, the sender's GC keeps the child that the receiver can reach.
 TEST_F(GcAliasOrder, SenderGcKeepsChildOfDeepAlias)
 {
   for(const Deep& d : deep_cases)
   {
-    for(const Sequence& s : {Sequence{false, true}, Sequence{true, false}})
+    for(const Sequence& s : {Sequence{T, D}, Sequence{D, T}})
     {
       SCOPED_TRACE(describe(d, s));
       Parent* p = alloc_parent(&a, d);
@@ -612,25 +653,24 @@ TEST_F(GcAliasOrder, SenderGcKeepsChildOfDeepAlias)
   }
 }
 
-// A round with only tag visits must not change how the next round treats its
-// first visit.
+// A round with only tag visits leaves nothing that changes what the next round
+// does on its first visit.
 TEST_F(GcAliasOrder, TagOnlyRoundDoesNotCarryOver)
 {
-  const Deep& iso = deep_cases[2];
-  Parent* p = alloc_parent(&a, iso);
+  Parent* p = alloc_parent(&a, ISO);
 
   pony_gc_send(ctx, &b);
-  trace(p, iso, {false});
+  trace(p, ISO, {T});
   end_round();
   EXPECT_EQ(0u, parent_traced);
 
   pony_gc_send(ctx, &b);
-  trace(p, iso, {true, true});
+  trace(p, ISO, {D, D});
   end_round();
   EXPECT_EQ(1u, parent_traced);
 
   pony_gc_send(ctx, &b);
-  trace(p, iso, {false, true});
+  trace(p, ISO, {T, D});
   end_round();
   EXPECT_EQ(1u, parent_traced);
 
@@ -642,19 +682,48 @@ TEST_F(GcAliasOrder, TagOnlyRoundDoesNotCarryOver)
 // of it the message holds.
 TEST_F(GcAliasOrder, SelfSendPinsOncePerMessage)
 {
-  const Deep& val = deep_cases[1];
-
   for(const Sequence& s : all_sequences())
   {
-    SCOPED_TRACE(describe(val, s));
-    Parent* p = alloc_parent(&b, val);
+    SCOPED_TRACE(describe(VAL_MIGHT_REFERENCE_ACTOR, s));
+    Parent* p = alloc_parent(&b, VAL_MIGHT_REFERENCE_ACTOR);
 
     pony_gc_send(ctx, &a);
-    trace(p, val, s);
+    trace(p, VAL_MIGHT_REFERENCE_ACTOR, s);
 
     object_t* obj = foreign(p);
     ASSERT_NE(nullptr, obj);
     EXPECT_EQ(1u, obj->self_send_pins);
     end_round();
   }
+}
+
+// An untyped trace records no type for an object. A later typed visit, in the
+// same round or a later one, supplies it, so the GC can trace the object's
+// fields when it marks it as immutable.
+TEST_F(GcAliasOrder, UntypedTraceTakesTypeFromLaterVisit)
+{
+  Parent* same_round = alloc_parent(&a, VAL);
+  pony_gc_send(ctx, &b);
+  pony_trace(ctx, same_round);
+  pony_traceknown(ctx, same_round, &parent_type, PONY_TRACE_IMMUTABLE);
+  ponyint_gc_handlestack(ctx);
+  end_round();
+  EXPECT_EQ(&parent_type, local(same_round)->type);
+
+  Parent* later_round = alloc_parent(&a, VAL);
+  pony_gc_send(ctx, &b);
+  pony_trace(ctx, later_round);
+  end_round();
+  EXPECT_EQ(nullptr, local(later_round)->type);
+
+  pony_gc_send(ctx, &b);
+  pony_traceknown(ctx, later_round, &parent_type, PONY_TRACE_IMMUTABLE);
+  ponyint_gc_handlestack(ctx);
+  end_round();
+  EXPECT_EQ(&parent_type, local(later_round)->type);
+
+  // Nothing in the actor itself refers to either parent.
+  size_t live = a.heap.used;
+  collect_a();
+  EXPECT_EQ(live, a.heap.used);
 }

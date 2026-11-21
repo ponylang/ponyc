@@ -1,0 +1,3 @@
+## Fix use-after-free when an object is held as both tag and val or iso
+
+The garbage collector could free objects that an actor could still reach. It happened when tracing reached the same object through a `tag` and through a `val` or `iso`, and the `tag` came first. Two cases triggered it. The first is a message that carries a `tag` and then a `val` or `iso` of the same object, such as `be take(t: Foo tag, v: Foo val)` called as `take(foo, foo)`. The second is an actor that holds an object from another actor in a `tag` field declared before a `val` field. In both cases, the objects that the `val` or `iso` referenced could be freed while still in use, and the actor then read freed memory. This no longer happens, whichever order the aliases are in.

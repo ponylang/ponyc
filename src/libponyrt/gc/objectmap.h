@@ -24,9 +24,7 @@ typedef struct object_t
   uint16_t self_send_pins;
   bool immutable;
   // True when every visit to this object in the current trace round (the
-  // round whose number is in `mark`) was opaque. A later non-opaque visit in
-  // the same round still has to record mutability and trace the fields,
-  // which the opaque visit skipped.
+  // round whose number is in `mark`) was opaque.
   bool shallow;
   pony_type_t* type;
 } object_t;

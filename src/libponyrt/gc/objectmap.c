@@ -54,7 +54,14 @@ object_t* ponyint_objectmap_getorput(objectmap_t* map, void* address,
   object_t* obj = ponyint_objectmap_getobject(map, address, &index);
 
   if(obj != NULL)
+  {
+    // An untyped trace (pony_trace) records no type. Take the type from the
+    // first visit that has one.
+    if(obj->type == NULL)
+      obj->type = type;
+
     return obj;
+  }
 
   obj = object_alloc(address, type, mark);
   ponyint_objectmap_putindex(map, obj, index);
