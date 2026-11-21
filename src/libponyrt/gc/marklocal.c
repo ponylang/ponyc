@@ -295,7 +295,7 @@ PONY_API bool ponyint_gc_finish(pony_ctx_t* trace_ctx)
   {
     TRACING_ACTOR_GC_SWEEP_START(actor);
     TRACING_ACTOR_GC_HEAP_SWEEP_START(actor);
-    actor->gc_after_local = true;
+    actor->internal_flags |= ACTOR_FLAG_GC_AFTER_LOCAL;
     ponyint_heap_startgc(&actor->heap
 #ifdef USE_RUNTIMESTATS
       , actor

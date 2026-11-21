@@ -17,10 +17,25 @@ foreach(mode debug release)
         COMMAND "${dir}/midbehavior-gc${CMAKE_EXECUTABLE_SUFFIX}"
             --ponymaxthreads=1 --ponynoscale
         COMMAND_ERROR_IS_FATAL ANY)
+    set(trace "${dir}/ponytrace.json")
+    file(REMOVE "${trace}")
     execute_process(
         COMMAND "${dir}/midbehavior-gc${CMAKE_EXECUTABLE_SUFFIX}"
             check-finalizers --ponymaxthreads=1 --ponynoscale
+            --ponytracingcategories=actor_behavior
+        WORKING_DIRECTORY "${dir}"
         COMMAND_ERROR_IS_FATAL ANY)
+    file(STRINGS "${trace}" churn_ends REGEX
+        [["name":"actor_behavior_run".*"ph":"e".*"behavior_name":"Main[.]_churn"]])
+    list(LENGTH churn_ends end_count)
+    if(NOT end_count EQUAL 2)
+        message(FATAL_ERROR "Expected both Main._churn behavior ends")
+    endif()
+    foreach(event IN LISTS churn_ends)
+        if(NOT event MATCHES [=["unscheduled":false[,}]]=])
+            message(FATAL_ERROR "Incorrect unscheduled state in ${event}")
+        endif()
+    endforeach()
     execute_process(
         COMMAND "${dir}/midbehavior-gc${CMAKE_EXECUTABLE_SUFFIX}"
             transfer

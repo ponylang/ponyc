@@ -111,7 +111,7 @@ TEST_F(LocalGc, ReclaimsGarbageAndTracesFrameThroughPromotedObject)
   EXPECT_EQ(EDOM, saved_errno);
   EXPECT_EQ(live, actor.heap.used);
   EXPECT_EQ(0u, actor.gc.mark);
-  EXPECT_TRUE(actor.gc_after_local);
+  EXPECT_TRUE(actor.internal_flags & ACTOR_FLAG_GC_AFTER_LOCAL);
   EXPECT_EQ(dead, node());
 }
 
@@ -143,7 +143,7 @@ TEST_F(LocalGc, ForeignDescendantRefusesBeforeSweep)
   EXPECT_EQ(EDOM, saved_errno);
   EXPECT_EQ(before, actor.heap.used);
   EXPECT_EQ(0u, actor.heap.next_gc);
-  EXPECT_FALSE(actor.gc_after_local);
+  EXPECT_FALSE(actor.internal_flags & ACTOR_FLAG_GC_AFTER_LOCAL);
   parent->child = nullptr;
   ponyint_heap_destroy(&other.heap);
   EXPECT_TRUE(poll(trace_frame, parent));
@@ -186,7 +186,7 @@ TEST_F(LocalGc, MissingNativeFrameRefusesWithoutSweeping)
   ASSERT_NE(nullptr, mark);
   EXPECT_FALSE(ponyint_gc_finish(mark));
   EXPECT_EQ(used, actor.heap.used);
-  EXPECT_FALSE(actor.gc_after_local);
+  EXPECT_FALSE(actor.internal_flags & ACTOR_FLAG_GC_AFTER_LOCAL);
 }
 
 #if defined(PLATFORM_IS_LINUX) && defined(__x86_64__) && !defined(__ILP32__)
@@ -301,7 +301,7 @@ TEST_F(LocalGc, IndexedUnwindRefusesThenCollectsThroughSupportedSite)
     EXPECT_EQ(0u, observed_root);
     EXPECT_EQ(used, actor.heap.used);
     EXPECT_EQ(0u, actor.heap.next_gc);
-    EXPECT_FALSE(actor.gc_after_local);
+    EXPECT_FALSE(actor.internal_flags & ACTOR_FLAG_GC_AFTER_LOCAL);
   }
 
   ASSERT_TRUE(gc_test_caller(&actor, 1));
@@ -388,6 +388,50 @@ size_t finalised;
 void final_node(void*)
 {
   finalised++;
+}
+
+class BlockedLocalGc : public LocalGc
+{
+protected:
+  void run_blocked(bool due_before_blocking)
+  {
+    finalised = 0;
+    node_type.final = [](void* p) {
+      final_node(p);
+      pony_triggergc(pony_ctx());
+    };
+    Node* dead = static_cast<Node*>(ponyint_heap_alloc(&actor, &actor.heap,
+      sizeof(Node), TRACK_ALL_FINALISERS));
+    dead->type = &node_type;
+    dead->child = nullptr;
+    ponyint_gc_final_ready(ctx, dead);
+    actor.heap.next_gc = due_before_blocking ? 0 : actor.heap.used;
+
+    actor.gc.rc = 1;
+    actor.batch_size = PONY_SCHED_BATCH;
+    actor.internal_flags = ACTOR_FLAG_CD_CONTACTED;
+    ponyint_messageq_init(&actor.q);
+    ponyint_actor_run(ctx, &actor);
+    ponyint_messageq_destroy(&actor.q, false);
+
+    EXPECT_EQ(1u, finalised);
+    EXPECT_EQ(1u, actor.gc.mark);
+    EXPECT_EQ(0u, actor.heap.used);
+  }
+};
+
+TEST_F(BlockedLocalGc, EmptyBlockedBoundaryConsumesEarlierFinaliserRequest)
+{
+  run_blocked(true);
+  EXPECT_EQ(0u, actor.heap.next_gc);
+  EXPECT_FALSE(actor.internal_flags & ACTOR_FLAG_GC_REQUESTED);
+}
+
+TEST_F(BlockedLocalGc, RequestFromBlockedSweepSurvivesTheSweep)
+{
+  run_blocked(false);
+  EXPECT_GT(actor.heap.next_gc, 0u);
+  EXPECT_TRUE(actor.internal_flags & ACTOR_FLAG_GC_REQUESTED);
 }
 
 TEST_F(LocalGc, RetainsConstructedFinalisableObjectsAndTheirChildren)

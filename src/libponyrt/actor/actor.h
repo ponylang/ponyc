@@ -34,10 +34,12 @@ enum
   ACTOR_FLAG_BLOCKED = 1 << 0,
   ACTOR_FLAG_BLOCKED_SENT = 1 << 1,
   ACTOR_FLAG_SYSTEM = 1 << 2,
-  ACTOR_FLAG_UNSCHEDULED = 1 << 3,
+  ACTOR_FLAG_GC_REQUESTED = 1 << 3,
   ACTOR_FLAG_CD_CONTACTED = 1 << 4,
   ACTOR_FLAG_RC_OVER_ZERO_SEEN = 1 << 5,
   ACTOR_FLAG_PINNED = 1 << 6,
+  ACTOR_FLAG_GC_AFTER_LOCAL = 1 << 7,
+  ACTOR_FLAG_BOUNDARY_GC = ACTOR_FLAG_GC_REQUESTED | ACTOR_FLAG_GC_AFTER_LOCAL,
 };
 
 enum
@@ -88,8 +90,6 @@ typedef struct pony_actor_t
   bool gc_native_alias : 1;
   bool gc_wait_boundary : 1;
   bool gc_wait_finaliser : 1;
-  bool gc_requested : 1;
-  bool gc_after_local : 1;
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap;

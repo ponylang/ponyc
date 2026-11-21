@@ -261,17 +261,23 @@ static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 static PONY_NOINLINE void collect_at_boundary(pony_ctx_t* ctx,
   pony_actor_t* actor)
 {
-  if(actor->gc_requested)
+  uint8_t pending = actor->internal_flags & ACTOR_FLAG_BOUNDARY_GC;
+  if(pending != 0)
   {
-    actor->heap.next_gc = 0;
-    actor->gc_requested = false;
-    if(actor->heap.used == 0 && !actor->gc_after_local)
-      return;
+    unset_internal_flag(actor, ACTOR_FLAG_BOUNDARY_GC);
+    if((pending & ACTOR_FLAG_GC_REQUESTED) != 0)
+    {
+      actor->heap.next_gc = 0;
+      if(actor->heap.used == 0 && (pending & ACTOR_FLAG_GC_AFTER_LOCAL) == 0)
+        return;
+    }
   }
 
-  actor->gc_after_local = false;
-  actor->gc_wait_boundary = false;
-  actor->gc_wait_finaliser = false;
+  if(actor->gc_wait_boundary || actor->gc_wait_finaliser)
+  {
+    actor->gc_wait_boundary = false;
+    actor->gc_wait_finaliser = false;
+  }
   ponyint_heap_startgc(&actor->heap
 #ifdef USE_RUNTIMESTATS
   , actor
@@ -322,7 +328,7 @@ static PONY_NOINLINE void collect_at_boundary(pony_ctx_t* ctx,
 static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   if(actor->heap.used <= actor->heap.next_gc &&
-    !actor->gc_requested && !actor->gc_after_local)
+    !has_internal_flag(actor, ACTOR_FLAG_BOUNDARY_GC))
     return;
   collect_at_boundary(ctx, actor);
 }
@@ -778,7 +784,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
       // if we have and then we could have use-after-free issues.
       if (actor_noblock || !has_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT))
       {
-        pony_triggergc(ctx);
+        actor->heap.next_gc = 0;
         try_gc(ctx, actor);
       }
 
@@ -1224,7 +1230,7 @@ PONY_API void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
 PONY_API void pony_triggergc(pony_ctx_t* ctx)
 {
   pony_assert(ctx->current != NULL);
-  ctx->current->gc_requested = true;
+  set_internal_flag(ctx->current, ACTOR_FLAG_GC_REQUESTED);
 }
 
 bool ponyint_actor_is_pinned(pony_actor_t* actor)
