@@ -48,26 +48,34 @@ static void recurse(pony_ctx_t* ctx, void* p, void* f)
 
 typedef enum
 {
-  // Either this visit is opaque, or a non-opaque visit to the object already
-  // happened in this trace round. Nothing to do.
+  // A repeat visit in this trace round with nothing left to do: this visit is
+  // opaque, or a non-opaque visit already happened.
   VISIT_DONE,
-  // The first visit to the object in this trace round. Update the object's
-  // reference count and its owner's.
+  // The first visit to the object in this trace round. Count this round's
+  // reference to the object and to its owner.
   VISIT_FIRST,
   // The first non-opaque visit, after one or more opaque visits in this trace
-  // round. The reference counts are already updated; record mutability and
-  // trace the fields.
+  // round. This round's reference is already counted; record mutability,
+  // acquiring from the owner when that changes, and trace the fields.
   VISIT_DEEPEN
 } visit_t;
 
 // A trace round is one message send, one message receive, or one GC mark.
-// A round can reach the same object through several aliases, in any order,
-// such as a tag and a val in one message. The object's reference count and
-// its owner's are updated once per round, on the first visit. An opaque (tag)
-// visit does not record mutability or trace the fields, so the first
-// non-opaque visit in the same round still has to, even when it comes later.
-static visit_t begin_visit(gc_t* gc, object_t* obj, int mutability)
+// Each message in a merged send is its own round. A round can reach the same
+// object through several aliases, in any order, such as a tag and a val in one
+// message. This round's reference to the object and to its owner is counted
+// once, on the first visit. An opaque (tag) visit does not record mutability
+// or trace the fields, so the first non-opaque visit in the round still has
+// to, even when it comes later.
+//
+// An untyped visit (pony_trace) records no type for the object. A non-opaque
+// visit always has the type, and fills it in.
+static visit_t begin_visit(gc_t* gc, object_t* obj, pony_type_t* t,
+  int mutability)
 {
+  if((mutability != PONY_TRACE_OPAQUE) && (obj->type == NULL))
+    obj->type = t;
+
   if(obj->mark != gc->mark)
   {
     obj->mark = gc->mark;
@@ -172,7 +180,7 @@ static void send_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   object_t* obj = ponyint_objectmap_getorput(&gc->local, p, t, gc->mark);
-  visit_t visit = begin_visit(gc, obj, mutability);
+  visit_t visit = begin_visit(gc, obj, t, mutability);
 
   if(visit == VISIT_DONE)
     return;
@@ -202,7 +210,7 @@ static void recv_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   gc_t* gc = ponyint_actor_gc(ctx->current);
   object_t* obj = ponyint_objectmap_getobject(&gc->local, p, &index);
   pony_assert(obj != NULL);
-  visit_t visit = begin_visit(gc, obj, mutability);
+  visit_t visit = begin_visit(gc, obj, t, mutability);
 
   if(visit == VISIT_DONE)
     return;
@@ -260,7 +268,7 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     (mem_allocated_after - mem_allocated_before);
 #endif
 
-  visit_t visit = begin_visit(gc, obj, mutability);
+  visit_t visit = begin_visit(gc, obj, t, mutability);
 
   if(visit == VISIT_DONE)
     return;
@@ -374,7 +382,7 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   if(obj->self_send_pins > 0)
     obj->self_send_pins--;
 
-  visit_t visit = begin_visit(gc, obj, mutability);
+  visit_t visit = begin_visit(gc, obj, t, mutability);
 
   if(visit == VISIT_DONE)
     return;
@@ -430,7 +438,7 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     (mem_allocated_after - mem_allocated_before);
 #endif
 
-  visit_t visit = begin_visit(gc, obj, mutability);
+  visit_t visit = begin_visit(gc, obj, t, mutability);
 
   if(visit == VISIT_DONE)
     return;
@@ -452,11 +460,12 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 
   if((mutability == PONY_TRACE_IMMUTABLE) && !obj->immutable && (obj->rc > 0))
   {
-    // If we received the object as not immutable (it's not marked as immutable
-    // and it has an RC > 0), but we are now marking it as immutable, we need
-    // to acquire it in order to inform the owner it is now immutable. But we
-    // also need to continue tracing, to protect the contents until the owner
-    // has received the acquire messages.
+    // If we hold the object as not immutable (it's not marked as immutable and
+    // it has an RC > 0, from a receive or from an earlier opaque visit in this
+    // mark), but we are now marking it as immutable, we need to acquire it in
+    // order to inform the owner it is now immutable. But we also need to
+    // continue tracing, to protect the contents until the owner has received
+    // the acquire messages.
     obj->rc += GC_INC_MORE;
     obj->immutable = true;
     acquire_object(ctx, actor, p, true);

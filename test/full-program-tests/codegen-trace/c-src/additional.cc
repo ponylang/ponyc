@@ -2,6 +2,7 @@
 #include <platform.h>
 
 #include <actor/actor.h>
+#include <gc/actormap.h>
 #include <gc/objectmap.h>
 #include <mem/pool.h>
 
@@ -78,6 +79,19 @@ EXPORT_SYMBOL bool objectmap_has_object_rc(objectmap_t* map, void* address,
   {
     if(obj->address == address)
       return obj->rc == rc;
+  }
+
+  return false;
+}
+
+EXPORT_SYMBOL bool gc_foreign_has_object(pony_actor_t* actor, void* address)
+{
+  size_t i = HASHMAP_BEGIN;
+  actorref_t* aref;
+  while((aref = ponyint_actormap_next(&actor->gc.foreign, &i)) != NULL)
+  {
+    if(ponyint_actorref_getobject(aref, address) != NULL)
+      return true;
   }
 
   return false;
