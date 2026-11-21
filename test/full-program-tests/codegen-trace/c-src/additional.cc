@@ -83,4 +83,18 @@ EXPORT_SYMBOL bool objectmap_has_object_rc(objectmap_t* map, void* address,
   return false;
 }
 
+EXPORT_SYMBOL bool objectmap_has_object_immutable(objectmap_t* map,
+  void* address)
+{
+  size_t i = HASHMAP_BEGIN;
+  object_t* obj;
+  while((obj = ponyint_objectmap_next(map, &i)) != NULL)
+  {
+    if(obj->address == address)
+      return obj->immutable;
+  }
+
+  return false;
+}
+
 }

@@ -63,7 +63,8 @@ typedef enum
 // such as a tag and a val in one message. The object's reference is counted
 // once per round. An opaque (tag) visit does not record mutability or trace
 // the fields, so a later non-opaque visit in the same round still has to.
-// The bookkeeping must come out the same whichever alias is traced first.
+// Whichever alias comes first, the round counts the object once and does the
+// work the non-opaque visit needs.
 static visit_t begin_visit(gc_t* gc, object_t* obj, int mutability)
 {
   if(obj->mark != gc->mark)
