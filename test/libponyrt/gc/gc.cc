@@ -14,17 +14,17 @@
 
 // One GC epoch (a message send, a message receive, or a GC mark) can reach
 // the same object through several aliases in any order, such as a tag and a
-// val in one message. These tests trace every order of a tag alias (T) and a
-// deep alias (D) and check the bookkeeping each order leaves.
+// val in one message. These tests trace visits through a tag alias (T) and a
+// deep alias (D) in different orders and check the bookkeeping each leaves.
 
 namespace
 {
 // A child larger than its parent, so the two are in different size classes
-// and their heap pressure can't be mistaken for each other.
+// and add different amounts of heap pressure.
 struct Child
 {
   pony_type_t* type;
-  size_t pad[5];
+  size_t pad[8];
 };
 
 struct Parent
@@ -710,9 +710,9 @@ TEST_F(GcAliasOrder, SenderGcKeepsChildOfDeepAlias)
   }
 }
 
-// After an epoch with only tag visits, a later epoch still counts its
-// reference on its first visit and traces the fields on its first non-opaque
-// visit.
+// After an epoch with only tag visits to an object, a later epoch still counts
+// the object's reference on its first visit to the object, and traces the
+// object's fields on its first non-opaque visit.
 TEST_F(GcAliasOrder, TagOnlyEpochDoesNotCarryOver)
 {
   Parent* p = alloc_parent(&a, ISO);
@@ -756,8 +756,8 @@ TEST_F(GcAliasOrder, SelfSendPinsOncePerMessage)
 }
 
 // An untyped trace records no type for an object. A later typed visit, in the
-// same epoch or a later one, supplies it, so the GC can trace the object's
-// fields when it marks it as immutable.
+// same epoch or a later one, supplies it. The GC needs the type to trace the
+// object's fields once the object is marked immutable.
 TEST_F(GcAliasOrder, UntypedTraceTakesTypeFromLaterVisit)
 {
   Parent* same_epoch = alloc_parent(&a, VAL);

@@ -84,6 +84,11 @@ EXPORT_SYMBOL bool objectmap_has_object_rc(objectmap_t* map, void* address,
   return false;
 }
 
+EXPORT_SYMBOL size_t gc_heap_next_gc(pony_actor_t* actor)
+{
+  return actor->heap.next_gc;
+}
+
 EXPORT_SYMBOL bool gc_foreign_has_object(pony_actor_t* actor, void* address)
 {
   size_t i = HASHMAP_BEGIN;

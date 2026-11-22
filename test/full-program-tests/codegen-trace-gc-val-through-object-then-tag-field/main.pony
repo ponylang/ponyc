@@ -1,6 +1,7 @@
 use "lib:codegen-trace-additional"
 
 use @gc_foreign_has_object[Bool](target: Main, obj: Any tag)
+use @gc_heap_next_gc[USize](target: Main)
 use @pony_ctx[Pointer[None]]()
 use @pony_triggergc[None](ctx: Pointer[None])
 use @pony_exitcode[None](code: I32)
@@ -9,8 +10,8 @@ class A
 
 class B
   let a: A = A
-  // A field that can hold an actor makes B a type that might reference one,
-  // so the GC traces B's fields when B is a val.
+  // The GC traces a val's fields only when its type might reference an
+  // actor. This field makes B such a type.
   let actor_field: (Main | None) = None
 
 class C
@@ -41,6 +42,8 @@ actor Main
     check()
 
   be check() =>
+    // pony_triggergc set the threshold to 0; a GC resets it.
+    let gc_ran = @gc_heap_next_gc(this) != 0
     // Main still holds a reference to the A inside the C's B after its GC.
     let ok =
       match _c
@@ -48,4 +51,4 @@ actor Main
       else
         false
       end
-    @pony_exitcode(I32(if ok then 1 else 0 end))
+    @pony_exitcode(I32(if gc_ran and ok then 1 else 0 end))

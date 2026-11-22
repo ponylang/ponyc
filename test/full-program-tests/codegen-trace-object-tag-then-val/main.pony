@@ -11,8 +11,8 @@ class A
 
 class B
   let a: A = A
-  // A field that can hold an actor makes B a type that might reference one,
-  // so the GC traces B's fields when B is a val.
+  // The GC traces a val's fields only when its type might reference an
+  // actor. This field makes B such a type.
   let actor_field: (Main | None) = None
 
 actor Main

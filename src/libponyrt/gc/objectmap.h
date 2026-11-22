@@ -23,8 +23,7 @@ typedef struct object_t
   // counting is unchanged).
   uint16_t self_send_pins;
   bool immutable;
-  // True when every visit to this object in the GC epoch in `mark` was
-  // opaque.
+  // True when every visit to this object in the GC epoch in `mark` was opaque.
   bool shallow;
   pony_type_t* type;
 } object_t;
