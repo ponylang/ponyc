@@ -40,14 +40,10 @@ typedef struct pagemap_level_t
   size_t size_index;
 } pagemap_level_t;
 
-/* The pagemap is a prefix tree that maps heap memory to its corresponding
- * bookkeeping data structure. It is constructed for a 48 bit address space
- * where we are interested in memory with POOL_ALIGN_BITS granularity.
- *
- * At the first level, we shift 35 and mask on the low 13 bits, giving us bits
- * 35-47. At the second level, we shift 23 and mask on the low 12 bits, giving
- * us bits 23-34. At the third level, we shift 11 and mask on the low 12 bits,
- * giving us bits 11-22. Bits 0-10 and 48-63 are always ignored.
+/* The radix tree maps each POOL_ALIGN-byte region to its chunk and actor.
+ * Below PAGEMAP_ADDRESSBITS, bits L2_SHIFT and above select a leaf.
+ * Published leaves must stay allocated because ponyint_pagemap_get can cache
+ * each thread's last leaf pointer.
  */
 static const pagemap_level_t level[PAGEMAP_LEVELS] =
 {
@@ -88,38 +84,34 @@ size_t ponyint_pagemap_alloc_size()
 }
 #endif
 
-chunk_t* ponyint_pagemap_get_chunk(const void* addr)
+static PONY_ATOMIC_RVALUE(void*)* find_leaf(const void* addr)
 {
-  PONY_ATOMIC(void*)* next_node = &root;
-  void* node = atomic_load_explicit(next_node, memory_order_acquire);
-  uintptr_t ix = 0;
-
-  for(size_t i = 0; i < PAGEMAP_LEVELS; i++)
+  void* node = atomic_load_explicit(&root, memory_order_acquire);
+  for(size_t i = 0; i < PAGEMAP_LEVELS - 1; i++)
   {
     if(node == NULL)
       return NULL;
 
-    ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
-    if (i == PAGEMAP_LEVELS - 1)
-    {
-      // at the lowest level we have to double the index since we store
-      // two pointers (`chunk_t*` and `pony_actor_t*`) instead of one
-      ix = ix * 2;
-      next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
-      pony_assert(ix <= (uintptr_t)level[i].size);
-      pony_assert(ix/2 <= (uintptr_t)level[i].mask);
-    }
-    else
-    {
-      next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
-      node = atomic_load_explicit(next_node, memory_order_acquire);
-      pony_assert(ix <= (uintptr_t)level[i].size);
-      pony_assert(ix <= (uintptr_t)level[i].mask);
-    }
+    size_t ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
+    node = atomic_load_explicit(&((PONY_ATOMIC_RVALUE(void*)*)node)[ix],
+      memory_order_acquire);
   }
+  return (PONY_ATOMIC_RVALUE(void*)*)node;
+}
 
-  chunk_t* chunk = (chunk_t*)atomic_load_explicit(next_node, memory_order_acquire);
-  return chunk;
+static size_t leaf_index(const void* addr)
+{
+  return 2 * (((uintptr_t)addr >> L1_SHIFT) & level[PAGEMAP_LEVELS - 1].mask);
+}
+
+chunk_t* ponyint_pagemap_get_chunk(const void* addr)
+{
+  PONY_ATOMIC_RVALUE(void*)* leaf = find_leaf(addr);
+  if(leaf == NULL)
+    return NULL;
+
+  return (chunk_t*)atomic_load_explicit(&leaf[leaf_index(addr)],
+    memory_order_acquire);
 }
 
 /* This function looks up the chunk_t* to returns it and also looks
@@ -137,42 +129,38 @@ chunk_t* ponyint_pagemap_get_chunk(const void* addr)
  */
 chunk_t* ponyint_pagemap_get(const void* addr, pony_actor_t** actor)
 {
-  PONY_ATOMIC(void*)* next_node = &root;
-  void* node = atomic_load_explicit(next_node, memory_order_acquire);
-  uintptr_t ix = 0;
-
-  for(size_t i = 0; i < PAGEMAP_LEVELS; i++)
+#ifdef PLATFORM_IS_MACOSX
+  // Each thread-local access on macOS goes through a function call. With the
+  // cache, that made lookups slower on several workloads, so macOS walks the
+  // tree every time.
+  PONY_ATOMIC_RVALUE(void*)* leaf = find_leaf(addr);
+  if(leaf == NULL)
+    return NULL;
+#else
+  static __pony_thread_local struct
   {
-    if(node == NULL)
+    uintptr_t prefix;
+    PONY_ATOMIC_RVALUE(void*)* leaf;
+  } cached;
+  uintptr_t prefix = (uintptr_t)addr >> L2_SHIFT;
+  PONY_ATOMIC_RVALUE(void*)* leaf = cached.leaf;
+
+  if((leaf == NULL) || (prefix != cached.prefix))
+  {
+    leaf = find_leaf(addr);
+    if(leaf == NULL)
       return NULL;
 
-    ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
-    if (i == PAGEMAP_LEVELS - 1)
-    {
-      // at the lowest level we have to double the index since we store
-      // two pointers (`chunk_t*` and `pony_actor_t*`) instead of one
-      ix = ix * 2;
-      next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
-      pony_assert(ix <= (uintptr_t)level[i].size);
-      pony_assert(ix/2 <= (uintptr_t)level[i].mask);
-    }
-    else
-    {
-      next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
-      node = atomic_load_explicit(next_node, memory_order_acquire);
-      pony_assert(ix <= (uintptr_t)level[i].size);
-      pony_assert(ix <= (uintptr_t)level[i].mask);
-    }
+    cached.leaf = leaf;
+    cached.prefix = prefix;
   }
+#endif
 
-  chunk_t* chunk = (chunk_t*)atomic_load_explicit(next_node, memory_order_acquire);
-  ix++;
-  pony_assert(ix <= (uintptr_t)level[PAGEMAP_LEVELS - 1].size);
-  pony_assert(ix/2 <= (uintptr_t)level[PAGEMAP_LEVELS - 1].mask);
-  next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
-  void* pagemap_actor = atomic_load_explicit(next_node, memory_order_acquire);
-  *actor = (pony_actor_t*)pagemap_actor;
-
+  size_t ix = leaf_index(addr);
+  chunk_t* chunk = (chunk_t*)atomic_load_explicit(&leaf[ix],
+    memory_order_acquire);
+  *actor = (pony_actor_t*)atomic_load_explicit(&leaf[ix + 1],
+    memory_order_acquire);
   return chunk;
 }
 
