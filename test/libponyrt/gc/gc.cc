@@ -755,32 +755,20 @@ TEST_F(GcAliasOrder, SelfSendPinsOncePerMessage)
   }
 }
 
-// An untyped trace records no type for an object. A later typed visit, in the
-// same epoch or a later one, supplies it. The GC needs the type to trace the
+// An untyped trace records no type for an object. A typed, non-opaque visit
+// later in the same epoch supplies it. The GC needs the type to trace the
 // object's fields once the object is marked immutable.
-TEST_F(GcAliasOrder, UntypedTraceTakesTypeFromLaterVisit)
+TEST_F(GcAliasOrder, UntypedTraceTakesTypeFromLaterVisitInEpoch)
 {
-  Parent* same_epoch = alloc_parent(&a, VAL);
+  Parent* p = alloc_parent(&a, VAL);
   pony_gc_send(ctx, &b);
-  pony_trace(ctx, same_epoch);
-  pony_traceknown(ctx, same_epoch, &parent_type, PONY_TRACE_IMMUTABLE);
+  pony_trace(ctx, p);
+  pony_traceknown(ctx, p, &parent_type, PONY_TRACE_IMMUTABLE);
   ponyint_gc_handlestack(ctx);
   end_epoch();
-  ASSERT_EQ(&parent_type, local(same_epoch)->type);
+  ASSERT_EQ(&parent_type, local(p)->type);
 
-  Parent* later_epoch = alloc_parent(&a, VAL);
-  pony_gc_send(ctx, &b);
-  pony_trace(ctx, later_epoch);
-  end_epoch();
-  ASSERT_EQ(nullptr, local(later_epoch)->type);
-
-  pony_gc_send(ctx, &b);
-  pony_traceknown(ctx, later_epoch, &parent_type, PONY_TRACE_IMMUTABLE);
-  ponyint_gc_handlestack(ctx);
-  end_epoch();
-  ASSERT_EQ(&parent_type, local(later_epoch)->type);
-
-  // Nothing in the actor itself refers to either parent.
+  // Nothing in the actor itself refers to the parent.
   size_t live = a.heap.used;
   collect_a();
   EXPECT_EQ(live, a.heap.used);

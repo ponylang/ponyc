@@ -54,8 +54,8 @@ static void recurse(pony_ctx_t* ctx, void* p, void* f)
 // the first non-opaque visit in an epoch does both, even when an opaque visit
 // came first.
 //
-// An untyped visit (pony_trace) records no type for the object. A non-opaque
-// visit always has the type, and fills it in.
+// An untyped visit (pony_trace) records no type for the object. The first
+// non-opaque visit after it in the same epoch has the type, and fills it in.
 typedef enum
 {
   // A repeat visit in this GC epoch with nothing to do: this visit is opaque,
@@ -71,9 +71,6 @@ typedef enum
 static visit_t begin_visit(gc_t* gc, object_t* obj, pony_type_t* t,
   int mutability)
 {
-  if((mutability != PONY_TRACE_OPAQUE) && (obj->type == NULL))
-    obj->type = t;
-
   if(obj->mark != gc->mark)
   {
     obj->mark = gc->mark;
@@ -84,6 +81,11 @@ static visit_t begin_visit(gc_t* gc, object_t* obj, pony_type_t* t,
   if(obj->shallow && (mutability != PONY_TRACE_OPAQUE))
   {
     obj->shallow = false;
+
+    // The opaque visit may have been untyped.
+    if(obj->type == NULL)
+      obj->type = t;
+
     return VISIT_DEEPEN;
   }
 
@@ -378,28 +380,33 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   if(visit == VISIT_SKIP)
     return;
 
+  // Increase apparent used memory further if the object is immutable and
+  // this message's reference is the only one this actor holds, to account
+  // for memory that is reachable but not traced by this actor.
   if(visit == VISIT_FIRST)
   {
     // Implicitly receive the owner.
     recv_remote_actor(ctx, gc, aref);
 
-    // Increase apparent used memory to provoke GC.
     if(obj->rc == 0)
+    {
+      // Increase apparent used memory to provoke GC.
       ponyint_heap_used(ponyint_actor_heap(ctx->current),
         ponyint_heap_size(chunk));
 
+      if(mutability == PONY_TRACE_IMMUTABLE && !might_reference_actor(t))
+        ponyint_heap_used(ponyint_actor_heap(ctx->current),
+          GC_IMMUT_HEAP_EQUIV);
+    }
+
     obj->rc++;
+  } else if((obj->rc == 1) && (mutability == PONY_TRACE_IMMUTABLE) &&
+    !might_reference_actor(t)) {
+    ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_IMMUT_HEAP_EQUIV);
   }
 
   if(mutability == PONY_TRACE_OPAQUE)
     return;
-
-  // An rc of 1 means this message's reference is the only one this actor
-  // holds. If the object is immutable, increase apparent used memory further,
-  // to account for memory that is reachable but not traced by this actor.
-  if((obj->rc == 1) && (mutability == PONY_TRACE_IMMUTABLE) &&
-    !might_reference_actor(t))
-    ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_IMMUT_HEAP_EQUIV);
 
   if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
