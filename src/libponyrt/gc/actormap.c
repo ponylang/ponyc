@@ -21,14 +21,12 @@ static bool actorref_cmp(actorref_t* a, actorref_t* b)
   return a->actor == b->actor;
 }
 
-static actorref_t* actorref_alloc(pony_actor_t* actor, uint32_t mark)
+static actorref_t* actorref_alloc(pony_actor_t* actor)
 {
   actorref_t* aref = (actorref_t*)POOL_ALLOC(actorref_t);
   memset(aref, 0, sizeof(actorref_t));
   aref->actor = actor;
 
-  // a new actorref is unmarked
-  aref->mark = mark - 1;
   return aref;
 }
 
@@ -39,9 +37,9 @@ object_t* ponyint_actorref_getobject(actorref_t* aref, void* address)
 }
 
 object_t* ponyint_actorref_getorput(actorref_t* aref, void* address,
-  pony_type_t* type, uint32_t mark)
+  pony_type_t* type)
 {
-  return ponyint_objectmap_getorput(&aref->map, address, type, mark);
+  return ponyint_objectmap_getorput(&aref->map, address, type);
 }
 
 void ponyint_actorref_free(actorref_t* aref)
@@ -67,7 +65,7 @@ static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
 
   while((obj = ponyint_objectmap_next(&from->map, &i)) != NULL)
   {
-    if(obj->mark == mark)
+    if(ponyint_object_marked(obj, mark))
       continue;
 
     // Pinned: still referenced by an in-flight self-sent message in this
@@ -88,7 +86,7 @@ static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
     if(to == NULL)
     {
       // Guarantee we don't resize during insertion.
-      to = actorref_alloc(from->actor, mark);
+      to = actorref_alloc(from->actor);
       ponyint_objectmap_init(&to->map, size);
     }
 
@@ -125,8 +123,7 @@ actorref_t* ponyint_actormap_getactor(actormap_t* map, pony_actor_t* actor, size
   return ponyint_actormap_get(map, &key, index);
 }
 
-actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
-  uint32_t mark)
+actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor)
 {
   size_t index = HASHMAP_UNKNOWN;
   actorref_t* aref = ponyint_actormap_getactor(map, actor, &index);
@@ -134,7 +131,7 @@ actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
   if(aref != NULL)
     return aref;
 
-  aref = actorref_alloc(actor, mark);
+  aref = actorref_alloc(actor);
   ponyint_actormap_putindex(map, aref, index);
   return aref;
 }

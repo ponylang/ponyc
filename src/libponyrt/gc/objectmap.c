@@ -16,7 +16,7 @@ static bool object_cmp(object_t* a, object_t* b)
   return a->address == b->address;
 }
 
-static object_t* object_alloc(void* address, pony_type_t* type, uint32_t mark)
+static object_t* object_alloc(void* address, pony_type_t* type)
 {
   object_t* obj = (object_t*)POOL_ALLOC(object_t);
   obj->address = address;
@@ -26,7 +26,7 @@ static object_t* object_alloc(void* address, pony_type_t* type, uint32_t mark)
   obj->type = type;
 
   // a new object is unmarked
-  obj->mark = mark - 1;
+  obj->mark = 0;
   return obj;
 }
 
@@ -47,15 +47,19 @@ object_t* ponyint_objectmap_getobject(objectmap_t* map, void* address, size_t* i
 }
 
 object_t* ponyint_objectmap_getorput(objectmap_t* map, void* address,
-  pony_type_t* type, uint32_t mark)
+  pony_type_t* type)
 {
   size_t index = HASHMAP_UNKNOWN;
   object_t* obj = ponyint_objectmap_getobject(map, address, &index);
 
   if(obj != NULL)
+  {
+    if(obj->type == NULL)
+      obj->type = type;
     return obj;
+  }
 
-  obj = object_alloc(address, type, mark);
+  obj = object_alloc(address, type);
   ponyint_objectmap_putindex(map, obj, index);
   return obj;
 }
