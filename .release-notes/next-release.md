@@ -610,3 +610,7 @@ Unit and property tests that make many passing assertions in one behavior now us
 
 When an actor sends a message, receives one, or collects its own garbage, the runtime looks up which actor owns each object it traces. Except on macOS, each thread now remembers the last region of memory it looked up, so lookups for objects in the same region skip most of that work. In most of our Linux benchmarks that pass arrays of objects back and forth between actors, programs ran 2–6% faster.
 
+## Fix garbage collection when a tag aliases a val or iso reference
+
+A Pony program could crash because the garbage collector freed data an actor could still reach. This could happen when the actor held a `tag` reference to an object and could also read that object's fields through another reference. The two references could be in the actor's own fields or in a message it sent or received, such as a message carrying both a `tag` and a `val` or `iso`. The runtime now keeps the data alive while the actor can still reach it.
+
