@@ -69,6 +69,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix the argument buffer leak when ponyc exits during option parsing ([PR #6680](https://github.com/ponylang/ponyc/pull/6680))
 - Preserve inherited `iftype` specializations when composing traits ([PR #6681](https://github.com/ponylang/ponyc/pull/6681))
 - Reduce PonyTest memory use for passing assertions ([PR #6689](https://github.com/ponylang/ponyc/pull/6689))
+- Speed up sending objects between actors ([PR #6697](https://github.com/ponylang/ponyc/pull/6697))
 
 ### Added
 
