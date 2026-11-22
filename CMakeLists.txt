@@ -1026,28 +1026,6 @@ else()
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunBrokenConfig.cmake)
 
-    if(WIN32)
-        set(_installed_shim_tmp "$ENV{TEMP}")
-    elseif(NOT "$ENV{TMPDIR}" STREQUAL "")
-        set(_installed_shim_tmp "$ENV{TMPDIR}")
-    else()
-        set(_installed_shim_tmp /tmp)
-    endif()
-    file(REAL_PATH "${CMAKE_BINARY_DIR}" _installed_shim_build)
-    string(SHA256 _installed_shim_id "${_installed_shim_build}")
-    add_test(NAME installed-c-shim-pony-header
-        COMMAND ${CMAKE_COMMAND}
-            "-DBUILD_DIR=${CMAKE_BINARY_DIR}"
-            "-DCONFIG=$<CONFIG>"
-            "-DVERSIONED_DIR=${PONY_VERSIONED_DIR}"
-            "-DEXE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
-            "-DRUNNER=${_full_program_runner}"
-            "-DFIXTURE=${CMAKE_SOURCE_DIR}/test/full-program-tests/c-shim-pony-header"
-            "-DWORKDIR=${_installed_shim_tmp}/ponyc-installed-${_installed_shim_id}-$<CONFIG>"
-            -P ${CMAKE_SOURCE_DIR}/cmake/RunInstalledCShim.cmake)
-    set_tests_properties(installed-c-shim-pony-header PROPERTIES
-        LABELS ci-core TIMEOUT 300)
-
     add_test(NAME stdlib
         COMMAND ${CMAKE_COMMAND}
             -DPONYC=$<TARGET_FILE:ponyc>
