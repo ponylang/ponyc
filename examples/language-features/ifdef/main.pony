@@ -17,6 +17,9 @@ actor Main
     elseif linux then
       // Again we know which FFI declaration to use here.
       @printf("Hello Linux\n".cstring())
+    elseif haiku then
+      // Again we know which FFI declaration to use here.
+      @printf("Hello Haiku\n".cstring())
     else
       // And again we know which FFI declaration to use here.
       @printf("Hello everyone else\n".cstring())
