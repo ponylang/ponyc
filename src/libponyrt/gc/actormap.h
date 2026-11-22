@@ -20,7 +20,7 @@ typedef struct actorref_t
 object_t* ponyint_actorref_getobject(actorref_t* aref, void* address);
 
 object_t* ponyint_actorref_getorput(actorref_t* aref, void* address,
-  pony_type_t* type, uint32_t mark);
+  pony_type_t* type);
 
 void ponyint_actorref_free(actorref_t* aref);
 
@@ -28,8 +28,7 @@ DECLARE_HASHMAP(ponyint_actormap, actormap_t, actorref_t);
 
 actorref_t* ponyint_actormap_getactor(actormap_t* map, pony_actor_t* actor, size_t* index);
 
-actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
-  uint32_t mark);
+actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor);
 
 deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
 #ifdef USE_RUNTIMESTATS

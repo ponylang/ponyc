@@ -15,7 +15,7 @@ PONY_EXTERN_C_BEGIN
 
 typedef struct gc_t
 {
-  uint32_t mark;
+  uint32_t mark; // First object mark reserved for the current epoch.
   uint32_t rc_mark;
   size_t rc;
   // objectmap size is hashmap mem + (entry mem * num entries)

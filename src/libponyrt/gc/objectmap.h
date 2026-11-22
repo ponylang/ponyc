@@ -10,28 +10,30 @@ typedef struct object_t
 {
   void* address;
   size_t rc;
-  uint32_t mark;
-  // Number of in-flight self-sent messages that reference this object. While
-  // non-zero the object is sitting in the owning actor's own queue (it was sent
-  // to itself) but is not reachable from its fields; the local sweep must not
-  // release it to its owner, or the owner could collect it before the actor
-  // receives it back. Incremented by the send-trace on a self-send, decremented
-  // by the recv-trace, and checked by the sweep (move_unmarked_objects). Sized
-  // and placed to fit in existing padding so object_t does not grow; a count
-  // this wide cannot realistically overflow, and if it did the only cost would
-  // be lost acquire amortisation, never incorrect collection (the reference
-  // counting is unchanged).
+  uint32_t mark; // A nonzero mark holds the epoch plus the visit offset.
+  // Approximate number of queued self-sends that reference this object.
+  // Losing a pin can cause another acquire. The message itself keeps the
+  // object alive. The 16-bit count fits in padding on LP64.
   uint16_t self_send_pins;
   bool immutable;
   pony_type_t* type;
 } object_t;
 
+// An epoch reserves consecutive marks for the different ways an object has
+// been visited. Older marks are smaller, including zero for an unvisited
+// object. All marks are cleared before epoch numbers are reused.
+static inline bool ponyint_object_marked(const object_t* obj, uint32_t epoch)
+{
+  return obj->mark >= epoch;
+}
+
 DECLARE_HASHMAP(ponyint_objectmap, objectmap_t, object_t);
 
 object_t* ponyint_objectmap_getobject(objectmap_t* map, void* address, size_t* index);
 
+// A typed visit supplies the descriptor if the first visit was untyped.
 object_t* ponyint_objectmap_getorput(objectmap_t* map, void* address,
-  pony_type_t* type, uint32_t mark);
+  pony_type_t* type);
 
 void ponyint_objectmap_sweep(objectmap_t* map);
 
