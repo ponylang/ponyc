@@ -323,7 +323,10 @@ actor \nodoc\ Main is TestList
     test(_TestDTLSCloseAfterDispose)
     test(_TestDTLSPeerCloseNotifyDetected)
     test(_TestDTLSWriteBlockedInClosed)
-    test(_TestDTLSBidirectionalCloseRoundtrip)
+    // OpenSSL 4.1.0 introduced a bug in bidirectional DTLS shutdown.
+    ifdef not "openssl_4.0.x" then
+      test(_TestDTLSBidirectionalCloseRoundtrip)
+    end
     test(_TestDTLSWriteBlockedInClosing)
     test.property(_TestALPNProtocolListRoundTrip)
     test(_TestMatchNameEmptyName)
