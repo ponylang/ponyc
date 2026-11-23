@@ -618,3 +618,7 @@ A Pony program could crash because the garbage collector freed data an actor cou
 
 On 32-bit x86, ordinary Pony methods preserve the bit pattern of signaling NaNs when returning an `F32` or `F64`. Calls through the C ABI, including bare methods and bare lambdas, can still set the quiet bit.
 
+## Fix narrow integer C FFI calls on RISC-V
+
+On RISC-V, C FFI calls now preserve narrow integer arguments and results according to the C calling convention. The previous behavior could corrupt values such as a TCP listener's port number, causing a client to connect to the wrong port.
+
