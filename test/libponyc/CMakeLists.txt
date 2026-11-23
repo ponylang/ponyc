@@ -137,6 +137,15 @@ else()
         target_link_options(libponyc.tests PRIVATE "-static-libgcc")
     endif()
 
+    # libstdc++ before 9.1 keeps std::filesystem in a separate library.
+    include(CheckCXXSourceCompiles)
+    set(PONY_FILESYSTEM_PROBE
+        "#include <filesystem>\nint main() { return std::filesystem::exists(\".\") ? 0 : 1; }")
+    check_cxx_source_compiles("${PONY_FILESYSTEM_PROBE}" PONY_FILESYSTEM_LINKS)
+    if (NOT PONY_FILESYSTEM_LINKS)
+        target_link_libraries(libponyc.tests PRIVATE stdc++fs)
+    endif()
+
 endif (MSVC)
 
 if(NOT PONY_CROSS_LIBPONYRT)

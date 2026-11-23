@@ -1,11 +1,11 @@
 # Building ponyc from source
 
-First of all, you need a compiler with decent C11 support. We officially support Clang on Unix and clang-cl on Windows; the following are known to work:
+First of all, you need a compiler with decent C11 support. We officially support Clang on Unix and clang-cl on Windows. The build needs at least these versions:
 
-- Clang >= 3.4
-- XCode Clang >= 6.0
+- Clang >= 5.0, with libstdc++ >= 8 or libc++ >= 9
+- XCode Clang >= 11.0
 - clang-cl >= 12.0
-- GCC >= 4.7
+- GCC >= 8
 
 You also need [CMake](https://cmake.org/download/) version 3.25 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM. On Unix systems, you need the zlib development headers and library installed (e.g. `zlib-dev`, `zlib1g-dev`, or `zlib-devel` depending on your distribution). You also need an SSL development library — either OpenSSL or LibreSSL — because the standard library's `net` package requires it. CMake detects the installed library and version automatically at configure time. If it can't find your SSL installation (for example, a keg-only Homebrew formula on macOS, or a non-standard install path), point CMake at it with `-DOPENSSL_ROOT_DIR=/path/to/ssl` at the configure step.
 
