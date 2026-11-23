@@ -163,6 +163,20 @@ jobs:
           cmake --preset x86-64-debug
           cmake --build --preset x86-64-debug
           cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-mutate-tests
+      - name: Check RISC-V by-value FFI call attributes
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          out=$(mktemp -d "$PWD/build/riscv-ffi.XXXXXX")
+          # Keep host runtime bitcode out of the RISC-V IR.
+          cp build/debug/ponyc "$out/ponyc"
+          "$out/ponyc" -d --pass=ir --path=packages --output="$out" \
+            --triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 \
+            --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c \
+            test/full-program-tests/ffi-struct-by-value
+          ir="$out/ffi-struct-by-value.main.ll"
+          grep -E 'call zeroext i8 @__pony_thunk_color_max\(' "$ir"
+          grep -E 'call void @__pony_thunk_color_make\(ptr [^,]+(, i8 zeroext [^,)]+){3}\)' "$ir"
+          grep -E 'call void @__pony_thunk_rect_move\(ptr [^,]+, ptr [^,]+(, i32 signext [^,)]+){2}\)' "$ir"
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: sh .ci-scripts/cross-libponyrt.sh debug clang clang++ rv64gc "--target=riscv64-linux-gnu --sysroot=/usr/riscv64-linux-gnu --gcc-toolchain=/usr -march=rv64gc -mtune=rocket" riscv64-linux-gnu
