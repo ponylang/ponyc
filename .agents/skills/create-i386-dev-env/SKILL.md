@@ -108,9 +108,6 @@ closed and the failure shows up, it is a regression, not the known failure.
 - **`buffered` segfaults in the per-package stdlib run** (#6440). It fails in all four
   runtime and codegen combinations, so `.ci-scripts/i386-stdlib-perpkg.sh` reports one
   package failed and exits nonzero.
-- **The `byte_order` signaling-NaN round-trip test fails intermittently** (#6439). It has
-  been seen under debug codegen. The bug itself also reaches release builds where the
-  calls aren't inlined.
 
 ## Step 0: verify prerequisites (do NOT assume they're installed)
 

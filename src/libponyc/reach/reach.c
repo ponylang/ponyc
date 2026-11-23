@@ -635,6 +635,7 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
 
   mangled = POOL_ALLOC(reach_method_t);
   memset(mangled, 0, sizeof(reach_method_t));
+  mangled->c_callback_index = UINT32_MAX;
 
   mangled->name = m->name;
   mangled->mangled_name = m->mangled_name;
@@ -813,6 +814,7 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   m->name = name;
   m->cap = cap;
   m->vtable_index = (uint32_t)-1;
+  m->c_callback_index = UINT32_MAX;
   m->internal = internal;
   m->intrinsic = internal;
 
@@ -1715,7 +1717,7 @@ static void reachable_pattern(reach_t* r, reach_method_t* m,
 }
 
 static reach_type_t* reachable_fun(reach_t* r, deferred_reification_t* reify,
-  ast_t* ast, pass_opt_t* opt)
+  ast_t* ast, pass_opt_t* opt, bool address_taken)
 {
   AST_GET_CHILDREN(ast, receiver, method);
   ast_t* typeargs = NULL;
@@ -1742,6 +1744,17 @@ static reach_type_t* reachable_fun(reach_t* r, deferred_reification_t* reify,
   // type will be reified in reachable_method
   reach_type_t* t = reachable_method(r, reify, type, method_name, typeargs, opt);
 
+  if(address_taken && t->is_trait && target_is_x86(opt->triple) &&
+    target_is_ilp32(opt->triple) && !r->limit_exceeded)
+  {
+    ast_t* receiver_type = deferred_reify(reify, type, opt);
+    reach_method_t* m = reach_method(t, cap_dispatch(receiver_type), method_name,
+      typeargs, opt);
+    if((m != NULL) && (m->cap != TK_AT) && is_float(m->result->ast))
+      m->needs_c_callback = true;
+    ast_free_unattached(receiver_type);
+  }
+
   ast_free_unattached(typeargs);
   return t;
 }
@@ -1755,7 +1768,7 @@ static void reachable_addressof(reach_t* r, deferred_reification_t* reify,
   {
     case TK_FUNREF:
     case TK_BEREF:
-      reachable_fun(r, reify, expr, opt);
+      reachable_fun(r, reify, expr, opt, true);
       break;
 
     default: {}
@@ -1792,7 +1805,7 @@ static void reachable_call(reach_t* r, reach_method_t* m,
 {
   deferred_reification_t* reify = m->fun;
   AST_GET_CHILDREN(ast, postfix, positional, named, question);
-  reach_type_t* literal = reachable_fun(r, reify, postfix, opt);
+  reach_type_t* literal = reachable_fun(r, reify, postfix, opt, false);
 
   if(!opt->mutate || m->intrinsic || r->limit_exceeded ||
     !ast_checkflag(ast, AST_FLAG_OBJECT_LITERAL) ||

@@ -61,6 +61,8 @@ struct reach_method_t
   reach_type_t* result;
 
   compile_opaque_t* c_method;
+  uint32_t c_callback_index;
+  bool needs_c_callback;
 };
 
 struct reach_method_name_t

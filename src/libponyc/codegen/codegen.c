@@ -53,6 +53,30 @@ static void compile_local_free(compile_local_t* p)
 DEFINE_HASHMAP(compile_locals, compile_locals_t, compile_local_t,
   compile_local_hash, compile_local_cmp, compile_local_free);
 
+struct callback_entry_t
+{
+  LLVMValueRef method;
+  LLVMValueRef wrapper;
+};
+
+static size_t callback_hash(callback_entry_t* entry)
+{
+  return ponyint_hash_ptr(entry->method);
+}
+
+static bool callback_cmp(callback_entry_t* a, callback_entry_t* b)
+{
+  return a->method == b->method;
+}
+
+static void callback_free(callback_entry_t* entry)
+{
+  POOL_FREE(callback_entry_t, entry);
+}
+
+DEFINE_HASHMAP(callback_map, callback_map_t, callback_entry_t, callback_hash,
+  callback_cmp, callback_free);
+
 static void fatal_error(const char* reason)
 {
   printf("LLVM fatal error: %s\n", reason);
@@ -720,6 +744,7 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->filename = module_filename(module);
 
   // LLVM context and machine settings.
+  c->x86_32 = target_is_x86(opt->triple) && target_is_ilp32(opt->triple);
   if(target_is_ilp32(opt->triple))
     c->callconv = LLVMCCallConv;
   else
@@ -1296,6 +1321,8 @@ void codegen_cleanup(compile_t* c)
   reach_free(c->reach);
   mutate_cleanup(&c->mutate);
   shadow_map_destroy(&c->shadow_map);
+  if(c->x86_32)
+    callback_map_destroy(&c->c_callbacks);
 }
 
 void codegen_switch_module(compile_t* c, size_t index)
@@ -1565,6 +1592,29 @@ void codegen_stamp_target_attrs(compile_t* c)
   }
 }
 
+static LLVMAttributeRef x86_32_float_return_attr(compile_t* c, LLVMTypeRef type)
+{
+  if(!c->x86_32)
+    return NULL;
+
+  LLVMTypeRef result = LLVMGetReturnType(type);
+
+  // A partial method wraps the float with an i1 error flag.
+  if((LLVMGetTypeKind(result) == LLVMStructTypeKind) &&
+    LLVMIsLiteralStruct(result) && (LLVMCountStructElementTypes(result) == 2) &&
+    (LLVMStructGetTypeAtIndex(result, 1) == c->i1))
+  {
+    result = LLVMStructGetTypeAtIndex(result, 0);
+  }
+
+  if((result != c->f32) && (result != c->f64))
+    return NULL;
+
+  // Loading a signaling NaN into x87 quiets it. Return it in an SSE register.
+  LLVM_DECLARE_ATTRIBUTEREF(inreg, inreg, 0);
+  return inreg;
+}
+
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
   bool pony_abi)
 {
@@ -1576,11 +1626,74 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
 
   if(pony_abi)
   {
+    LLVMAttributeRef ret = x86_32_float_return_attr(c, type);
+    if(ret != NULL)
+      LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, ret);
+
     LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
     LLVMSetMetadataStr(fun, "pony.abi", md);
   }
 
   return fun;
+}
+
+void codegen_use_c_abi(compile_t* c, LLVMValueRef fun)
+{
+  LLVMSetFunctionCallConv(fun, LLVMCCallConv);
+  if(c->x86_32)
+  {
+    unsigned inreg = LLVMGetEnumAttributeKindForName("inreg", 5);
+    LLVMRemoveEnumAttributeAtIndex(fun, LLVMAttributeReturnIndex, inreg);
+  }
+}
+
+LLVMValueRef codegen_c_callback(compile_t* c, LLVMValueRef fun)
+{
+  if(!c->x86_32)
+    return codegen_resolve_function(c, fun);
+
+  unsigned inreg = LLVMGetEnumAttributeKindForName("inreg", 5);
+  LLVMAttributeRef ret = LLVMGetEnumAttributeAtIndex(fun,
+    LLVMAttributeReturnIndex, inreg);
+  if(ret == NULL)
+    return codegen_resolve_function(c, fun);
+
+  callback_entry_t key = { .method = fun };
+  size_t index = HASHMAP_UNKNOWN;
+  callback_entry_t* callback = callback_map_get(&c->c_callbacks, &key, &index);
+  if(callback != NULL)
+    return codegen_resolve_function(c, callback->wrapper);
+
+  LLVMModuleRef module = LLVMGetGlobalParent(fun);
+  const char* name = genname_program_fn(LLVMGetValueName(fun), ".c_callback",
+    c->opt->strtab);
+  LLVMTypeRef type = LLVMGlobalGetValueType(fun);
+  LLVMValueRef wrapper = LLVMAddFunction(module, name, type);
+  LLVMSetVisibility(wrapper, LLVMHiddenVisibility);
+  LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
+  LLVMSetMetadataStr(wrapper, "pony.abi", md);
+
+  // Keep the active Pony function's insertion point and frame intact.
+  LLVMBuilderRef builder = LLVMCreateBuilderInContext(c->context);
+  LLVMBasicBlockRef entry = LLVMAppendBasicBlockInContext(c->context, wrapper,
+    "entry");
+  LLVMPositionBuilderAtEnd(builder, entry);
+  unsigned count = LLVMCountParams(wrapper);
+  size_t size = count * sizeof(LLVMValueRef);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(size);
+  LLVMGetParams(wrapper, args);
+  LLVMValueRef result = LLVMBuildCall2(builder, type, fun, args, count, "");
+  LLVMAddCallSiteAttribute(result, LLVMAttributeReturnIndex, ret);
+  LLVMBuildRet(builder, result);
+  ponyint_pool_free_size(size, args);
+  LLVMDisposeBuilder(builder);
+
+  callback = POOL_ALLOC(callback_entry_t);
+  callback->method = fun;
+  callback->wrapper = wrapper;
+  callback_map_putindex(&c->c_callbacks, callback, index);
+
+  return codegen_resolve_function(c, wrapper);
 }
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
@@ -1869,13 +1982,18 @@ LLVMBasicBlockRef codegen_block(compile_t* c, const char* name)
 }
 
 LLVMValueRef codegen_call(compile_t* c, LLVMTypeRef fun_type, LLVMValueRef fun,
-  LLVMValueRef* args, size_t count, bool setcc)
+  LLVMValueRef* args, size_t count, bool pony_abi)
 {
   LLVMValueRef result = LLVMBuildCall2(c->builder, fun_type, fun, args,
     (int)count, "");
 
-  if(setcc)
+  if(pony_abi)
+  {
     LLVMSetInstructionCallConv(result, c->callconv);
+    LLVMAttributeRef ret = x86_32_float_return_attr(c, fun_type);
+    if(ret != NULL)
+      LLVMAddCallSiteAttribute(result, LLVMAttributeReturnIndex, ret);
+  }
 
   return result;
 }

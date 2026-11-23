@@ -363,7 +363,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
 
   if(n->cap == TK_AT)
   {
-    LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
+    codegen_use_c_abi(c, c_m->func);
     LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
     LLVMSetUnnamedAddr(c_m->func, false);
 
