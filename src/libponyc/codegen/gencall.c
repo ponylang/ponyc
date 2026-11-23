@@ -792,7 +792,23 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   const char* name = ast_name(method);
   token_id cap = cap_dispatch(type);
   reach_method_t* m = reach_method(t, cap, name, typeargs, c->opt);
-  LLVMValueRef funptr = dispatch_function(c, t, m, value, name);
+  LLVMValueRef funptr;
+
+  if(c->x86_32 && t->is_trait && (t->bare_method != m) &&
+    (m->c_callback_index != UINT32_MAX))
+  {
+    LLVMValueRef desc = gentagged_fetch_desc_or_heap(c, value, t, "dispatch");
+    funptr = gendesc_vtable(c, desc, m->c_callback_index);
+  }
+  else if(c->x86_32 && !t->is_trait && (t->bare_method != m))
+  {
+    compile_method_t* c_m = (compile_method_t*)m->c_method;
+    funptr = codegen_c_callback(c, c_m->func);
+  }
+  else
+  {
+    funptr = dispatch_function(c, t, m, value, name);
+  }
 
   ast_free_unattached(type);
 

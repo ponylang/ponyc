@@ -103,6 +103,9 @@ DECLARE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t);
 typedef struct shadow_entry_t shadow_entry_t;
 DECLARE_HASHMAP(shadow_map, shadow_map_t, shadow_entry_t);
 
+typedef struct callback_entry_t callback_entry_t;
+DECLARE_HASHMAP(callback_map, callback_map_t, callback_entry_t);
+
 typedef struct per_module_state_t
 {
   LLVMModuleRef module;
@@ -264,6 +267,8 @@ typedef struct compile_t
   LLVMValueRef mutate_enabled;
   LLVMValueRef coverage_counters;
   shadow_map_t shadow_map;
+  bool x86_32;
+  callback_map_t c_callbacks;
 } compile_t;
 
 bool codegen_merge_runtime_bitcode(compile_t* c);
@@ -309,6 +314,10 @@ LLVMValueRef codegen_resolve_global(compile_t* c, LLVMValueRef global);
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
   bool pony_abi);
 
+void codegen_use_c_abi(compile_t* c, LLVMValueRef fun);
+
+LLVMValueRef codegen_c_callback(compile_t* c, LLVMValueRef fun);
+
 void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
   LLVMMetadataRef scope, deferred_reification_t* reify, bool bare);
 
@@ -352,7 +361,7 @@ LLVMValueRef codegen_fun(compile_t* c);
 LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
 
 LLVMValueRef codegen_call(compile_t* c, LLVMTypeRef fun_type, LLVMValueRef fun,
-  LLVMValueRef* args, size_t count, bool setcc);
+  LLVMValueRef* args, size_t count, bool pony_abi);
 
 LLVMValueRef codegen_string(compile_t* c, const char* str, size_t len);
 

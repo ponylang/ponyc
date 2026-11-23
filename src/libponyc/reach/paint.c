@@ -80,6 +80,8 @@ typedef struct name_record_t
   uint32_t colour;        // Colour assigned to name
   size_t typemap_size;    // Size of our type bitmap in uint64_ts
   uint64_t* type_map;     // Bitmap of types using this name
+  uint32_t callback_colour;
+  bool needs_c_callback;
 } name_record_t;
 
 
@@ -188,6 +190,8 @@ static name_record_t* add_name(painter_t* painter, const char* name)
   name_record_t* n = POOL_ALLOC(name_record_t);
   n->name = name;
   n->colour = UNASSIGNED_COLOUR;
+  n->callback_colour = UNASSIGNED_COLOUR;
+  n->needs_c_callback = false;
   n->typemap_size = painter->typemap_size;
   n->type_map = (uint64_t*)ponyint_pool_alloc_size(map_byte_count);
   memset(n->type_map, 0, map_byte_count);
@@ -220,7 +224,7 @@ static colour_record_t* add_colour(painter_t* painter)
 // Find the name record with the specified name
 static name_record_t* find_name(painter_t* painter, const char* name)
 {
-  name_record_t n = { name, 0, 0, NULL };
+  name_record_t n = { .name = name };
   size_t index = HASHMAP_UNKNOWN;
   return name_records_get(&painter->names, &n, &index);
 }
@@ -295,6 +299,7 @@ static void find_names_types_use(painter_t* painter, reach_types_t* types)
 
         // Mark this name as using the current type
         name_rec->type_map[typemap_index] |= typemap_mask;
+        name_rec->needs_c_callback |= m->needs_c_callback;
       }
     }
 
@@ -310,6 +315,17 @@ static void find_names_types_use(painter_t* painter, reach_types_t* types)
 }
 
 
+static colour_record_t* choose_colour(painter_t* painter, name_record_t* name)
+{
+  for(colour_record_t* c = painter->colours; c != NULL; c = c->next)
+  {
+    if(is_name_compatible(c, name))
+      return c;
+  }
+
+  return add_colour(painter);
+}
+
 // Step 3
 static void assign_colours_to_names(painter_t* painter)
 {
@@ -317,27 +333,18 @@ static void assign_colours_to_names(painter_t* painter)
   name_record_t* name;
 
   while((name = name_records_next(&painter->names, &i)) != NULL)
+    assign_name_to_colour(choose_colour(painter, name), name);
+
+  // A dynamic C callback needs a slot in every possible receiver's vtable.
+  i = HASHMAP_BEGIN;
+  while((name = name_records_next(&painter->names, &i)) != NULL)
   {
-    // We have a name, try to match it with an existing colour
-    colour_record_t* colour = NULL;
-
-    for(colour_record_t* c = painter->colours; c != NULL; c = c->next)
+    if(name->needs_c_callback)
     {
-      if(is_name_compatible(c, name))
-      {
-        // Name is compatible with colour
-        colour = c;
-        break;
-      }
+      name_record_t callback = *name;
+      assign_name_to_colour(choose_colour(painter, &callback), &callback);
+      name->callback_colour = callback.colour;
     }
-
-    if(colour == NULL)
-    {
-      // Name is not compatible with any existing colour, assign a new one
-      colour = add_colour(painter);
-    }
-
-    assign_name_to_colour(colour, name);
   }
 }
 
@@ -376,9 +383,16 @@ static void distribute_info(painter_t* painter, reach_types_t* types)
 
         uint32_t colour = name_rec->colour;
         m->vtable_index = colour;
+        m->c_callback_index = name_rec->callback_colour;
 
         if(colour > max_colour)
           max_colour = colour;
+
+        if((m->c_callback_index != UNASSIGNED_COLOUR) &&
+          (m->c_callback_index > max_colour))
+        {
+          max_colour = m->c_callback_index;
+        }
       }
     }
 

@@ -334,6 +334,14 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
       else
         vtable[index] = make_desc_ptr(c,
           codegen_resolve_function(c, c_m->func));
+
+      if(m->c_callback_index != UINT32_MAX)
+      {
+        pony_assert(vtable[m->c_callback_index] == NULL);
+        LLVMValueRef entry = ((c_t->primitive != NULL) && !m->internal) ?
+          vtable[index] : c_m->func;
+        vtable[m->c_callback_index] = codegen_c_callback(c, entry);
+      }
     }
   }
 

@@ -2616,9 +2616,8 @@ static void gen_export_wrapper(compile_t* c, reach_type_t* t,
   }
 
   LLVMValueRef resolved_fn = codegen_resolve_function(c, c_m->func);
-  LLVMValueRef result = LLVMBuildCall2(c->builder, func_type, resolved_fn,
-    args, inner_param_count, "");
-  LLVMSetInstructionCallConv(result, c->callconv);
+  LLVMValueRef result = codegen_call(c, func_type, resolved_fn, args,
+    inner_param_count, !c->x86_32 || (m->cap != TK_AT));
 
   if(LLVMGetTypeKind(ret_type) == LLVMVoidTypeKind)
     LLVMBuildRetVoid(c->builder);
