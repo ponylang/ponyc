@@ -369,13 +369,6 @@ miss, and `needs:` is intra-workflow only. Now, for each platform shared by two 
 more suites (ubuntu glibc, macOS, Windows), a `maybe-build-<plat>` job runs
 `pr_libs_cache.py --ensure` once, and the consumer jobs `needs:` it and pull.
 
-Consumer gating is `!cancelled() && needs.changes.outputs.<suite> == 'true' && needs.maybe-build-<plat>.result != 'failure'`.
-The `!cancelled()` lets a consumer
-run when its maybe-build was *skipped*, which is the fork path — the consumer then
-pulls or builds without `--branch-cache`. The `result != 'failure'` skips the
-consumer when the shared build genuinely failed, so an LLVM build failure is
-reported once rather than three times.
-
 ### Fork safety
 
 `--branch-cache` is gated to non-fork in the workflow expression itself. A

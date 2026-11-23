@@ -142,7 +142,8 @@ jobs:
     if: >-
       !cancelled() &&
       needs.changes.outputs.ponyc == 'true' &&
-      needs.maybe-build-ubuntu.result != 'failure'
+      (needs.maybe-build-ubuntu.result == 'success' ||
+       needs.maybe-build-ubuntu.result == 'skipped')
     runs-on: ubuntu-latest
     name: 'ponyc: x86-64 Linux glibc'
     container:
@@ -189,7 +190,8 @@ jobs:
     if: >-
       !cancelled() &&
       needs.changes.outputs.ponyc == 'true' &&
-      needs.maybe-build-macos.result != 'failure'
+      (needs.maybe-build-macos.result == 'success' ||
+       needs.maybe-build-macos.result == 'skipped')
     runs-on: macos-26
     name: 'ponyc: arm64 macOS'
     steps:
@@ -215,7 +217,8 @@ jobs:
     if: >-
       !cancelled() &&
       needs.changes.outputs.ponyc == 'true' &&
-      needs.maybe-build-windows.result != 'failure'
+      (needs.maybe-build-windows.result == 'success' ||
+       needs.maybe-build-windows.result == 'skipped')
     runs-on: windows-2025-vs2026
     defaults:
       run:
@@ -258,7 +261,8 @@ jobs:
     if: >-
       !cancelled() &&
       needs.changes.outputs.pony_compiler == 'true' &&
-      needs.maybe-build-ubuntu.result != 'failure'
+      (needs.maybe-build-ubuntu.result == 'success' ||
+       needs.maybe-build-ubuntu.result == 'skipped')
     runs-on: ubuntu-latest
     name: 'pony-compiler: Linux'
     container:
@@ -289,7 +293,8 @@ jobs:
     if: >-
       !cancelled() &&
       needs.changes.outputs.pony_compiler == 'true' &&
-      needs.maybe-build-macos.result != 'failure'
+      (needs.maybe-build-macos.result == 'success' ||
+       needs.maybe-build-macos.result == 'skipped')
     runs-on: macos-26
     name: 'pony-compiler: macOS'
     steps:
@@ -316,7 +321,8 @@ jobs:
     if: >-
       !cancelled() &&
       needs.changes.outputs.pony_compiler == 'true' &&
-      needs.maybe-build-windows.result != 'failure'
+      (needs.maybe-build-windows.result == 'success' ||
+       needs.maybe-build-windows.result == 'skipped')
     runs-on: windows-2025-vs2026
     defaults:
       run:
@@ -353,7 +359,8 @@ jobs:
     if: >-
       !cancelled() &&
       needs.changes.outputs.tools == 'true' &&
-      needs.maybe-build-ubuntu.result != 'failure'
+      (needs.maybe-build-ubuntu.result == 'success' ||
+       needs.maybe-build-ubuntu.result == 'skipped')
     runs-on: ubuntu-latest
     name: 'Tools: Linux'
     container:
@@ -406,7 +413,8 @@ jobs:
     if: >-
       !cancelled() &&
       needs.changes.outputs.tools == 'true' &&
-      needs.maybe-build-macos.result != 'failure'
+      (needs.maybe-build-macos.result == 'success' ||
+       needs.maybe-build-macos.result == 'skipped')
     runs-on: macos-26
     name: 'Tools: macOS'
     steps:
@@ -443,7 +451,8 @@ jobs:
     if: >-
       !cancelled() &&
       needs.changes.outputs.tools == 'true' &&
-      needs.maybe-build-windows.result != 'failure'
+      (needs.maybe-build-windows.result == 'success' ||
+       needs.maybe-build-windows.result == 'skipped')
     runs-on: windows-2025-vs2026
     defaults:
       run:
@@ -490,7 +499,8 @@ jobs:
     if: >-
       !cancelled() &&
       needs.changes.outputs.ssl_backends == 'true' &&
-      needs.maybe-build-ubuntu.result != 'failure'
+      (needs.maybe-build-ubuntu.result == 'success' ||
+       needs.maybe-build-ubuntu.result == 'skipped')
     runs-on: ubuntu-latest
     name: 'ssl-backends: build ponyc'
     container:
