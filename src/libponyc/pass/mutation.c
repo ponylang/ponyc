@@ -175,7 +175,7 @@ mutation_type_policy_t mutation_type_policy(ast_t* entity)
 
     case MUTATION_EXCEPT:
       policy.limit = selector;
-      policy.categories &= ~category_mask(selector);
+      policy.categories &= (uint16_t)~category_mask(selector);
       break;
 
     case MUTATION_NONE:
@@ -200,7 +200,7 @@ static bool resolve_scope(pass_opt_t* opt, ast_t* scope, ast_t* selector,
     case MUTATION_ONLY:
     {
       uint16_t requested = category_mask(selector);
-      uint16_t outside_limit = requested & ~allowed;
+      uint16_t outside_limit = requested & (uint16_t)~allowed;
 
       if((policy->limit != NULL) && (outside_limit != 0))
       {
@@ -216,7 +216,7 @@ static bool resolve_scope(pass_opt_t* opt, ast_t* scope, ast_t* selector,
               ast_name(arg));
             ast_error_continue(opt->check.errors, policy->limit,
               "the type's mutation categories are limited here");
-            outside_limit &= ~bit;
+            outside_limit &= (uint16_t)~bit;
           }
         }
 
@@ -228,7 +228,7 @@ static bool resolve_scope(pass_opt_t* opt, ast_t* scope, ast_t* selector,
     }
 
     case MUTATION_EXCEPT:
-      allowed &= ~category_mask(selector);
+      allowed &= (uint16_t)~category_mask(selector);
       break;
 
     case MUTATION_NONE:
