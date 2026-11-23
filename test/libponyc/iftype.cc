@@ -1167,3 +1167,464 @@ TEST_F(IftypeTest, ReturnGenericContainer_MultipleTypeParams)
 
   TEST_COMPILE(src);
 }
+
+
+TEST_F(IftypeTest, InheritedExpressionNarrowingThroughTraitChain)
+{
+  const char* src =
+    "interface val Scored\n"
+    "  fun score(): U64\n"
+
+    "trait Base[A: Any val]\n"
+    "  fun check(item: A): U64 =>\n"
+    "    iftype A <: Scored then item.score() else 10 end\n"
+
+    "trait Middle[B: Any val] is Base[B]\n"
+    "primitive Combined[C: Any val] is Middle[C]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedSpecializationNarrowingWithRenamedParameter)
+{
+  const char* src =
+    "interface val Scored\n"
+    "  fun score(): U64\n"
+
+    "trait Group[A: Any val]\n"
+    "  fun check(item: A): U64 => 10\n"
+    "  fun check(item: A): U64 iftype A <: Scored => item.score()\n"
+
+    "primitive Combined[B: Any val] is Group[B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedNestedNarrowingRetainsEnclosingConstraint)
+{
+  const char* src =
+    "interface val Scored\n"
+    "  fun score(): U64\n"
+
+    "interface val Ranked\n"
+    "  fun rank(): U64\n"
+
+    "trait Group[A: Any val, C: Any val]\n"
+    "  fun check(a: A, c: C): U64 =>\n"
+    "    iftype A <: Scored then\n"
+    "      a.score()\n"
+    "      iftype C <: Ranked then a.score() + c.rank() else a.score() end\n"
+    "    else\n"
+    "      10\n"
+    "    end\n"
+
+    "primitive Combined[B: Any val] is Group[B, B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  DO(test_compile(src, "verify"));
+
+  ast_t* method = lookup_member("Combined", "check");
+  ASSERT_ID(TK_FUN, method);
+  ast_t* outer = ast_child(ast_childidx(method, 7));
+  ASSERT_ID(TK_IFTYPE_SET, outer);
+  ast_t* outer_clause = ast_child(outer);
+  ast_t* inner = ast_childlast(ast_childidx(outer_clause, 2));
+  ASSERT_ID(TK_IFTYPE_SET, inner);
+
+  ast_t* outer_narrowed = ast_child(ast_childidx(outer_clause, 3));
+  ASSERT_ID(TK_TYPEPARAM, outer_narrowed);
+  const char* name = ast_name(ast_child(outer_narrowed));
+  EXPECT_EQ(outer_narrowed, ast_get(ast_childidx(inner, 1), name, NULL));
+  EXPECT_EQ(lookup_in(lookup_type("Combined"), "B"),
+    ast_get(ast_childidx(outer, 1), name, NULL));
+}
+
+
+TEST_F(IftypeTest, InheritedNarrowingBindsGenericResult)
+{
+  const char* src =
+    "primitive Foo\n"
+    "primitive Bar\n"
+    "type FooBar is (Foo | Bar)\n"
+
+    "trait Group[A: FooBar val]\n"
+    "  fun check(): A ? =>\n"
+    "    iftype A <: Foo val then Foo else error end\n"
+
+    "primitive Combined[B: FooBar val] is Group[B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Combined[Foo].check()? end\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedGuardNarrowingBindsGenericSignature)
+{
+  const char* src =
+    "primitive Foo\n"
+    "primitive Bar\n"
+    "type FooBar is (Foo | Bar)\n"
+
+    "trait Group[A: FooBar val]\n"
+    "  fun check(a: A): A => a\n"
+    "  fun check(a: A): A iftype A <: Foo val => Foo\n"
+
+    "primitive Combined[B: FooBar val] is Group[B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedDisjunctionRetainsBothAlternatives)
+{
+  const char* src =
+    "interface val Left\n"
+    "  fun score(): U64\n"
+    "  fun left()\n"
+
+    "interface val Right\n"
+    "  fun score(): U64\n"
+    "  fun right()\n"
+
+    "trait Group[A: Any val]\n"
+    "  fun check(a: A): U64 => 10\n"
+    "  fun check(a: A): U64 iftype A <: Left or A <: Right => a.score()\n"
+
+    "primitive Combined[B: Any val] is Group[B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  DO(test_compile(src, "verify"));
+
+  ast_t* group = lookup_member("Combined", "check");
+  ASSERT_ID(TK_METHODGROUP, group);
+  ast_t* guard = ast_childidx(ast_sibling(ast_child(group)), 5);
+  ASSERT_ID(TK_IFTYPEGUARD_OR, guard);
+  ast_t* first_clause = ast_child(guard);
+  ast_t* store = ast_childidx(first_clause, 2);
+  ast_t* constraint = ast_childidx(ast_child(store), 1);
+  ASSERT_ID(TK_ISECTTYPE, constraint);
+  ast_t* alternatives = ast_childlast(constraint);
+  ASSERT_ID(TK_UNIONTYPE, alternatives);
+  ASSERT_EQ(2u, ast_childcount(alternatives));
+  EXPECT_EQ(lookup_type("Left"), ast_data(ast_child(alternatives)));
+  EXPECT_EQ(lookup_type("Right"), ast_data(ast_childlast(alternatives)));
+}
+
+
+TEST_F(IftypeTest, InheritedGuardOnMethodParameter)
+{
+  const char* src =
+    "interface val Scored\n"
+    "  fun score(): U64\n"
+
+    "trait Group\n"
+    "  fun check[A: Any val](arg: A): U64 => 10\n"
+    "  fun check[A: Any val](arg: A): U64 iftype A <: Scored => 20\n"
+
+    "primitive Combined is Group\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedExpressionRetainsEnclosingGuard)
+{
+  const char* src =
+    "interface val Scored\n"
+    "  fun score(): U64\n"
+
+    "interface val Ranked\n"
+    "  fun rank(): U64\n"
+
+    "trait Group[A: Any val, C: Any val]\n"
+    "  fun check(a: A, c: C): U64 => 10\n"
+    "  fun check(a: A, c: C): U64 iftype A <: Scored =>\n"
+    "    iftype C <: Ranked then a.score() + c.rank() else a.score() end\n"
+
+    "primitive Combined[B: Any val] is Group[B, B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedRecursiveConstraintThroughTraitChain)
+{
+  const char* src =
+    "trait Recursive[X: Recursive[X] #any]\n"
+    "  fun tag next(): X\n"
+
+    "class val Item is Recursive[Item]\n"
+    "  fun tag next(): Item => Item.create()\n"
+
+    "trait Base[A]\n"
+    "  fun check(arg: A) =>\n"
+    "    var item = arg\n"
+    "    iftype A <: Recursive[A] then item = item.next() end\n"
+
+    "trait Middle[B] is Base[B]\n"
+    "primitive Combined[C] is Middle[C]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => Combined[Item].check(Item)\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedConstraintsDoNotBindToEachOther)
+{
+  const char* src =
+    "interface val Scored\n"
+    "  fun score(): U64\n"
+
+    "trait Group[C: Scored, E: Scored, A, D]\n"
+    "  fun check(a: A, d: D): U64 =>\n"
+    "    iftype (A, D) <: (C, E) then a.score() + d.score() else 10 end\n"
+
+    "primitive Combined[X: Scored, Y: Scored] is Group[Y, X, X, Y]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedConstraintsKeepDonorDependencies)
+{
+  const char* src =
+    "interface val Scored\n"
+    "  fun score(): U64\n"
+
+    "interface val Ranked\n"
+    "  fun rank(): U64\n"
+
+    "trait Group[A, C, D, E]\n"
+    "  fun check(a: A, c: C, d: D, e: E): U64 =>\n"
+    "    iftype (A, C, D, E) <: (C, Scored, E, Ranked) then\n"
+    "      a.score() + c.score() + d.rank() + e.rank()\n"
+    "    else\n"
+    "      10\n"
+    "    end\n"
+
+    "primitive Combined[B, F] is Group[B, F, F, B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedNarrowingKeepsReceiverConstraint)
+{
+  const char* src =
+    "interface val Scored\n"
+    "  fun score(): U64\n"
+
+    "interface val Ranked\n"
+    "  fun rank(): U64\n"
+
+    "trait Group[A: Any val, C: Scored]\n"
+    "  fun check(a: A, c: C): U64 =>\n"
+    "    iftype A <: Ranked then a.rank() + c.score() else 10 end\n"
+
+    "primitive Combined[B: Scored] is Group[B, B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedGuardNarrowsSignatureCapability)
+{
+  const char* src =
+    "class Cell\n"
+    "  fun ref update() => None\n"
+
+    "trait Group[A: Any #any]\n"
+    "  fun check(a: A): Bool => false\n"
+    "  fun check(a: A): Bool iftype A <: Cell ref =>\n"
+    "    let cell: A = a\n"
+    "    cell.update()\n"
+    "    true\n"
+
+    "primitive Combined[B: Any #any] is Group[B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => Combined[Cell ref].check(Cell)\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedNarrowingUpdatesExplicitLocalType)
+{
+  const char* src =
+    "class Cell\n"
+    "  fun ref update() => None\n"
+
+    "trait Group[A: Any #any]\n"
+    "  fun check(a: A): Bool =>\n"
+    "    iftype A <: Cell ref then\n"
+    "      let cell: A = a\n"
+    "      cell.update()\n"
+    "      true\n"
+    "    else\n"
+    "      false\n"
+    "    end\n"
+
+    "primitive Combined[B: Any #any] is Group[B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => Combined[Cell ref].check(Cell)\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedExpressionKeepsSameNamedMethodParameter)
+{
+  const char* src =
+    "interface val Scored\n"
+    "  fun score(): U64\n"
+
+    "interface val Labeled\n"
+    "  fun label(): U64\n"
+
+    "trait Group[A: Any val]\n"
+    "  fun check[BB: Labeled](arg: A): U64 =>\n"
+    "    iftype A <: Scored then\n"
+    "      let arr = Array[BB]\n"
+    "      try arr(0)?.label() end\n"
+    "      arg.score()\n"
+    "    else\n"
+    "      10\n"
+    "    end\n"
+
+    "primitive Combined[BB: Any val] is Group[BB]\n"
+    "primitive CaseOnly[Bb: Any val] is Group[Bb]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedGuardKeepsSameNamedMethodParameter)
+{
+  const char* src =
+    "interface val Scored\n"
+    "  fun score(): U64\n"
+
+    "interface val Labeled\n"
+    "  fun label(): U64\n"
+
+    "trait Group[A: Any val]\n"
+    "  fun check[BB: Labeled](arg: A): U64 => 10\n"
+    "  fun check[BB: Labeled](arg: A): U64 iftype A <: Scored =>\n"
+    "    let arr = Array[BB]\n"
+    "    try arr(0)?.label() end\n"
+    "    arg.score()\n"
+
+    "primitive Combined[BB: Any val] is Group[BB]\n"
+    "primitive CaseOnly[Bb: Any val] is Group[Bb]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedGuardedSignatureThroughDiamond)
+{
+  const char* src =
+    "class Cell\n"
+
+    "trait Base[A: Any #any]\n"
+    "  fun check(arg: A): Bool iftype A <: Cell ref => true\n"
+
+    "trait First[C: Any #any] is Base[C]\n"
+    "trait Second[D: Any #any] is Base[D]\n"
+    "primitive Combined[B: Any #any] is (First[B] & Second[B])\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedBareConstraintsRemainValid)
+{
+  const char* src =
+    "trait Base[A, C]\n"
+    "  fun direct(a: A): U64 => iftype A <: A then 20 else 10 end\n"
+    "  fun reciprocal(a: A, c: C): U64 =>\n"
+    "    iftype (A, C) <: (C, A) then 20 else 10 end\n"
+
+    "primitive Combined[B, D] is Base[B, D]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Combined[None, None].direct(None)\n"
+    "    Combined[None, None].reciprocal(None, None)\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, InheritedDefaultBodyUpdatesExplicitLocalType)
+{
+  const char* src =
+    "class Cell\n"
+    "  fun ref update() => None\n"
+
+    "trait Signature[A: Any #any]\n"
+    "  fun check(a: A): Bool\n"
+
+    "trait Implementation[A: Any #any]\n"
+    "  fun check(a: A): Bool =>\n"
+    "    iftype A <: Cell ref then\n"
+    "      let cell: A = a\n"
+    "      cell.update()\n"
+    "      true\n"
+    "    else\n"
+    "      false\n"
+    "    end\n"
+
+    "primitive Combined[B: Any #any] is (Signature[B] & Implementation[B])\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => Combined[Cell ref].check(Cell)\n";
+
+  TEST_COMPILE(src);
+}
