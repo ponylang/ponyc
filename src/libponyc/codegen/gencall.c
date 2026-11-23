@@ -1416,9 +1416,83 @@ static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
   }
 }
 
-static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
-  reach_type_t* t, ast_t* args, bool intrinsic)
+static void add_riscv_ffi_extension(compile_t* c, LLVMValueRef func,
+  LLVMAttributeIndex index, ast_t* type, LLVMTypeRef ir_type)
 {
+  const char* name = NULL;
+
+  // The RISC-V psABI extends according to signedness up to 32 bits,
+  // then sign-extends from 32 bits to XLEN.
+  if(((ir_type == c->i1) && is_bool(type)) ||
+    ((ir_type == c->i8) && is_literal(type, "U8")) ||
+    ((ir_type == c->i16) && is_literal(type, "U16")))
+  {
+    name = "zeroext";
+  } else if(((ir_type == c->i8) && is_literal(type, "I8")) ||
+    ((ir_type == c->i16) && is_literal(type, "I16")) ||
+    ((ir_type == c->i32) && (c->intptr == c->i64) &&
+      (is_literal(type, "I32") || is_literal(type, "U32")))) {
+    name = "signext";
+  }
+
+  if(name != NULL)
+  {
+    unsigned kind = LLVMGetEnumAttributeKindForName(name, strlen(name));
+    LLVMAddAttributeAtIndex(func, index,
+      LLVMCreateEnumAttribute(c->context, kind, 0));
+  }
+}
+
+static LLVMAttributeRef ffi_extension_at(LLVMValueRef func,
+  LLVMAttributeIndex index)
+{
+  unsigned zeroext = LLVMGetEnumAttributeKindForName("zeroext", 7);
+  LLVMAttributeRef attr = LLVMGetEnumAttributeAtIndex(func, index, zeroext);
+
+  if(attr != NULL)
+    return attr;
+
+  unsigned signext = LLVMGetEnumAttributeKindForName("signext", 7);
+  return LLVMGetEnumAttributeAtIndex(func, index, signext);
+}
+
+static bool ffi_extensions_match(LLVMValueRef func, LLVMValueRef other_func,
+  unsigned param_count)
+{
+  for(LLVMAttributeIndex index = 0; index <= param_count; index++)
+  {
+    if(ffi_extension_at(func, index) != ffi_extension_at(other_func, index))
+      return false;
+  }
+
+  return true;
+}
+
+static LLVMValueRef build_ffi_call(compile_t* c, LLVMTypeRef type,
+  LLVMValueRef func, LLVMValueRef* args, unsigned count, bool riscv_c_abi)
+{
+  LLVMValueRef call = LLVMBuildCall2(c->builder, type, func, args, count, "");
+
+  if(riscv_c_abi)
+  {
+    // LLVM uses the call-site attributes to lower RISC-V arguments and results.
+    unsigned param_count = LLVMCountParamTypes(type);
+    for(LLVMAttributeIndex index = 0; index <= param_count; index++)
+    {
+      LLVMAttributeRef attr = ffi_extension_at(func, index);
+      if(attr != NULL)
+        LLVMAddCallSiteAttribute(call, index, attr);
+    }
+  }
+
+  return call;
+}
+
+static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
+  reach_type_t* t, ast_t* decl, bool intrinsic, bool riscv_c_abi)
+{
+  AST_GET_CHILDREN(decl, decl_id, decl_ret, args, decl_named, decl_err);
+
   bool is_varargs = false;
   ast_t* last_arg = ast_childlast(args);
   int param_count = (int)ast_childcount(args);
@@ -1461,6 +1535,24 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
   LLVMTypeRef r_type = ffi_return_type(c, t, intrinsic);
   LLVMTypeRef f_type = LLVMFunctionType(r_type, f_params, param_count, is_varargs);
   LLVMValueRef func = LLVMAddFunction(c->module, f_name, f_type);
+
+  if(riscv_c_abi)
+  {
+    // A same-width Pony result override does not change the C ABI.
+    add_riscv_ffi_extension(c, func, LLVMAttributeReturnIndex,
+      ast_child(decl_ret), r_type);
+
+    ast_t* arg = ast_child(args);
+    for(int i = 0; i < param_count; i++)
+    {
+      ast_t* p_type = ast_type(arg);
+      if(p_type == NULL)
+        p_type = ast_childidx(arg, 1);
+
+      add_riscv_ffi_extension(c, func, i + 1, p_type, f_params[i]);
+      arg = ast_sibling(arg);
+    }
+  }
 
   if(f_params != NULL)
     ponyint_pool_free_size(buf_size, f_params);
@@ -1532,6 +1624,9 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   // Get the function name, +1 to skip leading @
   const char* f_name = ast_name(id) + 1;
+  bool intrinsic = !strncmp(f_name, "llvm.", 5) ||
+    !strncmp(f_name, "internal.", 9);
+  bool riscv_c_abi = !intrinsic && target_is_riscv(c->opt->triple);
 
   deferred_reification_t* reify = c->frame->reify;
 
@@ -1659,8 +1754,8 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     LLVMValueRef result;
     codegen_debugloc(c, ast);
-    result = LLVMBuildCall2(c->builder, thunk_type, thunk_func,
-      f_args, thunk_count, "");
+    result = build_ffi_call(c, thunk_type, thunk_func, f_args, thunk_count,
+      riscv_c_abi);
     codegen_debugloc(c, NULL);
 
     ponyint_pool_free_size(params_size, f_params);
@@ -1700,10 +1795,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     // Prototypes are mandatory, the declaration is already stored.
     pony_assert(decl != NULL);
 
-    bool is_intrinsic = (!strncmp(f_name, "llvm.", 5) || !strncmp(f_name, "internal.", 9));
-    AST_GET_CHILDREN(decl, decl_id, decl_ret, decl_params, decl_named_params, decl_err);
-
-    func = declare_ffi(c, f_name, t, decl_params, is_intrinsic);
+    func = declare_ffi(c, f_name, t, decl, intrinsic, riscv_c_abi);
 
     // With per-module, check other modules for a conflicting declaration
     // of the same FFI function.
@@ -1722,7 +1814,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
           LLVMTypeRef this_type = LLVMGlobalGetValueType(func);
           LLVMTypeRef other_type = LLVMGlobalGetValueType(other_func);
 
-          if(this_type != other_type)
+          if((this_type != other_type) || riscv_c_abi)
           {
             int this_count = (int)LLVMCountParamTypes(this_type);
             int other_count = (int)LLVMCountParamTypes(other_type);
@@ -1768,7 +1860,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
               return NULL;
             }
 
-            if(this_count > 0)
+            if((this_type != other_type) && (this_count > 0))
             {
               size_t psz = this_count * sizeof(LLVMTypeRef);
               LLVMTypeRef* this_params =
@@ -1804,6 +1896,17 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
                     "first declaration is here");
                 return NULL;
               }
+            }
+
+            if(riscv_c_abi && (other_decl != NULL) &&
+              !ffi_extensions_match(func, other_func, this_count))
+            {
+              ast_error(c->opt->check.errors, ast,
+                "conflicting declarations for FFI function: incompatible "
+                "RISC-V integer extensions");
+              ast_error_continue(c->opt->check.errors, other_decl->decl,
+                "first declaration is here");
+              return NULL;
             }
           }
           break;
@@ -1893,7 +1996,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   LLVMValueRef result;
   codegen_debugloc(c, ast);
-  result = LLVMBuildCall2(c->builder, f_type, func, f_args, count, "");
+  result = build_ffi_call(c, f_type, func, f_args, count, riscv_c_abi);
 
   codegen_debugloc(c, NULL);
   ponyint_pool_free_size(buf_size, f_args);

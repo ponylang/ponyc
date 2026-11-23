@@ -710,10 +710,7 @@ bool target_is_arm32(char* t)
 
 bool target_is_riscv(char* t)
 {
-  Triple triple = Triple(t);
-  std::string s = Triple::getArchTypePrefix(triple.getArch()).str();
-  const char* arch = s.c_str();
-  return (!strcmp("riscv32", arch) || !strcmp("riscv64", arch));
+  return Triple(t).isRISCV();
 }
 
 // This function is used to safeguard against potential oversights on the size
