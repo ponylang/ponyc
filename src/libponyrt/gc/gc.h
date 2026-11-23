@@ -10,6 +10,7 @@
 #include <platform.h>
 
 #define GC_INC_MORE 256
+#define GC_ACTOR_HEAP_EQUIV 1024
 
 PONY_EXTERN_C_BEGIN
 
@@ -43,6 +44,8 @@ void ponyint_gc_recvactor(pony_ctx_t* ctx, pony_actor_t* actor);
 void ponyint_gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void ponyint_gc_createactor(pony_actor_t* current, pony_actor_t* actor);
+
+object_t* ponyint_gc_next_immutable_root(gc_t* gc, size_t* i);
 
 void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc);
 

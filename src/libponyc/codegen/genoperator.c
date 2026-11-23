@@ -2,6 +2,7 @@
 #include "genbox.h"
 #include "gencall.h"
 #include "gendesc.h"
+#include "gengc.h"
 #include "genexpr.h"
 #include "genmutate.h"
 #include "gentagged.h"
@@ -529,7 +530,7 @@ static LLVMValueRef assign_local(compile_t* c, LLVMValueRef l_value,
 
 static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
   LLVMValueRef r_value, ast_t* l_type, ast_t* r_type,
-  bool owner_has_finaliser)
+  bool owner_has_finaliser, bool native_storage)
 {
   reach_type_t* t = reach_type(c->reach, l_type, c->opt);
   pony_assert(t != NULL);
@@ -543,6 +544,9 @@ static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
   if(r_value == NULL)
     return NULL;
 
+  if(native_storage && !LLVMIsNull(r_value) &&
+    gengc_contains_pointer(c_t->mem_type))
+    gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
   LLVMValueRef store = LLVMBuildStore(c->builder, r_value, l_value);
 
   if(owner_has_finaliser)
@@ -663,7 +667,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
         (((compile_type_t*)p_t->c_type)->final_fn != NULL);
 
       LLVMValueRef ret = assign_field(c, l_value, r_value, l_type, r_type,
-        has_finaliser);
+        has_finaliser, p_t != NULL && p_t->underlying == TK_STRUCT);
 
       ast_free_unattached(p_type);
       ast_free_unattached(l_type);
@@ -678,7 +682,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       ast_t* l_type = deferred_reify(reify, ast_type(left), c->opt);
 
       LLVMValueRef r = assign_field(c, l_value, r_value, l_type, r_type,
-        false);
+        false, false);
 
       ast_free_unattached(p_type);
       ast_free_unattached(l_type);

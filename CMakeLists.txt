@@ -1020,6 +1020,13 @@ else()
             -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunFullPrograms.cmake)
 
+    add_test(NAME midbehavior-gc
+        COMMAND ${CMAKE_COMMAND}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DOUTPUT=${PONY_OUTPUT_DIR}/midbehavior-gc-test
+            -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/midbehavior-gc
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunMidbehaviorGC.cmake)
+
     add_test(NAME full-program-runner-rejects-broken-config
         COMMAND ${CMAKE_COMMAND}
             -DRUNNER=${_full_program_runner}
@@ -1129,7 +1136,7 @@ else()
             -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-runtime
             -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationSpawnError.cmake)
 
-    set_tests_properties(full-programs
+    set_tests_properties(full-programs midbehavior-gc
         full-program-runner-rejects-broken-config
         stdlib validate-grammar mutation-runtime mutation-monomorphization
         mutation-inherited-default

@@ -2,6 +2,7 @@
 #include "gencall.h"
 #include "genexpr.h"
 #include "genfun.h"
+#include "gengc.h"
 #include "genname.h"
 #include "genopt.h"
 #include "gentrace.h"
@@ -233,6 +234,12 @@ static void pointer_apply_unaligned(compile_t* c, void* data, token_id cap)
   codegen_finishfun(c);
 }
 
+static void pointer_store(compile_t* c, LLVMTypeRef elem, LLVMValueRef dest)
+{
+  if(gengc_contains_pointer(elem))
+    gencall_runtime(c, "ponyint_gc_native_store", &dest, 1, "");
+}
+
 static void pointer_update(compile_t* c, reach_type_t* t,
   reach_type_t* t_elem)
 {
@@ -255,6 +262,7 @@ static void pointer_update(compile_t* c, reach_type_t* t,
 
   LLVMValueRef value = LLVMGetParam(c_m->func, 2);
   value = gen_assign_cast(c, c_t_elem->mem_type, value, t_elem->ast_cap);
+  pointer_store(c, c_t_elem->mem_type, loc);
   LLVMBuildStore(c->builder, value, loc);
 
   result = gen_assign_cast(c, c_t_elem->use_type, result, t_elem->ast_cap);
@@ -285,6 +293,7 @@ static void pointer_update_unaligned(compile_t* c, reach_type_t* t,
 
   LLVMValueRef value = LLVMGetParam(c_m->func, 2);
   value = gen_assign_cast(c, c_t_elem->mem_type, value, t_elem->ast_cap);
+  pointer_store(c, c_t_elem->mem_type, loc);
   LLVMBuildAlignedStore(c->builder, value, loc, 1);
 
   result = gen_assign_cast(c, c_t_elem->use_type, result, t_elem->ast_cap);
@@ -435,6 +444,7 @@ static void pointer_copy_to(compile_t* c, void* data, token_id cap)
   LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
 
   // llvm.memcpy.*(ptr2, ptr, n * sizeof(elem), 1, 0)
+  pointer_store(c, t_elem->mem_type, ptr2);
   gencall_memcpy(c, ptr2, ptr, elen);
 
   genfun_build_ret(c, ptr);
@@ -445,6 +455,8 @@ static void pointer_usize(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("usize", TK_NONE);
   start_function(c, t, m, c->intptr, &c_t->use_type, 1);
+
+  gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
 
   LLVMValueRef ptr = LLVMGetParam(c_m->func, 0);
   LLVMValueRef result = LLVMBuildPtrToInt(c->builder, ptr, c->intptr, "");

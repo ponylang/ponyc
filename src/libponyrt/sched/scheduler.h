@@ -92,6 +92,10 @@ typedef struct pony_ctx_t
   // counting amortises the owner acquire instead of re-borrowing every
   // round-trip.
   pony_actor_t* msg_target;
+  // A collection during the running behavior reclaimed storage but left
+  // finalisers and ORCA releases for the collection at its boundary, so that
+  // collection must run whatever the heap's size.
+  bool collected_locally;
 #ifdef USE_RUNTIMESTATS
   uint64_t last_tsc;
   schedulerstats_t schedulerstats;

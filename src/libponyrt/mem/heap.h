@@ -52,6 +52,11 @@ void ponyint_heap_setinitialgc(size_t size);
 
 void ponyint_heap_setnextgcfactor(double factor);
 
+typedef bool (*heap_final_visit_fn)(void* arg, void* p, bool traceable);
+bool ponyint_heap_visit_finalisers(heap_t* heap, heap_final_visit_fn visit,
+  void* arg, size_t* local_used);
+PONY_API void ponyint_gc_final_ready(pony_ctx_t* ctx, void* p);
+
 void ponyint_heap_init(heap_t* heap);
 
 void ponyint_heap_destroy(heap_t* heap);
@@ -82,7 +87,7 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
  */
 void ponyint_heap_used(heap_t* heap, size_t size);
 
-bool ponyint_heap_startgc(heap_t* heap
+void ponyint_heap_startgc(heap_t* heap
 #ifdef USE_RUNTIMESTATS
   , pony_actor_t* actor);
 #else
@@ -94,6 +99,10 @@ bool ponyint_heap_startgc(heap_t* heap
  * if you have just marked it.
  */
 bool ponyint_heap_mark(chunk_t* chunk, void* p);
+
+uint32_t ponyint_heap_base_slot(chunk_t* chunk, void* p);
+uint32_t* ponyint_heap_local_index(chunk_t* chunk);
+void ponyint_heap_mark_slots(chunk_t* chunk, uint32_t slots, bool shallow);
 
 /**
  * Marks an address, but does not affect the return value of ponyint_heap_mark()

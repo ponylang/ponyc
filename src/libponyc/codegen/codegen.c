@@ -1,5 +1,6 @@
 #include "codegen.h"
 #include "genmutate.h"
+#include "gengc.h"
 #include "pony_version.h"
 #include "genexe.h"
 #include "genprim.h"
@@ -89,7 +90,10 @@ static compile_frame_t* push_frame(compile_t* c)
   compile_locals_init(&frame->locals, 0);
 
   if(c->frame != NULL)
+  {
     frame->prev = c->frame;
+    frame->function = c->frame->function;
+  }
 
   c->frame = frame;
   return frame;
@@ -99,6 +103,7 @@ static void pop_frame(compile_t* c)
 {
   compile_frame_t* frame = c->frame;
   compile_locals_destroy(&frame->locals);
+  gengc_free_liveness(frame->gc_liveness);
 
   c->frame = frame->prev;
   POOL_FREE(compile_frame_t, frame);
@@ -406,6 +411,19 @@ static void init_runtime_decls(compile_t* c)
   // i8* pony_ctx()
   type = LLVMFunctionType(c->ptr, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_ctx", type);
+
+  params[0] = c->ptr;
+  params[1] = c->ptr;
+  type = LLVMFunctionType(c->ptr, params, 2, false);
+  LLVMAddFunction(c->module, "ponyint_gc_poll", type);
+  type = LLVMFunctionType(c->i1, params, 1, false);
+  LLVMAddFunction(c->module, "ponyint_gc_finish", type);
+  type = LLVMFunctionType(c->void_type, params, 2, false);
+  LLVMAddFunction(c->module, "ponyint_gc_final_ready", type);
+  type = LLVMFunctionType(c->void_type, params, 1, false);
+  LLVMAddFunction(c->module, "ponyint_gc_native_store", type);
+  type = LLVMFunctionType(c->void_type, NULL, 0, false);
+  LLVMAddFunction(c->module, "ponyint_gc_native_alias", type);
 
   // __object* pony_create(i8*, __Desc*, i1)
   params[0] = c->ptr;
@@ -1520,6 +1538,7 @@ LLVMValueRef codegen_resolve_function(compile_t* c, LLVMValueRef fn)
   LLVMTypeRef fn_type = LLVMGlobalGetValueType(fn);
   resolved = LLVMAddFunction(c->module, name, fn_type);
   LLVMSetLinkage(resolved, LLVMExternalLinkage);
+  LLVMSetVisibility(resolved, LLVMGetVisibility(fn));
   copy_function_attributes(fn, resolved);
   return resolved;
 }
@@ -1704,13 +1723,14 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
     pony_assert(LLVMGetGlobalParent(fun) == c->module);
   }
 
-  if(c->opt->mutate)
+  if(c->opt->mutate && c->frame == NULL)
     mutate_shadow_clear(c);
 
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = fun;
   frame->is_function = true;
+  frame->function = frame;
   frame->reify = reify;
   if(c->opt->mutate && (reify != NULL) &&
     ast_checkflag(reify->ast, AST_FLAG_OBJECT_LITERAL))

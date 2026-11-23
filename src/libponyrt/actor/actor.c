@@ -258,15 +258,18 @@ static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 }
 #endif
 
-static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
+static PONY_NOINLINE void collect_at_boundary(pony_ctx_t* ctx,
+  pony_actor_t* actor)
 {
-  if(!ponyint_heap_startgc(&actor->heap
+  ctx->collected_locally = false;
+
+  if(actor->gc_wait_finaliser)
+    actor->gc_wait_finaliser = GC_WAIT_NONE;
+  ponyint_heap_startgc(&actor->heap
 #ifdef USE_RUNTIMESTATS
-  , actor))
-#else
-  ))
+  , actor
 #endif
-    return;
+  );
 
 #ifdef USE_RUNTIMESTATS
     uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
@@ -307,6 +310,14 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   TRACING_ACTOR_GC_HEAP_SWEEP_END(actor);
   TRACING_ACTOR_GC_SWEEP_END(actor);
   TRACING_ACTOR_GC_END(actor);
+}
+
+static PONY_NOINLINE void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  if(actor->heap.used <= actor->heap.next_gc &&
+    !ctx->collected_locally)
+    return;
+  collect_at_boundary(ctx, actor);
 }
 
 static void maybe_unblock(pony_actor_t* actor)
@@ -551,6 +562,9 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   TRACING_THREAD_ACTOR_RUN_START(actor);
   pony_assert(!has_sync_flag(actor, ACTOR_SYNC_FLAG_MUTED));
+  // The boundary of the behavior that collected locally has already run on
+  // this context, so the request can't reach another actor.
+  pony_assert(!ctx->collected_locally);
   ctx->current = actor;
   actor->sent_to_overloaded = false;
   size_t batch = actor->batch_size;
@@ -760,7 +774,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
       // if we have and then we could have use-after-free issues.
       if (actor_noblock || !has_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT))
       {
-        pony_triggergc(ctx);
+        actor->heap.next_gc = 0;
         try_gc(ctx, actor);
       }
 
@@ -1042,8 +1056,6 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   {
     if(!has_sync_flag(to, ACTOR_SYNC_FLAG_MUTED))
     {
-      // if the receiving actor is currently not unscheduled AND it's not
-      // muted, schedule it.
       ponyint_sched_add(ctx, to);
     }
   }
@@ -1207,6 +1219,8 @@ PONY_API void pony_triggergc(pony_ctx_t* ctx)
 {
   pony_assert(ctx->current != NULL);
   ctx->current->heap.next_gc = 0;
+  if(ctx->current->gc_wait_finaliser)
+    ctx->current->gc_wait_finaliser = GC_WAIT_NONE;
 }
 
 bool ponyint_actor_is_pinned(pony_actor_t* actor)

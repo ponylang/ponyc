@@ -861,6 +861,9 @@ bool gentypes(compile_t* c)
       return false;
   }
 
+  if(!genfun_gc_bodies(c))
+    return false;
+
   // Primitive init/final go in the main module.
   if(c->per_module_count > 0)
     codegen_switch_module(c, 0);

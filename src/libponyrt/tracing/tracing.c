@@ -2504,11 +2504,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_CREATED:
     {
       tracing_actor_created_t* m = (tracing_actor_created_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"created_by_actor_id\":\"%p\",\"created_by_actor_type_id\":%u,\"created_by_actor_type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name, m->created_by_actor, m->created_by_actor_type!=NULL?m->created_by_actor_type->id:0, m->created_by_actor_type!=NULL?m->created_by_actor_type->name:"@@SYSTEM INJECT@@",
+      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"created_by_actor_id\":\"%p\",\"created_by_actor_type_id\":%u,\"created_by_actor_type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name, m->created_by_actor, m->created_by_actor_type!=NULL?m->created_by_actor_type->id:0, m->created_by_actor_type!=NULL?m->created_by_actor_type->name:"@@SYSTEM INJECT@@",
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2521,11 +2520,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_DESTROYED:
     {
       tracing_actor_destroyed_t* m = (tracing_actor_destroyed_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"%s destroyed\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"reason\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name, get_actor_destroyed_reason_string(m->reason),
+      fprintf(log_file, ",\n{\"name\":\"%s destroyed\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"reason\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name, get_actor_destroyed_reason_string(m->reason),
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2569,11 +2567,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_RUN_START:
     {
       tracing_actor_run_start_t* m = (tracing_actor_run_start_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_ACTOR), get_tracing_event_string(TRACING_EVENT_CONTEXT_ENTER), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_ACTOR), get_tracing_event_string(TRACING_EVENT_CONTEXT_ENTER), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2582,11 +2579,10 @@ static void handle_message(pony_msg_t* msg)
         m->sync_flags & ACTOR_SYNC_FLAG_UNDER_PRESSURE ? "true" : "false",
         m->sync_flags & ACTOR_SYNC_FLAG_MUTED ? "true" : "false");
 
-      fprintf(log_file, ",\n{\"name\":\"actor_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_BEGIN), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_BEGIN), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2600,11 +2596,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_RUN_STOP:
     {
       tracing_actor_run_stop_t* m = (tracing_actor_run_stop_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2617,11 +2612,10 @@ static void handle_message(pony_msg_t* msg)
         m->gc_rc,
         m->live_asio_events);
 
-      fprintf(log_file, ",\n{\"name\":\"actor\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_ACTOR), get_tracing_event_string(TRACING_EVENT_CONTEXT_LEAVE), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_ACTOR), get_tracing_event_string(TRACING_EVENT_CONTEXT_LEAVE), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2671,11 +2665,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_BEHAVIOR_RUN_START:
     {
       tracing_actor_behavior_run_start_t* m = (tracing_actor_behavior_run_start_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_behavior_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"msg_id\":\"%p\",\"behavior_id\":%u,\"behavior_name\":\"%s\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_BEGIN), pid, m->thread_id, m->actor, m->actor, m->msg_id, m->behavior_id, get_actor_behavior_string(m->type->get_behavior_name, m->behavior_id), m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_behavior_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"msg_id\":\"%p\",\"behavior_id\":%u,\"behavior_name\":\"%s\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_BEGIN), pid, m->thread_id, m->actor, m->actor, m->msg_id, m->behavior_id, get_actor_behavior_string(m->type->get_behavior_name, m->behavior_id), m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2689,11 +2682,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_BEHAVIOR_RUN_STOP:
     {
       tracing_actor_behavior_run_end_t* m = (tracing_actor_behavior_run_end_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_behavior_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"msg_id\":\"%p\",\"behavior_id\":%u,\"behavior_name\":\"%s\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->msg_id, m->behavior_id, get_actor_behavior_string(m->type->get_behavior_name, m->behavior_id), m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_behavior_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"msg_id\":\"%p\",\"behavior_id\":%u,\"behavior_name\":\"%s\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->msg_id, m->behavior_id, get_actor_behavior_string(m->type->get_behavior_name, m->behavior_id), m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2779,11 +2771,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_MUTED:
     {
       tracing_actor_muted_t* m = (tracing_actor_muted_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_muted\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_muted\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2797,11 +2788,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_UNMUTED:
     {
       tracing_actor_unmuted_t* m = (tracing_actor_unmuted_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_unmuted\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_unmuted\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2815,11 +2805,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_OVERLOADED:
     {
       tracing_actor_overloaded_t* m = (tracing_actor_overloaded_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_overloaded\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_overloaded\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2833,11 +2822,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_NOTOVERLOADED:
     {
       tracing_actor_notoverloaded_t* m = (tracing_actor_notoverloaded_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_notoverloaded\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_notoverloaded\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2851,11 +2839,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_UNDERPRESSURE:
     {
       tracing_actor_underpressure_t* m = (tracing_actor_underpressure_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_underpressure\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_underpressure\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2869,11 +2856,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_NOTUNDERPRESSURE:
     {
       tracing_actor_notunderpressure_t* m = (tracing_actor_notunderpressure_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_notunderpressure\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_notunderpressure\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2887,11 +2873,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_BLOCKED:
     {
       tracing_actor_blocked_t* m = (tracing_actor_blocked_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_blocked\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_blocked\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2905,11 +2890,10 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_UNBLOCKED:
     {
       tracing_actor_unblocked_t* m = (tracing_actor_unblocked_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_unblocked\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_unblocked\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2923,12 +2907,11 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_SCHEDULED:
     {
       tracing_actor_scheduled_t* m = (tracing_actor_scheduled_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_scheduled\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"scheduler_index\":%d,\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_scheduled\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"scheduler_index\":%d,\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->scheduler_index,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -2943,11 +2926,10 @@ static void handle_message(pony_msg_t* msg)
     {
       tracing_actor_scheduled_inject_t* m =
         (tracing_actor_scheduled_inject_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_scheduled_inject\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_scheduled_inject\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",
@@ -3214,11 +3196,10 @@ static void handle_message(pony_msg_t* msg)
 
       if(m->actor != NULL)
       {
-        fprintf(log_file, "{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}", m->actor, m->type->id, m->type->name,
+        fprintf(log_file, "{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":false,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}", m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
-        m->internal_flags & ACTOR_FLAG_UNSCHEDULED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_CD_CONTACTED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_RC_OVER_ZERO_SEEN ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_PINNED ? "true" : "false",

@@ -4,6 +4,7 @@
 #include "gencontrol.h"
 #include "gendesc.h"
 #include "genident.h"
+#include "gengc.h"
 #include "genmatch.h"
 #include "genname.h"
 #include "genoperator.h"
@@ -95,6 +96,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_CALL:
       ret = gen_call(c, ast);
+      gengc_pointer_result(c, ast, ret);
       break;
 
     case TK_CONSUME:
@@ -183,9 +185,12 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_FFICALL:
       ret = gen_ffi(c, ast);
+      gengc_pointer_result(c, ast, ret);
       break;
 
     case TK_ADDRESS:
+      if(!gengc_borrowed_address(c, ast))
+        gencall_runtime(c, "ponyint_gc_native_alias", NULL, 0, "");
       ret = gen_addressof(c, ast);
       break;
 
