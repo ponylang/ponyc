@@ -164,17 +164,22 @@ class val _FilterSelector
 
   fun expr(): _LogicalExpr => _expr
 
-  fun select(node: JSONValue, root: JSONValue, out: Array[JSONValue] ref) =>
+  fun select(
+    node: JSONValue,
+    root: JSONValue,
+    out: Array[JSONValue] ref,
+    depth: USize)
+  =>
     match node
     | let arr: JSONArray =>
       for v in arr.values() do
-        if _FilterEval(_expr, v, root) then
+        if _FilterEval(_expr, v, root, depth) then
           out.push(v)
         end
       end
     | let obj: JSONObject =>
       for v in obj.values() do
-        if _FilterEval(_expr, v, root) then
+        if _FilterEval(_expr, v, root, depth) then
           out.push(v)
         end
       end

@@ -16,18 +16,22 @@ primitive _JSONPathEval
   fun apply(
     start: JSONValue,
     root: JSONValue,
-    segments: Array[_Segment] val)
+    segments: Array[_Segment] val,
+    depth: USize = 0)
     : Array[JSONValue] val
   =>
     """
     Execute segments against start, returning matching values.
     """
+    if depth > _JSONPathLimits.max_expr_depth() then
+      return recover val Array[JSONValue] end
+    end
     recover val
       var current: Array[JSONValue] ref = Array[JSONValue]
       current.push(start)
 
       for segment in segments.values() do
-        current = _apply_segment(segment, current, root)
+        current = _apply_segment(segment, current, root, depth)
       end
 
       current
@@ -36,7 +40,8 @@ primitive _JSONPathEval
   fun _apply_segment(
     segment: _Segment,
     input: Array[JSONValue] ref,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : Array[JSONValue] ref
   =>
     """
@@ -44,15 +49,16 @@ primitive _JSONPathEval
     """
     match \exhaustive\ segment
     | let cs: _ChildSegment =>
-      _apply_child(cs.selectors(), input, root)
+      _apply_child(cs.selectors(), input, root, depth)
     | let ds: _DescendantSegment =>
-      _apply_descendant(ds.selectors(), input, root)
+      _apply_descendant(ds.selectors(), input, root, depth)
     end
 
   fun _apply_child(
     selectors: Array[_Selector] val,
     input: Array[JSONValue] ref,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : Array[JSONValue] ref
   =>
     """
@@ -60,14 +66,15 @@ primitive _JSONPathEval
     """
     let out = Array[JSONValue]
     for node in input.values() do
-      _select_all(selectors, node, root, out)
+      _select_all(selectors, node, root, out, depth)
     end
     out
 
   fun _apply_descendant(
     selectors: Array[_Selector] val,
     input: Array[JSONValue] ref,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : Array[JSONValue] ref
   =>
     """
@@ -76,7 +83,7 @@ primitive _JSONPathEval
     """
     let out = Array[JSONValue]
     for node in input.values() do
-      _descend(selectors, node, root, out)
+      _descend(selectors, node, root, out, depth)
     end
     out
 
@@ -84,7 +91,8 @@ primitive _JSONPathEval
     selectors: Array[_Selector] val,
     node: JSONValue,
     root: JSONValue,
-    out: Array[JSONValue] ref)
+    out: Array[JSONValue] ref,
+    depth: USize)
   =>
     """
     Depth-first pre-order: apply selectors to a node, then to each of its
@@ -101,7 +109,7 @@ primitive _JSONPathEval
     stack.push(node)
     while stack.size() > 0 do
       let n = try stack.pop()? else _Unreachable(); return end
-      _select_all(selectors, n, root, out)
+      _select_all(selectors, n, root, out, depth)
       match n
       | let obj: JSONObject =>
         let kids = Array[JSONValue](obj.size())
@@ -127,7 +135,8 @@ primitive _JSONPathEval
     selectors: Array[_Selector] val,
     node: JSONValue,
     root: JSONValue,
-    out: Array[JSONValue] ref)
+    out: Array[JSONValue] ref,
+    depth: USize)
   =>
     """
     Apply all selectors to a single node.
@@ -138,6 +147,6 @@ primitive _JSONPathEval
       | let s: _IndexSelector => s.select(node, out)
       | _WildcardSelector => _WildcardSelector.select(node, out)
       | let s: _SliceSelector => s.select(node, out)
-      | let s: _FilterSelector => s.select(node, root, out)
+      | let s: _FilterSelector => s.select(node, root, out, depth)
       end
     end

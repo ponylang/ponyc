@@ -12,27 +12,29 @@ primitive _FilterEval
   fun apply(
     expr: _LogicalExpr,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : Bool
   =>
     match \exhaustive\ expr
-    | let e: _OrExpr => _eval_or(e, current, root)
-    | let e: _AndExpr => _eval_and(e, current, root)
-    | let e: _NotExpr => _eval_not(e, current, root)
+    | let e: _OrExpr => _eval_or(e, current, root, depth)
+    | let e: _AndExpr => _eval_and(e, current, root, depth)
+    | let e: _NotExpr => _eval_not(e, current, root, depth)
     | let e: _ComparisonExpr =>
-      _FilterCompare(e.left, e.op, e.right, current, root)
+      _FilterCompare(e.left, e.op, e.right, current, root, depth)
     | let e: _ExistenceExpr =>
-      _eval_existence(e.query, current, root)
+      _eval_existence(e.query, current, root, depth)
     | let e: _MatchExpr =>
-      _eval_match(e, current, root)
+      _eval_match(e, current, root, depth)
     | let e: _SearchExpr =>
-      _eval_search(e, current, root)
+      _eval_search(e, current, root, depth)
     end
 
   fun _eval_or(
     start: _OrExpr,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : Bool
   =>
     """
@@ -45,10 +47,10 @@ primitive _FilterEval
     while true do
       match node
       | let e: _OrExpr =>
-        if apply(e.right, current, root) then return true end
+        if apply(e.right, current, root, depth) then return true end
         node = e.left
       else
-        return apply(node, current, root)
+        return apply(node, current, root, depth)
       end
     end
     false // unreachable
@@ -56,7 +58,8 @@ primitive _FilterEval
   fun _eval_and(
     start: _AndExpr,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : Bool
   =>
     """
@@ -67,10 +70,10 @@ primitive _FilterEval
     while true do
       match node
       | let e: _AndExpr =>
-        if not apply(e.right, current, root) then return false end
+        if not apply(e.right, current, root, depth) then return false end
         node = e.left
       else
-        return apply(node, current, root)
+        return apply(node, current, root, depth)
       end
     end
     true // unreachable
@@ -78,7 +81,8 @@ primitive _FilterEval
   fun _eval_not(
     start: _NotExpr,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : Bool
   =>
     """
@@ -93,7 +97,7 @@ primitive _FilterEval
         negate = not negate
         inner = n.expr
       else
-        let result = apply(inner, current, root)
+        let result = apply(inner, current, root, depth)
         return if negate then not result else result end
       end
     end
@@ -102,7 +106,8 @@ primitive _FilterEval
   fun _eval_existence(
     query: _FilterQuery,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : Bool
   =>
     """
@@ -145,9 +150,9 @@ primitive _FilterEval
     let results =
       match \exhaustive\ q
       | let rq: _RelFilterQuery =>
-        _JSONPathEval(current, root, rq.segments)
+        _JSONPathEval(current, root, rq.segments, depth + 1)
       | let aq: _AbsFilterQuery =>
-        _JSONPathEval(root, root, aq.segments)
+        _JSONPathEval(root, root, aq.segments, depth + 1)
       end
     results.size() > 0
 
@@ -211,7 +216,8 @@ primitive _FilterEval
   fun _eval_match(
     expr: _MatchExpr,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : Bool
   =>
     """
@@ -219,8 +225,9 @@ primitive _FilterEval
     Returns false if either argument is not a string or if the pattern
     is not a valid I-Regexp.
     """
-    let input_val = _FilterCompare._resolve(expr.input, current, root)
-    let pattern_val = _FilterCompare._resolve(expr.pattern, current, root)
+    let input_val = _FilterCompare._resolve(expr.input, current, root, depth)
+    let pattern_val =
+      _FilterCompare._resolve(expr.pattern, current, root, depth)
     match (input_val, pattern_val)
     | (let input_str: String, let pattern_str: String) =>
       match \exhaustive\ iregex.IRegexpCompiler.parse(pattern_str)
@@ -234,7 +241,8 @@ primitive _FilterEval
   fun _eval_search(
     expr: _SearchExpr,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : Bool
   =>
     """
@@ -242,8 +250,9 @@ primitive _FilterEval
     Returns false if either argument is not a string or if the pattern
     is not a valid I-Regexp.
     """
-    let input_val = _FilterCompare._resolve(expr.input, current, root)
-    let pattern_val = _FilterCompare._resolve(expr.pattern, current, root)
+    let input_val = _FilterCompare._resolve(expr.input, current, root, depth)
+    let pattern_val =
+      _FilterCompare._resolve(expr.pattern, current, root, depth)
     match (input_val, pattern_val)
     | (let input_str: String, let pattern_str: String) =>
       match \exhaustive\ iregex.IRegexpCompiler.parse(pattern_str)
@@ -268,11 +277,12 @@ primitive _FilterCompare
     op: _ComparisonOp,
     right: _Comparable,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : Bool
   =>
-    let lval = _resolve(left, current, root)
-    let rval = _resolve(right, current, root)
+    let lval = _resolve(left, current, root, depth)
+    let rval = _resolve(right, current, root, depth)
     match \exhaustive\ op
     | _CmpEq  => _eq(lval, rval)
     | _CmpNeq => not _eq(lval, rval)
@@ -285,7 +295,8 @@ primitive _FilterCompare
   fun _resolve(
     c: _Comparable,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : _QueryResult
   =>
     """
@@ -301,35 +312,36 @@ primitive _FilterCompare
       _FilterEval._eval_singular(q, current, root)
     | let q: _AbsSingularQuery =>
       _FilterEval._eval_singular(q, current, root)
-    | let e: _LengthExpr => _eval_length(e, current, root)
-    | let e: _CountExpr => _eval_count(e.query, current, root)
-    | let e: _ValueExpr => _eval_value(e.query, current, root)
+    | let e: _LengthExpr => _eval_length(e, current, root, depth)
+    | let e: _CountExpr => _eval_count(e.query, current, root, depth)
+    | let e: _ValueExpr => _eval_value(e.query, current, root, depth)
     end
 
   fun _eval_length(
     start: _LengthExpr,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : _QueryResult
   =>
     """
     Evaluate length(), iterating through nested `length(length(...))` chains
     to avoid native-stack overflow on deeply nested input.
     """
-    var depth: USize = 1
+    var len_depth: USize = 1
     var inner: _Comparable = start.arg
     while true do
       match inner
       | let e: _LengthExpr =>
-        depth = depth + 1
+        len_depth = len_depth + 1
         inner = e.arg
       else
         break
       end
     end
-    var val': _QueryResult = _resolve(inner, current, root)
+    var val': _QueryResult = _resolve(inner, current, root, depth)
     var i: USize = 0
-    while i < depth do
+    while i < len_depth do
       val' = _length_of(val')
       i = i + 1
     end
@@ -360,7 +372,8 @@ primitive _FilterCompare
   fun _eval_count(
     query: _FilterQuery,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : _QueryResult
   =>
     """
@@ -369,16 +382,17 @@ primitive _FilterCompare
     let results =
       match \exhaustive\ query
       | let q: _RelFilterQuery =>
-        _JSONPathEval(current, root, q.segments)
+        _JSONPathEval(current, root, q.segments, depth + 1)
       | let q: _AbsFilterQuery =>
-        _JSONPathEval(root, root, q.segments)
+        _JSONPathEval(root, root, q.segments, depth + 1)
       end
     results.size().i64()
 
   fun _eval_value(
     query: _FilterQuery,
     current: JSONValue,
-    root: JSONValue)
+    root: JSONValue,
+    depth: USize)
     : _QueryResult
   =>
     """
@@ -388,9 +402,9 @@ primitive _FilterCompare
     let results =
       match \exhaustive\ query
       | let q: _RelFilterQuery =>
-        _JSONPathEval(current, root, q.segments)
+        _JSONPathEval(current, root, q.segments, depth + 1)
       | let q: _AbsFilterQuery =>
-        _JSONPathEval(root, root, q.segments)
+        _JSONPathEval(root, root, q.segments, depth + 1)
       end
     if results.size() == 1 then
       try results(0)? else _Nothing end
