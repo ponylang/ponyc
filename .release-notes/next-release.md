@@ -622,3 +622,11 @@ On 32-bit x86, ordinary Pony methods preserve the bit pattern of signaling NaNs 
 
 On RISC-V, C FFI calls now preserve narrow integer arguments and results according to the C calling convention. The previous behavior could corrupt values such as a TCP listener's port number, causing a client to connect to the wrong port.
 
+## Allow garbage collection during a behavior
+
+An actor can now reclaim memory during a long-running behavior. If the behavior repeatedly creates temporary objects, the actor can reuse some of their storage before the behavior returns. After a call to `pony_triggergc`, the runtime can collect before the current behavior returns. User finalizers still run between behaviors.
+
+An actor can reclaim temporary objects while processing data it received or while another actor still holds an object it sent. The actor can lose its last readable reference to an object with a finalizer while the object's fields still need tracing. In that case, sharing even an unrelated object with another actor can delay collection until the behavior returns. If the runtime cannot trace all live references in a method or constructor, collection may also have to wait until that call returns. Collection can also wait until the behavior returns while the actor's heap holds an object with a finalizer that the behavior reaches only through a `tag` or through one of its embedded fields, or doesn't reach at all. That happens only if the object has a field that isn't a primitive, such as a number or a `Bool`, or a tuple of primitives, and the last collection between behaviors also didn't reach the object through a readable reference to the object itself. An object that native code allocated, or whose constructor raised an error, can make collection wait this way until such a collection does reach it.
+
+An actor that calls a foreign function that may retain a Pony pointer, including a function the compiler has not classified, collects only between behaviors for the rest of its lifetime. Using a raw pointer can have the same effect unless the compiler recognizes all its uses, such as checking it for null. An actor can still collect after initializing a struct field directly with `Pointer.create()` or `NullablePointer.none()`. A callback from native code can also restrict an actor to collection between behaviors for its lifetime.
+
