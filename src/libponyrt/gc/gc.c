@@ -403,9 +403,7 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
     return;
   }
 
-  // A struct whose first field is embedded shares its address with that
-  // field, so the allocation's mark can't say which of them was traced.
-  if((chunk != NULL) && (t->first_embed == NULL))
+  if(chunk != NULL)
   {
     switch(ponyint_heap_mark_object(chunk, p))
     {
@@ -414,13 +412,16 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
         return;
 
       case HEAP_MARK_MARKED:
-        return;
+        // A struct whose first field is embedded shares its address with that
+        // field, so the allocation's mark may come from the field's trace,
+        // which doesn't cover the struct.
+        if(t->first_embed == NULL)
+          return;
+        break;
 
       case HEAP_MARK_INTERIOR:
         break;
     }
-  } else if(chunk != NULL) {
-    ponyint_heap_mark_shallow(chunk, p);
   }
 
   // An embedded object: other objects share its allocation, so the visit is
