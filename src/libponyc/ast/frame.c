@@ -92,12 +92,6 @@ bool frame_push(typecheck_t* t, ast_t* ast)
       t->frame->the_case = ast;
       break;
 
-    case TK_WHILE:
-    case TK_REPEAT:
-      pop = push_frame(t);
-      t->frame->loop = ast;
-      break;
-
     case TK_TRY:
     case TK_TRY_NO_CHECK:
       pop = push_frame(t);
@@ -224,9 +218,11 @@ bool frame_push(typecheck_t* t, ast_t* ast)
           if(cond == ast)
           {
             pop = push_frame(t);
+            t->frame->loop = parent;
             t->frame->loop_cond = ast;
           } else if(body == ast) {
             pop = push_frame(t);
+            t->frame->loop = parent;
             t->frame->loop_body = ast;
           } else if(else_clause == ast) {
             pop = push_frame(t);
@@ -242,9 +238,11 @@ bool frame_push(typecheck_t* t, ast_t* ast)
           if(body == ast)
           {
             pop = push_frame(t);
+            t->frame->loop = parent;
             t->frame->loop_body = ast;
           } else if(cond == ast) {
             pop = push_frame(t);
+            t->frame->loop = parent;
             t->frame->loop_cond = ast;
           } else if(else_clause == ast) {
             pop = push_frame(t);

@@ -13,6 +13,21 @@
 #include "../type/typealias.h"
 #include "ponyassert.h"
 
+static char lowered_array_literal;
+
+ast_t* array_literal_constructor(ast_t* seq)
+{
+  if(ast_data(seq) != &lowered_array_literal)
+    return NULL;
+
+  pony_assert(ast_id(seq) == TK_SEQ);
+  ast_t* assign = ast_child(seq);
+  pony_assert(ast_id(assign) == TK_ASSIGN);
+  ast_t* call = ast_childidx(assign, 1);
+  pony_assert(ast_id(call) == TK_CALL && ast_id(ast_child(call)) == TK_NEWREF);
+  return call;
+}
+
 static ast_t* build_array_type(pass_opt_t* opt, ast_t* scope, ast_t* elem_type,
   token_id cap, token_id eph)
 {
@@ -641,12 +656,6 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
   if(size == 0)
   {
-    // No elements to push: leave the array as a bare constructor call. An
-    // embedded field must be assigned a constructor. is_expr_constructor
-    // (expr/operator.c) looks through a sequence to its last expression, so the
-    // size>0 form above is rejected for an embed field not because it is a
-    // sequence but because it ends in the temp-local reference; keeping the bare
-    // create for an empty literal is what lets `embed field = []` stay valid.
     ast_replace(astp, array_create);
   }
   else
@@ -660,6 +669,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
     // which the tree-check `expr` group rejects in expression position.
     BUILD(seq, ast,
       NODE(TK_SEQ,
+        DATA(&lowered_array_literal)
         NODE(TK_ASSIGN,
           NODE(TK_LET, NICE_ID(tmp_name, "array literal") NONE)
           TREE(array_create))));

@@ -221,10 +221,6 @@ TEST_F(ArrayTest, EmptyArrayLiteralMustBeInferable)
 
 TEST_F(ArrayTest, EmbedFieldFromEmptyArrayLiteral)
 {
-  // An empty array literal desugars to a bare Array.create() constructor call,
-  // which an embedded field requires. (A non-empty literal desugars to a
-  // sequence ending in a reference, not a constructor -- see the negative case
-  // below.)
   const char* src =
     "class Foo\n"
     "  embed _a: Array[U32] = []\n"
@@ -234,16 +230,77 @@ TEST_F(ArrayTest, EmbedFieldFromEmptyArrayLiteral)
 }
 
 
-TEST_F(ArrayTest, EmbedFieldFromNonEmptyArrayLiteralFails)
+TEST_F(ArrayTest, EmbedFieldFromNonEmptyArrayLiteral)
 {
-  // A non-empty array literal desugars to a sequence whose last expression is
-  // the temp-local reference, not a constructor, so it can't initialise an
-  // embedded field. (The empty case above stays a bare constructor and does.)
   const char* src =
     "class Foo\n"
-    "  embed _a: Array[U32] = [1]";
+    "  embed a: Array[U32] = [1]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    env.out.print(Foo.a.size().string())";
+
+  set_builtin(nullptr);
+
+  DO(test_compile(src, "ir"));
+}
+
+
+TEST_F(ArrayTest, EmbedFieldFromLocalArrayFails)
+{
+  const char* src =
+    "class Foo\n"
+    "  embed _a: Array[Array[U32]]\n"
+    "  new create() =>\n"
+    "    ((_a)) = (let a = Array[Array[U32]].create(1);"
+    "      a.push([as U32: 1]); a)";
 
   TEST_ERRORS_1(src, "an embedded field must be assigned using a constructor");
+}
+
+TEST_F(ArrayTest, EmbedFieldFromLoopBreakAliasFails)
+{
+  const char* src =
+    "class Foo\n"
+    "  embed _a: Array[U32]\n"
+    "  new create(b: Bool) =>\n"
+    "    let a = Array[U32]\n"
+    "    _a = while b do\n"
+    "      if b then break a end\n"
+    "      Array[U32]\n"
+    "    else\n"
+    "      Array[U32]\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "an embedded field must be assigned using a constructor");
+}
+
+TEST_F(ArrayTest, EmbedFieldFromRepeatBodyAliasFails)
+{
+  const char* src =
+    "class Foo\n"
+    "  embed _a: Array[U32]\n"
+    "  new create() =>\n"
+    "    let a = Array[U32]\n"
+    "    _a = repeat a until Bool(true) else Array[U32] end";
+
+  TEST_ERRORS_1(src, "an embedded field must be assigned using a constructor");
+}
+
+TEST_F(ArrayTest, EmbedFieldFromNestedLoopElseBreakWrongType)
+{
+  const char* src =
+    "class Foo\n"
+    "  embed _a: Array[U32]\n"
+    "  new create(b: Bool) =>\n"
+    "    _a = while b do\n"
+    "      let inner = while b do None else break Array[U64] end\n"
+    "      Array[U32]\n"
+    "    else\n"
+    "      Array[U32]\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
 }
 
 

@@ -77,6 +77,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `iftype` specialization selected for non-matching types when parameter names differ ([PR #6706](https://github.com/ponylang/ponyc/pull/6706))
 - Fix inherited method using receiver's type argument for same-named method type parameter ([PR #6707](https://github.com/ponylang/ponyc/pull/6707))
 - Fix JSONPath stack overflow on deeply nested `@`-relative filter chains ([PR #6708](https://github.com/ponylang/ponyc/pull/6708))
+- Fix non-empty array literals in embedded fields ([PR #6719](https://github.com/ponylang/ponyc/pull/6719))
+- Fix result typing for `break` from a nested loop's `else` ([PR #6719](https://github.com/ponylang/ponyc/pull/6719))
 
 ### Added
 

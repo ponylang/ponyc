@@ -667,3 +667,11 @@ A JSONPath query with deeply nested `@`-relative filters (`$[?@[?@[?...`) overfl
 
 The evaluator now counts re-entry depth and returns an empty result when it exceeds 1024, the same limit the parser enforces on expression nesting.
 
+## Fix non-empty array literals in embedded fields
+
+The compiler now accepts declarations such as `embed values: Array[U32] = [7]`. A loop can also initialize an embedded array with a constructor call or array literal supplied by `break`. If the loop returns an existing array, the compiler now reports an error.
+
+## Fix result typing for `break` from a nested loop's `else`
+
+A `break` with a value in an inner loop's `else` exits the enclosing loop. The compiler previously included the value's type in the inner loop's result type. It now includes it in the enclosing loop's result type.
+

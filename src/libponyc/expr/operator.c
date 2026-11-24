@@ -1,4 +1,5 @@
 #include "operator.h"
+#include "array.h"
 #include "literal.h"
 #include "postfix.h"
 #include "control.h"
@@ -266,113 +267,178 @@ static bool infer_locals(pass_opt_t* opt, ast_t* left, ast_t* r_type)
   return true;
 }
 
-static bool is_expr_constructor(ast_t* ast)
+static ast_t* unwrap_sequence_result(ast_t* ast)
 {
-  pony_assert(ast != NULL);
+  while(ast_id(ast) == TK_SEQ)
+    ast = ast_childlast(ast);
+
+  return ast;
+}
+
+static bool lvalue_contains_embed(ast_t* ast)
+{
+  ast = unwrap_sequence_result(ast);
+  if(ast_id(ast) == TK_EMBEDREF)
+    return true;
+
+  if(ast_id(ast) != TK_TUPLE)
+    return false;
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+  {
+    if(lvalue_contains_embed(child))
+      return true;
+  }
+
+  return false;
+}
+
+static bool mark_embed_constructor_results(pass_opt_t* opt, ast_t* target,
+  ast_t* ast);
+
+static bool mark_embed_break_results(pass_opt_t* opt, ast_t* target, ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+    case TK_BREAK:
+    {
+      ast_t* value = ast_child(ast);
+      if(ast_id(value) != TK_NONE &&
+        !mark_embed_constructor_results(opt, target, value))
+        return false;
+      break;
+    }
+    case TK_WHILE:
+    case TK_REPEAT:
+      // The nested loop handles breaks in its body and condition. Its else
+      // clause runs outside that loop.
+      return mark_embed_break_results(opt, target, ast_childidx(ast, 2));
+    default:
+      break;
+  }
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+  {
+    if(!mark_embed_break_results(opt, target, child))
+      return false;
+  }
+
+  return true;
+}
+
+static bool mark_embed_constructor_results(pass_opt_t* opt, ast_t* target,
+  ast_t* ast)
+{
+  target = unwrap_sequence_result(target);
+  bool tuple_target = ast_id(target) == TK_TUPLE;
+  if(!tuple_target && ast_id(target) != TK_EMBEDREF)
+    return true;
+
+  if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+    return true;
+
   switch(ast_id(ast))
   {
     case TK_CALL:
-      return ast_id(ast_child(ast)) == TK_NEWREF;
+      if(!tuple_target && ast_id(ast_child(ast)) == TK_NEWREF)
+      {
+        const char* field = ast_name(ast_childidx(target, 1));
+        ast_setdata(ast, (void*)field);
+        return true;
+      }
+      break;
+
     case TK_SEQ:
-      return is_expr_constructor(ast_childlast(ast));
+    {
+      ast_t* constructor = array_literal_constructor(ast);
+      if(constructor == NULL)
+        return mark_embed_constructor_results(opt, target, ast_childlast(ast));
+
+      // Only inline storage can serve as the receiver of an embedded
+      // field's constructor.
+      ast_clearflag(ast, AST_FLAG_CONST_ARRAY);
+      return mark_embed_constructor_results(opt, target, constructor);
+    }
+    case TK_TUPLE:
+    {
+      if(!tuple_target)
+        break;
+
+      bool result = true;
+      ast_t* item = ast_child(ast);
+      for(ast_t* field = ast_child(target); field != NULL;
+        field = ast_sibling(field))
+      {
+        pony_assert(item != NULL);
+        if(!mark_embed_constructor_results(opt, field, item))
+          result = false;
+        item = ast_sibling(item);
+      }
+      pony_assert(item == NULL);
+      return result;
+    }
     case TK_IF:
+      return mark_embed_constructor_results(opt, target, ast_childidx(ast, 1))
+        && mark_embed_constructor_results(opt, target, ast_childidx(ast, 2));
+
+    case TK_IFTYPE_SET:
+    {
+      ast_t* body = ast_childidx(ast_child(ast), 2);
+      ast_t* else_expr = ast_childidx(ast, 1);
+      return mark_embed_constructor_results(opt, target, body) &&
+        mark_embed_constructor_results(opt, target, else_expr);
+    }
     case TK_WHILE:
     case TK_REPEAT:
     {
-      ast_t* body = ast_childidx(ast, 1);
+      bool is_while = ast_id(ast) == TK_WHILE;
+      ast_t* body = ast_childidx(ast, is_while ? 1 : 0);
+      ast_t* cond = ast_childidx(ast, is_while ? 0 : 1);
       ast_t* else_expr = ast_childidx(ast, 2);
-      return is_expr_constructor(body) && is_expr_constructor(else_expr);
+      return mark_embed_constructor_results(opt, target, body) &&
+        mark_embed_constructor_results(opt, target, else_expr) &&
+        mark_embed_break_results(opt, target, body) &&
+        mark_embed_break_results(opt, target, cond);
     }
     case TK_TRY:
-    {
-      ast_t* body = ast_childidx(ast, 0);
-      ast_t* else_expr = ast_childidx(ast, 1);
-      return is_expr_constructor(body) && is_expr_constructor(else_expr);
-    }
+    case TK_TRY_NO_CHECK:
+      return mark_embed_constructor_results(opt, target, ast_child(ast)) &&
+        mark_embed_constructor_results(opt, target, ast_childidx(ast, 1));
+
     case TK_DISPOSING_BLOCK:
-    {
-      ast_t* body = ast_childidx(ast, 0);
-      return is_expr_constructor(body);
-    }
+      return mark_embed_constructor_results(opt, target, ast_child(ast));
+
     case TK_MATCH:
     {
       ast_t* cases = ast_childidx(ast, 1);
       ast_t* else_expr = ast_childidx(ast, 2);
-      ast_t* the_case = ast_child(cases);
 
-      while(the_case != NULL)
+      for(ast_t* the_case = ast_child(cases); the_case != NULL;
+        the_case = ast_sibling(the_case))
       {
-        if(!is_expr_constructor(ast_childidx(the_case, 2)))
+        ast_t* body = ast_childidx(the_case, 2);
+        if(!mark_embed_constructor_results(opt, target, body))
           return false;
-        the_case = ast_sibling(the_case);
       }
-      return is_expr_constructor(else_expr);
+      return ast_id(else_expr) == TK_NONE ||
+        mark_embed_constructor_results(opt, target, else_expr);
     }
     case TK_RECOVER:
-      return is_expr_constructor(ast_childidx(ast, 1));
+      return mark_embed_constructor_results(opt, target, ast_childidx(ast, 1));
+
     default:
-      return false;
+      break;
   }
-}
 
-static bool tuple_contains_embed(ast_t* ast)
-{
-  pony_assert(ast_id(ast) == TK_TUPLE);
-  ast_t* child = ast_child(ast);
-  while(child != NULL)
-  {
-    pony_assert(ast_id(child) == TK_SEQ);
-    ast_t* member = ast_childlast(child);
-    if(ast_id(member) == TK_EMBEDREF)
-    {
-      return true;
-    } else if(ast_id(member) == TK_TUPLE) {
-      if(tuple_contains_embed(member))
-        return true;
-    }
-    child = ast_sibling(child);
-  }
+  if(!lvalue_contains_embed(target))
+    return true;
+
+  ast_error(opt->check.errors, target,
+    "an embedded field must be assigned using a constructor");
+  ast_error_continue(opt->check.errors, ast, tuple_target ?
+    "the assigned expression isn't a tuple literal" :
+    "the assigned expression is here");
   return false;
-}
-
-static bool check_embed_construction(pass_opt_t* opt, ast_t* left, ast_t* right)
-{
-  bool result = true;
-  if(ast_id(left) == TK_EMBEDREF)
-  {
-    if(!is_expr_constructor(right))
-    {
-      ast_error(opt->check.errors, left,
-        "an embedded field must be assigned using a constructor");
-      ast_error_continue(opt->check.errors, right,
-        "the assigned expression is here");
-      return false;
-    }
-  } else if(ast_id(left) == TK_TUPLE) {
-    if(ast_id(right) == TK_TUPLE)
-    {
-      ast_t* l_child = ast_child(left);
-      ast_t* r_child = ast_child(right);
-      while(l_child != NULL)
-      {
-        pony_assert((ast_id(l_child) == TK_SEQ) && (ast_id(r_child) == TK_SEQ));
-        ast_t* l_member = ast_childlast(l_child);
-        ast_t* r_member = ast_childlast(r_child);
-        if(!check_embed_construction(opt, l_member, r_member))
-          result = false;
-
-        l_child = ast_sibling(l_child);
-        r_child = ast_sibling(r_child);
-      }
-      pony_assert(r_child == NULL);
-    } else if(tuple_contains_embed(left)) {
-      ast_error(opt->check.errors, left,
-        "an embedded field must be assigned using a constructor");
-      ast_error_continue(opt->check.errors, right,
-        "the assigned expression isn't a tuple literal");
-    }
-  }
-  return result;
 }
 
 void coerce_tuple_to_target(pass_opt_t* opt, ast_t* expr,
@@ -832,7 +898,8 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   ast_free_unattached(wl_type);
 
-  if(!check_embed_construction(opt, left, right))
+  if(lvalue_contains_embed(left) &&
+    !mark_embed_constructor_results(opt, left, right))
     return false;
 
   ast_settype(ast, consume_type(l_type, TK_NONE, false, opt));

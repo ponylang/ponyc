@@ -120,6 +120,7 @@ RULE(seq,
 
 RULE(rawseq,
   HAS_TYPE(type)
+  HAS_DATA  // Array literal marker.
   ONE_OR_MORE(jump, intrinsic, compile_error, expr, semi),
   TK_SEQ);
 
@@ -244,6 +245,7 @@ RULE(qualify,
 
 RULE(call,
   HAS_TYPE(type)
+  HAS_DATA  // Embedded destination field name for a constructor.
   CHILD(expr) // receiver
   CHILD(positional_args, none)
   CHILD(named_args, none)
