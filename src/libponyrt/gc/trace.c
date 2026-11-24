@@ -65,7 +65,7 @@ void ponyint_mark_done(pony_ctx_t* ctx)
   ponyint_gc_markimmutable(ctx, ponyint_actor_gc(ctx->current));
   ponyint_gc_handlestack(ctx);
   // Only a mark records visits in the set.
-  if(ctx->views.count != 0)
+  if(ctx->views.capacity != 0)
     ponyint_gc_end_views(ctx);
 
 #ifdef USE_RUNTIMESTATS

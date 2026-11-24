@@ -836,7 +836,8 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
 #ifdef USE_RUNTIMESTATS
   pony_ctx_t* ctx = pony_ctx();
   ctx->schedulerstats.mem_used_actors -= actor->type->size;
-  ctx->schedulerstats.mem_allocated_actors -= ponyint_pool_used_size(actor->type->size);
+  ctx->schedulerstats.mem_allocated_actors -=
+    ponyint_pool_used_size(actor_alloc_size(actor->type));
   ctx->schedulerstats.destroyed_actors_counter++;
   if (ponyint_sched_print_stats())
     print_actor_stats(actor);
@@ -962,7 +963,8 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
 
 #ifdef USE_RUNTIMESTATS
   ctx->schedulerstats.mem_used_actors += type->size;
-  ctx->schedulerstats.mem_allocated_actors += ponyint_pool_used_size(type->size);
+  ctx->schedulerstats.mem_allocated_actors +=
+    ponyint_pool_used_size(actor_alloc_size(type));
   ctx->schedulerstats.created_actors_counter++;
 #endif
 
@@ -1322,7 +1324,7 @@ size_t ponyint_actor_mem_size(pony_actor_t* actor)
 
 size_t ponyint_actor_alloc_size(pony_actor_t* actor)
 {
-  return ponyint_pool_used_size(actor->type->size);
+  return ponyint_pool_used_size(actor_alloc_size(actor->type));
 }
 
 size_t ponyint_actor_total_mem_size(pony_actor_t* actor)
@@ -1351,7 +1353,7 @@ size_t ponyint_actor_total_alloc_size(pony_actor_t* actor)
       // allocation for actor struct size (maybe this shouldn't be counted to
       // avoid double counting since it is counted as part of the scheduler
       // thread mem allocated?)
-      ponyint_pool_used_size(actor->type->size)
+      ponyint_pool_used_size(actor_alloc_size(actor->type))
       // cycle detector memory allocated (or 0 if not cycle detector)
     + ( ponyint_is_cycle(actor) ? ponyint_cycle_alloc_size() : 0)
       // actor heap memory allocated
