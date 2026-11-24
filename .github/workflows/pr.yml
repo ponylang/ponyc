@@ -96,24 +96,6 @@ jobs:
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
 
-  maybe-build-macos:
-    needs: changes
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      (needs.changes.outputs.ponyc == 'true' ||
-       needs.changes.outputs.pony_compiler == 'true' ||
-       needs.changes.outputs.tools == 'true')
-    runs-on: macos-26
-    name: maybe-build libs (arm64 macOS)
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-      - name: Ensure libs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
-
   maybe-build-windows:
     needs: changes
     if: >-
@@ -184,33 +166,6 @@ jobs:
         run: PONYPATH=packages build/debug/ponyc -d ${{ env.PONY_SSL_FLAG }} --pic -b tcp-swarm -o build/debug test/rt-stress/tcp-swarm/
       - name: Compile udp-swarm stress engine
         run: PONYPATH=packages build/debug/ponyc -d ${{ env.PONY_SSL_FLAG }} --pic -b udp-swarm -o build/debug test/rt-stress/udp-swarm/
-
-  ponyc-arm64-macos:
-    needs: [changes, maybe-build-macos]
-    if: >-
-      !cancelled() &&
-      needs.changes.outputs.ponyc == 'true' &&
-      (needs.maybe-build-macos.result == 'success' ||
-       needs.maybe-build-macos.result == 'skipped')
-    runs-on: macos-26
-    name: 'ponyc: arm64 macOS'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-      - name: Build libs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg (argparse would see it and exit 2).
-          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
-      - name: Build Debug Runtime
-        run: |
-          cmake --preset armv8-debug
-          cmake --build --preset armv8-debug
-      - name: Test with Debug Runtime
-        run: PONY_DEBUG=1 ctest --preset armv8-debug -L ci-core
 
   ponyc-x86_64-windows:
     needs: [changes, maybe-build-windows]
@@ -287,34 +242,6 @@ jobs:
           cmake --build --preset debug --target pony-compiler-tests
       - name: Test pony-compiler
         run: ctest --preset debug -R pony-compiler-tests
-
-  pony-compiler-macos:
-    needs: [changes, maybe-build-macos]
-    if: >-
-      !cancelled() &&
-      needs.changes.outputs.pony_compiler == 'true' &&
-      (needs.maybe-build-macos.result == 'success' ||
-       needs.maybe-build-macos.result == 'skipped')
-    runs-on: macos-26
-    name: 'pony-compiler: macOS'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-      - name: Build libs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg (argparse would see it and exit 2).
-          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
-      - name: Build
-        run: |
-          cmake --preset armv8-debug
-          cmake --build --preset armv8-debug
-          cmake --build --preset armv8-debug --target pony-compiler-tests
-      - name: Test pony-compiler
-        run: ctest --preset armv8-debug -R pony-compiler-tests
 
   pony-compiler-windows:
     needs: [changes, maybe-build-windows]
@@ -407,44 +334,6 @@ jobs:
         run: cd build/debug && ./pony-lint ../../test/
       - name: Lint packages
         run: cd build/debug && ./pony-lint ../../packages/
-
-  tools-macos:
-    needs: [changes, maybe-build-macos]
-    if: >-
-      !cancelled() &&
-      needs.changes.outputs.tools == 'true' &&
-      (needs.maybe-build-macos.result == 'success' ||
-       needs.maybe-build-macos.result == 'skipped')
-    runs-on: macos-26
-    name: 'Tools: macOS'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-      - name: Build libs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg (argparse would see it and exit 2).
-          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
-      - name: Build
-        run: |
-          cmake --preset armv8-debug
-          cmake --build --preset armv8-debug
-          cmake --build --preset armv8-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-dep-tests pony-agent-server-tests pony-mutate-tests
-      - name: Test pony-doc
-        run: ctest --preset armv8-debug -R pony-doc-tests
-      - name: Test pony-lint
-        run: ctest --preset armv8-debug -R pony-lint-tests
-      - name: Test pony-lsp
-        run: ctest --preset armv8-debug -R pony-lsp-tests
-      - name: Test pony-dep
-        run: ctest --preset armv8-debug -R pony-dep-tests
-      - name: Test pony-agent-server
-        run: ctest --preset armv8-debug -R pony-agent-server-tests
-      - name: Test pony-mutate
-        run: ctest --preset armv8-debug -R '^(pony-mutate-tests|mutation-reports)$'
 
   tools-windows:
     needs: [changes, maybe-build-windows]

@@ -111,12 +111,10 @@ A cold push — an LLVM-input change, when every platform cold-builds at once �
 would otherwise saturate the org-wide runner pool with rarely-used builds ahead
 of the most-used caches. So the build-outs run in three sequential stages:
 
-1. **PR platforms** (`x86_64-linux-pr`, which is ubuntu26.04 x86-64;
-   `arm64-macos`; `x86_64-windows`) — what `pr.yml` pulls. No gate; starts
-   immediately.
+1. **PR platforms** (`x86_64-linux-pr` and `x86_64-windows`) start immediately.
 2. **Release and nightly platforms** (`x86_64-linux-release`, `arm64-linux`,
-   `x86_64-macos`, `arm64-windows`) — the rest of what `release.yml` and
-   `nightlies.yml` pull.
+   `x86_64-macos`, `arm64-macos`, and `arm64-windows`) cover the remaining
+   caches that `release.yml` and `nightlies.yml` pull.
 3. **Everything else** (`x86_64-linux-other`, which is fedora plus the cross
    image; `freebsd`; `openbsd`; `dragonflybsd`; `i386-linux`) — tier2, tier3,
    and weekly-only platforms.
@@ -151,10 +149,8 @@ has neither, so it counts as on-main.
 
 **On main** — a scheduled run, or a dispatch left on `main` — they pass
 `--require-cache-hit --skip-on-miss` and never cold-build. A miss writes the
-`.libs-cache-miss` marker and exits 0; every build and run step gates on
-`if: hashFiles('.libs-cache-miss') == ''`, so the job goes green with those steps
-skipped and the `Send alert on failure` Zulip step (gated on `failure() &&
-github.event_name == 'schedule'` for the stress jobs) stays silent. This is
+`.libs-cache-miss` marker and exits 0. The build and test steps skip when the
+marker is present. The job passes without a Zulip failure alert. This is
 deliberate: the warmer owns main, and the continuous stress loop runs at
 staggered times that overlap an empty or refilling cache, so a scheduled miss is
 expected rather than a coverage bug.
@@ -166,10 +162,9 @@ cache, exactly as a PR does, so a manual test of an LLVM change isn't blocked an
 a re-dispatch of the branch reuses the build. This is why these workflows hold
 `packages: write` rather than `packages: read`.
 
-The mode is spelled with two environment variables at the bash and sh sites:
-`LIBS_MODE` for the pre-`--image` flags, and `LIBS_BUILD` for the trailing
-`-- cmake … -P lib/build-libs.cmake`, which is present only off main so that on
-main it adds no stray arguments. PowerShell cannot word-split a variable's value,
+Most Bash and sh steps set the flags in `LIBS_MODE` and the build command in
+`LIBS_BUILD`. They set the build command only for runs off main. The Tier 2
+arm64 macOS job sets Bash argument arrays based on `LIBS_OFF_MAIN`. PowerShell cannot word-split a variable's value,
 so the Windows sites spell the two modes out under a literal `if
 ($env:LIBS_OFF_MAIN -eq 'true')`. The marker is written to `GITHUB_WORKSPACE` —
 falling back to the working directory, which is the workspace mount for the
@@ -366,7 +361,7 @@ replaced `pr-ponyc.yml`, `pr-pony-compiler.yml`, and `pr-tools.yml`. The merge i
 what makes cross-workflow dedup possible. The three suites used to fire as three
 concurrent workflows, each cold-building the same shared LLVM platform on a cache
 miss, and `needs:` is intra-workflow only. Now, for each platform shared by two or
-more suites (ubuntu glibc, macOS, Windows), a `maybe-build-<plat>` job runs
+more suites (Ubuntu glibc and Windows), a `maybe-build-<plat>` job runs
 `pr_libs_cache.py --ensure` once, and the consumer jobs `needs:` it and pull.
 
 ### Fork safety

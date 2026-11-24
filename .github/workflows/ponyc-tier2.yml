@@ -165,6 +165,69 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
+  arm64-macos:
+    needs: check-for-changes
+    if: needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: macos-26
+
+    name: arm64 Apple Darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Restore libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+          LIBS_OFF_MAIN: ${{ github.event_name == 'workflow_dispatch' && inputs.ref != 'main' }}
+        run: |
+          if [[ "$LIBS_OFF_MAIN" == true ]]; then
+            cache_args=(--branch-cache)
+            build_args=(-- cmake -DJOBS=3 -P lib/build-libs.cmake)
+          else
+            cache_args=(--require-cache-hit --skip-on-miss)
+            build_args=()
+          fi
+          python3 .ci-scripts/libs-cache/resolve_libs_cache.py "${cache_args[@]}" --platform arm64-macos-26 --tag "$LIBS_TAG" "${build_args[@]}"
+      - name: Build Debug Runtime
+        id: debug-build
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          cmake --preset armv8-debug
+          cmake --build --preset armv8-debug
+      - name: Test with Debug Runtime
+        if: steps.debug-build.outcome == 'success'
+        run: PONY_DEBUG=1 ctest --preset armv8-debug -L ci-core
+      - name: Build pony-compiler tests
+        id: compiler-tests-build
+        if: ${{ !cancelled() && steps.debug-build.outcome == 'success' }}
+        run: cmake --build --preset armv8-debug --target pony-compiler-tests
+      - name: Test pony-compiler
+        if: ${{ !cancelled() && steps.compiler-tests-build.outcome == 'success' }}
+        run: ctest --preset armv8-debug -R '^pony-compiler-tests$'
+      - name: Build tool tests
+        id: tool-tests-build
+        if: ${{ !cancelled() && steps.debug-build.outcome == 'success' }}
+        run: cmake --build --preset armv8-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-dep-tests pony-agent-server-tests pony-mutate-tests
+      - name: Test tools
+        if: ${{ !cancelled() && steps.tool-tests-build.outcome == 'success' }}
+        run: ctest --preset armv8-debug -L tools -E '^pony-compiler-tests$'
+      - name: Test mutation reports with optimized codegen
+        if: ${{ !cancelled() && steps.debug-build.outcome == 'success' }}
+        run: ctest --preset armv8-debug -R '^mutation-reports$'
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
   # Currently, Github actions supplied by GH like checkout and cache do not work
   # in musl libc environments on arm64. We can work around this by running
   # those actions on the host and then "manually" doing our work that would

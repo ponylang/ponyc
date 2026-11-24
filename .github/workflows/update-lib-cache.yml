@@ -19,10 +19,9 @@ jobs:
   # keep the most-used caches ahead of the rarely-used ones, the build-outs run
   # in three sequential stages:
   #
-  #   Stage 1 - platforms PR CI pulls: x86_64-linux-pr, arm64-macos,
-  #             x86_64-windows
+  #   Stage 1 - platforms PR CI pulls: x86_64-linux-pr, x86_64-windows
   #   Stage 2 - platforms releases/nightlies pull: x86_64-linux-release,
-  #             arm64-linux, x86_64-macos, arm64-windows
+  #             arm64-linux, x86_64-macos, arm64-macos, arm64-windows
   #   Stage 3 - everything else: x86_64-linux-other (fedora + cross), freebsd,
   #             openbsd, dragonflybsd, i386-linux, nixos-linux
   #
@@ -71,7 +70,7 @@ jobs:
   # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
   # x86_64-windows (slow).
   x86_64-linux-release:
-    needs: [x86_64-linux-pr, arm64-macos]
+    needs: x86_64-linux-pr
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
 
@@ -102,7 +101,7 @@ jobs:
   # running; the VM jobs then wait on this job, so stage 3 runs at most 2 builds
   # at once (see the stage-3 cap note in the top comment).
   x86_64-linux-other:
-    needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
+    needs: [x86_64-linux-release, arm64-linux, x86_64-macos, arm64-macos]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
 
@@ -208,7 +207,7 @@ jobs:
   arm64-linux:
     # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
     # x86_64-windows (slow).
-    needs: [x86_64-linux-pr, arm64-macos]
+    needs: x86_64-linux-pr
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04-arm
 
@@ -252,7 +251,7 @@ jobs:
   x86_64-macos:
     # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
     # x86_64-windows (slow).
-    needs: [x86_64-linux-pr, arm64-macos]
+    needs: x86_64-linux-pr
     if: ${{ !cancelled() }}
     runs-on: macos-15-intel
 
@@ -267,7 +266,9 @@ jobs:
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform x86-macos-15-intel --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
 
   arm64-macos:
-    # Stage 1 (PR). No gate; starts immediately.
+    # Stage 2 (release/nightly).
+    needs: x86_64-linux-pr
+    if: ${{ !cancelled() }}
     runs-on: macos-26
 
     name: arm64 Apple Darwin
@@ -298,7 +299,7 @@ jobs:
   arm64-windows:
     # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
     # x86_64-windows (slow). Slow itself, so no later stage gates on it.
-    needs: [x86_64-linux-pr, arm64-macos]
+    needs: x86_64-linux-pr
     if: ${{ !cancelled() }}
     runs-on: windows-11-arm
 
