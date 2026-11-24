@@ -509,18 +509,30 @@ static void trace_nullable_pointer(compile_t* c, LLVMValueRef ctx,
   LLVMPositionBuilderAtEnd(c->builder, is_true);
 }
 
-static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
-  ast_t* type, int mutability)
+void gentrace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
+  reach_type_t* t, int mutability)
 {
-  reach_type_t* t = reach_type(c->reach, type, c->opt);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   LLVMValueRef args[4];
   args[0] = ctx;
   args[1] = object;
-  args[2] = codegen_resolve_global(c, ((compile_type_t*)t->c_type)->desc);
+  args[2] = codegen_resolve_global(c, c_t->desc);
   args[3] = LLVMConstInt(c->i32, mutability, false);
 
-  gencall_runtime(c, "pony_traceknown", args, 4, "");
+  // Only a type that can share memory with other objects needs the runtime to
+  // work out what the address belongs to.
+  if((c_t->embed_flags & PONY_EMBED_ROUTED) != 0)
+    gencall_runtime(c, "pony_traceknown_embeddable", args, 4, "");
+  else
+    gencall_runtime(c, "pony_traceknown", args, 4, "");
+}
+
+static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
+  ast_t* type, int mutability)
+{
+  gentrace_known(c, ctx, object, reach_type(c->reach, type, c->opt),
+    mutability);
 }
 
 static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,

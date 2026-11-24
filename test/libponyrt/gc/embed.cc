@@ -81,10 +81,14 @@ protected:
     c_type.size = sizeof(C);
     c_type.trace = trace_c;
     c_type.might_reference_actor = true;
+    // C is embedded at the start of S.
+    c_type.embed_flags = PONY_EMBED_ROUTED | PONY_EMBED_AT_START |
+      PONY_EMBED_IN_STRUCT;
     s_type.size = sizeof(S);
     s_type.trace = trace_s;
     s_type.first_embed = &c_type;
     s_type.might_reference_actor = true;
+    s_type.embed_flags = PONY_EMBED_ROUTED;
     child_type.size = sizeof(Child);
     child_type.might_reference_actor = true;
 
@@ -122,11 +126,11 @@ protected:
   {
     if(c_first)
     {
-      pony_traceknown(ctx, s, &c_type, mutability);
-      pony_traceknown(ctx, s, &s_type, mutability);
+      pony_traceknown_embeddable(ctx, s, &c_type, mutability);
+      pony_traceknown_embeddable(ctx, s, &s_type, mutability);
     } else {
-      pony_traceknown(ctx, s, &s_type, mutability);
-      pony_traceknown(ctx, s, &c_type, mutability);
+      pony_traceknown_embeddable(ctx, s, &s_type, mutability);
+      pony_traceknown_embeddable(ctx, s, &c_type, mutability);
     }
     ponyint_gc_handlestack(ctx);
   }
@@ -291,7 +295,7 @@ TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
     , &actor
 #endif
     );
-  EXPECT_EQ(HEAP_MARK_INTERIOR, ponyint_heap_mark_object(chunk, p + 16));
+  EXPECT_EQ(HEAP_MARK_INTERIOR, ponyint_heap_mark_object(chunk, p + 16, true));
   ponyint_heap_endgc(&actor.heap, 0
 #ifdef USE_RUNTIMESTATS
     , &actor
@@ -324,10 +328,15 @@ TEST(HeapMarkObject, ReportsInteriorPointers)
       , &actor
 #endif
       );
-    EXPECT_EQ(HEAP_MARK_INTERIOR, ponyint_heap_mark_object(chunk, p + 16));
-    EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p));
-    EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p));
-    EXPECT_EQ(HEAP_MARK_INTERIOR, ponyint_heap_mark_object(chunk, p + 16));
+    EXPECT_EQ(HEAP_MARK_INTERIOR,
+      ponyint_heap_mark_object(chunk, p + 16, true));
+    EXPECT_EQ(HEAP_MARK_UNCLAIMED, ponyint_heap_mark_object(chunk, p, false));
+    EXPECT_EQ(p, ponyint_heap_base(chunk, p + 16));
+    EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p, true));
+    EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p, true));
+    EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p, false));
+    EXPECT_EQ(HEAP_MARK_COVERED,
+      ponyint_heap_mark_object(chunk, p + 16, true));
     ponyint_heap_endgc(&actor.heap, 0
 #ifdef USE_RUNTIMESTATS
       , &actor
@@ -337,4 +346,145 @@ TEST(HeapMarkObject, ReportsInteriorPointers)
 
   ponyint_heap_destroy(&actor.heap);
   ponyint_unregister_thread();
+}
+
+namespace
+{
+// A class embedded in a class, and in nothing else.
+struct B
+{
+  pony_type_t* type;
+  uint64_t x;
+};
+
+struct A
+{
+  pony_type_t* type;
+  B b;
+  Child* d;
+};
+
+size_t a_traced;
+size_t b_traced;
+
+void trace_b(pony_ctx_t* ctx, void* p)
+{
+  (void)ctx;
+  (void)p;
+  b_traced++;
+}
+
+void trace_a(pony_ctx_t* ctx, void* p)
+{
+  a_traced++;
+  A* a = static_cast<A*>(p);
+  trace_b(ctx, &a->b);
+  pony_traceknown(ctx, a->d, a->d->type, PONY_TRACE_MUTABLE);
+}
+
+class GcEmbeddedInClass : public testing::Test
+{
+protected:
+  pony_ctx_t* ctx;
+  pony_actor_t a{};
+  _pony_type_t actor_type{};
+  _pony_type_t a_type{};
+  _pony_type_t b_type{};
+  _pony_type_t child_type{};
+
+  void SetUp() override
+  {
+    ponyint_register_thread();
+    ctx = pony_ctx();
+    ctx->current = &a;
+    a.type = &actor_type;
+    ponyint_heap_init(&a.heap);
+    ponyint_gc_done(&a.gc);
+
+    a_type.size = sizeof(A);
+    a_type.trace = trace_a;
+    a_type.might_reference_actor = true;
+    b_type.size = sizeof(B);
+    b_type.trace = trace_b;
+    b_type.might_reference_actor = true;
+    b_type.embed_flags = PONY_EMBED_ROUTED;
+    child_type.size = sizeof(Child);
+    child_type.might_reference_actor = true;
+    a_traced = 0;
+    b_traced = 0;
+  }
+
+  void TearDown() override
+  {
+    ponyint_gc_free_views(ctx);
+    ponyint_actormap_destroy(&ctx->acquire);
+    ctx->current = NULL;
+    ponyint_gc_destroy(&a.gc);
+    ponyint_heap_destroy(&a.heap);
+    ponyint_unregister_thread();
+  }
+
+  A* alloc_a()
+  {
+    Child* child = static_cast<Child*>(ponyint_heap_alloc(&a, &a.heap,
+      sizeof(Child), TRACK_NO_FINALISERS));
+    child->type = &child_type;
+    A* obj = static_cast<A*>(ponyint_heap_alloc(&a, &a.heap, sizeof(A),
+      TRACK_NO_FINALISERS));
+    obj->type = &a_type;
+    obj->b.type = &b_type;
+    obj->d = child;
+    return obj;
+  }
+
+  void start_mark()
+  {
+    ponyint_heap_startgc(&a.heap
+#ifdef USE_RUNTIMESTATS
+      , &a
+#endif
+      );
+    ponyint_gc_mark(ctx);
+  }
+
+  void end_mark()
+  {
+    ponyint_heap_endgc(&a.heap, 0
+#ifdef USE_RUNTIMESTATS
+      , &a
+#endif
+      );
+    ponyint_gc_end_views(ctx);
+    ponyint_gc_done(&a.gc);
+  }
+};
+}
+
+// Only classes contain B, so a mark that reaches a B through a pointer into
+// its allocation traces the class that starts the allocation, once, and the
+// class's other field survives.
+TEST_F(GcEmbeddedInClass, InteriorVisitTracesTheEnclosingClass)
+{
+  A* obj = alloc_a();
+  start_mark();
+  pony_traceknown_embeddable(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
+  pony_traceknown_embeddable(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, a_traced);
+  end_mark();
+  Child* next = static_cast<Child*>(ponyint_heap_alloc(&a, &a.heap,
+    sizeof(Child), TRACK_NO_FINALISERS));
+  EXPECT_NE(obj->d, next);
+}
+
+// A trace of an interface-typed reference reads the descriptor at run time and
+// takes the same path for B.
+TEST_F(GcEmbeddedInClass, UnknownTraceFollowsTheDescriptorFlag)
+{
+  A* obj = alloc_a();
+  start_mark();
+  pony_traceunknown(ctx, &obj->b, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, a_traced);
+  end_mark();
 }

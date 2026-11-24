@@ -752,21 +752,88 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   return true;
 }
 
-static void mark_embedded_in_actor(reach_type_t* t)
+// Sets a flag on every type embedded in t, directly or through other embedded
+// objects.
+static void flag_embedded(reach_type_t* t, uint8_t flag)
 {
   for(uint32_t i = 0; i < t->field_count; i++)
   {
     if(!t->fields[i].embed)
       continue;
 
-    reach_type_t* f = t->fields[i].type;
-    compile_type_t* f_c_t = (compile_type_t*)f->c_type;
+    compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
 
-    if(!f_c_t->embedded_in_actor)
+    if((f_c_t->embed_flags & flag) == 0)
     {
-      f_c_t->embedded_in_actor = true;
-      mark_embedded_in_actor(f);
+      f_c_t->embed_flags |= flag;
+      flag_embedded(t->fields[i].type, flag);
     }
+  }
+}
+
+// Records how each type's objects can share memory with other objects, so that
+// traces of the types that can are routed to the runtime code that handles it
+// and every other trace takes the plain path.
+static void compute_embed_flags(compile_t* c)
+{
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* t;
+
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
+  {
+    compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+    for(uint32_t f = 0; f < t->field_count; f++)
+    {
+      if(!t->fields[f].embed)
+        continue;
+
+      compile_type_t* f_c_t = (compile_type_t*)t->fields[f].type->c_type;
+      f_c_t->embed_flags |= PONY_EMBED_ROUTED;
+
+      if(t->underlying == TK_ACTOR)
+        c_t->embed_flags |= PONY_EMBED_ACTOR_LOOKUP;
+    }
+
+    switch(t->underlying)
+    {
+      case TK_ACTOR:
+        flag_embedded(t, PONY_EMBED_IN_ACTOR);
+        break;
+
+      case TK_STRUCT:
+        flag_embedded(t, PONY_EMBED_IN_STRUCT);
+
+        if((t->field_count > 0) && t->fields[0].embed)
+        {
+          // The struct and its first field share an address, and so does
+          // every object embedded at the start of that field.
+          c_t->embed_flags |= PONY_EMBED_ROUTED;
+          reach_type_t* f = t->fields[0].type;
+
+          while(f != NULL)
+          {
+            ((compile_type_t*)f->c_type)->embed_flags |= PONY_EMBED_AT_START;
+            f = ((f->underlying == TK_STRUCT) && (f->field_count > 0) &&
+              f->fields[0].embed) ? f->fields[0].type : NULL;
+          }
+        }
+        break;
+
+      default: {}
+    }
+  }
+
+  // An embedded object with no size shares its address with whatever follows
+  // it, so it never stands for its allocation.
+  i = HASHMAP_BEGIN;
+
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
+  {
+    compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+    if(((c_t->embed_flags & PONY_EMBED_ROUTED) != 0) && (c_t->abi_size == 0))
+      c_t->embed_flags |= PONY_EMBED_AT_START;
   }
 }
 
@@ -866,6 +933,9 @@ bool gentypes(compile_t* c)
       return false;
   }
 
+  // Before any trace is generated, and after sizes are known.
+  compute_embed_flags(c);
+
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Functions\n");
 
@@ -889,14 +959,6 @@ bool gentypes(compile_t* c)
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Descriptors\n");
-
-  i = HASHMAP_BEGIN;
-
-  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
-  {
-    if(t->underlying == TK_ACTOR)
-      mark_embedded_in_actor(t);
-  }
 
   i = HASHMAP_BEGIN;
 

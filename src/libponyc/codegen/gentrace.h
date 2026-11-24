@@ -10,6 +10,9 @@ bool gentrace_needed(compile_t* c, ast_t* src_type, ast_t* dst_type);
 
 void gentrace_prototype(compile_t* c, reach_type_t* t);
 
+void gentrace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
+  reach_type_t* t, int mutability);
+
 void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
   LLVMValueRef dst_value, ast_t* src_type, ast_t* dst_type);
 

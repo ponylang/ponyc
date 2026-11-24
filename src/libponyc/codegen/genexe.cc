@@ -13,6 +13,7 @@ LLD_HAS_DRIVER(wasm)
 #include "genexport.h"
 #include "gencall.h"
 #include "genfun.h"
+#include "gentrace.h"
 #include "genname.h"
 #include "genobj.h"
 #include "genopt.h"
@@ -213,11 +214,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   args[1] = LLVMConstNull(c->ptr);
   gencall_runtime(c, "pony_gc_send", args, 2, "");
 
-  args[0] = ctx;
-  args[1] = env;
-  args[2] = codegen_resolve_global(c, ((compile_type_t*)t_env->c_type)->desc);
-  args[3] = LLVMConstInt(c->i32, PONY_TRACE_IMMUTABLE, false);
-  gencall_runtime(c, "pony_traceknown", args, 4, "");
+  gentrace_known(c, ctx, env, t_env, PONY_TRACE_IMMUTABLE);
 
   args[0] = ctx;
   gencall_runtime(c, "pony_send_done", args, 1, "");
