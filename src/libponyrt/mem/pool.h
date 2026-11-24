@@ -80,6 +80,15 @@ void ponyint_pool_thread_cleanup();
  */
 void ponyint_pool_suspend_flush();
 
+#ifdef POOL_USE_ARENA
+/* The start of the pool allocation that contains p, or NULL if p is not in
+ * an allocation from an arena: memory from elsewhere, an allocation too large
+ * for an arena, or a unit not in use. p must point into a live allocation or
+ * outside the pool; a pointer into freed pool memory can give any answer.
+ */
+void* ponyint_pool_base(void* p);
+#endif
+
 void ponyint_pool_drain();
 
 /* return_idle gives up this thread's held-but-free memory: the arena backend

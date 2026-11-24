@@ -21,15 +21,18 @@
 #define DESC_NAME 5
 #define DESC_GET_BEHAVIOR_NAME 6
 #define DESC_TRACE 7
-#define DESC_DISPATCH 8
-#define DESC_FINALISE 9
-#define DESC_EVENT_NOTIFY 10
-#define DESC_MIGHT_REFERENCE_ACTOR 11
-#define DESC_TRAITS 12
-#define DESC_FIELDS 13
-#define DESC_VTABLE 14
+#define DESC_FIRST_EMBED 8
+#define DESC_DISPATCH 9
+#define DESC_FINALISE 10
+#define DESC_EVENT_NOTIFY 11
+#define DESC_MIGHT_REFERENCE_ACTOR 12
+#define DESC_EMBEDDED_IN_ACTOR 13
+#define DESC_ACTOR_LOOKUP 14
+#define DESC_TRAITS 15
+#define DESC_FIELDS 16
+#define DESC_VTABLE 17
 
-#define DESC_LENGTH 15
+#define DESC_LENGTH 18
 
 static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   reach_method_t* m)
@@ -244,6 +247,34 @@ static LLVMValueRef make_field_offset(compile_t* c, reach_type_t* t)
     LLVMOffsetOfElement(c->target_data, c_t->structure, index), false);
 }
 
+// For a struct whose first field is embedded, that field's descriptor: the two
+// objects share an address.
+static LLVMValueRef make_first_embed(compile_t* c, reach_type_t* t)
+{
+  if((t->underlying != TK_STRUCT) || (t->field_count == 0) ||
+    !t->fields[0].embed)
+    return LLVMConstNull(c->ptr);
+
+  compile_type_t* f_c_t = (compile_type_t*)t->fields[0].type->c_type;
+  return codegen_resolve_global(c, f_c_t->desc);
+}
+
+// An actor with an embedded field: the runtime may need to find it from a
+// pointer to that field.
+static bool actor_lookup(reach_type_t* t)
+{
+  if(t->underlying != TK_ACTOR)
+    return false;
+
+  for(uint32_t i = 0; i < t->field_count; i++)
+  {
+    if(t->fields[i].embed)
+      return true;
+  }
+
+  return false;
+}
+
 static LLVMValueRef make_might_reference_actor(compile_t* c, reach_type_t* t)
 {
   (void)t;
@@ -368,10 +399,13 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_NAME] = c->ptr;
   params[DESC_GET_BEHAVIOR_NAME] = c->ptr;
   params[DESC_TRACE] = c->ptr;
+  params[DESC_FIRST_EMBED] = c->ptr;
   params[DESC_DISPATCH] = c->ptr;
   params[DESC_FINALISE] = c->ptr;
   params[DESC_EVENT_NOTIFY] = c->i32;
   params[DESC_MIGHT_REFERENCE_ACTOR] = c->i1;
+  params[DESC_EMBEDDED_IN_ACTOR] = c->i1;
+  params[DESC_ACTOR_LOOKUP] = c->i1;
   params[DESC_TRAITS] = c->ptr;
   params[DESC_FIELDS] = c->ptr;
   params[DESC_VTABLE] = LLVMArrayType(c->ptr, 0);
@@ -412,10 +446,13 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_NAME] = c->ptr;
   params[DESC_GET_BEHAVIOR_NAME] = c->ptr;
   params[DESC_TRACE] = c->ptr;
+  params[DESC_FIRST_EMBED] = c->ptr;
   params[DESC_DISPATCH] = c->ptr;
   params[DESC_FINALISE] = c->ptr;
   params[DESC_EVENT_NOTIFY] = c->i32;
   params[DESC_MIGHT_REFERENCE_ACTOR] = c->i1;
+  params[DESC_EMBEDDED_IN_ACTOR] = c->i1;
+  params[DESC_ACTOR_LOOKUP] = c->i1;
   params[DESC_TRAITS] = c->ptr;
   params[DESC_FIELDS] = c->ptr;
   params[DESC_VTABLE] = LLVMArrayType(c->ptr, vtable_size);
@@ -446,10 +483,14 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_NAME] = make_name(c, t);
   args[DESC_GET_BEHAVIOR_NAME] = make_desc_ptr(c, c_t->get_behavior_name_fn);
   args[DESC_TRACE] = make_desc_ptr(c, c_t->trace_fn);
+  args[DESC_FIRST_EMBED] = make_first_embed(c, t);
   args[DESC_DISPATCH] = make_desc_ptr(c, c_t->dispatch_fn);
   args[DESC_FINALISE] = make_desc_ptr(c, c_t->final_fn);
   args[DESC_EVENT_NOTIFY] = LLVMConstInt(c->i32, event_notify_index, false);
   args[DESC_MIGHT_REFERENCE_ACTOR] = make_might_reference_actor(c, t);
+  args[DESC_EMBEDDED_IN_ACTOR] = LLVMConstInt(c->i1, c_t->embedded_in_actor,
+    false);
+  args[DESC_ACTOR_LOOKUP] = LLVMConstInt(c->i1, actor_lookup(t), false);
   args[DESC_TRAITS] = make_trait_bitmap(c, t);
   args[DESC_FIELDS] = make_field_list(c, t);
   args[DESC_VTABLE] = make_vtable(c, t);

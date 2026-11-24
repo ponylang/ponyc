@@ -112,10 +112,18 @@ typedef const struct _pony_type_t
   char* name;
   pony_behavior_name_fn get_behavior_name;
   pony_trace_fn trace;
+  // For a struct whose first field is embedded, that field's type. The two
+  // objects share an address.
+  const struct _pony_type_t* first_embed;
   pony_dispatch_fn dispatch;
   pony_final_fn final;
   uint32_t event_notify;
   bool might_reference_actor;
+  // An object of this type can be embedded, directly or through other
+  // embedded objects, in an actor.
+  bool embedded_in_actor;
+  // An actor with an embedded field.
+  bool actor_lookup;
   uintptr_t** traits;
   void* fields;
   void* vtable;

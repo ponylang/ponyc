@@ -5,6 +5,7 @@
 #include "../sched/scheduler.h"
 #include "../sched/cpu.h"
 #include "../mem/pool.h"
+#include "../mem/pagemap.h"
 #include "../gc/cycle.h"
 #include "../gc/trace.h"
 #include "../tracing/tracing.h"
@@ -796,6 +797,19 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
   return !ponyint_messageq_markempty(&actor->q);
 }
 
+// The memalign pool can't say where the allocation containing an address
+// starts, so an actor with an embedded field is recorded in the pagemap
+// instead, given a whole pagemap entry so no other allocation shares it.
+// Only builds that choose the memalign pool pay for the larger allocation.
+static size_t actor_alloc_size(pony_type_t* type)
+{
+#ifdef POOL_USE_MEMALIGN
+  if(type->actor_lookup && (type->size < POOL_ALIGN))
+    return POOL_ALIGN;
+#endif
+  return type->size;
+}
+
 void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
 {
   pony_assert(has_sync_flag(actor, ACTOR_SYNC_FLAG_PENDINGDESTROY));
@@ -831,8 +845,17 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
   (void)reason;
   TRACING_ACTOR_DESTROYED(actor, reason);
 
+  size_t alloc_size = actor_alloc_size(actor->type);
+
+#ifdef POOL_USE_MEMALIGN
+  // Forget the actor's pagemap entries before its memory can be reused.
+  if(actor->type->actor_lookup)
+    ponyint_pagemap_set_bulk(actor, NULL, NULL,
+      ponyint_pool_used_size(alloc_size));
+#endif
+
   // Free variable sized actors correctly.
-  ponyint_pool_free_size(actor->type->size, actor);
+  ponyint_pool_free_size(alloc_size, actor);
 }
 
 gc_t* ponyint_actor_gc(pony_actor_t* actor)
@@ -898,15 +921,35 @@ bool ponyint_actor_getnoblock()
   return actor_noblock;
 }
 
+pony_actor_t* ponyint_actor_containing(void* p)
+{
+#ifdef POOL_USE_ARENA
+  pony_actor_t* actor = (pony_actor_t*)ponyint_pool_base(p);
+#else
+  pony_actor_t* actor = NULL;
+  if(ponyint_pagemap_get(p, &actor) != NULL)
+    actor = NULL;
+#endif
+  pony_assert((actor == NULL) || (actor->type->dispatch != NULL));
+  return actor;
+}
+
 PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   bool orphaned)
 {
   pony_assert(type != NULL);
 
   // allocate variable sized actors correctly
-  pony_actor_t* actor = (pony_actor_t*)ponyint_pool_alloc_size(type->size);
+  size_t alloc_size = actor_alloc_size(type);
+  pony_actor_t* actor = (pony_actor_t*)ponyint_pool_alloc_size(alloc_size);
   memset(actor, 0, type->size);
   actor->type = type;
+
+#ifdef POOL_USE_MEMALIGN
+  if(type->actor_lookup)
+    ponyint_pagemap_set_bulk(actor, NULL, actor,
+      ponyint_pool_used_size(alloc_size));
+#endif
 
 #ifdef USE_SYSTEMATIC_TESTING
   // Assign a stable, monotonic creation-order id (ids start at 1; 0 is never a

@@ -191,6 +191,10 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
 
 gc_t* ponyint_actor_gc(pony_actor_t* actor);
 
+// The actor whose allocation contains p, or NULL. Only meaningful for an
+// address that is in a live actor's allocation or not in the pool at all.
+pony_actor_t* ponyint_actor_containing(void* p);
+
 heap_t* ponyint_actor_heap(pony_actor_t* actor);
 
 bool ponyint_actor_is_pinned(pony_actor_t* actor);

@@ -92,6 +92,10 @@ typedef struct pony_ctx_t
   // counting amortises the owner acquire instead of re-borrowing every
   // round-trip.
   pony_actor_t* msg_target;
+  // Visits a mark made that the heap's mark bits can't record: objects that
+  // don't start their allocation, structs whose first field is embedded, and
+  // objects in an actor's own allocation. Empty between trace rounds.
+  gc_viewset_t views;
   // A collection during the running behavior reclaimed storage but left
   // finalisers and ORCA releases for the collection at its boundary, so that
   // collection must run whatever the heap's size.

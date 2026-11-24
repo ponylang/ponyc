@@ -35,6 +35,10 @@ typedef struct compile_type_t
   LLVMMetadataRef di_file;
   LLVMMetadataRef di_type;
   LLVMMetadataRef di_type_embed;
+
+  // An object of this type can be embedded, directly or through other
+  // embedded objects, in an actor.
+  bool embedded_in_actor;
 } compile_type_t;
 
 bool gentypes(compile_t* c);
