@@ -1832,77 +1832,52 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     fprintf(stderr, "%s\n", cmd.c_str());
   }
 
-  // On ILP32 targets, spawn ponylink as a subprocess so lld starts in a clean
-  // address space. ponyc's accumulated allocations leave too little room for
-  // lld's ThinLTO backend within the ~3GB ILP32 limit.
-  if(target_is_ilp32(c->opt->triple))
+  // Spawn ponylink as a subprocess so lld starts in a clean address space.
+  // In-process lld competes with ponyc's accumulated allocations: on ILP32
+  // targets this hit the ~3GB address-space limit; on 64-bit targets with
+  // memory-conservative allocators (musl) or large programs it triggers OOM
+  // kills. A subprocess sidesteps both.
+  std::string args_path = std::string(file_exe) + ".lldargs";
+  FILE* args_file = fopen(args_path.c_str(), "w");
+  if(args_file == NULL)
   {
-    std::string args_path = std::string(file_exe) + ".lldargs";
-    FILE* args_file = fopen(args_path.c_str(), "w");
-    if(args_file == NULL)
-    {
-      errorf(errors, NULL, "unable to create linker args file: %s",
-        args_path.c_str());
-      return false;
-    }
-
-    for(size_t i = 0; i < args.size(); i++)
-      fprintf(args_file, "%s\n", args[i]);
-    fclose(args_file);
-
-    char exe_dir[PATH_MAX];
-    if(!get_compiler_exe_directory(exe_dir, c->opt->argv0))
-    {
-      errorf(errors, NULL, "unable to locate ponyc directory for ponylink");
-      unlink(args_path.c_str());
-      return false;
-    }
-
-    char ponylink_path[PATH_MAX];
-    snprintf(ponylink_path, sizeof(ponylink_path), "%sponylink", exe_dir);
-
-    if(access(ponylink_path, X_OK) != 0)
-    {
-      errorf(errors, NULL,
-        "ponylink not found at %s (required for ILP32 targets)", ponylink_path);
-      unlink(args_path.c_str());
-      return false;
-    }
-
-    const char* spawn_argv[] = {ponylink_path, args_path.c_str(), NULL};
-    int exit_status = run_command(spawn_argv);
-
-    unlink(args_path.c_str());
-
-    if(exit_status != 0)
-    {
-      errorf(errors, NULL, "ponylink failed (exit %d)", exit_status);
-      return false;
-    }
-
-    return true;
+    errorf(errors, NULL, "unable to create linker args file: %s",
+      args_path.c_str());
+    return false;
   }
 
-  // Invoke LLD in-process (64-bit targets).
-  std::vector<const char*> lld_args(args.begin(), args.end());
-  std::string lld_stdout_str;
-  std::string lld_stderr_str;
-  llvm::raw_string_ostream lld_stdout(lld_stdout_str);
-  llvm::raw_string_ostream lld_stderr(lld_stderr_str);
+  for(size_t i = 0; i < args.size(); i++)
+    fprintf(args_file, "%s\n", args[i]);
+  fclose(args_file);
 
-  lld::Result result = lld::lldMain(
-    lld_args,
-    lld_stdout,
-    lld_stderr,
-    {{lld::WinLink, &lld::coff::link},
-     {lld::Gnu, &lld::elf::link},
-     {lld::Darwin, &lld::macho::link},
-     {lld::MinGW, &lld::mingw::link},
-     {lld::Wasm, &lld::wasm::link}});
-
-  if(result.retCode != 0)
+  char exe_dir[PATH_MAX];
+  if(!get_compiler_exe_directory(exe_dir, c->opt->argv0))
   {
-    errorf(errors, NULL, "unable to link: %s", lld_stderr_str.c_str());
+    errorf(errors, NULL, "unable to locate ponyc directory for ponylink");
+    unlink(args_path.c_str());
+    return false;
+  }
+
+  char ponylink_path[PATH_MAX];
+  snprintf(ponylink_path, sizeof(ponylink_path), "%sponylink", exe_dir);
+
+  if(access(ponylink_path, X_OK) != 0)
+  {
+    errorf(errors, NULL,
+      "ponylink not found at %s", ponylink_path);
+    unlink(args_path.c_str());
+    return false;
+  }
+
+  const char* spawn_argv[] = {ponylink_path, args_path.c_str(), NULL};
+  int exit_status = run_command(spawn_argv);
+
+  unlink(args_path.c_str());
+
+  if(exit_status != 0)
+  {
+    errorf(errors, NULL,
+      "ponylink failed (exit %d); check linker errors above", exit_status);
     return false;
   }
 
