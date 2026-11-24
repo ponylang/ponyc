@@ -1108,13 +1108,6 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool claim)
   return HEAP_MARK_NEW;
 }
 
-void* ponyint_heap_base(chunk_t* chunk, void* p)
-{
-  if(get_chunk_is_small_chunk(chunk))
-    return EXTERNAL_PTR(p, get_small_chunk_size(chunk));
-
-  return get_m(chunk);
-}
 
 bool ponyint_heap_mark(chunk_t* chunk, void* p)
 {

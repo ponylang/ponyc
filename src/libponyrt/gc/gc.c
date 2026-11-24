@@ -460,12 +460,9 @@ static void recv_local_object_embed(pony_ctx_t* ctx, void* p, pony_type_t* t,
     recurse(ctx, p, t->trace);
 }
 
-// A visit the heap's mark can't record: an object that doesn't start its
-// allocation, a struct that shares its address with its first field, or an
-// object in this actor's own allocation (no chunk). Other objects can share
-// its allocation or its address, so the visit is recorded by address and
-// type. Kept out of line so the common path in mark_local_object stays small
-// enough to inline.
+// A visit the allocation's mark can't record: an object that doesn't start its
+// allocation, or one that shares the start with an enclosing struct. The
+// visit is recorded by address and type.
 static PONY_NOINLINE void mark_local_view(pony_ctx_t* ctx, void* p,
   pony_type_t* t)
 {
@@ -473,7 +470,6 @@ static PONY_NOINLINE void mark_local_view(pony_ctx_t* ctx, void* p,
     recurse(ctx, p, t->trace);
 }
 
-// The chunk is NULL for an object in this actor's own allocation.
 static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
   pony_type_t* t, int mutability)
 {
@@ -523,19 +519,6 @@ static void mark_local_object_embed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
       return;
 
     case HEAP_MARK_INTERIOR:
-      if((t->embed_flags & PONY_EMBED_IN_STRUCT) == 0)
-      {
-        // Only classes contain this type, so the allocation starts with a
-        // class object. Tracing it covers this one.
-        void* base = ponyint_heap_base(chunk, p);
-        pony_type_t* outer = *(pony_type_t**)base;
-
-        if(ponyint_heap_mark_object(chunk, base, true) == HEAP_MARK_NEW)
-          recurse(ctx, base, outer->trace);
-        return;
-      }
-      break;
-
     case HEAP_MARK_UNCLAIMED:
       break;
   }
@@ -1030,6 +1013,11 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_sendembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
+  // An object with no size shares its address with whatever follows it, so a
+  // visit to it only keeps that memory.
+  if(t->size == 0)
+    mutability = PONY_TRACE_OPAQUE;
+
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
@@ -1071,6 +1059,11 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_recvembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
+  // An object with no size shares its address with whatever follows it, so a
+  // visit to it only keeps that memory.
+  if(t->size == 0)
+    mutability = PONY_TRACE_OPAQUE;
+
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
@@ -1112,6 +1105,11 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_markembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
+  // An object with no size shares its address with whatever follows it, so a
+  // visit to it only keeps that memory.
+  if(t->size == 0)
+    mutability = PONY_TRACE_OPAQUE;
+
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 

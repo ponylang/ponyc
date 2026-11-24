@@ -39,6 +39,10 @@ typedef struct compile_type_t
 
 bool gentypes(compile_t* c);
 
+// For a struct whose first field is embedded, that field's type: the object
+// that shares the struct's address. NULL otherwise.
+reach_type_t* gentype_first_embed(compile_t* c, reach_type_t* t);
+
 PONY_EXTERN_C_END
 
 #endif
