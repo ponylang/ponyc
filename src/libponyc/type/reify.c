@@ -9,6 +9,20 @@
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
+static bool is_method_typeparam(ast_t* def)
+{
+  ast_t* parent = ast_parent(def);
+  if(parent == NULL || ast_id(parent) != TK_TYPEPARAMS)
+    return false;
+
+  ast_t* owner = ast_parent(parent);
+  if(owner == NULL)
+    return false;
+
+  return (ast_id(owner) == TK_FUN) || (ast_id(owner) == TK_BE) ||
+    (ast_id(owner) == TK_NEW);
+}
+
 static ast_t* find_typearg(pass_opt_t* opt, ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 {
   ast_t* ref_def = NULL;
@@ -55,7 +69,8 @@ static ast_t* find_typearg(pass_opt_t* opt, ast_t* ast, ast_t* typeparams, ast_t
       AST_GET_CHILDREN(param_def, param_name, param_constraint);
       AST_GET_CHILDREN(ref_def, ref_name, ref_constraint);
 
-      if(ast_name(ref_name) == ast_name(param_name))
+      if(ast_name(ref_name) == ast_name(param_name) &&
+        is_method_typeparam(ref_def) == is_method_typeparam(param_def))
       {
         if((ast_id(param_constraint) == TK_TYPEPARAMREF) ||
             is_subtype(ref_constraint, param_constraint, NULL, opt))
