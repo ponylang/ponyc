@@ -224,7 +224,7 @@ LLVMValueRef mutate_shadow_get(compile_t* c, LLVMValueRef val);
 // Register a shadow: val -> shadow. Ignored when not mutating.
 void mutate_shadow_set(compile_t* c, LLVMValueRef val, LLVMValueRef shadow);
 
-// Clear the shadow map (called per function).
+// Discard shadows after leaving the outermost function.
 void mutate_shadow_clear(compile_t* c);
 
 // Declare the @pony_mutant_selector i32 global in the current module.

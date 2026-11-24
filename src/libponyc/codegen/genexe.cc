@@ -1603,6 +1603,13 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // ThinLTO summary indices triggers ThinLTO.
   args.push_back(c->opt->release ? "--lto-O3" : "--lto-O0");
 
+  if(c->opt->release && target_is_linux(c->opt->triple) &&
+    target_is_x86(c->opt->triple) && !target_is_ilp32(c->opt->triple))
+  {
+    args.push_back("--mllvm=-use-registers-for-deopt-values");
+    args.push_back("--mllvm=-fixup-allow-gcptr-in-csr");
+  }
+
   // Bitcode partition files.
   for(size_t i = 0; i < bc_count; i++)
     args.push_back(bc_files[i]);

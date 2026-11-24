@@ -1,4 +1,5 @@
 #include "heap_to_stack.h"
+#include "gc_calls.h"
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
@@ -276,6 +277,8 @@ bool HeapToStack::canStackAlloc(Instruction *alloc, DominatorTree &dt,
         }
 
         CallBase &call = *call_base;
+        if(isGcRootBorrow(call))
+          break;
 
         if(call.onlyReadsMemory())
         {
@@ -349,6 +352,10 @@ bool HeapToStack::canStackAlloc(Instruction *alloc, DominatorTree &dt,
               Instruction *user = dyn_cast<Instruction>(*ui);
               if(user == nullptr)
                 continue;
+
+              if(auto* call = dyn_cast<CallBase>(user))
+                if(isGcRootBorrow(*call))
+                  continue;
 
               if(isa<GetElementPtrInst>(user) ||
                 isa<BitCastInst>(user))

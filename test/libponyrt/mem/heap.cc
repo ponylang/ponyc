@@ -53,7 +53,6 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)(CHUNK_T_ALLOC + SMALL_CHUNK_BLOCK_SIZE), actor->actorstats.heap_mem_allocated);
 #endif
 
-  heap.next_gc = 0;
   ponyint_heap_startgc(&heap
 #ifdef USE_RUNTIMESTATS
   , actor);
@@ -102,7 +101,6 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)(CHUNK_T_ALLOC + SMALL_CHUNK_BLOCK_SIZE), actor->actorstats.heap_mem_allocated);
 #endif
 
-  heap.next_gc = 0;
   ponyint_heap_startgc(&heap
 #ifdef USE_RUNTIMESTATS
   , actor);
@@ -177,7 +175,6 @@ TEST(Heap, Init)
   ASSERT_EQ(adjust_size, size5);
   ASSERT_EQ(256 + adjust_size, heap.used);
 
-  heap.next_gc = 0;
   ponyint_heap_startgc(&heap
 #ifdef USE_RUNTIMESTATS
   , actor);

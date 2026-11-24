@@ -170,6 +170,7 @@ static const char* const _builtin =
   "primitive DoNotOptimise\n"
   "  fun apply[A](obj: A) => compile_intrinsic\n"
   "struct NullablePointer[A]\n"
+  "  new none() => compile_intrinsic\n"
   "  new create(that: A) => compile_intrinsic\n"
   "struct RuntimeOptions\n";
 

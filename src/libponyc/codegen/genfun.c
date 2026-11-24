@@ -219,10 +219,44 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
   ast_t* id = ast_childidx(m->fun->ast, 1);
 
   c_m->di_method = LLVMDIBuilderCreateMethod(c->di, scope, ast_name(id),
-    m->full_name, c_m->di_file, (unsigned)ast_line(m->fun->ast), subroutine,
-    func, c->opt->release);
+    LLVMGetValueName(func), c_m->di_file, (unsigned)ast_line(m->fun->ast),
+    subroutine, func, c->opt->release);
 
   ponyint_pool_free_size(md_size, md);
+}
+
+static void set_inline_policy(compile_t* c, reach_method_t* m,
+  LLVMValueRef func)
+{
+  if(ast_id(m->fun->ast) == TK_FUN)
+  {
+    lexint_t* inline_val = NULL;
+
+    if(ast_annotation_value(m->fun->ast, "inline", c->opt->strtab,
+      &inline_val))
+    {
+      if(inline_val != NULL)
+      {
+        char buf[32];
+        int len = snprintf(buf, sizeof(buf), "%llu",
+          (unsigned long long)inline_val->low);
+        LLVMAttributeRef attr = LLVMCreateStringAttribute(
+          c->context, "function-inline-threshold",
+          strlen("function-inline-threshold"), buf, (unsigned)len);
+        LLVMAddAttributeAtIndex(func, LLVMAttributeFunctionIndex, attr);
+      } else {
+        LLVMAttributeRef attr = LLVMCreateEnumAttribute(
+          c->context, LLVMGetEnumAttributeKindForName("alwaysinline", 12), 0);
+        LLVMAddAttributeAtIndex(func, LLVMAttributeFunctionIndex, attr);
+      }
+    }
+    else if(ast_has_annotation(m->fun->ast, "noinline", c->opt->strtab))
+    {
+      LLVMAttributeRef attr = LLVMCreateEnumAttribute(
+        c->context, LLVMGetEnumAttributeKindForName("noinline", 8), 0);
+      LLVMAddAttributeAtIndex(func, LLVMAttributeFunctionIndex, attr);
+    }
+  }
 }
 
 static void make_prototype(compile_t* c, reach_type_t* t,
@@ -308,35 +342,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     ponyint_pool_free_size(buf_size, tparams);
   }
 
-  if(ast_id(m->fun->ast) == TK_FUN)
-  {
-    lexint_t* inline_val = NULL;
-
-    if(ast_annotation_value(m->fun->ast, "inline", c->opt->strtab,
-      &inline_val))
-    {
-      if(inline_val != NULL)
-      {
-        char buf[32];
-        int len = snprintf(buf, sizeof(buf), "%llu",
-          (unsigned long long)inline_val->low);
-        LLVMAttributeRef attr = LLVMCreateStringAttribute(
-          c->context, "function-inline-threshold",
-          strlen("function-inline-threshold"), buf, (unsigned)len);
-        LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeFunctionIndex, attr);
-      } else {
-        LLVMAttributeRef attr = LLVMCreateEnumAttribute(
-          c->context, LLVMGetEnumAttributeKindForName("alwaysinline", 12), 0);
-        LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeFunctionIndex, attr);
-      }
-    }
-    else if(ast_has_annotation(m->fun->ast, "noinline", c->opt->strtab))
-    {
-      LLVMAttributeRef attr = LLVMCreateEnumAttribute(
-        c->context, LLVMGetEnumAttributeKindForName("noinline", 8), 0);
-      LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeFunctionIndex, attr);
-    }
-  }
+  set_inline_policy(c, m, c_m->func);
 
   if(ast_has_annotation(m->fun->ast, "noalloc", c->opt->strtab))
   {
@@ -524,7 +530,8 @@ genfun_build_ret_void(compile_t* c)
   return NULL;
 }
 
-static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
+static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m,
+  LLVMValueRef func)
 {
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   compile_method_t* c_m = (compile_method_t*)m->c_method;
@@ -533,10 +540,20 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
   AST_GET_CHILDREN(m->fun->ast, cap, id, typeparams, params, result, guard,
     can_error, body);
 
-  codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun,
+  codegen_startfun(c, func, c_m->di_file, c_m->di_method, m->fun,
     ast_id(cap) == TK_AT);
   c->frame->is_partial = c_m->is_partial;
-  name_params(c, t, m, c_m->func);
+  name_params(c, t, m, func);
+  bool collecting = func == c_m->gc_func;
+  if(collecting)
+  {
+    unsigned n = LLVMCountParams(func);
+    c->frame->gc_actor = (t->underlying == TK_ACTOR && m->cap == TK_REF) ?
+      LLVMGetParam(func, 0) : LLVMGetParam(func, n - 2);
+    c->frame->gc_parent = LLVMGetParam(func, n - 1);
+    if(t->underlying != TK_ACTOR)
+      c->frame->gc_receiver = set_cap_and_ephemeral(t->ast, m->cap, TK_NONE);
+  }
 
   bool finaliser = c_m->func == c_t->final_fn;
 
@@ -617,8 +634,65 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
     codegen_debugloc(c, NULL);
   }
 
+  ast_free_unattached(c->frame->gc_receiver);
   codegen_finishfun(c);
 
+  return true;
+}
+
+LLVMValueRef genfun_gc_target(compile_t* c, reach_type_t* t, reach_method_t* m)
+{
+  compile_method_t* cm = (compile_method_t*)m->c_method;
+  if(cm->gc_func == NULL)
+  {
+    size_t previous = c->current_module_index;
+    if(c->per_module_count > 0)
+      codegen_switch_module(c, ((compile_type_t*)t->c_type)->module_index);
+    unsigned n = LLVMCountParamTypes(cm->func_type);
+    size_t bytes = (n + 2) * sizeof(LLVMTypeRef);
+    LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(bytes);
+    LLVMGetParamTypes(cm->func_type, params);
+    params[n] = c->ptr;
+    params[n + 1] = c->ptr;
+    LLVMTypeRef type = LLVMFunctionType(LLVMGetReturnType(cm->func_type),
+      params, n + 2, false);
+    ponyint_pool_free_size(bytes, params);
+    const char* name = genname_program_fn(m->full_name, ".gc", c->opt->strtab);
+    cm->gc_func = codegen_addfun(c, name, type, true);
+    LLVMSetVisibility(cm->gc_func, LLVMHiddenVisibility);
+    LLVMAttributeRef original = LLVMCreateStringAttribute(c->context,
+      "pony-gc-original", sizeof("pony-gc-original") - 1, m->full_name,
+      (unsigned)strlen(m->full_name));
+    LLVMAddAttributeAtIndex(cm->gc_func, LLVMAttributeFunctionIndex, original);
+    LLVM_DECLARE_ATTRIBUTEREF(nonnull_attr, nonnull, 0);
+    LLVMAddAttributeAtIndex(cm->gc_func, n + 1, nonnull_attr);
+    set_inline_policy(c, m, cm->gc_func);
+    cm->gc_owner = t;
+    cm->gc_method = m;
+    cm->gc_next = c->gc_pending;
+    c->gc_pending = cm;
+    if(c->per_module_count > 0)
+      codegen_switch_module(c, previous);
+  }
+  return codegen_resolve_function(c, cm->gc_func);
+}
+
+bool genfun_gc_bodies(compile_t* c)
+{
+  while(c->gc_pending != NULL)
+  {
+    compile_method_t* cm = c->gc_pending;
+    c->gc_pending = cm->gc_next;
+    reach_type_t* t = cm->gc_owner;
+    if(c->per_module_count > 0)
+      codegen_switch_module(c, ((compile_type_t*)t->c_type)->module_index);
+    LLVMMetadataRef original = cm->di_method;
+    make_function_debug(c, t, cm->gc_method, cm->gc_func);
+    bool ok = genfun_fun(c, t, cm->gc_method, cm->gc_func);
+    cm->di_method = original;
+    if(!ok)
+      return false;
+  }
   return true;
 }
 
@@ -635,6 +709,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   codegen_startfun(c, c_m->func_handler, c_m->di_file, c_m->di_method, m->fun,
     false);
   name_params(c, t, m, c_m->func_handler);
+  c->frame->gc_actor = LLVMGetParam(c_m->func_handler, 0);
 
   LLVMValueRef value = gen_expr(c, body);
 
@@ -733,6 +808,8 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   codegen_startfun(c, c_m->func_handler, c_m->di_file, c_m->di_method, m->fun,
     false);
   name_params(c, t, m, c_m->func_handler);
+  if(t->field_count == 0)
+    c->frame->gc_actor = LLVMGetParam(c_m->func_handler, 0);
 
   LLVMValueRef value = gen_expr(c, body);
 
@@ -1034,7 +1111,7 @@ static bool genfun_method(compile_t* c, reach_type_t* t,
         break;
 
       case TK_FUN:
-        if(!genfun_fun(c, t, m))
+        if(!genfun_fun(c, t, m, ((compile_method_t*)m->c_method)->func))
           return false;
         break;
 

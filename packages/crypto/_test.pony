@@ -285,7 +285,7 @@ class \nodoc\ _TestDigestHolder
 actor \nodoc\ _TestDigestDropRunner
   """
   Drops a digest, forces a collection, and reports whether the collector reached
-  it. Pony collects between behaviors, so the drop happens in one behavior and
+  it. Finalizers run between behaviors, so the drop happens in one behavior and
   the check in the next.
   """
   let _h: TestHelper

@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #endif
 
-#define GC_ACTOR_HEAP_EQUIV 1024
 #define GC_IMMUT_HEAP_EQUIV 1024
 
 DEFINE_STACK(ponyint_gcstack, gcstack_t, void);
@@ -595,22 +594,29 @@ void ponyint_gc_createactor(pony_actor_t* current, pony_actor_t* actor)
   ponyint_heap_used(ponyint_actor_heap(current), GC_ACTOR_HEAP_EQUIV);
 }
 
-void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
+object_t* ponyint_gc_next_immutable_root(gc_t* gc, size_t* i)
 {
-  objectmap_t* map = &gc->local;
-  size_t i = HASHMAP_BEGIN;
   object_t* obj;
-
-  while((obj = ponyint_objectmap_next(map, &i)) != NULL)
+  while((obj = ponyint_objectmap_next(&gc->local, i)) != NULL)
   {
     if(obj->immutable && (obj->rc > 0) && !might_reference_actor(obj->type))
     {
       pony_assert(obj->type != NULL);
-      // Mark in our heap and recurse if it wasn't already marked.
-      void* p = obj->address;
-      chunk_t* chunk = ponyint_pagemap_get_chunk(p);
-      mark_local_object(ctx, chunk, p, obj->type, PONY_TRACE_IMMUTABLE);
+      return obj;
     }
+  }
+  return NULL;
+}
+
+void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
+{
+  size_t i = HASHMAP_BEGIN;
+  object_t* obj;
+  while((obj = ponyint_gc_next_immutable_root(gc, &i)) != NULL)
+  {
+    chunk_t* chunk = ponyint_pagemap_get_chunk(obj->address);
+    mark_local_object(ctx, chunk, obj->address, obj->type,
+      PONY_TRACE_IMMUTABLE);
   }
 }
 

@@ -74,6 +74,7 @@ Run individual tests by name:
 
 - `ctest --preset debug -R libponyc.tests` — compiler C/C++ unit tests (GTest)
 - `ctest --preset debug -R libponyrt.tests` — runtime C/C++ unit tests (GTest)
+- `ctest --preset debug -R midbehavior-gc` — mid-behavior GC integration tests; always builds both debug and optimized Pony code
 - `ctest --preset debug -R stdlib` — stdlib test suite
 - `ctest --preset debug -R full-programs` — compile-and-run integration tests
 - `ctest --preset debug -R validate-grammar` — checks `pony.g` against the compiler

@@ -6,6 +6,10 @@
 
 PONY_EXTERN_C_BEGIN
 
+// True if func is an LLVM intrinsic whose arguments and result are all
+// integers or floats and that doesn't access memory.
+bool is_pure_scalar_intrinsic(LLVMValueRef func);
+
 bool pony_specific_opt(compile_t* c);
 bool target_is_linux(char* triple);
 bool target_is_bsd(char* triple);

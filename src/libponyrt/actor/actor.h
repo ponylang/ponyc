@@ -34,7 +34,6 @@ enum
   ACTOR_FLAG_BLOCKED = 1 << 0,
   ACTOR_FLAG_BLOCKED_SENT = 1 << 1,
   ACTOR_FLAG_SYSTEM = 1 << 2,
-  ACTOR_FLAG_UNSCHEDULED = 1 << 3,
   ACTOR_FLAG_CD_CONTACTED = 1 << 4,
   ACTOR_FLAG_RC_OVER_ZERO_SEEN = 1 << 5,
   ACTOR_FLAG_PINNED = 1 << 6,
@@ -79,15 +78,23 @@ typedef struct actorstats_t
   size_t foreign_actormap_objectmap_mem_allocated;
 } actorstats_t;
 
+enum
+{
+  GC_WAIT_NONE = 0,
+  GC_WAIT_FOR_BOUNDARY
+};
+
 typedef struct pony_actor_t
 {
   pony_type_t* type;
   messageq_t q;
   // sync flags are access from multiple scheduler threads concurrently
   PONY_ATOMIC(uint8_t) sync_flags;
+  bool gc_native_alias : 1;
+  uint8_t gc_wait_finaliser : 1;
 
   // keep things accessed by other actors on a separate cache line
-  alignas(64) heap_t heap; // 52/104 bytes
+  alignas(64) heap_t heap;
   size_t muted; // 4/8 bytes
   // internal flags are only ever accessed from a single scheduler thread
   uint8_t internal_flags; // 4/8 bytes (after alignment)

@@ -2209,7 +2209,7 @@ primitive \nodoc\ _TestALPNContext
 
 actor \nodoc\ _TestALPNResolverContextRooting
   """
-  Pony collects between behaviors, so the context is built in one behavior and
+  Finalizers run between behaviors, so the context is built in one behavior and
   the resolver checked in the next.
   """
   let _h: TestHelper
@@ -2271,7 +2271,7 @@ actor \nodoc\ _TestALPNResolverContextRooting
 
 actor \nodoc\ _TestALPNResolverSessionRooting
   """
-  Pony collects between behaviors, so the sessions are made in one behavior and
+  Finalizers run between behaviors, so the sessions are made in one behavior and
   the resolver checked in the next.
   """
   let _h: TestHelper
@@ -2387,7 +2387,7 @@ class \nodoc\ iso _TestSSLContextALPNResolverRootedBySession is UnitTest
 
 actor \nodoc\ _TestALPNResolverUnreferenced
   """
-  Pony collects between behaviors, so the context is built in one behavior and
+  Finalizers run between behaviors, so the context is built in one behavior and
   the resolver checked in the next.
   """
   let _h: TestHelper

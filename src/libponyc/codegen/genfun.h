@@ -15,10 +15,19 @@ typedef struct compile_method_t
   LLVMTypeRef msg_type;
   LLVMValueRef func;
   LLVMValueRef func_handler;
+  LLVMValueRef gc_func;
+  struct compile_method_t* gc_next;
+  reach_type_t* gc_owner;
+  reach_method_t* gc_method;
   LLVMMetadataRef di_method;
   LLVMMetadataRef di_file;
   bool is_partial;
+  bool gc_eligibility_checked;
+  bool gc_eligible;
 } compile_method_t;
+
+LLVMValueRef genfun_gc_target(compile_t* c, reach_type_t* t, reach_method_t* m);
+bool genfun_gc_bodies(compile_t* c);
 
 void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
   LLVMValueRef fun);

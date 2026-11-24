@@ -1,6 +1,6 @@
 # yield
 
-A program showing a pattern in Pony to transform for/while loops (which could run infinitely) into tail-recursive behavior calls -- the advantage of this beyond avoiding a non-yielding actor is that garbage collection occurs between behaviors.
+A program showing a pattern in Pony to transform for/while loops (which could run infinitely) into tail-recursive behavior calls -- the advantage of this beyond avoiding a non-yielding actor is that garbage collection between behaviors also runs finalizers and releases objects owned by other actors, which collection in the middle of a long loop doesn't do.
 
 ## How to Compile
 
