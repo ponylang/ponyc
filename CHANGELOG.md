@@ -75,6 +75,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix narrow integer C FFI calls on RISC-V ([PR #6702](https://github.com/ponylang/ponyc/pull/6702))
 - Preserve `iftype` narrowing in inherited methods ([PR #6705](https://github.com/ponylang/ponyc/pull/6705))
 - Fix `iftype` specialization selected for non-matching types when parameter names differ ([PR #6706](https://github.com/ponylang/ponyc/pull/6706))
+- Fix inherited method using receiver's type argument for same-named method type parameter ([PR #6707](https://github.com/ponylang/ponyc/pull/6707))
 
 ### Added
 
