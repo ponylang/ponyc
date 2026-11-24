@@ -35,13 +35,14 @@ jobs:
   # Stage 3's seven builds - the two x86_64-linux-other matrix legs, the
   # three BSD VMs, the i386 VM, and the NixOS container - are each 2-3h, so
   # the stage is capped at AT MOST 2 running at once to bound runner-pool
-  # use. Three things together enforce that, and removing any one re-opens
+  # use. Four things together enforce that, and removing any one re-opens
   # the stage to more than 2: freebsd/openbsd/i386-linux/nixos-linux `needs:`
   # x86_64-linux-other, so they never run alongside its two container legs;
-  # i386-linux additionally `needs:` openbsd, so the four VM jobs run 2 at a
-  # time; and dragonflybsd additionally `needs:` freebsd, for the same
-  # reason. x86_64-linux-other's `max-parallel: 2` keeps its legs at 2 if
-  # more are added.
+  # i386-linux additionally `needs:` openbsd, dragonflybsd additionally
+  # `needs:` freebsd, and nixos-linux additionally `needs:` dragonflybsd, so
+  # the five non-container-leg jobs run 2 at a time.
+  # x86_64-linux-other's `max-parallel: 2` keeps its legs at 2 if more are
+  # added.
 
   # Stage 1 (PR). No gate; starts immediately.
   x86_64-linux-pr:
@@ -523,10 +524,12 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Stage 3. NixOS build. Gates on x86_64-linux-other like the BSDs to stay
-  # within the stage-3 "at most 2 at once" cap.
+  # Stage 3. NixOS build. `needs:` x86_64-linux-other AND dragonflybsd: the
+  # first keeps NixOS off the container legs, the second serializes it behind
+  # chain A (freebsd -> dragonflybsd -> nixos-linux) so at most 2 stage-3
+  # builds run at once (see the top comment).
   nixos-linux:
-    needs: [x86_64-linux-other]
+    needs: [x86_64-linux-other, dragonflybsd]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
