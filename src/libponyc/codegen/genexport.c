@@ -5,6 +5,7 @@
 #include "../ast/stringtab.h"
 #include "../pkg/package.h"
 #include "../type/subtype.h"
+#include "../type/typeparam.h"
 #include "paths.h"
 #include "ponyassert.h"
 #include <stdio.h>
@@ -44,7 +45,7 @@ static ast_t* resolve_typearg(ast_t* type, ast_t* class_typeparams,
   if(ast_id(type) != TK_TYPEPARAMREF)
     return type;
 
-  ast_t* ref_def = (ast_t*)ast_data(type);
+  ast_t* ref_def = typeparam_root((ast_t*)ast_data(type));
 
   if(ref_def == NULL)
     return type;
@@ -54,7 +55,7 @@ static ast_t* resolve_typearg(ast_t* type, ast_t* class_typeparams,
   for(ast_t* tp = ast_child(class_typeparams); tp != NULL;
     tp = ast_sibling(tp))
   {
-    if(tp == ref_def)
+    if(typeparam_root(tp) == ref_def)
     {
       ast_t* arg = ast_childidx(typeargs, index);
 

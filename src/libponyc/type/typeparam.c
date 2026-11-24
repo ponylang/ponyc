@@ -828,14 +828,57 @@ bool typeparam_narrow(ast_t* type, ast_t* typeparam_store)
   return changed;
 }
 
-static void typeparamref_current(ast_t* typeparamref, ast_t* scope)
+const char* typeparam_receiver_key(strtable_t* strtab, const char* name)
+{
+  const char prefix[] = "$iftype$";
+  size_t name_size = strlen(name) + 1;
+  size_t size = sizeof(prefix) - 1 + name_size;
+  char* key = (char*)ponyint_pool_alloc_size(size);
+  memcpy(key, prefix, sizeof(prefix) - 1);
+  memcpy(key + sizeof(prefix) - 1, name, name_size);
+  return stringtab_consume(strtab, key, size);
+}
+
+ast_t* typeparam_resolve(ast_t* ref, ast_t* scope, strtable_t* strtab)
+{
+  pony_assert(ast_id(ref) == TK_TYPEPARAMREF);
+  ast_t* def = (ast_t*)ast_data(ref);
+  const char* name = ast_name(ast_child(ref));
+  if(def == NULL)
+    return ast_get(scope, name, NULL);
+
+  ast_t* root = typeparam_root(def);
+  const char* key = NULL;
+  for(ast_t* cursor = scope; cursor != NULL && ast_id(cursor) != TK_PROGRAM;
+    cursor = ast_scope_parent(cursor))
+  {
+    symtab_t* symtab = ast_get_symtab(cursor);
+    if(symtab == NULL)
+      continue;
+
+    ast_t* visible = symtab_find(symtab, name, NULL);
+    if(visible != NULL && ast_id(visible) == TK_TYPEPARAM &&
+      typeparam_root(visible) == root)
+      return visible;
+
+    if(key == NULL)
+      key = typeparam_receiver_key(strtab, name);
+
+    ast_t* narrowed = symtab_find(symtab, key, NULL);
+    if(narrowed != NULL && typeparam_root(narrowed) == root)
+      return narrowed;
+  }
+
+  return def;
+}
+
+static void typeparamref_current(ast_t* typeparamref, ast_t* scope,
+  strtable_t* strtab)
 {
   pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
 
   ast_t* def = (ast_t*)ast_data(typeparamref);
-  ast_t* id = ast_child(typeparamref);
-
-  ast_t* current_def = ast_get(scope, ast_name(id), NULL);
+  ast_t* current_def = typeparam_resolve(typeparamref, scope, strtab);
   if(def != current_def)
   {
     ast_setdata(typeparamref, current_def);
@@ -843,12 +886,13 @@ static void typeparamref_current(ast_t* typeparamref, ast_t* scope)
   }
 }
 
-static void typeparam_current_inner(ast_t* type, ast_t* scope)
+static void typeparam_current_inner(ast_t* type, ast_t* scope,
+  strtable_t* strtab)
 {
   switch(ast_id(type))
   {
     case TK_TYPEPARAMREF:
-      return typeparamref_current(type, scope);
+      return typeparamref_current(type, scope, strtab);
 
     case TK_NOMINAL:
     {
@@ -857,7 +901,7 @@ static void typeparam_current_inner(ast_t* type, ast_t* scope)
 
       while(typearg != NULL)
       {
-        typeparam_current_inner(typearg, scope);
+        typeparam_current_inner(typearg, scope, strtab);
         typearg = ast_sibling(typearg);
       }
       break;
@@ -870,7 +914,7 @@ static void typeparam_current_inner(ast_t* type, ast_t* scope)
 
       while(typearg != NULL)
       {
-        typeparam_current_inner(typearg, scope);
+        typeparam_current_inner(typearg, scope, strtab);
         typearg = ast_sibling(typearg);
       }
       break;
@@ -884,7 +928,7 @@ static void typeparam_current_inner(ast_t* type, ast_t* scope)
 
       while(child != NULL)
       {
-        typeparam_current_inner(child, scope);
+        typeparam_current_inner(child, scope, strtab);
         child = ast_sibling(child);
       }
 
@@ -895,8 +939,8 @@ static void typeparam_current_inner(ast_t* type, ast_t* scope)
     {
       AST_GET_CHILDREN(type, left, right);
 
-      typeparam_current_inner(left, scope);
-      typeparam_current_inner(right, scope);
+      typeparam_current_inner(left, scope, strtab);
+      typeparam_current_inner(right, scope, strtab);
 
       break;
     }
@@ -923,12 +967,12 @@ ast_t* typeparam_current(pass_opt_t* opt, ast_t* type, ast_t* scope)
     return type;
 
   type = ast_dup(type);
-  typeparam_current_inner(type, scope);
+  typeparam_current_inner(type, scope, opt->strtab);
 
   return type;
 }
 
-static void embed_narrowing(ast_t** astp, ast_t* scope)
+static void embed_narrowing(ast_t** astp, ast_t* scope, strtable_t* strtab)
 {
   ast_t* type = *astp;
 
@@ -936,8 +980,7 @@ static void embed_narrowing(ast_t** astp, ast_t* scope)
   {
     case TK_TYPEPARAMREF:
     {
-      ast_t* id = ast_child(type);
-      ast_t* current_def = ast_get(scope, ast_name(id), NULL);
+      ast_t* current_def = typeparam_resolve(type, scope, strtab);
 
       if((current_def != NULL) && (ast_id(current_def) == TK_TYPEPARAM) &&
         (ast_data(current_def) != NULL) &&
@@ -965,7 +1008,7 @@ static void embed_narrowing(ast_t** astp, ast_t* scope)
     case TK_TUPLETYPE:
     {
       for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
-        embed_narrowing(&p, scope);
+        embed_narrowing(&p, scope, strtab);
       break;
     }
 
@@ -974,8 +1017,8 @@ static void embed_narrowing(ast_t** astp, ast_t* scope)
       ast_t* left = ast_child(type);
       ast_t* right = ast_sibling(left);
 
-      embed_narrowing(&left, scope);
-      embed_narrowing(&right, scope);
+      embed_narrowing(&left, scope, strtab);
+      embed_narrowing(&right, scope, strtab);
       break;
     }
 
@@ -999,6 +1042,6 @@ ast_t* typeparam_embed_narrowing(pass_opt_t* opt, ast_t* type, ast_t* scope)
     return type;
 
   type = ast_dup(type);
-  embed_narrowing(&type, scope);
+  embed_narrowing(&type, scope, opt->strtab);
   return type;
 }

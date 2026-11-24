@@ -22,6 +22,14 @@ ast_t* typeparam_constraint(ast_t* typeparamref);
 // is.
 ast_t* typeparam_root(ast_t* def);
 
+// The scope key for an inherited receiver narrowing whose name is already
+// bound to a different declaration.
+const char* typeparam_receiver_key(strtable_t* strtab, const char* name);
+
+// Find the nearest binding of the reference's declaration, falling back to its
+// stored definition. Resolve unbound references by name.
+ast_t* typeparam_resolve(ast_t* ref, ast_t* scope, strtable_t* strtab);
+
 /**
  * If the upper bounds of a typeparamref is a subtype of a type T, then every
  * possible binding of the typeparamref is a subtype of T.

@@ -1089,6 +1089,11 @@ ast_t* ast_parent(ast_t* ast)
   return ast->parent;
 }
 
+ast_t* ast_scope_parent(ast_t* ast)
+{
+  return ast->parent;
+}
+
 ast_t* ast_child(ast_t* ast)
 {
   pony_assert(ast != NULL);

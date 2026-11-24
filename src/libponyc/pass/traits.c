@@ -8,6 +8,7 @@
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/reify.h"
+#include "../type/typeparam.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
@@ -30,7 +31,8 @@
  * 3. Identical inheritance.
  *    If T does NOT get an M from either (1) or (2) then we use "identical"
  *    inheritance.
- *    All Ms from T's provides list must have identical signatures.
+ *    All Ms from T's provides list must have identical signatures when
+ *    compared using the declared type parameter capabilities.
  *    If exactly one default body is provided for M then T.M uses that.
  *    If multiple default bodies are provided for M then T.M is body ambiguous.
  *    If any types in T's provides list are body ambiguous for M then T.M is
@@ -169,8 +171,15 @@ static bool finish_methods(ast_t* entity, pass_opt_t* opt, bool composed)
 }
 
 
+typedef enum
+{
+  COMPARE_EXACT,
+  COMPARE_GUARDS,
+  COMPARE_INHERITED_SIGNATURE
+} signature_comparison_t;
+
 static bool compare_signature_nodes(ast_t* sig_a, ast_t* sig_b,
-  bool comparing_guards)
+  signature_comparison_t comparison)
 {
   if(sig_a == NULL && sig_b == NULL)
     return true;
@@ -200,7 +209,7 @@ static bool compare_signature_nodes(ast_t* sig_a, ast_t* sig_b,
         if(a_child == NULL || b_child == NULL)
           return false;
 
-        if(i != 5 && !compare_signature_nodes(a_child, b_child, false))
+        if(i != 5 && !compare_signature_nodes(a_child, b_child, comparison))
           return false;
 
         a_child = ast_sibling(a_child);
@@ -238,22 +247,39 @@ static bool compare_signature_nodes(ast_t* sig_a, ast_t* sig_b,
     case TK_IFTYPEGUARD:
       // The narrowed type parameter bindings are derived from the operands.
       return compare_signature_nodes(ast_child(sig_a), ast_child(sig_b),
-        true) && compare_signature_nodes(ast_childidx(sig_a, 1),
-        ast_childidx(sig_b, 1), true);
+        COMPARE_GUARDS) && compare_signature_nodes(ast_childidx(sig_a, 1),
+        ast_childidx(sig_b, 1), COMPARE_GUARDS);
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* root_a = typeparam_root((ast_t*)ast_data(sig_a));
+      ast_t* root_b = typeparam_root((ast_t*)ast_data(sig_b));
+      if(comparison == COMPARE_EXACT && root_a != root_b)
+        return false;
+
+      if(comparison == COMPARE_INHERITED_SIGNATURE &&
+        root_a != NULL && root_a == root_b)
+      {
+        // An inherited guard can refine a reference's capability without
+        // changing its declaration or ephemerality.
+        return ast_id(ast_childidx(sig_a, 2)) == ast_id(ast_childidx(sig_b, 2));
+      }
+      break;
+    }
 
     case TK_NOMINAL:
     case TK_TYPEALIASREF:
       if(ast_data(sig_a) != ast_data(sig_b))
         return false;
 
-      if(comparing_guards && a_id == TK_NOMINAL)
+      if(comparison == COMPARE_GUARDS && a_id == TK_NOMINAL)
       {
         // The resolved definition identifies the nominal type. The written
         // module qualifier is only used in diagnostics.
         for(size_t i = 2; i < 5; i++)
         {
           if(!compare_signature_nodes(ast_childidx(sig_a, i),
-            ast_childidx(sig_b, i), true))
+            ast_childidx(sig_b, i), COMPARE_GUARDS))
             return false;
         }
 
@@ -271,7 +297,7 @@ static bool compare_signature_nodes(ast_t* sig_a, ast_t* sig_b,
 
   while(a_child != NULL && b_child != NULL)
   {
-    if(!compare_signature_nodes(a_child, b_child, comparing_guards))
+    if(!compare_signature_nodes(a_child, b_child, comparison))
       return false;
 
     a_child = ast_sibling(a_child);
@@ -285,10 +311,128 @@ static bool compare_signature_nodes(ast_t* sig_a, ast_t* sig_b,
 }
 
 
-// Reify the method with the type parameters from trait definition
-// and type arguments from trait reference.
-// Also handles modifying return types from behaviours, etc.
-// Returns the reified type, which must be freed later, or NULL on error.
+static ast_t* narrowing_owner(ast_t* typeparam)
+{
+  ast_t* store = ast_parent(typeparam);
+  ast_t* owner = store != NULL ? ast_parent(store) : NULL;
+  if(owner != NULL &&
+    (ast_id(owner) == TK_IFTYPE || ast_id(owner) == TK_IFTYPEGUARD))
+    return owner;
+  return NULL;
+}
+
+static bool is_receiver_param(ast_t* typeparam, ast_t* scope)
+{
+  ast_t* members = ast_nearest(scope, TK_MEMBERS);
+  ast_t* root_params = ast_parent(typeparam_root(typeparam));
+  return members != NULL && root_params != NULL &&
+    ast_parent(root_params) == ast_parent(members);
+}
+
+static bool narrows_receiver_param(ast_t* typeparam, ast_t* scope)
+{
+  return narrowing_owner(typeparam) != NULL &&
+    is_receiver_param(typeparam, scope);
+}
+
+static ast_t* narrowed_param_store(ast_t* ast)
+{
+  if(ast_id(ast) == TK_IFTYPE)
+    return ast_childidx(ast, 3);
+  if(ast_id(ast) == TK_IFTYPEGUARD)
+    return ast_childidx(ast, 2);
+  return NULL;
+}
+
+static bool has_structural_constraints(ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+    case TK_ISECTTYPE:
+    case TK_UNIONTYPE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+static void preserve_narrowed_constraint(ast_t** astp, ast_t* donor)
+{
+  ast_t* ast = *astp;
+  if(ast_id(ast) == TK_TYPEPARAMREF)
+  {
+    ast_t* def = (ast_t*)ast_data(ast);
+    if(def == NULL || !narrows_receiver_param(def, donor) ||
+      typeparam_constraint(ast) == NULL)
+      return;
+
+    ast_t* constraint = ast_dup(ast_childidx(def, 1));
+    preserve_narrowed_constraint(&constraint, donor);
+    BUILD(intersection, ast,
+      NODE(TK_ISECTTYPE,
+        TREE(ast_dup(ast))
+        TREE(constraint)));
+    ast_replace(astp, intersection);
+  } else if(has_structural_constraints(ast)) {
+    for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+      preserve_narrowed_constraint(&child, donor);
+  }
+}
+
+static bool preserve_narrowed_constraints(ast_t* ast, ast_t* donor)
+{
+  ast_t* store = narrowed_param_store(ast);
+  ast_t* first = store == NULL ? NULL : ast_child(store);
+  bool has_narrowings = first != NULL;
+  for(ast_t* narrowed = first;
+    narrowed != NULL; narrowed = ast_sibling(narrowed))
+  {
+    if(!is_receiver_param(narrowed, donor))
+      continue;
+
+    // Inheritance can substitute one receiver parameter for several trait
+    // parameters. Copy the referenced narrowings before they can become
+    // references back to the same parameter.
+    ast_t* constraint = ast_childidx(narrowed, 1);
+    preserve_narrowed_constraint(&constraint, donor);
+  }
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+  {
+    if(preserve_narrowed_constraints(child, donor))
+      has_narrowings = true;
+  }
+  return has_narrowings;
+}
+
+static void reify_narrowed_params(ast_t* ast, ast_t* typeparams,
+  ast_t* typeargs, pass_opt_t* opt)
+{
+  ast_t* store = narrowed_param_store(ast);
+
+  for(ast_t* narrowed = store == NULL ? NULL : ast_child(store);
+    narrowed != NULL; narrowed = ast_sibling(narrowed))
+  {
+    ast_t* root = typeparam_root(narrowed);
+    ast_t* param = ast_child(typeparams);
+    ast_t* arg = ast_child(typeargs);
+    for(; param != NULL; param = ast_sibling(param), arg = ast_sibling(arg))
+    {
+      if(typeparam_root(param) != root || ast_id(arg) != TK_TYPEPARAMREF)
+        continue;
+
+      ast_t* target = typeparam_root((ast_t*)ast_data(arg));
+      ast_set_name(ast_child(narrowed), ast_name(ast_child(target)),
+        opt->strtab);
+      ast_setdata(narrowed, target);
+      break;
+    }
+  }
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+    reify_narrowed_params(child, typeparams, typeargs, opt);
+}
+
 static ast_t* reify_provides_type(ast_t* method, ast_t* trait_ref,
   pass_opt_t* opt)
 {
@@ -305,15 +449,20 @@ static ast_t* reify_provides_type(ast_t* method, ast_t* trait_ref,
   if(!reify_defaults(type_params, type_args, true, opt))
     return NULL;
 
-  ast_t* reified = reify(method, type_params, type_args, opt, true);
+  ast_t* copy = ast_dup(method);
+  for(ast_t* arg = ast_child(type_args); arg != NULL; arg = ast_sibling(arg))
+  {
+    if(ast_id(arg) == TK_TYPEPARAMREF)
+    {
+      bool has_narrowings = preserve_narrowed_constraints(copy, method);
+      ast_t* reified = reify(copy, type_params, type_args, opt, false);
+      if(has_narrowings)
+        reify_narrowed_params(reified, type_params, type_args, opt);
+      return reified;
+    }
+  }
 
-  if(reified == NULL)
-    return NULL;
-
-  AST_GET_CHILDREN(reified, cap, id, typeparams, params, result,
-    guard, can_error, body, doc);
-
-  return reified;
+  return reify(copy, type_params, type_args, opt, false);
 }
 
 
@@ -491,7 +640,133 @@ static void import_use_aliases(ast_t* entity, ast_t* body_donor,
 }
 
 
-// Sort out symbol table for copied method body.
+static void append_inherited_constraint(ast_t* intersection, ast_t* constraint,
+  ast_t* root)
+{
+  if(ast_id(constraint) == TK_NONE || (ast_id(constraint) == TK_TYPEPARAMREF &&
+    typeparam_root((ast_t*)ast_data(constraint)) == root))
+    return;
+
+  if(ast_id(constraint) == TK_ISECTTYPE)
+  {
+    for(ast_t* child = ast_child(constraint); child != NULL;
+      child = ast_sibling(child))
+      append_inherited_constraint(intersection, child, root);
+    return;
+  }
+
+  for(ast_t* child = ast_child(intersection); child != NULL;
+    child = ast_sibling(child))
+  {
+    if(compare_signature_nodes(child, constraint, COMPARE_EXACT))
+      return;
+  }
+
+  ast_append(intersection, ast_dup(constraint));
+}
+
+static void combine_narrowed_constraints(ast_t* narrowed, ast_t* other)
+{
+  ast_t* constraint = ast_childidx(narrowed, 1);
+  ast_t* other_constraint = ast_childidx(other, 1);
+  ast_t* root = typeparam_root(narrowed);
+
+  // Structural subtyping needs the completed trait method tables.
+  ast_t* combined = ast_from(constraint, TK_ISECTTYPE);
+  append_inherited_constraint(combined, constraint, root);
+  append_inherited_constraint(combined, other_constraint, root);
+  ast_t* first = ast_child(combined);
+  if(first == NULL)
+  {
+    ast_free_unattached(combined);
+    combined = ast_dup(ast_childidx(root, 1));
+  } else if(ast_sibling(first) == NULL)
+  {
+    ast_t* only = ast_pop(combined);
+    ast_free_unattached(combined);
+    combined = only;
+  }
+
+  ast_replace(&constraint, combined);
+}
+
+static bool in_structural_narrowing(ast_t* ref)
+{
+  ast_t* parent = ast_parent(ref);
+  while(parent != NULL && has_structural_constraints(parent))
+    parent = ast_parent(parent);
+  return parent != NULL && ast_id(parent) == TK_TYPEPARAM &&
+    narrows_receiver_param(parent, ref);
+}
+
+static void rescope_narrowed_params(ast_t* scope, ast_t* store,
+  pass_opt_t* opt)
+{
+  symtab_t* symtab = ast_get_symtab(scope);
+  ast_t* narrowed = ast_child(store);
+  while(narrowed != NULL)
+  {
+    ast_t* next = ast_sibling(narrowed);
+    if(!narrows_receiver_param(narrowed, scope))
+    {
+      narrowed = next;
+      continue;
+    }
+
+    const char* name = ast_name(ast_child(narrowed));
+    ast_t* root = typeparam_root(narrowed);
+    ast_t* visible = ast_get_case(scope, name, NULL, opt->strtab);
+    if(visible != NULL && (ast_id(visible) != TK_TYPEPARAM ||
+      typeparam_root(visible) != root))
+      name = typeparam_receiver_key(opt->strtab, name);
+
+    ast_t* local = symtab_find(symtab, name, NULL);
+    if(local != NULL)
+    {
+      pony_assert(typeparam_root(local) == root);
+      combine_narrowed_constraints(local, narrowed);
+      ast_remove(narrowed);
+      narrowed = next;
+      continue;
+    }
+
+    visible = ast_get(ast_parent(scope), name, NULL);
+    if(visible == NULL || ast_id(visible) != TK_TYPEPARAM ||
+      typeparam_root(visible) != root)
+      visible = root;
+    combine_narrowed_constraints(narrowed, visible);
+    ast_set(scope, name, narrowed, SYM_DEFINED, true, opt->strtab);
+    narrowed = next;
+  }
+
+  if(ast_child(store) == NULL)
+    ast_setid(store, TK_NONE);
+}
+
+static void rescope_guard(ast_t* method, ast_t* guard, pass_opt_t* opt)
+{
+  if(ast_id(guard) == TK_IFTYPEGUARD)
+  {
+    rescope_narrowed_params(method, ast_childidx(guard, 2), opt);
+    return;
+  }
+
+  for(ast_t* clause = ast_child(guard); clause != NULL;
+    clause = ast_sibling(clause))
+    rescope_narrowed_params(method, ast_childidx(clause, 2), opt);
+}
+
+static void rescope_typeparams(ast_t* typeparams, pass_opt_t* opt)
+{
+  for(ast_t* param = ast_child(typeparams); param != NULL;
+    param = ast_sibling(param))
+  {
+    if(!narrows_receiver_param(param, typeparams))
+      ast_set(typeparams, ast_name(ast_child(param)), param, SYM_DEFINED,
+        true, opt->strtab);
+  }
+}
+
 static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -501,6 +776,18 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_FUN:
+    case TK_BE:
+    case TK_NEW:
+      if(ast_id(ast_childidx(ast, 5)) != TK_NONE)
+        rescope_typeparams(ast_childidx(ast, 2), options);
+      rescope_guard(ast, ast_childidx(ast, 5), options);
+      break;
+
+    case TK_IFTYPE:
+      rescope_narrowed_params(ast, ast_childidx(ast, 3), options);
+      break;
+
     case TK_FVAR:
     case TK_FLET:
     case TK_EMBED:
@@ -519,29 +806,29 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
       pony_assert(ast_child(ast) != NULL);
       ast_set(ast, ast_name(ast_child(ast)), ast, SYM_UNDEFINED, true,
         options->strtab);
-      local_types(ast);
       break;
     }
 
     case TK_TYPEPARAMS:
-    {
-      ast_t* typeparam = ast_child(ast);
-      while(typeparam != NULL)
-      {
-        pony_assert(ast_child(typeparam) != NULL);
-        ast_set(ast, ast_name(ast_child(typeparam)), typeparam, SYM_DEFINED,
-          true, options->strtab);
-
-        typeparam = ast_sibling(typeparam);
-      }
+      rescope_typeparams(ast, options);
       break;
-    }
 
     case TK_TYPEPARAMREF:
     {
       pony_assert(ast_child(ast) != NULL);
-      ast_t* def = ast_get(ast, ast_name(ast_child(ast)), NULL);
+      ast_t* original = (ast_t*)ast_data(ast);
+      // Rebinding a constraint to the narrowing it defines can form a cycle.
+      if(original != NULL && is_receiver_param(original, ast) &&
+        in_structural_narrowing(ast))
+        break;
+
+      ast_t* def = original != NULL && is_receiver_param(original, ast) ?
+        typeparam_resolve(ast, ast, options->strtab) :
+        ast_get(ast, ast_name(ast_child(ast)), NULL);
       ast_setdata(ast, def);
+      if(def != NULL && ast_id(def) == TK_TYPEPARAM &&
+        narrows_receiver_param(def, ast))
+        typeparam_set_cap(ast);
       break;
     }
 
@@ -551,6 +838,19 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
   return AST_OK;
 }
 
+static ast_result_t rescope_post(ast_t** astp, pass_opt_t* options)
+{
+  (void)options;
+  ast_t* ast = *astp;
+  if(ast_id(ast) == TK_VAR || ast_id(ast) == TK_LET)
+    local_types(ast);
+  return AST_OK;
+}
+
+static void rescope_copied_method(ast_t** method, pass_opt_t* opt)
+{
+  ast_visit(method, rescope, rescope_post, opt, PASS_ALL);
+}
 
 // The provided method must already be reified.
 static bool merge_inherited_method(ast_t* entity, ast_t* existing_method,
@@ -575,8 +875,8 @@ static bool merge_inherited_method(ast_t* entity, ast_t* existing_method,
   if(info->local_define)
     return true;
 
-  // Existing method is also provided, signatures must match exactly.
-  if(!compare_signature_nodes(existing_method, method, false))
+  if(!compare_signature_nodes(existing_method, method,
+    COMPARE_INHERITED_SIGNATURE))
   {
     pony_assert(info->trait_ref != NULL);
 
@@ -628,7 +928,7 @@ static bool merge_inherited_method(ast_t* entity, ast_t* existing_method,
   ast_replace(&existing_body, method_body);
   mutation_inherit_body_selector(method, existing_body);
 
-  ast_visit(&existing_method, rescope, NULL, opt, PASS_ALL);
+  rescope_copied_method(&existing_method, opt);
 
   info->body_donor = (ast_t*)ast_data(method);
   info->trait_ref = trait_ref;
@@ -662,7 +962,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
     if(info->body_donor != NULL)
       import_use_aliases(entity, info->body_donor, opt);
 
-    ast_visit(&local, rescope, NULL, opt, PASS_ALL);
+    rescope_copied_method(&local, opt);
   }
 
   return true;
@@ -707,7 +1007,7 @@ static bool add_methodgroup_from_trait(ast_t* entity, ast_t* group,
     ast_t* guard = ast_childidx(existing, 5);
 
     while((match != NULL) && !compare_signature_nodes(guard,
-      ast_childidx(match, 5), true))
+      ast_childidx(match, 5), COMPARE_GUARDS))
       match = ast_sibling(match);
 
     if((match != NULL) &&
@@ -751,7 +1051,7 @@ static bool add_methodgroup_from_trait(ast_t* entity, ast_t* group,
       ast_settype(doc, NULL);
     }
 
-    ast_visit(&m, rescope, NULL, opt, PASS_ALL);
+    rescope_copied_method(&m, opt);
   }
 
   return true;
