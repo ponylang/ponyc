@@ -44,6 +44,10 @@ static uint32_t scheduler_count;
 static uint32_t min_scheduler_count;
 static uint64_t scheduler_suspend_threshold;
 static scheduler_t* scheduler;
+// pthread_create declares its first (thread) and last (arg) parameters
+// restrict-qualified; they must not alias. The scheduler's tid lives here,
+// not inside the scheduler_t passed as arg.
+static pony_thread_id_t* scheduler_tids;
 /// How many schedulers are active, as a gauge: each thread adjusts it
 /// by one at its own transitions. Advisory — nothing correctness-
 /// critical reads it: pony_active_schedulers reports it, the ASIO
@@ -1379,7 +1383,7 @@ static void ponyint_sched_shutdown()
   // its own; nothing needs waking.
   while(start < scheduler_count)
   {
-    if (ponyint_thread_join(scheduler[start].tid))
+    if (ponyint_thread_join(scheduler_tids[start]))
       start++;
   }
 
@@ -1404,12 +1408,18 @@ static void ponyint_sched_shutdown()
 
   atomic_store_explicit(&active_scheduler_gauge, 0, memory_order_relaxed);
   ponyint_pool_free_size(scheduler_count * sizeof(scheduler_t), scheduler);
+  ponyint_pool_free_size(scheduler_count * sizeof(pony_thread_id_t),
+    scheduler_tids);
 #ifdef USE_RUNTIMESTATS
   mem_used -= (scheduler_count * sizeof(scheduler_t));
+  mem_used -= (scheduler_count * sizeof(pony_thread_id_t));
   mem_allocated -= (ponyint_pool_used_size(scheduler_count
     * sizeof(scheduler_t)));
+  mem_allocated -= (ponyint_pool_used_size(scheduler_count
+    * sizeof(pony_thread_id_t)));
 #endif
   scheduler = NULL;
+  scheduler_tids = NULL;
   pinned_actor_scheduler = NULL;
   scheduler_count = 0;
 
@@ -1474,12 +1484,18 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   min_scheduler_count = min_threads;
   scheduler = (scheduler_t*)ponyint_pool_alloc_size(
     scheduler_count * sizeof(scheduler_t));
+  scheduler_tids = (pony_thread_id_t*)ponyint_pool_alloc_size(
+    scheduler_count * sizeof(pony_thread_id_t));
 #ifdef USE_RUNTIMESTATS
   mem_used += (scheduler_count * sizeof(scheduler_t));
+  mem_used += (scheduler_count * sizeof(pony_thread_id_t));
   mem_allocated += (ponyint_pool_used_size(scheduler_count
     * sizeof(scheduler_t)));
+  mem_allocated += (ponyint_pool_used_size(scheduler_count
+    * sizeof(pony_thread_id_t)));
 #endif
   memset(scheduler, 0, scheduler_count * sizeof(scheduler_t));
+  memset(scheduler_tids, 0, scheduler_count * sizeof(pony_thread_id_t));
 
   atomic_store_explicit(&active_scheduler_gauge, scheduler_count,
     memory_order_relaxed);
@@ -1550,13 +1566,14 @@ bool ponyint_sched_start()
 
   for(uint32_t i = start; i < scheduler_count; i++)
   {
-    if(!ponyint_thread_create(&scheduler[i].tid, run_thread, scheduler[i].cpu,
+    if(!ponyint_thread_create(&scheduler_tids[i], run_thread, scheduler[i].cpu,
       &scheduler[i]))
     {
       if(i == start)
         ponyint_gc_maps_destroy();
       return false;
     }
+    scheduler[i].tid = scheduler_tids[i];
   }
 
   // custom run loop for pinned actors
