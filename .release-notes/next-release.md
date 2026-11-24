@@ -630,3 +630,7 @@ An actor can reclaim temporary objects while processing data it received or whil
 
 An actor that calls a foreign function that may retain a Pony pointer, including a function the compiler has not classified, collects only between behaviors for the rest of its lifetime. Using a raw pointer can have the same effect unless the compiler recognizes all its uses, such as checking it for null. An actor can still collect after initializing a struct field directly with `Pointer.create()` or `NullablePointer.none()`. A callback from native code can also restrict an actor to collection between behaviors for its lifetime.
 
+## Preserve `iftype` narrowing in inherited methods
+
+Valid trait methods using `iftype` expressions or specialization guards could fail to compile after inheritance. The compiler now preserves narrowing when the receiving type passes one of its own type parameters to the trait, including when it passes the same parameter to several trait parameters.
+
