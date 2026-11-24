@@ -62,15 +62,13 @@ LLVMValueRef gen_param(compile_t* c, ast_t* ast)
 }
 
 static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
-  ast_t* l_type, ast_t* right)
+  ast_t* l_type, const char* name)
 {
   pony_assert(ast_id(l_type) == TK_NOMINAL);
-  pony_assert(ast_id(right) == TK_ID);
 
-  ast_t* def;
-  ast_t* field;
-  uint32_t index;
-  get_fieldinfo(l_type, right, &def, &field, &index);
+  ast_t* def = (ast_t*)ast_data(l_type);
+  ast_t* field = ast_get(def, name, NULL);
+  uint32_t index = (uint32_t)ast_index(field);
 
   if(ast_id(def) != TK_STRUCT)
     index++;
@@ -112,9 +110,14 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
     }
   }
 
-  LLVMValueRef ret = make_fieldptr(c, l_value, l_type, right);
+  LLVMValueRef ret = make_fieldptr(c, l_value, l_type, ast_name(right));
   ast_free_unattached(l_type);
   return ret;
+}
+
+LLVMValueRef gen_this_fieldptr(compile_t* c, const char* name)
+{
+  return make_fieldptr(c, gen_this(c, NULL), c->frame->reify->thistype, name);
 }
 
 LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)

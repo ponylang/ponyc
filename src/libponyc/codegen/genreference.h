@@ -12,6 +12,8 @@ LLVMValueRef gen_param(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast);
 
+LLVMValueRef gen_this_fieldptr(compile_t* c, const char* name);
+
 LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_fieldembed(compile_t* c, ast_t* ast);

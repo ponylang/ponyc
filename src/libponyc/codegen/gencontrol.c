@@ -533,9 +533,6 @@ LLVMValueRef gen_recover(compile_t* c, ast_t* ast)
   ast_t* cap = ast_child(ast);
   ast_t* body = ast_childidx(ast, 1);
 
-  // When the body is a single constant array literal inside a val recover,
-  // emit it as a global constant in the data section — the same approach
-  // gen_string() uses for string literals.
   ast_t* sole_child = ast_child(body);
   LLVMValueRef ret;
   if((sole_child != NULL) && (ast_sibling(sole_child) == NULL) &&

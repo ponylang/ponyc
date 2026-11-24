@@ -20,18 +20,6 @@
 #include <string.h>
 #include <llvm-c/DebugInfo.h>
 
-void get_fieldinfo(ast_t* l_type, ast_t* right, ast_t** l_def,
-  ast_t** field, uint32_t* index)
-{
-  ast_t* d = (ast_t*)ast_data(l_type);
-  ast_t* f = ast_get(d, ast_name(right), NULL);
-  uint32_t i = (uint32_t)ast_index(f);
-
-  *l_def = d;
-  *field = f;
-  *index = i;
-}
-
 static void compile_type_free(void* p)
 {
   POOL_FREE(compile_type_t, p);
