@@ -64,6 +64,7 @@ protected:
   _pony_type_t c_type{};
   _pony_type_t s_type{};
   _pony_type_t child_type{};
+  _pony_type_t zero_type{};
 
   void SetUp() override
   {
@@ -72,6 +73,11 @@ protected:
     ctx->current = &a;
     a.type = &actor_type;
     b.type = &actor_type;
+    // An embedded struct with no fields, which shares its address with
+    // whatever follows it.
+    zero_type.size = 0;
+    zero_type.might_reference_actor = true;
+    zero_type.embed_flags = PONY_EMBED_ROUTED | PONY_EMBED_AT_START;
     ponyint_heap_init(&a.heap);
     ponyint_heap_init(&b.heap);
     ponyint_gc_done(&a.gc);
@@ -82,8 +88,7 @@ protected:
     c_type.trace = trace_c;
     c_type.might_reference_actor = true;
     // C is embedded at the start of S.
-    c_type.embed_flags = PONY_EMBED_ROUTED | PONY_EMBED_AT_START |
-      PONY_EMBED_IN_STRUCT;
+    c_type.embed_flags = PONY_EMBED_ROUTED | PONY_EMBED_AT_START;
     s_type.size = sizeof(S);
     s_type.trace = trace_s;
     s_type.first_embed = &c_type;
@@ -279,6 +284,21 @@ TEST_F(GcSharedAddress, UpgradeGivesPendingAcquireTheStructType)
 }
 
 // An interior visit keeps its allocation through the sweep.
+// A visit to an object with no size at the struct's address doesn't stand in
+// for the struct: the struct's field is still counted when it is sent.
+TEST_F(GcSharedAddress, ZeroSizeVisitDoesNotHideTheStruct)
+{
+  field_mutability = PONY_TRACE_IMMUTABLE;
+  S* s = alloc_s(&a);
+  pony_gc_send(ctx, &b);
+  pony_traceknown_embeddable(ctx, s, &zero_type, PONY_TRACE_IMMUTABLE);
+  pony_traceknown_embeddable(ctx, s, &s_type, PONY_TRACE_IMMUTABLE);
+  ponyint_gc_handlestack(ctx);
+  ASSERT_NE(nullptr, local(&a, s->d));
+  EXPECT_EQ(1u, local(&a, s->d)->rc);
+  end_epoch(&a);
+}
+
 TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
 {
   ponyint_register_thread();
@@ -331,7 +351,6 @@ TEST(HeapMarkObject, ReportsInteriorPointers)
     EXPECT_EQ(HEAP_MARK_INTERIOR,
       ponyint_heap_mark_object(chunk, p + 16, true));
     EXPECT_EQ(HEAP_MARK_UNCLAIMED, ponyint_heap_mark_object(chunk, p, false));
-    EXPECT_EQ(p, ponyint_heap_base(chunk, p + 16));
     EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p, true));
     EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p, true));
     EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p, false));
@@ -460,31 +479,55 @@ protected:
 };
 }
 
-// Only classes contain B, so a mark that reaches a B through a pointer into
-// its allocation traces the class that starts the allocation, once, and the
-// class's other field survives.
-TEST_F(GcEmbeddedInClass, InteriorVisitTracesTheEnclosingClass)
+// A mark that reaches B through a pointer into its allocation traces B once,
+// and once the class that starts the allocation is traced, a pointer to B
+// needs nothing more.
+TEST_F(GcEmbeddedInClass, InteriorVisitTracedOnceAndCoveredByTheClass)
 {
   A* obj = alloc_a();
   start_mark();
   pony_traceknown_embeddable(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
   pony_traceknown_embeddable(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
   ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, b_traced);
+  EXPECT_EQ(0u, a_traced);
+
+  pony_traceknown(ctx, obj, &a_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
   EXPECT_EQ(1u, a_traced);
+  EXPECT_EQ(2u, b_traced);
+
+  pony_traceknown_embeddable(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(2u, b_traced);
   end_mark();
-  Child* next = static_cast<Child*>(ponyint_heap_alloc(&a, &a.heap,
-    sizeof(Child), TRACK_NO_FINALISERS));
-  EXPECT_NE(obj->d, next);
+}
+
+// Once the class that starts the allocation is traced, a pointer into it to B
+// needs nothing more.
+TEST_F(GcEmbeddedInClass, InteriorVisitAfterTheClassIsCovered)
+{
+  A* obj = alloc_a();
+  start_mark();
+  pony_traceknown(ctx, obj, &a_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, b_traced);
+
+  pony_traceknown_embeddable(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, b_traced);
+  end_mark();
 }
 
 // A trace of an interface-typed reference reads the descriptor at run time and
-// takes the same path for B.
+// takes the same path for B: a repeat visit is recorded, not traced again.
 TEST_F(GcEmbeddedInClass, UnknownTraceFollowsTheDescriptorFlag)
 {
   A* obj = alloc_a();
   start_mark();
   pony_traceunknown(ctx, &obj->b, PONY_TRACE_MUTABLE);
+  pony_traceunknown(ctx, &obj->b, PONY_TRACE_MUTABLE);
   ponyint_gc_handlestack(ctx);
-  EXPECT_EQ(1u, a_traced);
+  EXPECT_EQ(1u, b_traced);
   end_mark();
 }

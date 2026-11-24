@@ -250,12 +250,12 @@ static LLVMValueRef make_field_offset(compile_t* c, reach_type_t* t)
 // objects share an address.
 static LLVMValueRef make_first_embed(compile_t* c, reach_type_t* t)
 {
-  if((t->underlying != TK_STRUCT) || (t->field_count == 0) ||
-    !t->fields[0].embed)
+  reach_type_t* f = gentype_first_embed(c, t);
+
+  if(f == NULL)
     return LLVMConstNull(c->ptr);
 
-  compile_type_t* f_c_t = (compile_type_t*)t->fields[0].type->c_type;
-  return codegen_resolve_global(c, f_c_t->desc);
+  return codegen_resolve_global(c, ((compile_type_t*)f->c_type)->desc);
 }
 
 static LLVMValueRef make_might_reference_actor(compile_t* c, reach_type_t* t)

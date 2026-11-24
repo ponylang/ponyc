@@ -123,10 +123,6 @@ typedef enum
  */
 heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool claim);
 
-/**
- * The start of the allocation that p is in.
- */
-void* ponyint_heap_base(chunk_t* chunk, void* p);
 
 uint32_t ponyint_heap_base_slot(chunk_t* chunk, void* p);
 uint32_t* ponyint_heap_local_index(chunk_t* chunk);

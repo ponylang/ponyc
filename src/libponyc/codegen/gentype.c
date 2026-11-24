@@ -771,6 +771,30 @@ static void flag_embedded(reach_type_t* t, uint8_t flag)
   }
 }
 
+reach_type_t* gentype_first_embed(compile_t* c, reach_type_t* t)
+{
+  if(t->underlying != TK_STRUCT)
+    return NULL;
+
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+  // A struct has no header, so an embedded field at offset 0 shares the
+  // struct's address. Fields with no size can also sit at offset 0; the one
+  // with a size is the object that starts the struct.
+  for(uint32_t i = 0; i < t->field_count; i++)
+  {
+    if(LLVMOffsetOfElement(c->target_data, c_t->structure, i) != 0)
+      return NULL;
+
+    compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
+
+    if(t->fields[i].embed && (f_c_t->abi_size != 0))
+      return t->fields[i].type;
+  }
+
+  return NULL;
+}
+
 // Records how each type's objects can share memory with other objects, so that
 // traces of the types that can are routed to the runtime code that handles it
 // and every other trace takes the plain path.
@@ -793,47 +817,19 @@ static void compute_embed_flags(compile_t* c)
 
       if(t->underlying == TK_ACTOR)
         c_t->embed_flags |= PONY_EMBED_ACTOR_LOOKUP;
+
+      // Embedded at a struct's start: shares the struct's address.
+      if((t->underlying == TK_STRUCT) &&
+        (LLVMOffsetOfElement(c->target_data, c_t->structure, f) == 0))
+        f_c_t->embed_flags |= PONY_EMBED_AT_START;
     }
 
-    switch(t->underlying)
-    {
-      case TK_ACTOR:
-        flag_embedded(t, PONY_EMBED_IN_ACTOR);
-        break;
+    if(t->underlying == TK_ACTOR)
+      flag_embedded(t, PONY_EMBED_IN_ACTOR);
 
-      case TK_STRUCT:
-        flag_embedded(t, PONY_EMBED_IN_STRUCT);
-
-        if((t->field_count > 0) && t->fields[0].embed)
-        {
-          // The struct and its first field share an address, and so does
-          // every object embedded at the start of that field.
-          c_t->embed_flags |= PONY_EMBED_ROUTED;
-          reach_type_t* f = t->fields[0].type;
-
-          while(f != NULL)
-          {
-            ((compile_type_t*)f->c_type)->embed_flags |= PONY_EMBED_AT_START;
-            f = ((f->underlying == TK_STRUCT) && (f->field_count > 0) &&
-              f->fields[0].embed) ? f->fields[0].type : NULL;
-          }
-        }
-        break;
-
-      default: {}
-    }
-  }
-
-  // An embedded object with no size shares its address with whatever follows
-  // it, so it never stands for its allocation.
-  i = HASHMAP_BEGIN;
-
-  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
-  {
-    compile_type_t* c_t = (compile_type_t*)t->c_type;
-
-    if(((c_t->embed_flags & PONY_EMBED_ROUTED) != 0) && (c_t->abi_size == 0))
-      c_t->embed_flags |= PONY_EMBED_AT_START;
+    // A struct that shares its address with its first field.
+    if(gentype_first_embed(c, t) != NULL)
+      c_t->embed_flags |= PONY_EMBED_ROUTED;
   }
 }
 
