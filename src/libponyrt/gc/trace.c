@@ -106,12 +106,49 @@ PONY_API void pony_trace(pony_ctx_t* ctx, void* p)
   ctx->trace_object(ctx, p, NULL, PONY_TRACE_OPAQUE);
 }
 
+// For a type that can share memory with other objects, the function this trace
+// round uses: the matching embeddable function for a send, receive or mark,
+// and the round's own function otherwise (a collection during a behavior
+// records every visit by address and type already).
+static trace_object_fn embeddable_fn(pony_ctx_t* ctx)
+{
+  if(ctx->trace_object == ponyint_gc_markobject)
+    return ponyint_gc_markembeddable;
+
+  if(ctx->trace_object == ponyint_gc_sendobject)
+    return ponyint_gc_sendembeddable;
+
+  if(ctx->trace_object == ponyint_gc_recvobject)
+    return ponyint_gc_recvembeddable;
+
+  return ctx->trace_object;
+}
+
+PONY_API void pony_traceknown_embeddable(pony_ctx_t* ctx, void* p,
+  pony_type_t* t, int m)
+{
+  // Tagged pointers have bit 63 set. They encode a machine word directly
+  // in the pointer and have no heap allocation to trace.
+  if((sizeof(uintptr_t) >= 8) && (((uintptr_t)p >> 63) != 0))
+    return;
+
+  if(t->dispatch != NULL)
+  {
+    ctx->trace_actor(ctx, (pony_actor_t*)p);
+  } else {
+    embeddable_fn(ctx)(ctx, p, t, m);
+  }
+}
+
 PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
 {
   // Tagged pointers have bit 63 set. They encode a machine word directly
   // in the pointer and have no heap allocation to trace.
   if((sizeof(uintptr_t) >= 8) && (((uintptr_t)p >> 63) != 0))
     return;
+
+  // The compiler calls pony_traceknown_embeddable for these types.
+  pony_assert((t->embed_flags & PONY_EMBED_ROUTED) == 0);
 
   if(t->dispatch != NULL)
   {
@@ -133,6 +170,8 @@ PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m)
   if(t->dispatch != NULL)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
+  } else if((t->embed_flags & PONY_EMBED_ROUTED) != 0) {
+    embeddable_fn(ctx)(ctx, p, t, m);
   } else {
     ctx->trace_object(ctx, p, t, m);
   }

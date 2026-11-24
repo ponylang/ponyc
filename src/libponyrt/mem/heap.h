@@ -102,18 +102,31 @@ bool ponyint_heap_mark(chunk_t* chunk, void* p);
 
 typedef enum
 {
+  // p starts its allocation, which this call marked.
   HEAP_MARK_NEW,
+  // p starts its allocation, which was already marked.
   HEAP_MARK_MARKED,
-  HEAP_MARK_INTERIOR
+  // p starts its allocation, which isn't marked, and claim was false: the
+  // allocation is kept with a shallow mark.
+  HEAP_MARK_UNCLAIMED,
+  // p is inside its allocation, which isn't marked: the allocation is kept
+  // with a shallow mark.
+  HEAP_MARK_INTERIOR,
+  // p is inside its allocation, which is already marked.
+  HEAP_MARK_COVERED
 } heap_mark_t;
 
 /**
- * Mark the object at the start of an allocation, or report that p is inside
- * an allocation instead. An interior pointer keeps its allocation with a
- * shallow mark and reports HEAP_MARK_INTERIOR whether or not the allocation
- * was marked.
+ * Mark the allocation that p is in, if p starts it and claim is true, and
+ * report what was found. A mark that doesn't claim the allocation keeps it with
+ * a shallow mark.
  */
-heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p);
+heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool claim);
+
+/**
+ * The start of the allocation that p is in.
+ */
+void* ponyint_heap_base(chunk_t* chunk, void* p);
 
 uint32_t ponyint_heap_base_slot(chunk_t* chunk, void* p);
 uint32_t* ponyint_heap_local_index(chunk_t* chunk);

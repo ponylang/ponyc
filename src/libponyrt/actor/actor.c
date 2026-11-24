@@ -804,7 +804,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
 static size_t actor_alloc_size(pony_type_t* type)
 {
 #ifdef POOL_USE_MEMALIGN
-  if(type->actor_lookup && (type->size < POOL_ALIGN))
+  if(((type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) != 0) &&
+    (type->size < POOL_ALIGN))
     return POOL_ALIGN;
 #endif
   return type->size;
@@ -850,7 +851,7 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
 
 #ifdef POOL_USE_MEMALIGN
   // Forget the actor's pagemap entries before its memory can be reused.
-  if(actor->type->actor_lookup)
+  if((actor->type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) != 0)
     ponyint_pagemap_set_bulk(actor, NULL, NULL,
       ponyint_pool_used_size(alloc_size));
 #endif
@@ -947,7 +948,7 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   actor->type = type;
 
 #ifdef POOL_USE_MEMALIGN
-  if(type->actor_lookup)
+  if((type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) != 0)
     ponyint_pagemap_set_bulk(actor, NULL, actor,
       ponyint_pool_used_size(alloc_size));
 #endif

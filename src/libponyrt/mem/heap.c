@@ -1050,10 +1050,8 @@ void ponyint_heap_mark_slots(chunk_t* chunk, uint32_t slots, bool shallow)
   }
 }
 
-heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
+heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool claim)
 {
-  bool marked;
-
   maybe_clear_chunk(chunk);
 
   if(get_chunk_is_small_chunk(chunk))
@@ -1061,27 +1059,61 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
     void* ext = EXTERNAL_PTR(p, get_small_chunk_size(chunk));
     uint32_t slot = FIND_SLOT(ext, get_m(chunk));
 
+    // A clear bit is in-use, a set bit is available.
+    bool marked = (chunk->small.slots & slot) == 0;
+
     if(p != ext)
     {
+      if(marked)
+        return HEAP_MARK_COVERED;
+
       chunk->small.shallow &= ~slot;
       return HEAP_MARK_INTERIOR;
     }
 
-    // A clear bit is in-use, a set bit is available.
-    marked = (chunk->small.slots & slot) == 0;
-    chunk->small.slots &= ~slot;
-  } else {
-    if(p != get_m(chunk))
+    if(marked)
+      return HEAP_MARK_MARKED;
+
+    if(!claim)
     {
-      set_large_chunk_shallow(chunk, 0);
-      return HEAP_MARK_INTERIOR;
+      chunk->small.shallow &= ~slot;
+      return HEAP_MARK_UNCLAIMED;
     }
 
-    marked = get_large_chunk_slot(chunk) == 0;
-    set_large_chunk_slot(chunk, 0);
+    chunk->small.slots &= ~slot;
+    return HEAP_MARK_NEW;
   }
 
-  return marked ? HEAP_MARK_MARKED : HEAP_MARK_NEW;
+  bool marked = get_large_chunk_slot(chunk) == 0;
+
+  if(p != get_m(chunk))
+  {
+    if(marked)
+      return HEAP_MARK_COVERED;
+
+    set_large_chunk_shallow(chunk, 0);
+    return HEAP_MARK_INTERIOR;
+  }
+
+  if(marked)
+    return HEAP_MARK_MARKED;
+
+  if(!claim)
+  {
+    set_large_chunk_shallow(chunk, 0);
+    return HEAP_MARK_UNCLAIMED;
+  }
+
+  set_large_chunk_slot(chunk, 0);
+  return HEAP_MARK_NEW;
+}
+
+void* ponyint_heap_base(chunk_t* chunk, void* p)
+{
+  if(get_chunk_is_small_chunk(chunk))
+    return EXTERNAL_PTR(p, get_small_chunk_size(chunk));
+
+  return get_m(chunk);
 }
 
 bool ponyint_heap_mark(chunk_t* chunk, void* p)
