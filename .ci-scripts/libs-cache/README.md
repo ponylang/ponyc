@@ -116,16 +116,17 @@ of the most-used caches. So the build-outs run in three sequential stages:
    `x86_64-macos`, `arm64-macos`, and `arm64-windows`) cover the remaining
    caches that `release.yml` and `nightlies.yml` pull.
 3. **Everything else** (`x86_64-linux-other`, which is fedora plus the cross
-   image; `freebsd`; `openbsd`; `dragonflybsd`; `i386-linux`) — tier2, tier3,
-   and weekly-only platforms.
+   image; `freebsd`; `openbsd`; `dragonflybsd`; `i386-linux`; `nixos-linux`) —
+   tier2, tier3, and weekly-only platforms.
 
-Those last six builds — the two `x86_64-linux-other` matrix legs and the four
-VMs (three BSD, one i386 Linux) — each take two to three hours, so stage 3 is
-capped at two running at once: the VM jobs `needs:` `x86_64-linux-other` so the
-VMs never overlap the container legs, `dragonflybsd` also `needs:` `freebsd`,
-and `i386-linux` also `needs:` `openbsd`. Removing any one of those re-opens the
-stage to more than two. `x86_64-linux-other` also carries `max-parallel: 2`,
-which keeps its legs at two if more are added.
+Those last seven builds — the two `x86_64-linux-other` matrix legs, the four
+VMs (three BSD, one i386 Linux), and the NixOS container — each take two to
+three hours, so stage 3 is capped at two running at once: all five
+non-container-leg jobs `needs:` `x86_64-linux-other` so they never overlap the
+container legs, `dragonflybsd` also `needs:` `freebsd`, `i386-linux` also
+`needs:` `openbsd`, and `nixos-linux` also `needs:` `dragonflybsd`. Removing
+any one of those re-opens the stage to more than two. `x86_64-linux-other` also
+carries `max-parallel: 2`, which keeps its legs at two if more are added.
 
 Each later stage `needs:` only the prior stage's *fast* jobs, Linux and macOS,
 and never Windows — a Windows build kicks off in its stage but must never gate
