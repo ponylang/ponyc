@@ -401,6 +401,19 @@ static void recv_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
     recurse(ctx, p, t->trace);
 }
 
+// A visit the heap's mark can't record: an object that doesn't start its
+// allocation, a struct that shares its address with its first field, or an
+// object in this actor's own allocation (no chunk). Other objects can share
+// its allocation or its address, so the visit is recorded by address and
+// type. Kept out of line so the common path in mark_local_object stays small
+// enough to inline.
+static PONY_NOINLINE void mark_local_view(pony_ctx_t* ctx, void* p,
+  pony_type_t* t)
+{
+  if((t->trace != NULL) && first_view(ctx, p, t))
+    recurse(ctx, p, t->trace);
+}
+
 // The chunk is NULL for an object in this actor's own allocation.
 static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
   pony_type_t* t, int mutability)
@@ -416,29 +429,22 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 
   if(chunk != NULL)
   {
-    switch(ponyint_heap_mark_object(chunk, p))
+    heap_mark_t mark = ponyint_heap_mark_object(chunk, p);
+
+    if(mark == HEAP_MARK_NEW)
     {
-      case HEAP_MARK_NEW:
-        recurse(ctx, p, t->trace);
-        return;
-
-      case HEAP_MARK_MARKED:
-        // A struct whose first field is embedded shares its address with that
-        // field, so the allocation's mark may come from the field's trace,
-        // which doesn't cover the struct.
-        if(t->first_embed == NULL)
-          return;
-        break;
-
-      case HEAP_MARK_INTERIOR:
-        break;
+      recurse(ctx, p, t->trace);
+      return;
     }
+
+    // A struct whose first field is embedded shares its address with that
+    // field, so the allocation's mark may come from the field's trace, which
+    // doesn't cover the struct.
+    if((mark == HEAP_MARK_MARKED) && (t->first_embed == NULL))
+      return;
   }
 
-  // An embedded object: other objects share its allocation, so the visit is
-  // recorded by address and type.
-  if((t->trace != NULL) && first_view(ctx, p, t))
-    recurse(ctx, p, t->trace);
+  mark_local_view(ctx, p, t);
 }
 
 static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
