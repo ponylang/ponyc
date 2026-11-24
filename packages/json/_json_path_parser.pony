@@ -460,7 +460,7 @@ class ref _JSONPathParser
     Parse logical-or: logical-and *('||' logical-and).
     """
     _expr_depth = _expr_depth + 1
-    if _expr_depth > 1024 then
+    if _expr_depth > _JSONPathLimits.max_expr_depth() then
       _fail("Expression nesting depth exceeds limit")
       error
     end

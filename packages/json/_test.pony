@@ -95,6 +95,7 @@ actor \nodoc\ Main is TestList
     test(_TestJSONPathParseDeeplyNestedParens)
     test(_TestJSONPathParseDepthLimit)
     test(_TestJSONPathDeepOrFirstTrue)
+    test(_TestJSONPathEvalDeepRelFilter)
     test(_TestTokenParserPositions)
     test(_TestTokenParserEndPosition)
     test(_TestTokenParserStringPosition)
@@ -3525,16 +3526,17 @@ class \nodoc\ iso _TestJSONPathParseDepthLimit is UnitTest
   fun name(): String => "json/jsonpath/parse/depth-limit"
 
   fun apply(h: TestHelper) =>
-    let depth: USize = 1500
+    let limit = _JSONPathLimits.max_expr_depth()
 
     // Right-nested parens with content: (@.a==1||(@.a==1||...(@.a==1)...))
-    var s = recover iso String(3 + (depth * 10) + 6 + depth + 1) end
+    let over = limit + 476
+    var s = recover iso String(3 + (over * 10) + 6 + over + 1) end
     s.append("$[?")
     var i: USize = 0
-    while i < depth do s.append("(@.a==1||"); i = i + 1 end
+    while i < over do s.append("(@.a==1||"); i = i + 1 end
     s.append("@.a==1")
     i = 0
-    while i < depth do s.push(')'); i = i + 1 end
+    while i < over do s.push(')'); i = i + 1 end
     s.push(']')
     match \exhaustive\ JSONPathParser.parse(consume s)
     | let _: JSONPathParseError => None
@@ -3543,19 +3545,21 @@ class \nodoc\ iso _TestJSONPathParseDepthLimit is UnitTest
     end
 
     // Verify that queries at the limit still parse. The enclosing filter
-    // selector uses one depth level, so 1023 paren levels reach exactly 1024.
-    var s2 = recover iso String(3 + (1023 * 10) + 6 + 1023 + 1) end
+    // selector uses one depth level, so (limit - 1) paren levels reach
+    // exactly the limit.
+    let at_limit = limit - 1
+    var s2 = recover iso String(3 + (at_limit * 10) + 6 + at_limit + 1) end
     s2.append("$[?")
     i = 0
-    while i < 1023 do s2.append("(@.a==1||"); i = i + 1 end
+    while i < at_limit do s2.append("(@.a==1||"); i = i + 1 end
     s2.append("@.a==1")
     i = 0
-    while i < 1023 do s2.push(')'); i = i + 1 end
+    while i < at_limit do s2.push(')'); i = i + 1 end
     s2.push(']')
     match \exhaustive\ JSONPathParser.parse(consume s2)
     | let p: JSONPath => None
     | let e: JSONPathParseError =>
-      h.fail("rejected query at depth 1024: " + e.string())
+      h.fail("rejected query at depth limit: " + e.string())
     end
 
 class \nodoc\ iso _TestJSONPathDeepOrFirstTrue is UnitTest
@@ -3581,6 +3585,42 @@ class \nodoc\ iso _TestJSONPathDeepOrFirstTrue is UnitTest
     match \exhaustive\ JSONPathParser.parse(query_str)
     | let p: JSONPath =>
       let doc = JSONArray.push(JSONObject.update("a", I64(1)))
+      let r = p.query(doc)
+      h.assert_eq[USize](1, r.size())
+    | let e: JSONPathParseError =>
+      h.fail("parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestJSONPathEvalDeepRelFilter is UnitTest
+  """
+  A query with 100 levels of `@[?` nesting paired with a 100-level document
+  that matches at every level evaluates correctly. This exercises the full
+  eval recursion path — each level re-enters the evaluator through native
+  calls — on a document deep enough to be meaningful but shallow enough
+  to fit in the 1 MB default thread stack on Windows.
+  """
+  fun name(): String => "json/jsonpath/eval/deep-rel-filter"
+
+  fun apply(h: TestHelper) =>
+    let depth: USize = 100
+    var qs = recover iso String(1 + (depth * 3) + 2 + depth) end
+    qs.push('$')
+    var i: USize = 0
+    while i < depth do qs.append("[?@"); i = i + 1 end
+    qs.append(".a")
+    i = 0
+    while i < depth do qs.push(']'); i = i + 1 end
+    let query_str: String val = consume qs
+
+    var doc: JSONValue = JSONObject.update("a", I64(1))
+    i = 0
+    while i < depth do
+      doc = JSONArray.push(doc)
+      i = i + 1
+    end
+
+    match \exhaustive\ JSONPathParser.parse(query_str)
+    | let p: JSONPath =>
       let r = p.query(doc)
       h.assert_eq[USize](1, r.size())
     | let e: JSONPathParseError =>
