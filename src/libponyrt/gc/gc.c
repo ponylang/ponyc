@@ -687,7 +687,8 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 
   if((chunk == NULL) && ((actor = actor_containing(p, t)) == NULL))
   {
-    // Don't gc memory that wasn't pony_allocated, but do recurse.
+    // Memory in no actor's heap or allocation isn't collected, but what it
+    // references is traced.
     if(mutability != PONY_TRACE_OPAQUE)
       recurse(ctx, p, t->trace);
     return;
@@ -707,7 +708,8 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 
   if((chunk == NULL) && ((actor = actor_containing(p, t)) == NULL))
   {
-    // Don't gc memory that wasn't pony_allocated, but do recurse.
+    // Memory in no actor's heap or allocation isn't collected, but what it
+    // references is traced.
     if(mutability != PONY_TRACE_OPAQUE)
       recurse(ctx, p, t->trace);
     return;
@@ -727,7 +729,8 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 
   if((chunk == NULL) && ((actor = actor_containing(p, t)) == NULL))
   {
-    // Don't gc memory that wasn't pony_allocated, but do recurse.
+    // Memory in no actor's heap or allocation isn't collected, but what it
+    // references is traced.
     if(mutability != PONY_TRACE_OPAQUE)
       recurse(ctx, p, t->trace);
     return;
