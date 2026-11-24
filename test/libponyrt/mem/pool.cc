@@ -4029,3 +4029,41 @@ TEST(PoolArenaDeath, RegionReservationExhaustion)
 #endif
 
 #endif
+
+#ifdef POOL_USE_ARENA
+// Any address inside a live allocation leads back to the start of that
+// allocation, for every kind of slab: several objects per unit, one object
+// spanning several units, and a block span.
+TEST(Pool, BaseFromInteriorAddress)
+{
+  for(size_t size : {(size_t)32, (size_t)512, (size_t)1024, (size_t)16384,
+    (size_t)65536, (size_t)POOL_MAX * 2})
+  {
+    SCOPED_TRACE(size);
+    // Several objects, so that most don't start their slab.
+    char* p[4];
+    for(size_t i = 0; i < 4; i++)
+      p[i] = static_cast<char*>(ponyint_pool_alloc_size(size));
+    for(size_t i = 0; i < 4; i++)
+    {
+      EXPECT_EQ(p[i], ponyint_pool_base(p[i]));
+      EXPECT_EQ(p[i], ponyint_pool_base(p[i] + (size / 2)));
+      EXPECT_EQ(p[i], ponyint_pool_base(p[i] + size - 1));
+    }
+    for(size_t i = 0; i < 4; i++)
+      ponyint_pool_free_size(size, p[i]);
+  }
+}
+
+static char pool_base_static_object[64];
+
+TEST(Pool, BaseOfMemoryOutsideThePool)
+{
+  char on_stack[64];
+  void* from_c = malloc(64);
+  EXPECT_EQ(nullptr, ponyint_pool_base(on_stack));
+  EXPECT_EQ(nullptr, ponyint_pool_base(pool_base_static_object));
+  EXPECT_EQ(nullptr, ponyint_pool_base(from_c));
+  free(from_c);
+}
+#endif
