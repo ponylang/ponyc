@@ -7,6 +7,7 @@ add_executable(libponyrt.tests
     ds/fun.cc
     ds/hash.cc
     ds/list.cc
+    gc/embed.cc
     gc/gc.cc
     gc/marklocal.cc
     lang/socket.cc
