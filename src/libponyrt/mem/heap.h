@@ -100,6 +100,21 @@ void ponyint_heap_startgc(heap_t* heap
  */
 bool ponyint_heap_mark(chunk_t* chunk, void* p);
 
+typedef enum
+{
+  HEAP_MARK_NEW,
+  HEAP_MARK_MARKED,
+  HEAP_MARK_INTERIOR
+} heap_mark_t;
+
+/**
+ * Mark the object at the start of an allocation, or report that p is inside
+ * an allocation instead. An interior pointer keeps its allocation with a
+ * shallow mark and reports HEAP_MARK_INTERIOR whether or not the allocation
+ * was marked.
+ */
+heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p);
+
 uint32_t ponyint_heap_base_slot(chunk_t* chunk, void* p);
 uint32_t* ponyint_heap_local_index(chunk_t* chunk);
 void ponyint_heap_mark_slots(chunk_t* chunk, uint32_t slots, bool shallow);

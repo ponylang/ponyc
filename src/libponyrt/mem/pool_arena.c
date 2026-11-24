@@ -574,6 +574,59 @@ static char* unit_base(arena_t* arena, arena_unit_t* rec)
   return (char*)arena + (index << UNIT_BITS);
 }
 
+void* ponyint_pool_base(void* p)
+{
+  // Only addresses inside a region are read through. The region list only
+  // grows, so walking it never races an unmap.
+  uintptr_t addr = (uintptr_t)p;
+  region_t* region = (region_t*)(addr & ~(uintptr_t)REGION_MASK);
+  region_t* r = atomic_load_explicit(&regions_head, memory_order_acquire);
+
+  while((r != NULL) && (r != region))
+    r = r->next;
+
+  if(r == NULL)
+    return NULL;
+
+  size_t slot = (addr & REGION_MASK) / ARENA_SIZE;
+  uint32_t slots = atomic_load_explicit(&region->slots, memory_order_acquire);
+
+  if((slot == 0) || ((slots & ((uint32_t)1 << slot)) == 0))
+    return NULL;
+
+  // A unit of a live slab keeps its state, span and size class until the
+  // slab is released, so another thread can read them while the owner
+  // allocates from the slab.
+  arena_t* arena = arena_of(p);
+  size_t index = unit_index(arena, p);
+
+  if((arena->kind != MAPPING_ARENA) || (index < arena_header_units()))
+    return NULL;
+
+  arena_unit_t* rec = &arena->units[index];
+
+  if(rec->state == UNIT_STATE_CONT)
+    rec -= rec->head_offset;
+
+  if(rec->state != UNIT_STATE_HEAD)
+    return NULL;
+
+  char* base = unit_base(arena, rec);
+
+  if(rec->size_class == SLAB_CLASS_BLOCK)
+    return base;
+
+  // A slab starts on a unit boundary and holds objects of one power-of-two
+  // size, so an object starts at a multiple of that size. A class larger
+  // than a unit holds one object.
+  size_t size = class_size(rec->size_class);
+
+  if(size >= UNIT_SIZE)
+    return base;
+
+  return base + ((addr - (uintptr_t)base) & ~(uintptr_t)(size - 1));
+}
+
 static void bitmap_set(arena_t* arena, size_t from, size_t count)
 {
   for(size_t i = from; i < (from + count); i++)

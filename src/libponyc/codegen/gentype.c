@@ -740,6 +740,24 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   return true;
 }
 
+static void mark_embedded_in_actor(reach_type_t* t)
+{
+  for(uint32_t i = 0; i < t->field_count; i++)
+  {
+    if(!t->fields[i].embed)
+      continue;
+
+    reach_type_t* f = t->fields[i].type;
+    compile_type_t* f_c_t = (compile_type_t*)f->c_type;
+
+    if(!f_c_t->embedded_in_actor)
+    {
+      f_c_t->embedded_in_actor = true;
+      mark_embedded_in_actor(f);
+    }
+  }
+}
+
 static void switch_to_type_module(compile_t* c, reach_type_t* t)
 {
   if(c->per_module_count > 0)
@@ -859,6 +877,14 @@ bool gentypes(compile_t* c)
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Descriptors\n");
+
+  i = HASHMAP_BEGIN;
+
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
+  {
+    if(t->underlying == TK_ACTOR)
+      mark_embedded_in_actor(t);
+  }
 
   i = HASHMAP_BEGIN;
 

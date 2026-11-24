@@ -76,8 +76,10 @@ void ponyint_objectmap_sweep(objectmap_t* map)
 
     if(obj->rc > 0)
     {
+      // An object in an actor's own allocation has no heap chunk to keep.
       chunk_t* chunk = ponyint_pagemap_get_chunk(p);
-      ponyint_heap_mark_shallow(chunk, p);
+      if(chunk != NULL)
+        ponyint_heap_mark_shallow(chunk, p);
     } else {
       ponyint_objectmap_clearindex(map, i);
       needs_optimize = true;
