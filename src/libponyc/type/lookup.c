@@ -219,18 +219,19 @@ static ast_t* lookup_select_specialization(ast_t* default_method,
     typeparams, typeargs, thistype);
   ast_t* spec = ast_sibling(default_method);
   ast_t* result = NULL;
-  ast_t* method_typeparams = ast_childidx(default_method, 2);
 
   while(spec != NULL)
   {
     ast_t* guard = ast_childidx(spec, 5);
+    ast_t* spec_typeparams = ast_childidx(spec, 2);
 
     // When the guard references a method-level type parameter, it cannot
     // be evaluated here — the concrete method type arguments are only known
     // at the call site (reachability pass). Skip this specialization and
-    // let reach.c handle it.
-    if((ast_id(method_typeparams) != TK_NONE) &&
-      guard_references_method_typeparams(guard, method_typeparams))
+    // let reach.c handle it. Check the specialization's own type parameters,
+    // not the default's, because they may use different names.
+    if((ast_id(spec_typeparams) != TK_NONE) &&
+      guard_references_method_typeparams(guard, spec_typeparams))
     {
       spec = ast_sibling(spec);
       continue;

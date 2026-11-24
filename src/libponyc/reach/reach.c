@@ -775,8 +775,31 @@ static ast_t* select_specialization(deferred_reification_t* fun,
   while(spec != NULL)
   {
     ast_t* guard = ast_childidx(spec, 5);
+    ast_t* spec_typeparams = ast_childidx(spec, 2);
+    bool matches;
 
-    if(evaluate_guard(fun, guard, opt))
+    if((fun->method_typeargs != NULL) &&
+      (ast_id(spec_typeparams) != TK_NONE))
+    {
+      // The specialization may name its type parameters differently from the
+      // default. Rebind using the specialization's own type parameter list so
+      // the guard's references resolve to the concrete type arguments.
+      deferred_reification_t* spec_fun = deferred_reify_dup(fun);
+      ast_free_unattached(spec_fun->method_typeparams);
+      spec_fun->method_typeparams = NULL;
+      ast_free_unattached(spec_fun->method_typeargs);
+      spec_fun->method_typeargs = NULL;
+      deferred_reify_add_method_typeparams(spec_fun, spec_typeparams,
+        fun->method_typeargs, opt);
+      matches = evaluate_guard(spec_fun, guard, opt);
+      deferred_reify_free(spec_fun);
+    }
+    else
+    {
+      matches = evaluate_guard(fun, guard, opt);
+    }
+
+    if(matches)
       return spec;
 
     spec = ast_sibling(spec);
@@ -842,7 +865,25 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
 
     ast_t* spec = select_specialization(fun, opt);
     if(spec != NULL)
+    {
       fun->ast = spec;
+
+      // The specialization may name its type parameters differently from the
+      // default (e.g. B instead of A). Rebind so that deferred_reify on the
+      // specialization's param/result types substitutes correctly.
+      if(fun->method_typeparams != NULL)
+      {
+        ast_t* spec_typeparams = ast_childidx(spec, 2);
+        ast_t* old_typeargs = fun->method_typeargs;
+        fun->method_typeargs = NULL;
+        ast_free_unattached(fun->method_typeparams);
+        fun->method_typeparams = NULL;
+        deferred_reify_add_method_typeparams(fun, spec_typeparams,
+          old_typeargs, opt);
+        m->typeargs = fun->method_typeargs;
+        ast_free_unattached(old_typeargs);
+      }
+    }
 
     m->fun = fun;
     set_method_types(r, m, opt);
