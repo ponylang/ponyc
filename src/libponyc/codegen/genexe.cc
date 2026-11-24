@@ -1876,8 +1876,28 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
 
   if(exit_status != 0)
   {
-    errorf(errors, NULL,
-      "ponylink failed (exit %d); check linker errors above", exit_status);
+    if(exit_status == -1)
+    {
+      errorf(errors, NULL, "unable to start ponylink at %s", ponylink_path);
+    }
+    else if(exit_status < -1)
+    {
+      int sig = -exit_status - 1;
+
+      if(sig == SIGKILL)
+        errorf(errors, NULL,
+          "ponylink was killed by signal %d (%s);"
+          " the system may be out of memory", sig, strsignal(sig));
+      else
+        errorf(errors, NULL,
+          "ponylink was killed by signal %d (%s)", sig, strsignal(sig));
+    }
+    else
+    {
+      errorf(errors, NULL,
+        "ponylink failed (exit %d); check linker errors above", exit_status);
+    }
+
     return false;
   }
 
@@ -1979,8 +1999,12 @@ static const char* macho_platform_version(compile_t* c)
 // PATH (like the shell did) and the arguments are passed as an explicit argv
 // terminated by a NULL element, so no shell is involved and nothing in the
 // argument list — including the user-controlled output path — is subject to
-// shell parsing. Returns the command's exit status, or -1 if the process
-// could not be spawned or did not exit normally.
+// shell parsing.
+//
+// Returns:
+//   >= 0:  normal exit status
+//   -1:    spawn failed or waitpid failed
+//   < -1:  killed by signal; signal number is -(return_value) - 1
 static int run_command(const char* const argv[])
 {
   extern char** environ;
@@ -2002,6 +2026,9 @@ static int run_command(const char* const argv[])
 
   if(wait_result == -1)
     return -1;
+
+  if(WIFSIGNALED(status))
+    return -(WTERMSIG(status) + 1);
 
   if(!WIFEXITED(status))
     return -1;
@@ -2303,8 +2330,19 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
     remove_directory_tree(dsym_path);
 
     const char* dsymutil_argv[] = {"dsymutil", file_exe, NULL};
-    if(run_command(dsymutil_argv) != 0)
-      errorf(errors, NULL, "unable to create dsym");
+    int dsym_status = run_command(dsymutil_argv);
+
+    if(dsym_status != 0)
+    {
+      if(dsym_status < -1)
+      {
+        int sig = -dsym_status - 1;
+        errorf(errors, NULL, "dsymutil was killed by signal %d (%s)",
+          sig, strsignal(sig));
+      }
+      else
+        errorf(errors, NULL, "unable to create dsym");
+    }
 
     ponyint_pool_free_size(dsym_path_len, dsym_path);
 
