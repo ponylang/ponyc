@@ -94,7 +94,7 @@ protected:
 
   void TearDown() override
   {
-    ponyint_gc_end_views(ctx);
+    ponyint_gc_free_views(ctx);
     ponyint_actormap_destroy(&ctx->acquire);
     ctx->current = NULL;
     ctx->msg_target = NULL;
@@ -145,6 +145,27 @@ protected:
     return (aref == NULL) ? NULL : ponyint_actorref_getobject(aref, p);
   }
 
+  // A mark of the owner's own heap starts with every allocation unmarked.
+  void start_local_mark(pony_actor_t* owner)
+  {
+    ponyint_heap_startgc(&owner->heap
+#ifdef USE_RUNTIMESTATS
+      , owner
+#endif
+      );
+    ponyint_gc_mark(ctx);
+  }
+
+  void end_local_mark(pony_actor_t* owner)
+  {
+    ponyint_heap_endgc(&owner->heap, 0
+#ifdef USE_RUNTIMESTATS
+      , owner
+#endif
+      );
+    end_epoch(owner);
+  }
+
   void end_epoch(pony_actor_t* actor)
   {
     ponyint_gc_end_views(ctx);
@@ -165,10 +186,14 @@ TEST_F(GcSharedAddress, MarkTracesStructAfterItsFirstField)
     S* s = alloc_s(&a);
     s_traced = 0;
     field_mutability = PONY_TRACE_MUTABLE;
-    ponyint_gc_mark(ctx);
+    start_local_mark(&a);
     visit(s, c_first, PONY_TRACE_MUTABLE);
     EXPECT_EQ(1u, s_traced);
-    end_epoch(&a);
+    // The struct's field survives the sweep, and so does the struct.
+    end_local_mark(&a);
+    Child* next = static_cast<Child*>(ponyint_heap_alloc(&a, &a.heap,
+      sizeof(Child), TRACK_NO_FINALISERS));
+    EXPECT_NE(s->d, next);
   }
 }
 
@@ -188,6 +213,8 @@ TEST_F(GcSharedAddress, SendAndReceiveCountStructFieldOnce)
     object_t* sent = local(&a, s->d);
     ASSERT_NE(nullptr, sent);
     EXPECT_EQ(1u, sent->rc);
+    ASSERT_NE(nullptr, local(&a, s));
+    EXPECT_EQ(1u, local(&a, s)->rc);
     end_epoch(&a);
 
     ctx->current = &b;
@@ -196,6 +223,8 @@ TEST_F(GcSharedAddress, SendAndReceiveCountStructFieldOnce)
     object_t* received = foreign(&b, &a, s->d);
     ASSERT_NE(nullptr, received);
     EXPECT_EQ(1u, received->rc);
+    ASSERT_NE(nullptr, foreign(&b, &a, s));
+    EXPECT_EQ(1u, foreign(&b, &a, s)->rc);
     end_epoch(&b);
     ctx->current = &a;
   }
@@ -224,6 +253,56 @@ TEST_F(GcSharedAddress, RemoteMarkTracesStructAfterItsFirstField)
     EXPECT_TRUE(ponyint_object_marked(d, a.gc.mark));
     end_epoch(&a);
   }
+}
+
+// A mark that reaches another actor's object first through its embedded field
+// and then as the struct acquires it with the struct's descriptor.
+TEST_F(GcSharedAddress, UpgradeGivesPendingAcquireTheStructType)
+{
+  field_mutability = PONY_TRACE_IMMUTABLE;
+  S* s = alloc_s(&b);
+  ctx->current = &a;
+  ponyint_gc_mark(ctx);
+  visit(s, true, PONY_TRACE_IMMUTABLE);
+
+  size_t index = HASHMAP_UNKNOWN;
+  actorref_t* pending = ponyint_actormap_getactor(&ctx->acquire, &b, &index);
+  ASSERT_NE(nullptr, pending);
+  object_t* obj = ponyint_actorref_getobject(pending, s);
+  ASSERT_NE(nullptr, obj);
+  EXPECT_EQ(&s_type, obj->type);
+  end_epoch(&a);
+}
+
+// An interior visit keeps its allocation through the sweep.
+TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
+{
+  ponyint_register_thread();
+  pony_actor_t actor{};
+  _pony_type_t type{};
+  actor.type = &type;
+  ponyint_heap_init(&actor.heap);
+
+  char* p = static_cast<char*>(ponyint_heap_alloc(&actor, &actor.heap, 64,
+    TRACK_NO_FINALISERS));
+  chunk_t* chunk = ponyint_pagemap_get_chunk(p);
+  ponyint_heap_startgc(&actor.heap
+#ifdef USE_RUNTIMESTATS
+    , &actor
+#endif
+    );
+  EXPECT_EQ(HEAP_MARK_INTERIOR, ponyint_heap_mark_object(chunk, p + 16));
+  ponyint_heap_endgc(&actor.heap, 0
+#ifdef USE_RUNTIMESTATS
+    , &actor
+#endif
+    );
+  void* next = ponyint_heap_alloc(&actor, &actor.heap, 64,
+    TRACK_NO_FINALISERS);
+  EXPECT_NE(static_cast<void*>(p), next);
+
+  ponyint_heap_destroy(&actor.heap);
+  ponyint_unregister_thread();
 }
 
 TEST(HeapMarkObject, ReportsInteriorPointers)

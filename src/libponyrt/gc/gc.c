@@ -55,7 +55,8 @@ static void views_resize(gc_viewset_t* set, size_t capacity)
   gc_view_t* old = set->slots;
   size_t old_capacity = set->capacity;
 
-  set->slots = (gc_view_t*)ponyint_pool_alloc_size(capacity * sizeof(gc_view_t));
+  set->slots =
+    (gc_view_t*)ponyint_pool_alloc_size(capacity * sizeof(gc_view_t));
   memset(set->slots, 0, capacity * sizeof(gc_view_t));
   set->capacity = capacity;
 
@@ -69,7 +70,8 @@ static void views_resize(gc_viewset_t* set, size_t capacity)
     ponyint_pool_free_size(old_capacity * sizeof(gc_view_t), old);
 }
 
-bool ponyint_gc_first_view(pony_ctx_t* ctx, void* p, pony_type_t* t)
+// Records that this mark visited p as t. True on the first visit.
+static bool first_view(pony_ctx_t* ctx, void* p, pony_type_t* t)
 {
   gc_viewset_t* set = &ctx->views;
   pony_assert(p != NULL);
@@ -87,23 +89,32 @@ bool ponyint_gc_first_view(pony_ctx_t* ctx, void* p, pony_type_t* t)
   return true;
 }
 
+void ponyint_gc_free_views(pony_ctx_t* ctx)
+{
+  gc_viewset_t* set = &ctx->views;
+
+  if(set->slots != NULL)
+    ponyint_pool_free_size(set->capacity * sizeof(gc_view_t), set->slots);
+
+  memset(set, 0, sizeof(*set));
+}
+
 void ponyint_gc_end_views(pony_ctx_t* ctx)
 {
   gc_viewset_t* set = &ctx->views;
 
-  if(set->count == 0)
-    return;
-
   if((set->capacity > GC_VIEWS_MIN) && (set->count * 8 < set->capacity))
   {
-    // This round used little of the storage, so give it back.
-    ponyint_pool_free_size(set->capacity * sizeof(gc_view_t), set->slots);
-    memset(set, 0, sizeof(*set));
+    // This mark used little of the storage, so give it back.
+    ponyint_gc_free_views(ctx);
     return;
   }
 
-  memset(set->slots, 0, set->capacity * sizeof(gc_view_t));
-  set->count = 0;
+  if(set->count != 0)
+  {
+    memset(set->slots, 0, set->capacity * sizeof(gc_view_t));
+    set->count = 0;
+  }
 }
 
 // Memory reachable through an object that another actor owns, counted against
@@ -426,7 +437,7 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 
   // An embedded object: other objects share its allocation, so the visit is
   // recorded by address and type.
-  if((t->trace != NULL) && ponyint_gc_first_view(ctx, p, t))
+  if((t->trace != NULL) && first_view(ctx, p, t))
     recurse(ctx, p, t->trace);
 }
 
@@ -671,7 +682,11 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 
 // An object with no heap chunk can be embedded in an actor. Only types the
 // compiler found embedded in an actor are looked up, so constants and memory
-// from C of other types cost nothing here.
+// from C of other types cost nothing here. An object of such a type is never
+// in pool memory except inside an actor: Pony objects are allocated on actor
+// heaps, whose chunks the pagemap finds first. An actor too large for a pool
+// arena isn't found, and its embedded objects are treated as memory no actor
+// owns.
 static pony_actor_t* actor_containing(void* p, pony_type_t* t)
 {
   if((t == NULL) || !t->embedded_in_actor)

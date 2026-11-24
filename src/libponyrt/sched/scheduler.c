@@ -1386,8 +1386,11 @@ static void ponyint_sched_shutdown()
   ponyint_gc_maps_destroy();
   ponyint_cycle_terminate(&this_scheduler->ctx);
 
+  ponyint_gc_free_views(&this_scheduler->ctx);
+
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
+    ponyint_gc_free_views(&scheduler[i].ctx);
     while(ponyint_thread_messageq_pop(&scheduler[i].mq) != NULL) { ; }
     ponyint_mutemap_destroy(&scheduler[i].mute_mapping);
     ponyint_messageq_destroy(&scheduler[i].mq, false);
@@ -1647,6 +1650,7 @@ void ponyint_unregister_thread()
   if(this_scheduler == NULL)
     return;
 
+  ponyint_gc_free_views(&this_scheduler->ctx);
   POOL_FREE(scheduler_t, this_scheduler);
   this_scheduler = NULL;
 

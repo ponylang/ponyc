@@ -43,11 +43,12 @@ typedef struct gc_viewset_t
   size_t capacity;
 } gc_viewset_t;
 
-// Records that this trace round visited p as t. True on the first visit.
-bool ponyint_gc_first_view(pony_ctx_t* ctx, void* p, pony_type_t* t);
-
-// Forgets the visits recorded during this trace round.
+// Forgets the visits a mark recorded, and releases the storage when the mark
+// used little of it.
 void ponyint_gc_end_views(pony_ctx_t* ctx);
+
+// Releases the storage for recorded visits.
+void ponyint_gc_free_views(pony_ctx_t* ctx);
 
 // True when u is embedded at the start of t, directly or through other
 // embedded objects, so the two share an address and t's trace covers u.

@@ -121,7 +121,8 @@ void ponyint_heap_mark_slots(chunk_t* chunk, uint32_t slots, bool shallow);
 
 /**
  * Marks an address, but does not affect the return value of ponyint_heap_mark()
- * for the same address, nor does it indicate previous mark status.
+ * or ponyint_heap_mark_object() for the same address, nor does it indicate
+ * previous mark status.
  */
 void ponyint_heap_mark_shallow(chunk_t* chunk, void* p);
 
