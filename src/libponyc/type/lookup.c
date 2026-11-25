@@ -511,7 +511,7 @@ static deferred_reification_t* lookup_typeparam(pass_opt_t* opt, ast_t* from,
     if(errors)
     {
       ast_t* type_id = ast_child(def);
-      const char* type_name = ast_name(type_id);
+      const char* type_name = ast_nice_name(type_id);
       ast_error(opt->check.errors, from, "couldn't find '%s' in '%s'",
         name, type_name);
     }

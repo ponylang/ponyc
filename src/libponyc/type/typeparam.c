@@ -828,6 +828,85 @@ bool typeparam_narrow(ast_t* type, ast_t* typeparam_store)
   return changed;
 }
 
+static bool is_method(ast_t* ast)
+{
+  token_id id = ast_id(ast);
+  return (id == TK_FUN) || (id == TK_BE) || (id == TK_NEW);
+}
+
+int typeparam_root_index(ast_t* typeparams, ast_t* root)
+{
+  if(root == NULL)
+    return -1;
+
+  int index = 0;
+  for(ast_t* p = ast_child(typeparams); p != NULL; p = ast_sibling(p))
+  {
+    if(typeparam_root(p) == root)
+      return index;
+
+    index++;
+  }
+
+  return -1;
+}
+
+// The position of `def` in its method's type parameter list, or -1 if `def`
+// is not one of a method's own type parameters. A narrowing made by a
+// specialization guard counts as the method type parameter it narrows. A
+// narrowing made by an iftype in a method body does not count: it can appear
+// only in the signatures of methods nested in that body, and for them it is a
+// type parameter of the enclosing method, not one of their own. An object
+// literal's type parameter is the object literal's own, even when it was
+// copied from a method's type parameter.
+static int typeparam_method_index(ast_t* def)
+{
+  if((def == NULL) || (ast_id(def) != TK_TYPEPARAM))
+    return -1;
+
+  ast_t* store = ast_parent(def);
+  ast_t* owner = (store != NULL) ? ast_parent(store) : NULL;
+
+  if(owner == NULL)
+    return -1;
+
+  if(ast_id(owner) == TK_IFTYPEGUARD)
+  {
+    ast_t* method = owner;
+    while((method != NULL) && !is_method(method))
+      method = ast_parent(method);
+
+    if(method == NULL)
+      return -1;
+
+    return typeparam_root_index(ast_childidx(method, 2), typeparam_root(def));
+  }
+
+  if(!is_method(owner))
+    return -1;
+
+  int index = 0;
+  for(ast_t* p = ast_child(store); p != def; p = ast_sibling(p))
+    index++;
+
+  return index;
+}
+
+typeparam_match_t typeparam_method_refs_compare(ast_t* a, ast_t* b)
+{
+  pony_assert(ast_id(a) == TK_TYPEPARAMREF);
+  pony_assert(ast_id(b) == TK_TYPEPARAMREF);
+
+  int index_a = typeparam_method_index((ast_t*)ast_data(a));
+  int index_b = typeparam_method_index((ast_t*)ast_data(b));
+
+  if((index_a < 0) && (index_b < 0))
+    return TYPEPARAM_MATCH_NEITHER_METHOD;
+
+  return (index_a == index_b) ? TYPEPARAM_MATCH_SAME :
+    TYPEPARAM_MATCH_DIFFERENT;
+}
+
 const char* typeparam_receiver_key(strtable_t* strtab, const char* name)
 {
   const char prefix[] = "$iftype$";

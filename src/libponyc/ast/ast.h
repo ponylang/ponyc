@@ -99,6 +99,7 @@ void ast_resetpass(ast_t *ast, uint32_t flag);
 const char* ast_get_print(ast_t* ast);
 const char* ast_name(ast_t* ast);
 const char* ast_nice_name(ast_t* ast);
+void ast_set_nice_name(ast_t* ast, const char* nice, strtable_t* strtab);
 size_t ast_name_len(ast_t* ast);
 void ast_set_name(ast_t* ast, const char* name, strtable_t* strtab);
 void ast_set_name_len(ast_t* ast, const char* name, size_t len,

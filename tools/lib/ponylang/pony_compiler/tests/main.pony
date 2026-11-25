@@ -18,6 +18,7 @@ actor \nodoc\ Main is TestList
     test(_EqHashTest)
     test(_ParallelCompilerTest)
     test(_ASTSourceFile)
+    test(_ASTEndPosRenamedTypeParam)
 
 class \nodoc\ iso _CompileSimple is UnitTest
   fun name(): String => "compile/simple"

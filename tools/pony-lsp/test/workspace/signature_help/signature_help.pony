@@ -133,3 +133,23 @@ class _NamedArgUser
   fun apply() =>
     _SigTarget(0).multi(where a = U8(1), b = "hello", c = false)
     _SigTarget(0).multi(1 where b = "hello", c = false)
+
+trait _SigInheritedGeneric
+  fun box picked[R: Any val](x: R): R =>
+    x
+
+class _SigInheritedHolder[R: Any val] is _SigInheritedGeneric
+
+class _InheritedGenericSigUser
+  """
+  Exercises signature help on a generic method inherited from a trait by a
+  class that has a type parameter with the same name as the method's.
+
+  To test: place the cursor on `7` inside
+  `_SigInheritedHolder[None].picked[U32](7)` and trigger signature help.
+
+  Expected: `fun box picked[R: Any val](x: R): R`, with the name
+  written in the trait, not the compiler-generated name.
+  """
+  fun apply() =>
+    _SigInheritedHolder[None].picked[U32](7)

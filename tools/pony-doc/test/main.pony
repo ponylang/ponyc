@@ -48,6 +48,9 @@ actor \nodoc\ Main is TestList
     test(_TestDefaultValueNestedGenerics)
     test(_TestDefaultValueStringWithDelimiters)
 
+    // Inherited method tests
+    test(_TestInheritedMethodTypeParamNames)
+
     // TypeRenderer tests
     test(_TestRenderNominalNoLink)
     test(_TestRenderNominalWithLink)

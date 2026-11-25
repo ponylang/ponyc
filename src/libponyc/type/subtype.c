@@ -11,6 +11,7 @@
 #include "viewpoint.h"
 #include "../ast/astbuild.h"
 #include "../expr/literal.h"
+#include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <limits.h>
 #include <string.h>
@@ -39,7 +40,7 @@ static bool is_typeparam_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt);
 static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt);
-static bool guards_equivalent(ast_t* a, ast_t* b, pass_opt_t* opt);
+static bool guards_equivalent(ast_t* a, ast_t* b, ast_t* spec, pass_opt_t* opt);
 
 static void struct_cant_be_x(ast_t* sub, ast_t* super, errorframe_t* errorf,
   const char* entity, pass_opt_t* opt)
@@ -382,6 +383,70 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
   return true;
 }
 
+// Reify a method with the type parameters of another method that has the same
+// number of type parameters, so that the two can be compared. Returns the
+// method itself when the other method has no type parameters.
+static ast_t* reify_with_super_typeparams(ast_t* sub, ast_t* super,
+  pass_opt_t* opt)
+{
+  ast_t* sub_typeparams = ast_childidx(sub, 2);
+  ast_t* super_typeparams = ast_childidx(super, 2);
+
+  if(ast_id(super_typeparams) == TK_NONE)
+    return sub;
+
+  pony_assert(ast_childcount(sub_typeparams) ==
+    ast_childcount(super_typeparams));
+
+  BUILD(typeargs, super_typeparams, NODE(TK_TYPEARGS));
+  ast_t* super_typeparam = ast_child(super_typeparams);
+
+  while(super_typeparam != NULL)
+  {
+    AST_GET_CHILDREN(super_typeparam, super_id, super_constraint);
+
+    BUILD(typearg, super_typeparam,
+      NODE(TK_TYPEPARAMREF, TREE(super_id) NONE NONE));
+
+    // `super` can be a reified copy, whose symbol table still binds each name
+    // to the original type parameter. The type argument must refer to that
+    // one, not to the copy.
+    ast_t* def = ast_get(super_typeparam, ast_name(super_id), NULL);
+    ast_setdata(typearg, def);
+    typeparam_set_cap(typearg);
+    ast_append(typeargs, typearg);
+
+    super_typeparam = ast_sibling(super_typeparam);
+  }
+
+  ast_t* r_sub = reify_method_def(sub, sub_typeparams, typeargs, opt);
+  ast_free_unattached(typeargs);
+  return r_sub;
+}
+
+// Two specializations' guards are equivalent when they test the same types,
+// with `and` and `or` clauses in any order, once the sub specialization's
+// method type parameters are replaced by the super specialization's. The two
+// methods' own type parameters correspond by position, whatever they are
+// named, so specializations with different numbers of type parameters are
+// never equivalent.
+static bool spec_guards_equivalent(ast_t* sub_spec, ast_t* super_spec,
+  pass_opt_t* opt)
+{
+  if(ast_childcount(ast_childidx(sub_spec, 2)) !=
+    ast_childcount(ast_childidx(super_spec, 2)))
+    return false;
+
+  ast_t* r_sub = reify_with_super_typeparams(sub_spec, super_spec, opt);
+  bool ok = guards_equivalent(ast_childidx(r_sub, 5),
+    ast_childidx(super_spec, 5), super_spec, opt);
+
+  if(r_sub != sub_spec)
+    ast_free_unattached(r_sub);
+
+  return ok;
+}
+
 static bool is_fun_sub_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
   pass_opt_t* opt)
 {
@@ -473,33 +538,7 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
     return false;
   }
 
-  ast_t* r_sub = sub;
-
-  if(ast_id(super_typeparams) != TK_NONE)
-  {
-    // Reify sub with the type parameters of super.
-    BUILD(typeargs, super_typeparams, NODE(TK_TYPEARGS));
-    ast_t* super_typeparam = ast_child(super_typeparams);
-
-    while(super_typeparam != NULL)
-    {
-      AST_GET_CHILDREN(super_typeparam, super_id, super_constraint);
-
-      BUILD(typearg, super_typeparam,
-        NODE(TK_TYPEPARAMREF, TREE(super_id) NONE NONE));
-
-      ast_t* def = ast_get(super_typeparam, ast_name(super_id), NULL);
-      ast_setdata(typearg, def);
-      typeparam_set_cap(typearg);
-      ast_append(typeargs, typearg);
-
-      super_typeparam = ast_sibling(super_typeparam);
-    }
-
-    r_sub = reify_method_def(sub, sub_typeparams, typeargs, opt);
-    ast_free_unattached(typeargs);
-  }
-
+  ast_t* r_sub = reify_with_super_typeparams(sub, super, opt);
   bool ok = is_reified_fun_sub_fun(r_sub, super, errorf, opt);
 
   if(r_sub != sub)
@@ -963,8 +1002,7 @@ static bool is_isect_sub_interface(ast_t* sub, ast_t* super,
             pony_assert(r_sub_spec != NULL);
 
             if(is_fun_sub_fun(r_sub_spec, r_super_spec, NULL, opt) &&
-              guards_equivalent(ast_childidx(r_sub_spec, 5),
-                ast_childidx(r_super_spec, 5), opt))
+              spec_guards_equivalent(r_sub_spec, r_super_spec, opt))
               spec_found = true;
 
             ast_free_unattached(r_sub_spec);
@@ -1381,7 +1419,54 @@ static bool is_nominal_sub_entity(ast_t* sub, ast_t* super,
   return ret;
 }
 
-static bool guards_equivalent(ast_t* a, ast_t* b, pass_opt_t* opt)
+// The position of the type parameter `ref` refers to in `spec`'s type
+// parameter list, or -1 if `ref` is not a reference to one of them or to a
+// guard's narrowing of one.
+static int spec_typeparam_index(ast_t* ref, ast_t* spec)
+{
+  if(ast_id(ref) != TK_TYPEPARAMREF)
+    return -1;
+
+  return typeparam_root_index(ast_childidx(spec, 2),
+    typeparam_root((ast_t*)ast_data(ref)));
+}
+
+// Whether the types two guards test are equivalent. `spec` is the
+// specialization whose type parameters both guards are written in terms of.
+// A reference to one of its type parameters, or to a guard's narrowing of
+// one, is equivalent only to a reference to the same one. Any other type
+// parameter, such as one of the enclosing type's or one of the method whose
+// body contains the subtype check, is compared with is_eqtype.
+static bool guard_subjects_equivalent(ast_t* a, ast_t* b, ast_t* spec,
+  pass_opt_t* opt)
+{
+  int a_index = spec_typeparam_index(a, spec);
+  int b_index = spec_typeparam_index(b, spec);
+
+  if((a_index >= 0) || (b_index >= 0))
+    return (a_index == b_index) && is_eqtype(a, b, NULL, opt);
+
+  if((ast_id(a) == TK_TUPLETYPE) && (ast_id(b) == TK_TUPLETYPE))
+  {
+    if(ast_childcount(a) != ast_childcount(b))
+      return false;
+
+    ast_t* a_child = ast_child(a);
+    ast_t* b_child = ast_child(b);
+    while(a_child != NULL)
+    {
+      if(!guard_subjects_equivalent(a_child, b_child, spec, opt))
+        return false;
+      a_child = ast_sibling(a_child);
+      b_child = ast_sibling(b_child);
+    }
+    return true;
+  }
+
+  return is_eqtype(a, b, NULL, opt);
+}
+
+static bool guards_equivalent(ast_t* a, ast_t* b, ast_t* spec, pass_opt_t* opt)
 {
   if(ast_id(a) != ast_id(b))
     return false;
@@ -1394,30 +1479,96 @@ static bool guards_equivalent(ast_t* a, ast_t* b, pass_opt_t* opt)
       ast_t* a_super = ast_sibling(a_sub);
       ast_t* b_sub = ast_child(b);
       ast_t* b_super = ast_sibling(b_sub);
-      return is_eqtype(a_sub, b_sub, NULL, opt) &&
+      return guard_subjects_equivalent(a_sub, b_sub, spec, opt) &&
         is_eqtype(a_super, b_super, NULL, opt);
     }
 
     case TK_IFTYPEGUARD_AND:
     case TK_IFTYPEGUARD_OR:
     {
-      if(ast_childcount(a) != ast_childcount(b))
+      // The clauses of an `and` or an `or` can be written in any order. Taking
+      // the first unused matching clause is correct only because clause
+      // comparison is an equivalence relation.
+      size_t count = ast_childcount(a);
+      if(count != ast_childcount(b))
         return false;
 
-      ast_t* a_child = ast_child(a);
-      ast_t* b_child = ast_child(b);
-      while(a_child != NULL)
+      bool* used = (bool*)ponyint_pool_alloc_size(count * sizeof(bool));
+      memset(used, 0, count * sizeof(bool));
+      bool ok = true;
+
+      for(ast_t* a_child = ast_child(a); ok && (a_child != NULL);
+        a_child = ast_sibling(a_child))
       {
-        if(!guards_equivalent(a_child, b_child, opt))
-          return false;
-        a_child = ast_sibling(a_child);
-        b_child = ast_sibling(b_child);
+        bool found = false;
+        size_t i = 0;
+        for(ast_t* b_child = ast_child(b); b_child != NULL;
+          b_child = ast_sibling(b_child), i++)
+        {
+          if(!used[i] && guards_equivalent(a_child, b_child, spec, opt))
+          {
+            used[i] = true;
+            found = true;
+            break;
+          }
+        }
+
+        ok = found;
       }
-      return true;
+
+      ponyint_pool_free_size(count * sizeof(bool), used);
+      return ok;
     }
 
     default:
       return false;
+  }
+}
+
+// Explain why none of the sub method's specializations matches `super_spec`.
+// Reports a specialization with an equivalent guard but an incompatible
+// signature, followed by why the signatures differ. Otherwise reports that no
+// specialization has the guard, followed by any specialization with a
+// different number of type parameters, whose guard can't be compared.
+static void report_missing_specialization(ast_t* sub_raw, ast_t* super_spec,
+  ast_t* r_super_spec, ast_t* sub_typeparams, ast_t* sub_typeargs,
+  errorframe_t* errorf, pass_opt_t* opt)
+{
+  size_t super_count = ast_childcount(ast_childidx(super_spec, 2));
+
+  for(ast_t* sub_spec = ast_sibling(ast_child(sub_raw)); sub_spec != NULL;
+    sub_spec = ast_sibling(sub_spec))
+  {
+    if(ast_childcount(ast_childidx(sub_spec, 2)) != super_count)
+      continue;
+
+    ast_t* r_sub_spec = reify_method_def(sub_spec, sub_typeparams,
+      sub_typeargs, opt);
+    pony_assert(r_sub_spec != NULL);
+
+    if(spec_guards_equivalent(r_sub_spec, r_super_spec, opt))
+    {
+      ast_error_frame(errorf, ast_childidx(sub_spec, 5),
+        "this specialization has the required guard but an incompatible "
+        "signature");
+      is_fun_sub_fun(r_sub_spec, r_super_spec, errorf, opt);
+      ast_free_unattached(r_sub_spec);
+      return;
+    }
+
+    ast_free_unattached(r_sub_spec);
+  }
+
+  ast_error_frame(errorf, ast_childidx(super_spec, 5),
+    "no specialization has this guard");
+
+  for(ast_t* sub_spec = ast_sibling(ast_child(sub_raw)); sub_spec != NULL;
+    sub_spec = ast_sibling(sub_spec))
+  {
+    if(ast_childcount(ast_childidx(sub_spec, 2)) != super_count)
+      ast_error_frame(errorf, ast_childidx(sub_spec, 5),
+        "this specialization has a different number of type parameters, so "
+        "its guard was not compared");
   }
 }
 
@@ -1569,10 +1720,8 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
               sub_typeparams, sub_typeargs, opt);
             pony_assert(r_sub_spec != NULL);
 
-            if(is_fun_sub_fun(r_sub_spec, r_super_spec, NULL, opt) &&
-              guards_equivalent(ast_childidx(r_sub_spec, 5),
-                ast_childidx(r_super_spec, 5), opt))
-              found = true;
+            found = is_fun_sub_fun(r_sub_spec, r_super_spec, NULL, opt) &&
+              spec_guards_equivalent(r_sub_spec, r_super_spec, opt);
 
             ast_free_unattached(r_sub_spec);
             if(found)
@@ -1590,6 +1739,8 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
                 ast_print_type(sub, opt->strtab),
                 ast_print_type(super, opt->strtab),
                 ast_name(super_member_id));
+              report_missing_specialization(sub_raw, super_spec,
+                r_super_spec, sub_typeparams, sub_typeargs, errorf, opt);
             }
             ret = false;
           }

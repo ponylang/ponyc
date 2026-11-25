@@ -9,21 +9,7 @@
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
-static bool is_method_typeparam(ast_t* def)
-{
-  ast_t* parent = ast_parent(def);
-  if(parent == NULL || ast_id(parent) != TK_TYPEPARAMS)
-    return false;
-
-  ast_t* owner = ast_parent(parent);
-  if(owner == NULL)
-    return false;
-
-  return (ast_id(owner) == TK_FUN) || (ast_id(owner) == TK_BE) ||
-    (ast_id(owner) == TK_NEW);
-}
-
-static ast_t* find_typearg(pass_opt_t* opt, ast_t* ast, ast_t* typeparams, ast_t* typeargs)
+static ast_t* find_typearg(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 {
   ast_t* ref_def = NULL;
   switch(ast_id(ast))
@@ -64,20 +50,6 @@ static ast_t* find_typearg(pass_opt_t* opt, ast_t* ast, ast_t* typeparams, ast_t
     if(ref_def == param_def)
       return typearg;
 
-    if(ast_id(ast) == TK_TYPEPARAMREF)
-    {
-      AST_GET_CHILDREN(param_def, param_name, param_constraint);
-      AST_GET_CHILDREN(ref_def, ref_name, ref_constraint);
-
-      if(ast_name(ref_name) == ast_name(param_name) &&
-        is_method_typeparam(ref_def) == is_method_typeparam(param_def))
-      {
-        if((ast_id(param_constraint) == TK_TYPEPARAMREF) ||
-            is_subtype(ref_constraint, param_constraint, NULL, opt))
-          return typearg;
-      }
-    }
-
     // Not the type variable we are looking for, move on to next
     typeparam = ast_sibling(typeparam);
     typearg = ast_sibling(typearg);
@@ -91,7 +63,7 @@ static void reify_typeparamref(pass_opt_t* opt, ast_t** astp, ast_t* typeparams,
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_TYPEPARAMREF);
 
-  ast_t* typearg = find_typearg(opt, ast, typeparams, typeargs);
+  ast_t* typearg = find_typearg(ast, typeparams, typeargs);
   if (typearg == NULL)
     return;
 
@@ -151,12 +123,12 @@ static void reify_arrow(ast_t** astp, pass_opt_t* opt)
   ast_replace(astp, r_type);
 }
 
-static void reify_reference(pass_opt_t* opt, ast_t** astp, ast_t* typeparams, ast_t* typeargs)
+static void reify_reference(ast_t** astp, ast_t* typeparams, ast_t* typeargs)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_REFERENCE);
 
-  ast_t* typearg = find_typearg(opt, ast, typeparams, typeargs);
+  ast_t* typearg = find_typearg(ast, typeparams, typeargs);
   if (typearg == NULL)
     return;
 
@@ -185,7 +157,7 @@ const char* find_dangling_default_ref(ast_t* ast, ast_t* typeparams,
       {
         ast_t* tp_root = typeparam_root(tp);
         if(ref_def == tp_root)
-          return ast_name(ast_child(tp));
+          return ast_nice_name(ast_child(tp));
       }
       tp = ast_sibling(tp);
       j++;
@@ -319,7 +291,7 @@ static void reify_ast(ast_t** astp, ast_t* typeparams, ast_t* typeargs, pass_opt
       break;
 
     case TK_REFERENCE:
-      reify_reference(opt, astp, typeparams, typeargs);
+      reify_reference(astp, typeparams, typeargs);
       break;
 
     default: {}

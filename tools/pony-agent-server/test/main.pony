@@ -20,6 +20,7 @@ actor \nodoc\ Main is TestList
     test(_ScopeBasicTest)
     test(_ScopeRecoverTest)
     test(_ScopeErrorTest)
+    test(_ScopeInheritedMethodTypeParamTest)
     test(_ExportsBasicTest)
     test(_ExportsPrivateFilterTest)
     test(_ExportsDocstringTest)
@@ -1934,5 +1935,45 @@ class \nodoc\ iso _MethodEnumeratorCallableAtTest is UnitTest
     h.assert_true(
       _FixtureHelper.has_method(worker_callable, "work"),
       "behavior 'work' should be callable at tag")
+
+    session.dispose()
+
+class \nodoc\ iso _ScopeInheritedMethodTypeParamTest is UnitTest
+  """
+  Scope inside a generic method that `ScopeInheritedHolder` inherits from
+  `ScopeInherited` lists the method's type parameter by the name written in
+  the trait. The class comes before the trait in the fixture, so the position
+  resolves to the class's copy of the method.
+  """
+  fun name(): String => "scope/inherited-method-type-param"
+
+  fun apply(h: TestHelper) =>
+    (let session, let prog) =
+      try _FixtureHelper.compile(h)?
+      else h.fail("fixture compilation failed"); return
+      end
+    let fixture_file = _FixtureHelper.fixture_path(h)
+
+    // r at line 232 inside ScopeInherited.pick
+    match ScopeQuery(session, fixture_file, 232, 5)
+    | let result: ScopeResult val =>
+      match _FixtureHelper.find_scope_entry(result, "R")
+      | let e: ScopeEntry val =>
+        h.assert_eq[String val]("typeparam", e.kind)
+      | None =>
+        h.fail("expected 'R' in scope")
+      end
+
+      // The class's own type parameter is in scope only in the class's copy
+      // of the method.
+      match _FixtureHelper.find_scope_entry(result, "S")
+      | let e: ScopeEntry val =>
+        h.assert_eq[String val]("typeparam", e.kind)
+      | None =>
+        h.fail("expected 'S' in scope")
+      end
+    | let err: String val =>
+      h.fail("scope at 232:5 failed: " + err)
+    end
 
     session.dispose()

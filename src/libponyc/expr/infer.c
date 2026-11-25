@@ -905,7 +905,7 @@ static void report_unbound(pass_opt_t* opt, ast_t* error_at,
   const char* callee_name, infer_record_t* rec)
 {
   ast_t* tp = rec->typeparam;
-  const char* tp_name = ast_name(ast_child(tp));
+  const char* tp_name = ast_nice_name(ast_child(tp));
 
   ast_error_continue(opt->check.errors, tp,
     "type parameter '%s' could not be determined", tp_name);
@@ -960,7 +960,7 @@ static void report_unbound(pass_opt_t* opt, ast_t* error_at,
 static void report_conflict(pass_opt_t* opt, ast_t* error_at,
   const char* callee_name, infer_record_t* rec)
 {
-  const char* tp_name = ast_name(ast_child(rec->typeparam));
+  const char* tp_name = ast_nice_name(ast_child(rec->typeparam));
 
   ast_error(opt->check.errors, error_at,
     "the arguments give conflicting types for type parameter '%s'", tp_name);

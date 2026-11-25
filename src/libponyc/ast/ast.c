@@ -768,6 +768,14 @@ const char* ast_nice_name(ast_t* ast)
   return ast_name(ast);
 }
 
+// Set the name of a TK_ID that diagnostics and tools show.
+void ast_set_nice_name(ast_t* ast, const char* nice, strtable_t* strtab)
+{
+  pony_assert(ast != NULL);
+  pony_assert(ast_id(ast) == TK_ID);
+  ast_setdata(ast, (void*)stringtab(strtab, nice));
+}
+
 
 size_t ast_name_len(ast_t* ast)
 {

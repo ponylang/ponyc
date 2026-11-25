@@ -316,6 +316,8 @@ ast_t* type_for_class(pass_opt_t* opt, ast_t* def, ast_t* ast,
     {
       ast_t* typeparam_id = ast_child(typeparam);
       ast_t* typearg = type_sugar(ast, NULL, ast_name(typeparam_id), opt);
+      ast_set_nice_name(ast_childidx(typearg, 1), ast_nice_name(typeparam_id),
+        opt->strtab);
       ast_append(typeargs, typearg);
 
       if(expr)

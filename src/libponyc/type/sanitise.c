@@ -12,6 +12,7 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args, pa
   // Get original type parameter info
   AST_GET_CHILDREN(orig_param, id, constraint, deflt);
   const char* name = ast_name(id);
+  const char* nice = ast_nice_name(id);
 
   constraint = sanitise_type(constraint, opt);
   pony_assert(constraint != NULL);
@@ -21,7 +22,7 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args, pa
   {
     BUILD(new_param, orig_param,
       NODE(TK_TYPEPARAM,
-        ID(name)
+        NICE_ID(name, nice)
         TREE(constraint)
         NONE));
 
@@ -39,7 +40,7 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args, pa
     BUILD(new_arg, orig_param,
       NODE(TK_NOMINAL,
         NONE  // Module
-        ID(name)
+        NICE_ID(name, nice)
         NONE  // Type args
         NONE  // cap
         NONE)); // ephemeral
@@ -127,7 +128,7 @@ static void sanitise(ast_t** astp, pass_opt_t* opt)
     REPLACE(astp,
       NODE(TK_NOMINAL,
         NONE      // Module name
-        ID(name)
+        NICE_ID(name, ast_nice_name(ast_child(def)))
         NONE      // Type args
         NONE      // Capability
         NONE));   // Ephemeral

@@ -11,6 +11,7 @@
 #include "../type/typeparam.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
+#include <string.h>
 
 
 /** The following defines how we determine the signature and body to use for
@@ -250,6 +251,44 @@ static bool compare_signature_nodes(ast_t* sig_a, ast_t* sig_b,
         COMPARE_GUARDS) && compare_signature_nodes(ast_childidx(sig_a, 1),
         ast_childidx(sig_b, 1), COMPARE_GUARDS);
 
+    case TK_IFTYPEGUARD_AND:
+    case TK_IFTYPEGUARD_OR:
+    {
+      // The clauses of an `and` or an `or` can be written in any order. Taking
+      // the first unused matching clause is correct only because clause
+      // comparison is an equivalence relation.
+      size_t count = ast_childcount(sig_a);
+      if(count != ast_childcount(sig_b))
+        return false;
+
+      bool* used = (bool*)ponyint_pool_alloc_size(count * sizeof(bool));
+      memset(used, 0, count * sizeof(bool));
+      bool ok = true;
+
+      for(ast_t* a_child = ast_child(sig_a); ok && (a_child != NULL);
+        a_child = ast_sibling(a_child))
+      {
+        bool found = false;
+        size_t i = 0;
+        for(ast_t* b_child = ast_child(sig_b); b_child != NULL;
+          b_child = ast_sibling(b_child), i++)
+        {
+          if(!used[i] &&
+            compare_signature_nodes(a_child, b_child, COMPARE_GUARDS))
+          {
+            used[i] = true;
+            found = true;
+            break;
+          }
+        }
+
+        ok = found;
+      }
+
+      ponyint_pool_free_size(count * sizeof(bool), used);
+      return ok;
+    }
+
     case TK_TYPEPARAMREF:
     {
       ast_t* root_a = typeparam_root((ast_t*)ast_data(sig_a));
@@ -263,6 +302,21 @@ static bool compare_signature_nodes(ast_t* sig_a, ast_t* sig_b,
         // An inherited guard can refine a reference's capability without
         // changing its declaration or ephemerality.
         return ast_id(ast_childidx(sig_a, 2)) == ast_id(ast_childidx(sig_b, 2));
+      }
+
+      if(root_a != root_b)
+      {
+        // References to the two methods' own type parameters match by
+        // position.
+        typeparam_match_t match = typeparam_method_refs_compare(sig_a, sig_b);
+        if(match != TYPEPARAM_MATCH_NEITHER_METHOD)
+        {
+          return (match == TYPEPARAM_MATCH_SAME) &&
+            compare_signature_nodes(ast_childidx(sig_a, 1),
+              ast_childidx(sig_b, 1), comparison) &&
+            compare_signature_nodes(ast_childidx(sig_a, 2),
+              ast_childidx(sig_b, 2), comparison);
+        }
       }
       break;
     }
@@ -433,9 +487,209 @@ static void reify_narrowed_params(ast_t* ast, ast_t* typeparams,
     reify_narrowed_params(child, typeparams, typeargs, opt);
 }
 
-static ast_t* reify_provides_type(ast_t* method, ast_t* trait_ref,
+// pony_compiler's AST.end_pos()
+// (tools/lib/ponylang/pony_compiler/pony_compiler/ast.pony) checks IDs for
+// "$m$" and measures an ID that starts with it by its nice name. If the two
+// prefixes differ, end_pos() measures a renamed ID by its generated name, which
+// is longer than the name in the source. Change both together.
+static const char method_typeparam_prefix[] = "$m$";
+
+static bool has_method_typeparam_prefix(const char* name)
+{
+  return strncmp(name, method_typeparam_prefix,
+    sizeof(method_typeparam_prefix) - 1) == 0;
+}
+
+static bool is_entity_typeparam_name(ast_t* entity, const char* name)
+{
+  ast_t* typeparams = ast_childidx(entity, 1);
+  for(ast_t* p = ast_child(typeparams); p != NULL; p = ast_sibling(p))
+  {
+    if(ast_name(ast_child(p)) == name)
+      return true;
+  }
+
+  return false;
+}
+
+static const char* add_method_typeparam_prefix(const char* name,
   pass_opt_t* opt)
 {
+  size_t prefix_len = sizeof(method_typeparam_prefix) - 1;
+  size_t name_size = strlen(name) + 1;
+  size_t size = prefix_len + name_size;
+  char* buf = (char*)ponyint_pool_alloc_size(size);
+  memcpy(buf, method_typeparam_prefix, prefix_len);
+  memcpy(buf + prefix_len, name, name_size);
+  return stringtab_consume(opt->strtab, buf, size);
+}
+
+typedef struct typeparam_rename_t
+{
+  const char* old_name;
+  const char* new_name;
+  ast_t* root;
+} typeparam_rename_t;
+
+// Rename `id` to the new name of the entry whose old name it has. With a
+// `root`, only an entry for that type parameter applies.
+static void rename_id(ast_t* id, typeparam_rename_t* renames, size_t count,
+  ast_t* root, pass_opt_t* opt)
+{
+  if(ast_id(id) != TK_ID)
+    return;
+
+  const char* name = ast_name(id);
+  for(size_t i = 0; i < count; i++)
+  {
+    if((renames[i].old_name != name) ||
+      ((root != NULL) && (renames[i].root != root)))
+      continue;
+
+    const char* nice = ast_nice_name(id);
+    ast_set_name(id, renames[i].new_name, opt->strtab);
+    ast_set_nice_name(id, nice, opt->strtab);
+    return;
+  }
+}
+
+// A resolved reference or declaration is renamed only when it belongs to one
+// of the type parameters being renamed, identified by its root. A reference to
+// another method's type parameter with the same name, such as one in the type
+// of a call to that method, keeps its name. Unresolved names inside the owner
+// can only mean the owner's type parameters, because a nested method can't
+// declare a type parameter with the same name as an enclosing one.
+static void rename_typeparam_uses(ast_t* ast, typeparam_rename_t* renames,
+  size_t count, pass_opt_t* opt)
+{
+  switch(ast_id(ast))
+  {
+    case TK_TYPEPARAM:
+      rename_id(ast_child(ast), renames, count, typeparam_root(ast), opt);
+      break;
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = (ast_t*)ast_data(ast);
+      rename_id(ast_child(ast), renames, count,
+        (def == NULL) ? NULL : typeparam_root(def), opt);
+      break;
+    }
+
+    case TK_REFERENCE:
+      rename_id(ast_child(ast), renames, count, NULL, opt);
+      break;
+
+    case TK_NOMINAL:
+      // Only an unqualified name can denote a type parameter.
+      if(ast_id(ast_child(ast)) == TK_NONE)
+        rename_id(ast_childidx(ast, 1), renames, count, NULL, opt);
+      break;
+
+    default: {}
+  }
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+    rename_typeparam_uses(child, renames, count, opt);
+
+  ast_t* type = ast_type(ast);
+  if(type != NULL)
+    rename_typeparam_uses(type, renames, count, opt);
+}
+
+// Rename the type parameters declared by `owner` within `owner`. A name
+// without the prefix gets it; a name that already has it is left as is, so a
+// copy of a copy gets the same name as a direct copy. The prefix is added
+// again while the name equals one of the entity's type parameter names, which
+// happens when the entity is an object literal whose type parameters were
+// copied from a renamed method's. The original name is kept as the nice name,
+// which diagnostics and tools show.
+static void rename_typeparams_of(ast_t* owner, ast_t* entity, pass_opt_t* opt)
+{
+  ast_t* typeparams = ast_childidx(owner, 2);
+  if(ast_id(typeparams) != TK_TYPEPARAMS)
+    return;
+
+  size_t max = ast_childcount(typeparams);
+  if(max == 0)
+    return;
+
+  typeparam_rename_t* renames = (typeparam_rename_t*)ponyint_pool_alloc_size(
+    max * sizeof(typeparam_rename_t));
+  size_t count = 0;
+
+  for(ast_t* p = ast_child(typeparams); p != NULL; p = ast_sibling(p))
+  {
+    const char* name = ast_name(ast_child(p));
+    const char* fresh = name;
+
+    if(!has_method_typeparam_prefix(fresh))
+      fresh = add_method_typeparam_prefix(fresh, opt);
+
+    while(is_entity_typeparam_name(entity, fresh))
+      fresh = add_method_typeparam_prefix(fresh, opt);
+
+    if(fresh != name)
+    {
+      renames[count].old_name = name;
+      renames[count].new_name = fresh;
+      renames[count].root = typeparam_root(p);
+      count++;
+    }
+  }
+
+  if(count > 0)
+    rename_typeparam_uses(owner, renames, count, opt);
+
+  ponyint_pool_free_size(max * sizeof(typeparam_rename_t), renames);
+}
+
+// Methods of object literals, and generic lambdas, inside a copied method's
+// body or default arguments declare type parameters too. An object literal in
+// the copy gets the entity's type parameters, so a nested method's type
+// parameter with the same name as one of the entity's would clash with it.
+static void rename_nested_typeparams(ast_t* ast, ast_t* entity, pass_opt_t* opt)
+{
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+  {
+    switch(ast_id(child))
+    {
+      case TK_FUN:
+      case TK_BE:
+      case TK_NEW:
+      case TK_LAMBDA:
+        rename_typeparams_of(child, entity, opt);
+        break;
+
+      default: {}
+    }
+
+    rename_nested_typeparams(child, entity, opt);
+  }
+}
+
+// Give the type parameters of a method copied into an entity, and of methods
+// and lambdas written in its body or default arguments, names that no source
+// program can write, so that a name lookup made from inside the copy can't
+// find one of them in place of the entity's own type parameter.
+//
+// The new name depends only on the original name and the entity, so two copies
+// of the same method into one entity get the same names and still compare equal
+// when inherited signatures are merged.
+//
+// Call this before reifying the copy, so that names substituted in from the
+// provides clause's type arguments are not renamed.
+static void rename_method_typeparams(ast_t* copy, ast_t* entity,
+  pass_opt_t* opt)
+{
+  rename_typeparams_of(copy, entity, opt);
+  rename_nested_typeparams(copy, entity, opt);
+}
+
+static ast_t* reify_provides_type(ast_t* entity, ast_t* method,
+  ast_t* trait_ref, pass_opt_t* opt)
+{
+  pony_assert(entity != NULL);
   pony_assert(method != NULL);
   pony_assert(trait_ref != NULL);
 
@@ -450,6 +704,8 @@ static ast_t* reify_provides_type(ast_t* method, ast_t* trait_ref,
     return NULL;
 
   ast_t* copy = ast_dup(method);
+  rename_method_typeparams(copy, entity, opt);
+
   for(ast_t* arg = ast_child(type_args); arg != NULL; arg = ast_sibling(arg))
   {
     if(ast_id(arg) == TK_TYPEPARAMREF)
@@ -743,6 +999,21 @@ static void rescope_narrowed_params(ast_t* scope, ast_t* store,
     ast_setid(store, TK_NONE);
 }
 
+// Bind the iftype's narrowings of the method's own type parameters before the
+// condition and the body are rescoped, so that references in them find the
+// narrowing, as the scope pass bound them in the original.
+static void rescope_iftype_own_params(ast_t* iftype, ast_t* store,
+  pass_opt_t* opt)
+{
+  for(ast_t* narrowed = ast_child(store); narrowed != NULL;
+    narrowed = ast_sibling(narrowed))
+  {
+    if(!narrows_receiver_param(narrowed, iftype))
+      ast_set(iftype, ast_name(ast_child(narrowed)), narrowed, SYM_DEFINED,
+        true, opt->strtab);
+  }
+}
+
 static void rescope_guard(ast_t* method, ast_t* guard, pass_opt_t* opt)
 {
   if(ast_id(guard) == TK_IFTYPEGUARD)
@@ -767,6 +1038,105 @@ static void rescope_typeparams(ast_t* typeparams, pass_opt_t* opt)
   }
 }
 
+// Rebinding a constraint to the narrowing it defines can form a cycle, so a
+// reference to a receiver type parameter inside a structural narrowing keeps
+// its binding.
+static bool keeps_binding(ast_t* ast)
+{
+  ast_t* original = (ast_t*)ast_data(ast);
+  return (original != NULL) && is_receiver_param(original, ast) &&
+    in_structural_narrowing(ast);
+}
+
+// The definition a type parameter reference in a copied method binds to.
+static ast_t* rescoped_typeparam_def(ast_t* ast, pass_opt_t* opt)
+{
+  pony_assert(ast_child(ast) != NULL);
+  ast_t* original = (ast_t*)ast_data(ast);
+  if(keeps_binding(ast))
+    return original;
+
+  if(original != NULL && is_receiver_param(original, ast))
+    return typeparam_resolve(ast, ast, opt->strtab);
+
+  return ast_get(ast, ast_name(ast_child(ast)), NULL);
+}
+
+// A reference inside a guard to a type parameter that the guard narrows binds
+// to the guard's narrowing, as the scope pass bound it in the original.
+static ast_t* guard_narrowing(ast_t* ast, ast_t* def)
+{
+  if((def == NULL) || (ast_id(def) != TK_TYPEPARAM))
+    return NULL;
+
+  const char* name = ast_name(ast_child(ast));
+  for(ast_t* p = ast_parent(ast); p != NULL; p = ast_parent(p))
+  {
+    if(is_method(p))
+      break;
+
+    if(ast_id(p) != TK_IFTYPEGUARD)
+      continue;
+
+    ast_t* store = ast_childidx(p, 2);
+    for(ast_t* tp = ast_child(store); tp != NULL; tp = ast_sibling(tp))
+    {
+      if((ast_name(ast_child(tp)) == name) &&
+        (typeparam_root(tp) == typeparam_root(def)))
+        return tp;
+    }
+  }
+
+  return NULL;
+}
+
+static void rescope_typeparamref(ast_t* ast, pass_opt_t* opt)
+{
+  if(keeps_binding(ast))
+    return;
+
+  ast_t* def = rescoped_typeparam_def(ast, opt);
+  ast_t* narrowed = guard_narrowing(ast, def);
+  if(narrowed != NULL)
+    def = narrowed;
+
+  ast_setdata(ast, def);
+  if(def != NULL && ast_id(def) == TK_TYPEPARAM &&
+    narrows_receiver_param(def, ast))
+    typeparam_set_cap(ast);
+}
+
+// A method copied into an object literal can come from a trait whose bodies
+// have already been type checked, so the copy's expression types are already
+// bound. A binding is kept when the type parameter that name lookup finds in
+// the copy has the same root as the bound one, so a reference to an iftype
+// narrowing stays bound to the narrowing. It is replaced when the roots
+// differ, which happens when the body comes from a different trait than the
+// signature.
+static void rescope_expr_type(ast_t* type, pass_opt_t* opt)
+{
+  if(type == NULL)
+    return;
+
+  if(ast_id(type) == TK_TYPEPARAMREF)
+  {
+    ast_t* current = (ast_t*)ast_data(type);
+    ast_t* def = rescoped_typeparam_def(type, opt);
+    if(def != NULL && ast_id(def) == TK_TYPEPARAM &&
+      typeparam_root(def) != typeparam_root(current))
+    {
+      ast_setdata(type, def);
+      if(narrows_receiver_param(def, type))
+        typeparam_set_cap(type);
+    }
+  }
+
+  for(ast_t* child = ast_child(type); child != NULL; child = ast_sibling(child))
+    rescope_expr_type(child, opt);
+
+  rescope_expr_type(ast_type(type), opt);
+}
+
 static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -785,6 +1155,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_IFTYPE:
+      rescope_iftype_own_params(ast, ast_childidx(ast, 3), options);
       rescope_narrowed_params(ast, ast_childidx(ast, 3), options);
       break;
 
@@ -814,27 +1185,13 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_TYPEPARAMREF:
-    {
-      pony_assert(ast_child(ast) != NULL);
-      ast_t* original = (ast_t*)ast_data(ast);
-      // Rebinding a constraint to the narrowing it defines can form a cycle.
-      if(original != NULL && is_receiver_param(original, ast) &&
-        in_structural_narrowing(ast))
-        break;
-
-      ast_t* def = original != NULL && is_receiver_param(original, ast) ?
-        typeparam_resolve(ast, ast, options->strtab) :
-        ast_get(ast, ast_name(ast_child(ast)), NULL);
-      ast_setdata(ast, def);
-      if(def != NULL && ast_id(def) == TK_TYPEPARAM &&
-        narrows_receiver_param(def, ast))
-        typeparam_set_cap(ast);
+      rescope_typeparamref(ast, options);
       break;
-    }
 
     default: {}
   }
 
+  rescope_expr_type(ast_type(ast), options);
   return AST_OK;
 }
 
@@ -850,6 +1207,39 @@ static ast_result_t rescope_post(ast_t** astp, pass_opt_t* options)
 static void rescope_copied_method(ast_t** method, pass_opt_t* opt)
 {
   ast_visit(method, rescope, rescope_post, opt, PASS_ALL);
+}
+
+// When a body from one trait's method is put under another trait's
+// signature, the body's iftype narrowings still refer to the body method's
+// type parameters. Point each one at the signature method's type parameter in
+// the same position, so that reifying the signature's type parameters reaches
+// the narrowing.
+static void relink_body_narrowings(ast_t* ast, ast_t* body_typeparams,
+  ast_t* sig_typeparams)
+{
+  if((ast_id(body_typeparams) != TK_TYPEPARAMS) ||
+    (ast_id(sig_typeparams) != TK_TYPEPARAMS))
+    return;
+
+  if(ast_id(ast) == TK_IFTYPE)
+  {
+    ast_t* store = ast_childidx(ast, 3);
+    for(ast_t* narrowed = ast_child(store); narrowed != NULL;
+      narrowed = ast_sibling(narrowed))
+    {
+      ast_t* root = typeparam_root(narrowed);
+      int index = typeparam_root_index(body_typeparams, root);
+      if(index < 0)
+        continue;
+
+      ast_t* sig_tp = ast_childidx(sig_typeparams, index);
+      if((sig_tp != NULL) && (typeparam_root(sig_tp) != root))
+        ast_setdata(narrowed, sig_tp);
+    }
+  }
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+    relink_body_narrowings(child, body_typeparams, sig_typeparams);
 }
 
 // The provided method must already be reified.
@@ -926,6 +1316,8 @@ static bool merge_inherited_method(ast_t* entity, ast_t* existing_method,
   pony_assert(ast_id(existing_body) == TK_NONE);
   import_use_aliases(entity, (ast_t*)ast_data(method), opt);
   ast_replace(&existing_body, method_body);
+  relink_body_narrowings(existing_body, ast_childidx(method, 2),
+    ast_childidx(existing_method, 2));
   mutation_inherit_body_selector(method, existing_body);
 
   rescope_copied_method(&existing_method, opt);
@@ -957,14 +1349,15 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
 
   method_t* info = (method_t*)ast_data(local);
 
-  if(ast_id(ast_childidx(local, 7)) != TK_NONE)
-  {
-    if(info->body_donor != NULL)
-      import_use_aliases(entity, info->body_donor, opt);
+  if((ast_id(ast_childidx(local, 7)) != TK_NONE) && (info->body_donor != NULL))
+    import_use_aliases(entity, info->body_donor, opt);
 
+  // The copy's symbol tables still bind the type parameter names it had
+  // before rename_method_typeparams renamed them, so a copy with type
+  // parameters is rescoped even when it has no body.
+  if((ast_id(ast_childidx(local, 7)) != TK_NONE) ||
+    (ast_id(ast_childidx(local, 2)) == TK_TYPEPARAMS))
     rescope_copied_method(&local, opt);
-  }
-
   return true;
 }
 
@@ -1092,7 +1485,7 @@ static bool provided_methods(ast_t* entity, pass_opt_t* opt)
           method = ast_sibling(method))
         {
           pony_assert(is_method(method));
-          ast_t* reified = reify_provides_type(method, trait_ref, opt);
+          ast_t* reified = reify_provides_type(entity, method, trait_ref, opt);
 
           if(reified == NULL)
           {
@@ -1119,7 +1512,7 @@ static bool provided_methods(ast_t* entity, pass_opt_t* opt)
       {
         pony_assert(is_method(member));
 
-        ast_t* reified = reify_provides_type(member, trait_ref, opt);
+        ast_t* reified = reify_provides_type(entity, member, trait_ref, opt);
 
         if(reified == NULL)
         {

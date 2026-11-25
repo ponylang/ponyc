@@ -910,3 +910,161 @@ TEST_F(TypeArgInferenceTest, ConsumedIso_SatisfiesBoxConstraintInUnion)
 
   TEST_COMPILE(src);
 }
+
+
+// --- Diagnostics for methods inherited from a trait ---
+//
+// A method copied from a trait into a class gets renamed type parameters.
+// Diagnostics must show the names written in the trait.
+
+TEST_F(TypeArgInferenceTest, InheritedMethod_MissingMemberErrorUsesSourceName)
+{
+  // The error is reported for the trait's method and for C's copy of it.
+  const char* src =
+    "trait T\n"
+    "  fun f[B](b: B): B => b.foo()\n"
+
+    "class C is T\n";
+
+  const char* errs[] = {
+    "couldn't find 'foo' in 'B'",
+    "couldn't find 'foo' in 'B'",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "expr", errs));
+}
+
+TEST_F(TypeArgInferenceTest, InheritedMethod_ConstraintErrorUsesSourceName)
+{
+  const char* src =
+    "interface val Named\n"
+    "  fun name(): U8\n"
+
+    "trait T\n"
+    "  fun show[R: Named val](r: R): U8 => r.name()\n"
+
+    "class C is T\n"
+
+    "primitive P\n"
+    "  fun apply(c: C) =>\n"
+    "    c.show(P)\n";
+
+  const char* errs[] = {"type argument is outside its constraint", NULL};
+  const char* frame0[] = {
+    "argument: P val",
+    "constraint: Named val",
+    "P val is not a subtype of Named val",
+    "'R' was inferred as P val from this argument",
+    NULL
+  };
+  const char** frames[] = {frame0, NULL};
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}
+
+TEST_F(TypeArgInferenceTest, InheritedMethod_ConflictErrorUsesSourceName)
+{
+  const char* src =
+    "trait T\n"
+    "  fun pick[R: Any val](a: R, b: R): R => a\n"
+
+    "class C is T\n"
+
+    "primitive P\n"
+    "  fun apply(c: C) =>\n"
+    "    c.pick(U8(1), \"x\")\n";
+
+  const char* errs[] = {
+    "the arguments give conflicting types for type parameter 'R'", NULL};
+  const char* frame0[] = {
+    "this argument gives U8 val^ for 'R'",
+    "this argument gives String val for 'R'",
+    "the types must be the same",
+    "when one is a subtype of the other",
+    "write the type argument to choose between them",
+    NULL
+  };
+  const char** frames[] = {frame0, NULL};
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}
+
+TEST_F(TypeArgInferenceTest, InheritedMethod_UnboundErrorUsesSourceName)
+{
+  const char* src =
+    "trait T\n"
+    "  fun make[R: Any val, S: Any val](s: S): (R | None) => None\n"
+
+    "class C is T\n"
+
+    "primitive P\n"
+    "  fun apply(c: C) =>\n"
+    "    c.make(U8(1))\n";
+
+  const char* errs[] = {"could not infer the type arguments of 'make'", NULL};
+  const char* frame0[] = {
+    "type parameter 'R' could not be determined",
+    "'R' is not mentioned by the type of any parameter of 'make'",
+    "no argument can determine 'R'",
+    "write the type arguments explicitly",
+    NULL
+  };
+  const char** frames[] = {frame0, NULL};
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}
+
+TEST_F(TypeArgInferenceTest, InheritedMethod_DanglingDefaultErrorUsesSourceName)
+{
+  const char* src =
+    "trait T\n"
+    "  fun f[A: Any val = B, B: Any val = U32](): None => None\n"
+
+    "class C is T\n"
+
+    "primitive P\n"
+    "  fun apply(c: C) =>\n"
+    "    c.f()\n";
+
+  const char* errs[] = {"not enough type arguments", NULL};
+  const char* frame0[] = {"default refers to type parameter B", NULL};
+  const char** frames[] = {frame0, NULL};
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}
+
+TEST_F(TypeArgInferenceTest, InheritedMethod_LambdaCaptureErrorUsesSourceName)
+{
+  // Inside lib, `Take` is lib's. In Holder's copy of lift, the lambda's call
+  // to `Take` resolves to the main package's `Take`, which only takes U8, so
+  // the compiler reports an error only for the copy. That resolution is issue
+  // #6710; once it is fixed, this test needs another way to get an error from
+  // the copy only. The captured `r` has the method's own type parameter.
+  add_module("lib",
+    "primitive Take\n"
+    "  fun apply(x: Any val) => None\n"
+
+    "trait Mapper\n"
+    "  fun lift[R: Any val](r: R): {()} val =>\n"
+    "    {() => Take(r)}");
+
+  const char* src =
+    "use l = \"lib\"\n"
+
+    "primitive Take\n"
+    "  fun apply(x: U8) => None\n"
+
+    "class Holder is l.Mapper";
+
+  const char* errs[] = {"argument not assignable to parameter", NULL};
+  const char* frame0[] = {
+    "argument type is this->R val",
+    "parameter type requires U8 val^",
+    "Any val is not a subtype of U8 val^",
+    NULL
+  };
+  const char** frames[] = {frame0, NULL};
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}
