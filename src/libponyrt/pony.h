@@ -327,6 +327,13 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m);
 PONY_API void pony_traceknown_embeddable(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int m);
 
+/** Trace an unknown type that might share memory with other objects.
+ *
+ * The compiler calls this instead of pony_traceunknown when one of the types
+ * the value can have has PONY_EMBED_ROUTED.
+ */
+PONY_API void pony_traceunknown_embeddable(pony_ctx_t* ctx, void* p, int m);
+
 /** Trace unknown.
  *
  * This should be called for fields in an object with an unknown type.
