@@ -535,15 +535,90 @@ static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
     mutability);
 }
 
+static bool reach_may_be_routed(reach_type_t* t, int depth)
+{
+  if(((compile_type_t*)t->c_type)->embed_flags & PONY_EMBED_ROUTED)
+    return true;
+
+  switch(t->underlying)
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_INTERFACE:
+    case TK_TRAIT:
+    {
+      if(depth > 32)
+        return true;
+
+      size_t i = HASHMAP_BEGIN;
+      reach_type_t* sub;
+
+      while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
+      {
+        if(reach_may_be_routed(sub, depth + 1))
+          return true;
+      }
+
+      return false;
+    }
+
+    default:
+      return false;
+  }
+}
+
+// True if an object traced through a value of this static type can be of a
+// type that shares memory with other objects (PONY_EMBED_ROUTED). The type is
+// NULL, or the answer is uncertain, only when every type might be.
+static bool may_be_routed(compile_t* c, ast_t* type)
+{
+  if(type == NULL)
+    return true;
+
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      for(ast_t* child = ast_child(type); child != NULL;
+        child = ast_sibling(child))
+      {
+        if(may_be_routed(c, child))
+          return true;
+      }
+
+      return false;
+    }
+
+    // The traced object is the tuple's box, which is never embedded.
+    case TK_TUPLETYPE:
+      return false;
+
+    case TK_NOMINAL:
+    {
+      reach_type_t* t = reach_type(c->reach, type, c->opt);
+      return (t == NULL) || reach_may_be_routed(t, 0);
+    }
+
+    default:
+      return true;
+  }
+}
+
 static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
-  int mutability)
+  int mutability, ast_t* type)
 {
   LLVMValueRef args[3];
   args[0] = ctx;
   args[1] = object;
   args[2] = LLVMConstInt(c->i32, mutability, false);
 
-  gencall_runtime(c, "pony_traceunknown", args, 3, "");
+  // Only a trace that can reach a type sharing memory with other objects needs
+  // the runtime to check the object's descriptor for it.
+  if(may_be_routed(c, type))
+    gencall_runtime(c, "pony_traceunknown_embeddable", args, 3, "");
+  else
+    gencall_runtime(c, "pony_traceunknown", args, 3, "");
 }
 
 static ast_t* find_dup(ast_t* original, ast_t* duplicate, ast_t* target)
@@ -646,7 +721,7 @@ static void trace_static(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   if(is_known(src_type))
     trace_known(c, ctx, object, src_type, mutability);
   else
-    trace_unknown(c, ctx, object, mutability);
+    trace_unknown(c, ctx, object, mutability, src_type);
 }
 
 static void trace_tuple(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
@@ -671,7 +746,7 @@ static void trace_tuple(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
     pony_assert(src_child == NULL && dst_child == NULL);
   } else {
     // This is a boxed tuple. Trace the box, then handle the elements.
-    trace_unknown(c, ctx, dst_value, PONY_TRACE_OPAQUE);
+    trace_unknown(c, ctx, dst_value, PONY_TRACE_OPAQUE, src_type);
 
     // Extract the elements from the original unboxed tuple.
     pony_assert(LLVMGetTypeKind(LLVMTypeOf(src_value)) == LLVMStructTypeKind);
@@ -710,7 +785,7 @@ static void trace_dynamic_union_or_isect(compile_t* c, LLVMValueRef ctx,
     LLVMBuildCondBr(c->builder, is_tagged, skip_block, trace_block);
 
     LLVMPositionBuilderAtEnd(c->builder, trace_block);
-    trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE);
+    trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE, type);
     LLVMBuildBr(c->builder, skip_block);
 
     LLVMMoveBasicBlockAfter(skip_block, LLVMGetInsertBlock(c->builder));
@@ -718,7 +793,7 @@ static void trace_dynamic_union_or_isect(compile_t* c, LLVMValueRef ctx,
   }
   else
   {
-    trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE);
+    trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE, type);
   }
 }
 
@@ -1045,7 +1120,7 @@ static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
       }
 
       // This is a boxed tuple. Trace the box, then handle the elements.
-      trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE);
+      trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE, type);
 
       LLVMValueRef desc = gendesc_fetch(c, object);
       LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
@@ -1330,7 +1405,7 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
       break;
 
     case TRACE_VAL_UNKNOWN:
-      trace_unknown(c, ctx, dst_value, PONY_TRACE_IMMUTABLE);
+      trace_unknown(c, ctx, dst_value, PONY_TRACE_IMMUTABLE, src_type);
       break;
 
     case TRACE_MUT_KNOWN:
@@ -1338,7 +1413,7 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
       break;
 
     case TRACE_MUT_UNKNOWN:
-      trace_unknown(c, ctx, dst_value, PONY_TRACE_MUTABLE);
+      trace_unknown(c, ctx, dst_value, PONY_TRACE_MUTABLE, src_type);
       break;
 
     case TRACE_TAG_KNOWN:
@@ -1346,7 +1421,7 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
       break;
 
     case TRACE_TAG_UNKNOWN:
-      trace_unknown(c, ctx, dst_value, PONY_TRACE_OPAQUE);
+      trace_unknown(c, ctx, dst_value, PONY_TRACE_OPAQUE, src_type);
       break;
 
     case TRACE_STATIC:

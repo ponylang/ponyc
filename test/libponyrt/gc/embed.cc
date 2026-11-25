@@ -519,14 +519,15 @@ TEST_F(GcEmbeddedInClass, InteriorVisitAfterTheClassIsCovered)
   end_mark();
 }
 
-// A trace of an interface-typed reference reads the descriptor at run time and
-// takes the same path for B: a repeat visit is recorded, not traced again.
+// A trace of an interface-typed reference that can reach B reads the descriptor
+// at run time and takes the same path for B: a repeat visit is recorded, not
+// traced again.
 TEST_F(GcEmbeddedInClass, UnknownTraceFollowsTheDescriptorFlag)
 {
   A* obj = alloc_a();
   start_mark();
-  pony_traceunknown(ctx, &obj->b, PONY_TRACE_MUTABLE);
-  pony_traceunknown(ctx, &obj->b, PONY_TRACE_MUTABLE);
+  pony_traceunknown_embeddable(ctx, &obj->b, PONY_TRACE_MUTABLE);
+  pony_traceunknown_embeddable(ctx, &obj->b, PONY_TRACE_MUTABLE);
   ponyint_gc_handlestack(ctx);
   EXPECT_EQ(1u, b_traced);
   end_mark();

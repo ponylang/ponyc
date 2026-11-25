@@ -167,6 +167,28 @@ PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m)
 
   pony_type_t* t = *(pony_type_t**)p;
 
+  // The compiler calls pony_traceunknown_embeddable where one of these types
+  // can be traced.
+  pony_assert((t->embed_flags & PONY_EMBED_ROUTED) == 0);
+
+  if(t->dispatch != NULL)
+  {
+    ctx->trace_actor(ctx, (pony_actor_t*)p);
+  } else {
+    ctx->trace_object(ctx, p, t, m);
+  }
+}
+
+
+PONY_API void pony_traceunknown_embeddable(pony_ctx_t* ctx, void* p, int m)
+{
+  // Tagged pointers have bit 63 set. They encode a machine word directly
+  // in the pointer and have no heap allocation to trace.
+  if((sizeof(uintptr_t) >= 8) && (((uintptr_t)p >> 63) != 0))
+    return;
+
+  pony_type_t* t = *(pony_type_t**)p;
+
   if(t->dispatch != NULL)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
