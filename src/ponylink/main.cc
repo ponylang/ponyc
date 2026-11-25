@@ -1,8 +1,8 @@
 // ponylink — standalone linker for ponyc.
 //
 // Reads lld arguments from a file (one per line) and calls lld::lldMain().
-// ponyc spawns this as a subprocess for ELF linking so lld starts in a
-// clean address space.
+// ponyc spawns this as a subprocess so lld starts in a clean address space,
+// avoiding OOM from ponyc's accumulated allocations.
 
 #include <lld/Common/Driver.h>
 #include <llvm/Support/raw_ostream.h>

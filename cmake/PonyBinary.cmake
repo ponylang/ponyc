@@ -61,6 +61,7 @@ function(add_pony_binary _target)
             ${_watch_srcs}
             ${TOOLS_LIB_STAMP}
             $<TARGET_FILE:ponyc>
+            $<TARGET_FILE:ponylink>
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     if(_pb_ALL)
@@ -68,5 +69,5 @@ function(add_pony_binary _target)
     else()
         add_custom_target(${_target} DEPENDS ${_exe})
     endif()
-    add_dependencies(${_target} libponyc-standalone tools_lib_stamp)
+    add_dependencies(${_target} libponyc-standalone ponylink tools_lib_stamp)
 endfunction()

@@ -3,6 +3,7 @@ project(libponyc.tests.runner)
 set(RUNNER_EXECUTABLE "full-program-runner${CMAKE_EXECUTABLE_SUFFIX}")
 
 add_custom_target(tests.runner ALL DEPENDS ${RUNNER_EXECUTABLE})
+add_dependencies(tests.runner ponylink)
 
 add_custom_command(OUTPUT ${RUNNER_EXECUTABLE}
   COMMAND $<TARGET_FILE:ponyc> ${CMAKE_CURRENT_SOURCE_DIR}
@@ -21,4 +22,5 @@ add_custom_command(OUTPUT ${RUNNER_EXECUTABLE}
     _tester.pony
     _tester_notify.pony
     $<TARGET_FILE:ponyc>
+    $<TARGET_FILE:ponylink>
 )

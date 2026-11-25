@@ -1,14 +1,5 @@
 #include "genexe.h"
 #include "genmutate.h"
-
-#include <lld/Common/Driver.h>
-
-LLD_HAS_DRIVER(elf)
-LLD_HAS_DRIVER(macho)
-LLD_HAS_DRIVER(coff)
-LLD_HAS_DRIVER(mingw)
-LLD_HAS_DRIVER(wasm)
-
 #include "gencshim.h"
 #include "genexport.h"
 #include "gencall.h"
@@ -36,7 +27,6 @@ LLD_HAS_DRIVER(wasm)
 #include <string.h>
 
 #include <llvm-c/Linker.h>
-#include <llvm/Support/raw_ostream.h>
 #include <vector>
 #include <string>
 
@@ -1073,6 +1063,89 @@ static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
 
 static int run_command(const char* const argv[]);
 
+// Write lld arguments to a file, spawn ponylink as a subprocess, and report
+// the result. Running lld out-of-process avoids OOM from ponyc's accumulated
+// allocations.
+static bool spawn_ponylink(compile_t* c, const char* file_exe,
+  std::vector<const char*>& args)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  std::string args_path = std::string(file_exe) + ".lldargs";
+  FILE* args_file = fopen(args_path.c_str(), "w");
+  if(args_file == NULL)
+  {
+    errorf(errors, NULL, "unable to create linker args file: %s",
+      args_path.c_str());
+    return false;
+  }
+
+  for(size_t i = 0; i < args.size(); i++)
+    fprintf(args_file, "%s\n", args[i]);
+
+  bool write_ok = (ferror(args_file) == 0) && (fclose(args_file) == 0);
+  if(!write_ok)
+  {
+    errorf(errors, NULL, "failed to write linker args file: %s",
+      args_path.c_str());
+    unlink(args_path.c_str());
+    return false;
+  }
+
+  char exe_dir[PATH_MAX];
+  if(!get_compiler_exe_directory(exe_dir, c->opt->argv0))
+  {
+    errorf(errors, NULL, "unable to locate ponyc directory for ponylink");
+    unlink(args_path.c_str());
+    return false;
+  }
+
+  char ponylink_path[PATH_MAX];
+  snprintf(ponylink_path, sizeof(ponylink_path), "%sponylink", exe_dir);
+
+  if(access(ponylink_path, X_OK) != 0)
+  {
+    errorf(errors, NULL,
+      "ponylink not found at %s", ponylink_path);
+    unlink(args_path.c_str());
+    return false;
+  }
+
+  const char* spawn_argv[] = {ponylink_path, args_path.c_str(), NULL};
+  int exit_status = run_command(spawn_argv);
+
+  unlink(args_path.c_str());
+
+  if(exit_status != 0)
+  {
+    if(exit_status == -1)
+    {
+      errorf(errors, NULL, "unable to start ponylink at %s", ponylink_path);
+    }
+    else if(exit_status < -1)
+    {
+      int sig = -exit_status - 1;
+
+      if(sig == SIGKILL)
+        errorf(errors, NULL,
+          "ponylink was killed by signal %d (%s);"
+          " the system may be out of memory", sig, strsignal(sig));
+      else
+        errorf(errors, NULL,
+          "ponylink was killed by signal %d (%s)", sig, strsignal(sig));
+    }
+    else
+    {
+      errorf(errors, NULL,
+        "ponylink failed (exit %d); check linker errors above", exit_status);
+    }
+
+    return false;
+  }
+
+  return true;
+}
+
 static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   const char** bc_files, size_t bc_count)
 {
@@ -1832,76 +1905,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     fprintf(stderr, "%s\n", cmd.c_str());
   }
 
-  // Spawn ponylink as a subprocess so lld starts in a clean address space.
-  // In-process lld competes with ponyc's accumulated allocations: on ILP32
-  // targets this hit the ~3GB address-space limit; on 64-bit targets with
-  // memory-conservative allocators (musl) or large programs it triggers OOM
-  // kills. A subprocess sidesteps both.
-  std::string args_path = std::string(file_exe) + ".lldargs";
-  FILE* args_file = fopen(args_path.c_str(), "w");
-  if(args_file == NULL)
-  {
-    errorf(errors, NULL, "unable to create linker args file: %s",
-      args_path.c_str());
-    return false;
-  }
-
-  for(size_t i = 0; i < args.size(); i++)
-    fprintf(args_file, "%s\n", args[i]);
-  fclose(args_file);
-
-  char exe_dir[PATH_MAX];
-  if(!get_compiler_exe_directory(exe_dir, c->opt->argv0))
-  {
-    errorf(errors, NULL, "unable to locate ponyc directory for ponylink");
-    unlink(args_path.c_str());
-    return false;
-  }
-
-  char ponylink_path[PATH_MAX];
-  snprintf(ponylink_path, sizeof(ponylink_path), "%sponylink", exe_dir);
-
-  if(access(ponylink_path, X_OK) != 0)
-  {
-    errorf(errors, NULL,
-      "ponylink not found at %s", ponylink_path);
-    unlink(args_path.c_str());
-    return false;
-  }
-
-  const char* spawn_argv[] = {ponylink_path, args_path.c_str(), NULL};
-  int exit_status = run_command(spawn_argv);
-
-  unlink(args_path.c_str());
-
-  if(exit_status != 0)
-  {
-    if(exit_status == -1)
-    {
-      errorf(errors, NULL, "unable to start ponylink at %s", ponylink_path);
-    }
-    else if(exit_status < -1)
-    {
-      int sig = -exit_status - 1;
-
-      if(sig == SIGKILL)
-        errorf(errors, NULL,
-          "ponylink was killed by signal %d (%s);"
-          " the system may be out of memory", sig, strsignal(sig));
-      else
-        errorf(errors, NULL,
-          "ponylink was killed by signal %d (%s)", sig, strsignal(sig));
-    }
-    else
-    {
-      errorf(errors, NULL,
-        "ponylink failed (exit %d); check linker errors above", exit_status);
-    }
-
-    return false;
-  }
-
-  return true;
+  return spawn_ponylink(c, file_exe, args);
 }
 
 // gencshim.cc's find_macos_sdk_include resolves the SDK's include directory the
@@ -2290,26 +2294,8 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
     fprintf(stderr, "%s\n", cmd.c_str());
   }
 
-  // Invoke LLD.
-  std::vector<const char*> lld_args(args.begin(), args.end());
-  std::string lld_stdout_str;
-  std::string lld_stderr_str;
-  llvm::raw_string_ostream lld_stdout(lld_stdout_str);
-  llvm::raw_string_ostream lld_stderr(lld_stderr_str);
-
-  lld::Result result = lld::lldMain(
-    lld_args,
-    lld_stdout,
-    lld_stderr,
-    {{lld::WinLink, &lld::coff::link},
-     {lld::Gnu, &lld::elf::link},
-     {lld::Darwin, &lld::macho::link},
-     {lld::MinGW, &lld::mingw::link},
-     {lld::Wasm, &lld::wasm::link}});
-
-  if(result.retCode != 0)
+  if(!spawn_ponylink(c, file_exe, args))
   {
-    errorf(errors, NULL, "unable to link: %s", lld_stderr_str.c_str());
     if(have_lto_obj_path)
       remove_directory_tree(lto_obj_path);
     return false;
@@ -2355,6 +2341,87 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
 #endif
 
 #ifdef PLATFORM_IS_WINDOWS
+static bool spawn_ponylink(compile_t* c, const char* file_exe,
+  std::vector<const char*>& args)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  std::string args_path = std::string(file_exe) + ".lldargs";
+  FILE* args_file = fopen(args_path.c_str(), "w");
+  if(args_file == NULL)
+  {
+    errorf(errors, NULL, "unable to create linker args file: %s",
+      args_path.c_str());
+    return false;
+  }
+
+  for(size_t i = 0; i < args.size(); i++)
+    fprintf(args_file, "%s\n", args[i]);
+
+  bool write_ok = (ferror(args_file) == 0) && (fclose(args_file) == 0);
+  if(!write_ok)
+  {
+    errorf(errors, NULL, "failed to write linker args file: %s",
+      args_path.c_str());
+    _unlink(args_path.c_str());
+    return false;
+  }
+
+  char exe_dir[MAX_PATH];
+  if(!get_compiler_exe_directory(exe_dir, c->opt->argv0))
+  {
+    errorf(errors, NULL, "unable to locate ponyc directory for ponylink");
+    _unlink(args_path.c_str());
+    return false;
+  }
+
+  char ponylink_path[MAX_PATH];
+  snprintf(ponylink_path, sizeof(ponylink_path), "%sponylink.exe", exe_dir);
+
+  if(GetFileAttributesA(ponylink_path) == INVALID_FILE_ATTRIBUTES)
+  {
+    errorf(errors, NULL, "ponylink not found at %s", ponylink_path);
+    _unlink(args_path.c_str());
+    return false;
+  }
+
+  // Build a command line: "ponylink.exe" "argsfile"
+  std::string cmdline = std::string("\"") + ponylink_path + "\" \""
+    + args_path + "\"";
+
+  STARTUPINFOA si;
+  ZeroMemory(&si, sizeof(si));
+  si.cb = sizeof(si);
+  PROCESS_INFORMATION pi;
+  ZeroMemory(&pi, sizeof(pi));
+
+  if(!CreateProcessA(ponylink_path, (LPSTR)cmdline.c_str(),
+    NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
+  {
+    errorf(errors, NULL, "unable to start ponylink at %s", ponylink_path);
+    _unlink(args_path.c_str());
+    return false;
+  }
+
+  WaitForSingleObject(pi.hProcess, INFINITE);
+  DWORD exit_code = 1;
+  GetExitCodeProcess(pi.hProcess, &exit_code);
+  CloseHandle(pi.hThread);
+  CloseHandle(pi.hProcess);
+
+  _unlink(args_path.c_str());
+
+  if(exit_code != 0)
+  {
+    errorf(errors, NULL,
+      "ponylink failed (exit %lu); check linker errors above",
+      (unsigned long)exit_code);
+    return false;
+  }
+
+  return true;
+}
+
 static bool link_exe_lld_coff(compile_t* c, ast_t* program,
   const char** bc_files, size_t bc_count)
 {
@@ -2494,44 +2561,20 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
     fprintf(stderr, "%s\n", cmd.c_str());
   }
 
-  // Invoke LLD.
-  std::vector<const char*> lld_args(args.begin(), args.end());
-  std::string lld_stdout_str;
-  std::string lld_stderr_str;
-  llvm::raw_string_ostream lld_stdout(lld_stdout_str);
-  llvm::raw_string_ostream lld_stderr(lld_stderr_str);
-
-  lld::Result result = lld::lldMain(
-    lld_args,
-    lld_stdout,
-    lld_stderr,
-    {{lld::WinLink, &lld::coff::link},
-     {lld::Gnu, &lld::elf::link},
-     {lld::Darwin, &lld::macho::link},
-     {lld::MinGW, &lld::mingw::link},
-     {lld::Wasm, &lld::wasm::link}});
-
-  if(result.retCode != 0)
-  {
-    errorf(errors, NULL, "unable to link: %s", lld_stderr_str.c_str());
-    return false;
-  }
-
-  return true;
+  return spawn_ponylink(c, file_exe, args);
 }
 #endif
 
 static bool link_exe(compile_t* c, ast_t* program,
   const char** bc_files, size_t bc_count)
 {
-  // Link with embedded LLD, selecting the driver by target triple. On Linux,
-  // FreeBSD, and macOS, native sanitizer builds use embedded LLD too: the ELF
-  // and Mach-O link functions splice the sanitizer runtime from a fragment
-  // captured at ponyc build time. DragonFly and OpenBSD native sanitizer
-  // builds are rejected at configure time. Native gcc coverage builds
-  // (Linux/FreeBSD/DragonFly) likewise splice the libgcov fragment in
-  // link_exe_lld_elf (see its PONY_COVERAGE block). Cross-compilation always
-  // uses LLD.
+  // Link via ponylink, selecting the LLD driver by target triple. On Linux,
+  // FreeBSD, and macOS, native sanitizer builds splice the sanitizer runtime
+  // from a fragment captured at ponyc build time. DragonFly and OpenBSD
+  // native sanitizer builds are rejected at configure time. Native gcc
+  // coverage builds (Linux/FreeBSD/DragonFly) likewise splice the libgcov
+  // fragment in link_exe_lld_elf (see its PONY_COVERAGE block).
+  // Cross-compilation always uses LLD.
 #ifdef PLATFORM_IS_POSIX_BASED
   if(target_is_linux(c->opt->triple))
     return link_exe_lld_elf(c, program, bc_files, bc_count);
