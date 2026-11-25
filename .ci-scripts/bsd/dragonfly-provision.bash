@@ -50,6 +50,8 @@ rm "$VM_ARTIFACTS/dfly.img"
 qemu-img resize "$VM_ARTIFACTS/dfly.qcow2" 60G
 # Second disk for build workspace (root partition is only ~1.8GB)
 qemu-img create -f qcow2 "$VM_ARTIFACTS/dfly-data.qcow2" 50G
+# Third disk used as swap inside the guest (see "Mount build disk" below).
+qemu-img create -f raw "$VM_ARTIFACTS/dfly-swap.img" 4G
 echo "::endgroup::"
 
 echo "::group::Download DragonFly BSD ISO"
@@ -96,9 +98,10 @@ qemu-system-x86_64 \
   -machine pc,accel=kvm \
   -cpu Skylake-Server-v4 \
   -smp 4 \
-  -m 12G \
+  -m 14G \
   -drive file="$VM_ARTIFACTS/dfly.qcow2",format=qcow2,if=virtio \
   -drive file="$VM_ARTIFACTS/dfly-data.qcow2",format=qcow2,if=virtio \
+  -drive file="$VM_ARTIFACTS/dfly-swap.img",format=raw,if=virtio \
   -drive file="$VM_ARTIFACTS/seed.iso",media=cdrom \
   -netdev user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22 \
   -device virtio-net-pci,netdev=net0 \
@@ -120,16 +123,22 @@ DFLY_MONITOR_SOCK="$VM_ARTIFACTS/dfly-monitor.sock" \
 echo "SSH available"
 echo "::endgroup::"
 
-echo "::group::Mount build disk"
+echo "::group::Mount build disk and enable swap"
 # The root partition is too small for the build, so it uses the second disk
 # (vbd1). newfs runs here over ssh, once, rather than being blind-typed into the
 # console on each configure attempt, where a retype could newfs an already-mounted
 # disk.
+#
+# The third disk (vbd2) is a 4GB raw image used as swap. The mid-behavior GC
+# change roughly doubled the stdlib IR, so the optimized stdlib link (ponyc
+# holding freed-but-not-returned allocations while ponylink runs LLD) can
+# spike past physical RAM. Swap absorbs the spike.
 ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 root@localhost /bin/sh <<'EOF'
 set -e
 newfs /dev/vbd1
 mkdir -p /build
 mount /dev/vbd1 /build
+swapon /dev/vbd2
 EOF
 echo "::endgroup::"
 
