@@ -85,6 +85,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add Nix flake package for x86-64 Linux ([PR #6504](https://github.com/ponylang/ponyc/pull/6504))
 - Add mutation testing ([PR #6311](https://github.com/ponylang/ponyc/pull/6311))
 - Allow garbage collection during a behavior ([PR #6688](https://github.com/ponylang/ponyc/pull/6688))
+- Add viewpoint adaptation hint to assignment errors ([PR #6720](https://github.com/ponylang/ponyc/pull/6720))
 
 ### Changed
 
