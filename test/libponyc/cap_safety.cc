@@ -325,3 +325,133 @@ TEST_F(CapSafetyTest, ThisArrowHintAbsentForNominalMismatch)
 
   DO(test_expected_error_frames(src, "expr", errs, frames));
 }
+
+TEST_F(CapSafetyTest, ViewpointHintOnFieldReadThroughVal)
+{
+  const char* src =
+    "class Wrapper\n"
+    "  let inner: String ref\n"
+    "  new create() => inner = String\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let w: Wrapper val = recover val Wrapper end\n"
+    "    let s: String ref = w.inner\n";
+
+  const char* errs[] = { "right side must be a subtype of left side", NULL };
+  const char* frame0[] = {
+    "viewpoint-adapts field and method types",
+    "String val is not a subtype of String ref",
+    NULL
+  };
+  const char** frames[] = { frame0, NULL };
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}
+
+TEST_F(CapSafetyTest, ViewpointHintOnMethodCallThroughVal)
+{
+  const char* src =
+    "class Box[A]\n"
+    "  var _v: A\n"
+    "  new create(v: A) => _v = consume v\n"
+    "  fun apply(): this->A => _v\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let b: Box[String ref] val = recover val\n"
+    "      Box[String ref](String)\n"
+    "    end\n"
+    "    let s: String ref = b()\n";
+
+  const char* errs[] = { "right side must be a subtype of left side", NULL };
+  const char* frame0[] = {
+    "viewpoint-adapts field and method types",
+    "String val is not a subtype of String ref",
+    NULL
+  };
+  const char** frames[] = { frame0, NULL };
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}
+
+TEST_F(CapSafetyTest, ViewpointHintAbsentForRefReceiver)
+{
+  const char* src =
+    "class Wrapper\n"
+    "  let inner: String val\n"
+    "  new create() => inner = String\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let w: Wrapper ref = Wrapper\n"
+    "    let s: String ref = w.inner\n";
+
+  const char* errs[] = { "right side must be a subtype of left side", NULL };
+  const char* frame0[] = {
+    "String val is not a subtype of String ref",
+    NULL
+  };
+  const char** frames[] = { frame0, NULL };
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}
+
+TEST_F(CapSafetyTest, ViewpointHintAbsentForStructuralMismatch)
+{
+  const char* src =
+    "class Wrapper\n"
+    "  let inner: String ref\n"
+    "  new create() => inner = String\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let w: Wrapper val = recover val Wrapper end\n"
+    "    let n: U32 = w.inner\n";
+
+  const char* errs[] = { "right side must be a subtype of left side", NULL };
+  const char* frame0[] = {
+    "String val is not a subtype of U32 val",
+    NULL
+  };
+  const char** frames[] = { frame0, NULL };
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}
+
+TEST_F(CapSafetyTest, ViewpointHintAbsentForInvariantFieldCap)
+{
+  const char* src =
+    "class Wrapper\n"
+    "  let data: Array[U8] val\n"
+    "  new create() => data = recover val Array[U8] end\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let w: Wrapper val = recover val Wrapper end\n"
+    "    let arr: Array[U8] ref = w.data\n";
+
+  const char* errs[] = { "right side must be a subtype of left side", NULL };
+  const char* frame0[] = {
+    "Array[U8 val] val is not a subtype of Array[U8 val] ref",
+    NULL
+  };
+  const char** frames[] = { frame0, NULL };
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}
+
+TEST_F(CapSafetyTest, ViewpointHintAbsentForNonThisReturnType)
+{
+  const char* src =
+    "class Wrapper\n"
+    "  fun get_data(): Array[U8] val => recover val Array[U8] end\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let w: Wrapper val = recover val Wrapper end\n"
+    "    let arr: Array[U8] ref = w.get_data()\n";
+
+  const char* errs[] = { "right side must be a subtype of left side", NULL };
+  const char* frame0[] = {
+    "Array[U8 val] val is not a subtype of Array[U8 val] ref",
+    NULL
+  };
+  const char** frames[] = { frame0, NULL };
+
+  DO(test_expected_error_frames(src, "expr", errs, frames));
+}

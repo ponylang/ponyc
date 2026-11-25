@@ -16,6 +16,8 @@
 #include "../type/typealias.h"
 #include "../type/safeto.h"
 #include "../type/subtype.h"
+#include "../type/cap.h"
+#include "../type/lookup.h"
 #include "ponyassert.h"
 
 bool expr_identity(pass_opt_t* opt, ast_t* ast)
@@ -570,6 +572,217 @@ void coerce_tuple_to_target(pass_opt_t* opt, ast_t* expr,
     ast_free_unattached(target_unfolded);
 }
 
+static bool type_contains_thistype(ast_t* ast)
+{
+  if(ast == NULL)
+    return false;
+
+  if(ast_id(ast) == TK_THISTYPE)
+    return true;
+
+  for(ast_t* child = ast_child(ast); child != NULL;
+    child = ast_sibling(child))
+  {
+    if(type_contains_thistype(child))
+      return true;
+  }
+
+  return false;
+}
+
+// Check whether viewpoint adaptation actually changed the type's capability.
+// For fields, compare the declared cap with the adapted cap. For method
+// calls, check whether the return type depends on this->.
+static bool viewpoint_changed_cap(pass_opt_t* opt, ast_t* expr,
+  ast_t* r_type, ast_t* receiver_type)
+{
+  switch(ast_id(expr))
+  {
+    case TK_FLETREF:
+    case TK_FVARREF:
+    case TK_EMBEDREF:
+    {
+      const char* field_name = ast_name(ast_childidx(expr, 1));
+      deferred_reification_t* find = lookup_try(opt, expr, receiver_type,
+        field_name, true);
+
+      if(find == NULL)
+        return true;
+
+      ast_t* field_def = find->ast;
+      token_id def_id = ast_id(field_def);
+
+      if((def_id != TK_FLET) && (def_id != TK_FVAR) &&
+        (def_id != TK_EMBED))
+      {
+        deferred_reify_free(find);
+        return true;
+      }
+
+      ast_t* reified = deferred_reify(find, field_def, opt);
+      ast_t* f_type = ast_childidx(reified, 1);
+
+      token_id f_type_id = ast_id(f_type);
+      bool changed = true;
+
+      if((f_type_id == TK_NOMINAL) || (f_type_id == TK_TYPEPARAMREF))
+      {
+        token_id declared_cap = ast_id(cap_fetch(f_type));
+        token_id adapted_cap = ast_id(cap_fetch(r_type));
+        changed = (declared_cap != adapted_cap);
+      }
+
+      ast_free_unattached(reified);
+      deferred_reify_free(find);
+      return changed;
+    }
+
+    case TK_CALL:
+    {
+      ast_t* lhs = ast_child(expr);
+      token_id lhs_id = ast_id(lhs);
+
+      if((lhs_id != TK_FUNREF) && (lhs_id != TK_BEREF) &&
+        (lhs_id != TK_NEWREF) && (lhs_id != TK_NEWBEREF) &&
+        (lhs_id != TK_FUNCHAIN) && (lhs_id != TK_BECHAIN))
+        return true;
+
+      ast_t* method_name_node = ast_childidx(lhs, 1);
+
+      if(method_name_node == NULL)
+        return true;
+
+      const char* method_name = ast_name(method_name_node);
+      deferred_reification_t* find = lookup_try(opt, expr, receiver_type,
+        method_name, true);
+
+      if(find == NULL)
+        return true;
+
+      ast_t* method_def = find->ast;
+      token_id def_id = ast_id(method_def);
+
+      if((def_id != TK_FUN) && (def_id != TK_BE) && (def_id != TK_NEW))
+      {
+        deferred_reify_free(find);
+        return true;
+      }
+
+      // Method def children: [cap, id, typeparams, params, result, ...]
+      ast_t* result_type = ast_childidx(method_def, 4);
+      bool changed = type_contains_thistype(result_type);
+
+      deferred_reify_free(find);
+      return changed;
+    }
+
+    default:
+      return true;
+  }
+}
+
+static void viewpoint_adaptation_info(errorframe_t* frame, ast_t* expr,
+  ast_t* r_type, ast_t* wl_type, pass_opt_t* opt)
+{
+  // Skip when the types differ structurally, not just in capability.
+  if(!is_subtype_ignore_cap(r_type, wl_type, NULL, opt))
+    return;
+
+  while((expr != NULL) && (ast_id(expr) == TK_SEQ))
+    expr = ast_child(expr);
+
+  if(expr == NULL)
+    return;
+
+  ast_t* receiver = NULL;
+
+  switch(ast_id(expr))
+  {
+    case TK_CALL:
+    {
+      ast_t* lhs = ast_child(expr);
+
+      switch(ast_id(lhs))
+      {
+        case TK_FUNREF:
+        case TK_BEREF:
+        case TK_NEWREF:
+        case TK_NEWBEREF:
+        case TK_FUNCHAIN:
+        case TK_BECHAIN:
+          receiver = ast_child(lhs);
+
+          while((receiver != NULL) &&
+            ((ast_id(receiver) == TK_FUNREF) ||
+             (ast_id(receiver) == TK_FUNAPP) ||
+             (ast_id(receiver) == TK_FUNCHAIN) ||
+             (ast_id(receiver) == TK_BEREF) ||
+             (ast_id(receiver) == TK_BEAPP) ||
+             (ast_id(receiver) == TK_BECHAIN) ||
+             (ast_id(receiver) == TK_NEWREF) ||
+             (ast_id(receiver) == TK_NEWAPP) ||
+             (ast_id(receiver) == TK_NEWBEREF)))
+          {
+            receiver = ast_child(receiver);
+          }
+          break;
+
+        default:
+          break;
+      }
+      break;
+    }
+
+    case TK_FLETREF:
+    case TK_FVARREF:
+    case TK_EMBEDREF:
+      receiver = ast_child(expr);
+      break;
+
+    default:
+      break;
+  }
+
+  if(receiver == NULL)
+    return;
+
+  ast_t* receiver_type = ast_type(receiver);
+
+  if((receiver_type == NULL) || is_typecheck_error(receiver_type))
+    return;
+
+  token_id receiver_id = ast_id(receiver_type);
+  if((receiver_id != TK_NOMINAL) && (receiver_id != TK_TYPEPARAMREF))
+    return;
+
+  token_id rcap = ast_id(cap_fetch(receiver_type));
+
+  // ref->T = T, so ref doesn't cause a confusing adaptation.
+  if(rcap == TK_REF)
+    return;
+
+  switch(rcap)
+  {
+    case TK_ISO:
+    case TK_TRN:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+      break;
+
+    default:
+      return;
+  }
+
+  if(!viewpoint_changed_cap(opt, expr, r_type, receiver_type))
+    return;
+
+  ast_error_frame(frame, receiver,
+    "a %s reference to this %s viewpoint-adapts field and method types",
+    lexer_print(rcap),
+    ast_print_type_no_cap(receiver_type, opt->strtab));
+}
+
 bool expr_assign(pass_opt_t* opt, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
@@ -662,6 +875,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
       ast_error_frame(&frame, right,
         "this might be possible if all fields were already defined");
 
+    viewpoint_adaptation_info(&frame, right, r_type, wl_type, opt);
     errorframe_append(&frame, &info);
     errorframe_report(&frame, opt->check.errors);
     ast_free_unattached(wl_type);
