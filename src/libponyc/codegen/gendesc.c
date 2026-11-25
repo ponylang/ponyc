@@ -28,10 +28,9 @@
 #define DESC_EMBED_FLAGS 12
 #define DESC_TRAITS 13
 #define DESC_FIELDS 14
-#define DESC_FIRST_EMBED 15
-#define DESC_VTABLE 16
+#define DESC_VTABLE 15
 
-#define DESC_LENGTH 17
+#define DESC_LENGTH 16
 
 static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   reach_method_t* m)
@@ -389,7 +388,6 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_EMBED_FLAGS] = c->i8;
   params[DESC_TRAITS] = c->ptr;
   params[DESC_FIELDS] = c->ptr;
-  params[DESC_FIRST_EMBED] = c->ptr;
   params[DESC_VTABLE] = LLVMArrayType(c->ptr, 0);
 
   LLVMStructSetBody(desc_type, params, DESC_LENGTH, false);
@@ -435,7 +433,6 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_EMBED_FLAGS] = c->i8;
   params[DESC_TRAITS] = c->ptr;
   params[DESC_FIELDS] = c->ptr;
-  params[DESC_FIRST_EMBED] = c->ptr;
   params[DESC_VTABLE] = LLVMArrayType(c->ptr, vtable_size);
 
   LLVMStructSetBody(c_t->desc_type, params, DESC_LENGTH, false);
@@ -460,7 +457,11 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_SIZE] = LLVMConstInt(c->i32, c_t->abi_size, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);
-  args[DESC_INSTANCE] = make_desc_ptr(c, c_t->instance);
+  // A struct has no instance; its slot holds the type embedded at its start.
+  if(t->underlying == TK_STRUCT)
+    args[DESC_INSTANCE] = make_first_embed(c, t);
+  else
+    args[DESC_INSTANCE] = make_desc_ptr(c, c_t->instance);
   args[DESC_NAME] = make_name(c, t);
   args[DESC_GET_BEHAVIOR_NAME] = make_desc_ptr(c, c_t->get_behavior_name_fn);
   args[DESC_TRACE] = make_desc_ptr(c, c_t->trace_fn);
@@ -471,7 +472,6 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_EMBED_FLAGS] = LLVMConstInt(c->i8, c_t->embed_flags, false);
   args[DESC_TRAITS] = make_trait_bitmap(c, t);
   args[DESC_FIELDS] = make_field_list(c, t);
-  args[DESC_FIRST_EMBED] = make_first_embed(c, t);
   args[DESC_VTABLE] = make_vtable(c, t);
 
   LLVMValueRef desc = LLVMConstNamedStruct(c_t->desc_type, args, DESC_LENGTH);

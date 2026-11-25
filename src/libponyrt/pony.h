@@ -122,6 +122,8 @@ typedef const struct _pony_type_t
   uint32_t size;
   uint32_t field_count;
   uint32_t field_offset;
+  // For a primitive, its instance. For a struct whose first field is embedded,
+  // that field's type: the two objects share an address.
   void* instance;
   char* name;
   pony_behavior_name_fn get_behavior_name;
@@ -134,9 +136,6 @@ typedef const struct _pony_type_t
   uint8_t embed_flags;
   uintptr_t** traits;
   void* fields;
-  // For a struct whose first field is embedded, that field's type. The two
-  // objects share an address.
-  const struct _pony_type_t* first_embed;
   void* vtable;
 } pony_type_t;
 
