@@ -520,8 +520,8 @@ TEST_F(LocalGc, RecycledFinaliserAllocationsDoNotCountAsForeignMemory)
     pending->type = static_cast<Node*>(p)->type;
     ponyint_gc_final_ready(ctx, pending);
   };
-  Node* first = static_cast<Node*>(ponyint_heap_alloc(&actor, &actor.heap,
-    sizeof(Node), TRACK_ALL_FINALISERS));
+  volatile Node* first = static_cast<Node*>(ponyint_heap_alloc(&actor,
+    &actor.heap, sizeof(Node), TRACK_ALL_FINALISERS));
   first->type = &node_type;
 #ifdef USE_RUNTIMESTATS
   size_t expected_used = actor.actorstats.heap_mem_used + HEAP_MIN;
