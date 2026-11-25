@@ -91,7 +91,7 @@ protected:
     c_type.embed_flags = PONY_EMBED_ROUTED | PONY_EMBED_AT_START;
     s_type.size = sizeof(S);
     s_type.trace = trace_s;
-    s_type.first_embed = &c_type;
+    s_type.instance = &c_type;
     s_type.might_reference_actor = true;
     s_type.embed_flags = PONY_EMBED_ROUTED;
     child_type.size = sizeof(Child);

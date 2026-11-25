@@ -1477,7 +1477,6 @@ static pony_type_t cycle_type =
   0,
   NULL,
   NULL,
-  NULL,
   NULL
 };
 

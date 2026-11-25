@@ -55,7 +55,10 @@ void ponyint_gc_free_views(pony_ctx_t* ctx);
 static inline bool ponyint_gc_embeds_at_start(pony_type_t* t,
   pony_type_t* u)
 {
-  for(pony_type_t* x = t->first_embed; x != NULL; x = x->first_embed)
+  // A struct's descriptor holds the type embedded at its start in its
+  // instance slot; a class's is NULL.
+  for(pony_type_t* x = (pony_type_t*)t->instance; x != NULL;
+    x = (pony_type_t*)x->instance)
   {
     if(x == u)
       return true;
