@@ -7013,3 +7013,95 @@ TEST_F(VerifyTest, MethodGroupInterfaceMatchingGuard)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(VerifyTest, MethodGroupLocalGuardShadowsInheritedMethodTypeParamGuard)
+{
+  // The local specialization comes before the inherited one and matches
+  // every type the inherited one matches.
+  const char* src =
+    "trait T\n"
+    "  fun f[X: Any val](x: X): U8 => 0\n"
+    "  fun f[X: Any val](x: X): U8 iftype X <: U16 val => 2\n"
+
+    "class C is T\n"
+    "  fun f[X: Any val](x: X): U8 iftype X <: (U32 val | U16 val) => 22";
+
+  TEST_ERRORS_1(src,
+    "specialization is unreachable because a previous guard "
+    "matches all the same types");
+}
+
+TEST_F(VerifyTest, MethodGroupRenamedLocalGuardShadowsInheritedGuard)
+{
+  // As above, but the local specialization names the method's type parameter
+  // differently from the trait.
+  const char* src =
+    "trait T\n"
+    "  fun f[X: Any val](x: X): U8 => 0\n"
+    "  fun f[X: Any val](x: X): U8 iftype X <: U16 val => 2\n"
+
+    "class C is T\n"
+    "  fun f[Y: Any val](x: Y): U8 iftype Y <: (U32 val | U16 val) => 22";
+
+  TEST_ERRORS_1(src,
+    "specialization is unreachable because a previous guard "
+    "matches all the same types");
+}
+
+TEST_F(VerifyTest, MethodGroupGuardsOnDifferentTypeParamsAreReachable)
+{
+  // Both specializations guard a type parameter named B, but it is the
+  // second type parameter in one and the first in the other.
+  const char* src =
+    "class C\n"
+    "  fun f[A: Any val, B: Any val](a: A, b: B): U8 => 0\n"
+    "  fun f[A: Any val, B: Any val](a: A, b: B): U8 iftype B <: U32 val => 1\n"
+    "  fun f[B: Any val, A: Any val](a: B, b: A): U8 iftype B <: U32 val => 2";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, MethodGroupRenamedGuardShadowedInSameType)
+{
+  // The third specialization names the type parameter differently, and the
+  // second matches every type it does.
+  const char* src =
+    "class C\n"
+    "  fun f[A: Any val](a: A): U8 => 0\n"
+    "  fun f[A: Any val](a: A): U8 iftype A <: (U32 val | U16 val) => 1\n"
+    "  fun f[X: Any val](a: X): U8 iftype X <: U32 val => 2";
+
+  TEST_ERRORS_1(src,
+    "specialization is unreachable because a previous guard "
+    "matches all the same types");
+}
+
+TEST_F(VerifyTest, MethodGroupLocalGuardOnOtherTypeParamThanInherited)
+{
+  // The trait's specialization guards f's first type parameter and the local
+  // one its second, so neither makes the other unreachable.
+  const char* src =
+    "trait T\n"
+    "  fun f[A: Any val, B: Any val](a: A, b: B): U8 => 0\n"
+    "  fun f[A: Any val, B: Any val](a: A, b: B): U8 iftype A <: U16 val => 2\n"
+
+    "class C is T\n"
+    "  fun f[A: Any val, B: Any val](a: A, b: B): U8 "
+      "iftype B <: (U32 val | U16 val) => 22";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, MethodGroupLocalGuardOnClassTypeParamNotShadowing)
+{
+  // The local specialization guards the class's X, not the trait method's X.
+  const char* src =
+    "trait T\n"
+    "  fun f[X: Any val](x: X): U8 => 0\n"
+    "  fun f[X: Any val](x: X): U8 iftype X <: U16 val => 2\n"
+
+    "class C[X: Any val] is T\n"
+    "  fun f[Y: Any val](y: Y): U8 iftype X <: (U32 val | U16 val) => 22";
+
+  TEST_COMPILE(src);
+}

@@ -224,3 +224,9 @@ class ViewpointHolder[A]
 
   fun get(): this->A =>
     _data
+
+class ScopeInheritedHolder[S: Any val] is ScopeInherited
+
+trait ScopeInherited
+  fun pick[R: Any val](r: R): R =>
+    r

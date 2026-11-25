@@ -210,9 +210,10 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
 
   fun box nice_name(): String val =>
     """
-    Returns a human-readable name for TK_ID nodes. Uses the `data`
-    field (a human-readable alias) when available, otherwise falls
-    back to `ast_name`. Handles compiler-generated hygienic names.
+    Returns a human-readable name for a TK_ID node. Use this rather than
+    `token_value()` to show a name to a user: the compiler gives some IDs
+    generated names, such as the type parameters of methods inherited from
+    a trait.
     """
     recover val String.copy_cstring(@ast_nice_name(raw)) end
 
@@ -676,8 +677,14 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       | TokenIds.tk_compile_error()
       => Position(l, col + 12)
       | TokenIds.tk_id() =>
-        let s = try (token_value() as String val).size() - 1 else 0 end
-        return Position(l, col + s)
+        let text = token_value() as String val
+        // The compiler renames some type parameters it copies from a trait to
+        // names that start with "$m$", and keeps the source name as the nice
+        // name. This "$m$" must match `method_typeparam_prefix` in
+        // src/libponyc/pass/traits.c, or end_pos() overshoots the name.
+        let source_text = if text.at("$m$") then nice_name() else text end
+        let size = source_text.size()
+        return Position(l, col + (if size > 0 then size - 1 else 0 end))
       | TokenIds.tk_string() =>
         // we need to do some complex parsing
         // to get the actual string width including quotes

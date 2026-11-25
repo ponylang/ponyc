@@ -1,3 +1,5 @@
+// Combined's type parameter B is passed to Group as A, and Group's check
+// method has its own type parameter B.
 use @pony_exitcode[None](code: I32)
 
 interface val Labeled

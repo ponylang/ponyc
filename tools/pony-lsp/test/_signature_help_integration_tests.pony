@@ -32,6 +32,7 @@ primitive \nodoc\ _SignatureHelpIntegrationTests is TestList
     test(_SigHelpNestedTest.create(server))
     test(_SigHelpGenericTest.create(server))
     test(_SigHelpNamedArgTest.create(server))
+    test(_SigHelpInheritedGenericTest.create(server))
 
 class \nodoc\ iso _SigHelpSimpleParam0Test is UnitTest
   """
@@ -759,3 +760,31 @@ class val _SigHelpChecker
       end
     end
     ok
+
+class \nodoc\ iso _SigHelpInheritedGenericTest is UnitTest
+  """
+  Cursor on `7` (line 154, col 42) inside
+  `_SigInheritedHolder[None].picked[U32](7)`. `picked` is inherited from a
+  trait, and `_SigInheritedHolder` has its own type parameter `R`. The label
+  must show the name written in the trait, not the compiler-generated name.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "signature_help/integration/inherited_generic"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "signature_help/signature_help.pony",
+      [ _SigHelpChecker(
+          154,
+          42,
+          "picked[",
+          0
+          where expected_full_label' =
+            "fun box picked[R: Any val](x: R): R")])

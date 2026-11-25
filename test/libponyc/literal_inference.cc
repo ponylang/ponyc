@@ -1025,3 +1025,21 @@ TEST_F(LiteralTest, For_Simple)
   DO(check_type("U64", TK_NOMINAL, numeric_literal(4)));
   DO(check_type("U64", TK_NOMINAL, numeric_literal(0)));
 }
+
+TEST_F(LiteralTest, InheritedMethod_PossiblyIntegerErrorUsesSourceName)
+{
+  // The error is reported for the trait's method and for C's copy of it.
+  // Both must show the name written in the trait.
+  const char* src =
+    "trait T\n"
+    "  fun f[N: (Number & Real[N] val)](): N => 1.5\n"
+
+    "class C is T";
+
+  const char* errs[] = {
+    "Inferred possibly integer type N for float literal",
+    "Inferred possibly integer type N for float literal",
+    NULL
+  };
+  DO(test_expected_errors(src, "expr", errs));
+}

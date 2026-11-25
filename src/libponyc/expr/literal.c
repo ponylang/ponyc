@@ -249,7 +249,8 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
   BUILD(typeargs, type_param,
     NODE(TK_TYPEARGS,
       NODE(TK_TYPEPARAMREF, DATA(type_param)
-        ID(ast_name(ast_child(type_param))) NODE(TK_VAL) NONE)));
+        NICE_ID(ast_name(ast_child(type_param)),
+          ast_nice_name(ast_child(type_param))) NODE(TK_VAL) NONE)));
 
   ast_t* number = type_builtin(opt, type_param, "Number");
   ast_t* real = type_builtin_args(opt, type_param, "Real", typeargs);
@@ -496,7 +497,8 @@ static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
 
     BUILD(uif_type, type,
       NODE(TK_TYPEPARAMREF, DATA(chain_head->formal)
-      ID(chain_head->name) NODE(TK_VAL) NONE));
+      NICE_ID(chain_head->name, ast_nice_name(ast_child(chain_head->formal)))
+      NODE(TK_VAL) NONE));
 
     chain_head->cached_type = uif_type;
     chain_head->valid_for_float = ((r & UIF_INT_MASK) == 0);
@@ -546,7 +548,9 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
   {
     if(report_errors)
       ast_error(opt->check.errors, literal, "Inferred possibly integer type %s for float literal",
-        chain_head->name);
+        (ast_id(chain_head->cached_type) == TK_TYPEPARAMREF) ?
+          ast_nice_name(ast_child(chain_head->cached_type)) :
+          chain_head->name);
 
     return false;
   }

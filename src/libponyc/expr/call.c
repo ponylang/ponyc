@@ -126,7 +126,7 @@ bool apply_typeargs(pass_opt_t* opt, ast_t** astp, ast_t* typeargs,
         {
           ast_error_continue(opt->check.errors, ta,
             "'%s' was inferred as %s from this argument",
-            ast_name(ast_child(tp)),
+            ast_nice_name(ast_child(tp)),
             ast_print_type(ta, opt->strtab));
         }
 

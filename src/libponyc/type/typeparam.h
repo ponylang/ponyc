@@ -22,6 +22,27 @@ ast_t* typeparam_constraint(ast_t* typeparamref);
 // is.
 ast_t* typeparam_root(ast_t* def);
 
+// The position in `typeparams` of the type parameter whose root is `root`, or
+// -1 if there is none.
+int typeparam_root_index(ast_t* typeparams, ast_t* root);
+
+typedef enum
+{
+  // Neither reference is to a method's own type parameter.
+  TYPEPARAM_MATCH_NEITHER_METHOD,
+  // Both are to a method's own type parameter, in the same position.
+  TYPEPARAM_MATCH_SAME,
+  // Both are to a method's own type parameter, in different positions, or
+  // only one of them is to a method's own type parameter.
+  TYPEPARAM_MATCH_DIFFERENT
+} typeparam_match_t;
+
+// Compares two type parameter references, each in one of two methods being
+// compared. The methods' own type parameters correspond by position, whatever
+// they are named. typeparam_method_index in typeparam.c says which references
+// count as a method's own.
+typeparam_match_t typeparam_method_refs_compare(ast_t* a, ast_t* b);
+
 // The scope key for an inherited receiver narrowing whose name is already
 // bound to a different declaration.
 const char* typeparam_receiver_key(strtable_t* strtab, const char* name);

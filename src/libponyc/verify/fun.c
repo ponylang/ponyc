@@ -615,7 +615,17 @@ static bool guards_same_subtype(ast_t* a, ast_t* b)
     return ast_name(ast_childidx(a, 1)) == ast_name(ast_childidx(b, 1));
 
   if(ast_id(a) == TK_TYPEPARAMREF)
-    return ast_name(ast_child(a)) == ast_name(ast_child(b));
+  {
+    switch(typeparam_method_refs_compare(a, b))
+    {
+      case TYPEPARAM_MATCH_SAME: return true;
+      case TYPEPARAM_MATCH_DIFFERENT: return false;
+      case TYPEPARAM_MATCH_NEITHER_METHOD:
+        return ast_name(ast_child(a)) == ast_name(ast_child(b));
+    }
+
+    return false;
+  }
 
   if(ast_id(a) == TK_TUPLETYPE)
   {
