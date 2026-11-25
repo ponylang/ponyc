@@ -518,6 +518,13 @@ static void mark_local_object_embed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
     case HEAP_MARK_COVERED:
       return;
 
+    case HEAP_MARK_INTERIOR_FIRST:
+      // The first visit to anything inside this allocation in this mark. A
+      // repeat finds the allocation's shallow mark and is recorded, so a cycle
+      // through embedded objects is traced at most twice.
+      recurse(ctx, p, t->trace);
+      return;
+
     case HEAP_MARK_INTERIOR:
     case HEAP_MARK_UNCLAIMED:
       break;

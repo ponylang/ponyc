@@ -109,8 +109,12 @@ typedef enum
   // p starts its allocation, which isn't marked, and claim was false: the
   // allocation is kept with a shallow mark.
   HEAP_MARK_UNCLAIMED,
-  // p is inside its allocation, which isn't marked: the allocation is kept
-  // with a shallow mark.
+  // p is inside its allocation, which isn't marked, and this is the first
+  // visit to the allocation in this mark: the allocation is kept with a
+  // shallow mark.
+  HEAP_MARK_INTERIOR_FIRST,
+  // p is inside its allocation, which isn't marked, and the allocation was
+  // already visited in this mark (or kept by an opaque visit).
   HEAP_MARK_INTERIOR,
   // p is inside its allocation, which is already marked.
   HEAP_MARK_COVERED
