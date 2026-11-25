@@ -6,6 +6,9 @@
 #include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <string.h>
+#ifdef PLATFORM_IS_WINDOWS
+#  include <windows.h>
+#endif
 #ifdef USE_SYSTEMATIC_TESTING
 #include <stdlib.h>
 #endif
@@ -132,6 +135,23 @@ static size_t foreign_size(chunk_t* chunk, pony_type_t* t)
 // The linker's bounds of the executable image.
 extern char __executable_start[];
 extern char _end[];
+#elif defined(PLATFORM_IS_WINDOWS)
+// The linker's start of the executable image; its PE header gives the size.
+EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+static char* image_end;
+
+static char* program_image_end()
+{
+  if(image_end == NULL)
+  {
+    char* base = (char*)&__ImageBase;
+    IMAGE_NT_HEADERS* nt =
+      (IMAGE_NT_HEADERS*)(base + __ImageBase.e_lfanew);
+    image_end = base + nt->OptionalHeader.SizeOfImage;
+  }
+
+  return image_end;
+}
 #endif
 
 // Objects in the program image are constants the compiler emitted, such as
@@ -141,6 +161,8 @@ static bool in_program_image(void* p)
 {
 #if defined(__ELF__)
   return ((char*)p >= __executable_start) && ((char*)p < _end);
+#elif defined(PLATFORM_IS_WINDOWS)
+  return ((char*)p >= (char*)&__ImageBase) && ((char*)p < program_image_end());
 #else
   (void)p;
   return false;
