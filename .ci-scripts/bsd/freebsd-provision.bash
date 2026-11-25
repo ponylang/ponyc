@@ -85,30 +85,43 @@ echo "SSH available"
 echo "::endgroup::"
 
 echo "::group::Install build dependencies"
+# scp a script into the VM and run it as root via expect+su. The old expect
+# block ran pkg install inline and only waited for the shell prompt, so a
+# failed install (missing packages, broken catalogue) went undetected. With
+# a script, set -e propagates the failure through expect's exit code.
+cat > "$VM_ARTIFACTS/install-deps.sh" <<'INSTALLDEPS'
+#!/bin/sh
+set -e
+install_packages() {
+  pkg install -y cmake gmake libunwind git python3 rsync doas valgrind
+}
+if ! install_packages; then
+  echo "Package install failed; forcing catalogue update and retrying..."
+  pkg update -f
+  install_packages
+fi
+echo 'permit nopass freebsd' > /usr/local/etc/doas.conf
+INSTALLDEPS
+scp -o StrictHostKeyChecking=no -i vm_key -P 2222 \
+  "$VM_ARTIFACTS/install-deps.sh" freebsd@localhost:/tmp/install-deps.sh
 expect <<'EXPECT'
 set timeout 600
-spawn ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 -t freebsd@localhost su -m root
+spawn ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 -t freebsd@localhost "su -m root -c 'sh /tmp/install-deps.sh'"
 expect {
   "Password:" { send "ciroot\r" }
   timeout { puts "Timeout waiting for password prompt"; exit 1 }
 }
 expect {
-  "#" {}
   "su: Sorry" { puts "su failed - wrong password or nuageinit didn't set it"; exit 1 }
-  timeout { puts "Timeout waiting for root shell"; exit 1 }
+  timeout { puts "Timeout during install-deps.sh"; exit 1 }
+  eof {}
 }
-send "pkg install -y cmake gmake libunwind git python3 rsync doas valgrind\r"
-expect {
-  "#" {}
-  timeout { puts "Timeout during pkg install"; exit 1 }
+lassign [wait] pid spawnid os_flag value
+if {$os_flag == 0} {
+  exit $value
+} else {
+  exit 1
 }
-send "echo 'permit nopass freebsd' > /usr/local/etc/doas.conf\r"
-expect {
-  "#" {}
-  timeout { puts "Timeout writing doas.conf"; exit 1 }
-}
-send "exit\r"
-expect eof
 EXPECT
 echo "::endgroup::"
 
