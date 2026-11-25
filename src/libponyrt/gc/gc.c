@@ -128,6 +128,25 @@ static size_t foreign_size(chunk_t* chunk, pony_type_t* t)
   return (t == NULL) ? 0 : t->size;
 }
 
+#if defined(__ELF__)
+// The linker's bounds of the executable image.
+extern char __executable_start[];
+extern char _end[];
+#endif
+
+// Objects in the program image are constants the compiler emitted, such as
+// string literals. They are never collected and reference only other
+// constants, so the GC has nothing to do for them.
+static bool in_program_image(void* p)
+{
+#if defined(__ELF__)
+  return ((char*)p >= __executable_start) && ((char*)p < _end);
+#else
+  (void)p;
+  return false;
+#endif
+}
+
 static void recurse(pony_ctx_t* ctx, void* p, void* f)
 {
   if(f != NULL)
@@ -1003,10 +1022,11 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
-  // Don't gc memory that wasn't pony_allocated, but do recurse.
+  // Don't gc memory that wasn't pony_allocated, but do recurse, unless it is a
+  // constant.
   if(chunk == NULL)
   {
-    if(mutability != PONY_TRACE_OPAQUE)
+    if((mutability != PONY_TRACE_OPAQUE) && !in_program_image(p))
       recurse(ctx, p, t->trace);
     return;
   }
@@ -1028,11 +1048,12 @@ void ponyint_gc_sendembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
-  if((chunk == NULL) && ((actor = actor_containing(p, t)) == NULL))
+  if((chunk == NULL) &&
+    (in_program_image(p) || ((actor = actor_containing(p, t)) == NULL)))
   {
     // Memory in no actor's heap or allocation isn't collected, but what it
-    // references is traced.
-    if(mutability != PONY_TRACE_OPAQUE)
+    // references is traced, unless it is a constant.
+    if((mutability != PONY_TRACE_OPAQUE) && !in_program_image(p))
       recurse(ctx, p, t->trace);
     return;
   }
@@ -1049,10 +1070,11 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
-  // Don't gc memory that wasn't pony_allocated, but do recurse.
+  // Don't gc memory that wasn't pony_allocated, but do recurse, unless it is a
+  // constant.
   if(chunk == NULL)
   {
-    if(mutability != PONY_TRACE_OPAQUE)
+    if((mutability != PONY_TRACE_OPAQUE) && !in_program_image(p))
       recurse(ctx, p, t->trace);
     return;
   }
@@ -1074,11 +1096,12 @@ void ponyint_gc_recvembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
-  if((chunk == NULL) && ((actor = actor_containing(p, t)) == NULL))
+  if((chunk == NULL) &&
+    (in_program_image(p) || ((actor = actor_containing(p, t)) == NULL)))
   {
     // Memory in no actor's heap or allocation isn't collected, but what it
-    // references is traced.
-    if(mutability != PONY_TRACE_OPAQUE)
+    // references is traced, unless it is a constant.
+    if((mutability != PONY_TRACE_OPAQUE) && !in_program_image(p))
       recurse(ctx, p, t->trace);
     return;
   }
@@ -1095,10 +1118,11 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
-  // Don't gc memory that wasn't pony_allocated, but do recurse.
+  // Don't gc memory that wasn't pony_allocated, but do recurse, unless it is a
+  // constant.
   if(chunk == NULL)
   {
-    if(mutability != PONY_TRACE_OPAQUE)
+    if((mutability != PONY_TRACE_OPAQUE) && !in_program_image(p))
       recurse(ctx, p, t->trace);
     return;
   }
@@ -1120,11 +1144,12 @@ void ponyint_gc_markembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
-  if((chunk == NULL) && ((actor = actor_containing(p, t)) == NULL))
+  if((chunk == NULL) &&
+    (in_program_image(p) || ((actor = actor_containing(p, t)) == NULL)))
   {
     // Memory in no actor's heap or allocation isn't collected, but what it
-    // references is traced.
-    if(mutability != PONY_TRACE_OPAQUE)
+    // references is traced, unless it is a constant.
+    if((mutability != PONY_TRACE_OPAQUE) && !in_program_image(p))
       recurse(ctx, p, t->trace);
     return;
   }
