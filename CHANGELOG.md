@@ -79,6 +79,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix JSONPath stack overflow on deeply nested `@`-relative filter chains ([PR #6708](https://github.com/ponylang/ponyc/pull/6708))
 - Fix non-empty array literals in embedded fields ([PR #6719](https://github.com/ponylang/ponyc/pull/6719))
 - Fix result typing for `break` from a nested loop's `else` ([PR #6719](https://github.com/ponylang/ponyc/pull/6719))
+- Fix type parameter bugs in generic methods ([PR #6721](https://github.com/ponylang/ponyc/pull/6721))
 
 ### Added
 
