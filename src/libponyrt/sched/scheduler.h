@@ -103,7 +103,7 @@ typedef struct pony_ctx_t
   // Visits a mark made that an allocation's mark can't record: repeat visits
   // inside an allocation, and visits to objects that share the start with an
   // enclosing struct. Empty between marks.
-  gc_viewset_t views;
+  gc_visitset_t visits;
 } pony_ctx_t;
 
 struct scheduler_t

@@ -28,27 +28,27 @@ typedef struct gc_t
 
 DECLARE_STACK(ponyint_gcstack, gcstack_t, void);
 
-typedef struct gc_view_t
+typedef struct gc_visit_t
 {
   void* address;
   pony_type_t* type;
-} gc_view_t;
+} gc_visit_t;
 
 // An open-addressing set of (address, type) visits. Its storage is kept
 // between trace rounds and released when a round uses little of it.
-typedef struct gc_viewset_t
+typedef struct gc_visitset_t
 {
-  gc_view_t* slots;
+  gc_visit_t* slots;
   size_t count;
   size_t capacity;
-} gc_viewset_t;
+} gc_visitset_t;
 
 // Forgets the visits a mark recorded, and releases the storage when the mark
 // used little of it.
-void ponyint_gc_end_views(pony_ctx_t* ctx);
+void ponyint_gc_end_visits(pony_ctx_t* ctx);
 
 // Releases the storage for recorded visits.
-void ponyint_gc_free_views(pony_ctx_t* ctx);
+void ponyint_gc_free_visits(pony_ctx_t* ctx);
 
 // True when u is embedded at the start of t, directly or through other
 // embedded objects, so the two share an address and t's trace covers u.

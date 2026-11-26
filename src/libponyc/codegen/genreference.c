@@ -70,14 +70,18 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
   ast_t* field = ast_get(def, name, NULL);
   uint32_t index = (uint32_t)ast_index(field);
 
+  reach_type_t* l_t = reach_type(c->reach, l_type, c->opt);
+  pony_assert(l_t != NULL);
+
+  if(l_t->fields[index].embed)
+    return gentype_embed_ptr(c, l_t, l_value, index);
+
   if(ast_id(def) != TK_STRUCT)
     index++;
 
   if(ast_id(def) == TK_ACTOR)
     index++;
 
-  reach_type_t* l_t = reach_type(c->reach, l_type, c->opt);
-  pony_assert(l_t != NULL);
   compile_type_t* l_c_t = (compile_type_t*)l_t->c_type;
 
   return LLVMBuildStructGEP2(c->builder, l_c_t->structure, l_value, index, "");

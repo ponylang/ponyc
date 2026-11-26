@@ -47,9 +47,9 @@ static void acquire_object(pony_ctx_t* ctx, pony_actor_t* actor,
   obj->immutable = source->immutable;
 }
 
-#define GC_VIEWS_MIN 64
+#define GC_VISITS_MIN 64
 
-static size_t view_slot(gc_viewset_t* set, void* p, pony_type_t* t)
+static size_t visit_slot(gc_visitset_t* set, void* p, pony_type_t* t)
 {
   size_t mask = set->capacity - 1;
   size_t i = (ponyint_hash_ptr(p) ^ ponyint_hash_ptr(t)) & mask;
@@ -61,36 +61,37 @@ static size_t view_slot(gc_viewset_t* set, void* p, pony_type_t* t)
   return i;
 }
 
-static void views_resize(gc_viewset_t* set, size_t capacity)
+static void visits_resize(gc_visitset_t* set, size_t capacity)
 {
-  gc_view_t* old = set->slots;
+  gc_visit_t* old = set->slots;
   size_t old_capacity = set->capacity;
 
   set->slots =
-    (gc_view_t*)ponyint_pool_alloc_size(capacity * sizeof(gc_view_t));
-  memset(set->slots, 0, capacity * sizeof(gc_view_t));
+    (gc_visit_t*)ponyint_pool_alloc_size(capacity * sizeof(gc_visit_t));
+  memset(set->slots, 0, capacity * sizeof(gc_visit_t));
   set->capacity = capacity;
 
   for(size_t i = 0; i < old_capacity; i++)
   {
     if(old[i].address != NULL)
-      set->slots[view_slot(set, old[i].address, old[i].type)] = old[i];
+      set->slots[visit_slot(set, old[i].address, old[i].type)] = old[i];
   }
 
   if(old != NULL)
-    ponyint_pool_free_size(old_capacity * sizeof(gc_view_t), old);
+    ponyint_pool_free_size(old_capacity * sizeof(gc_visit_t), old);
 }
 
 // Records that this mark visited p as t. True on the first visit.
-static bool first_view(pony_ctx_t* ctx, void* p, pony_type_t* t)
+static bool first_visit(pony_ctx_t* ctx, void* p, pony_type_t* t)
 {
-  gc_viewset_t* set = &ctx->views;
+  gc_visitset_t* set = &ctx->visits;
   pony_assert(p != NULL);
 
   if((set->count + 1) * 2 > set->capacity)
-    views_resize(set, (set->capacity == 0) ? GC_VIEWS_MIN : set->capacity * 2);
+    visits_resize(set,
+      (set->capacity == 0) ? GC_VISITS_MIN : set->capacity * 2);
 
-  size_t i = view_slot(set, p, t);
+  size_t i = visit_slot(set, p, t);
   if(set->slots[i].address != NULL)
     return false;
 
@@ -100,30 +101,30 @@ static bool first_view(pony_ctx_t* ctx, void* p, pony_type_t* t)
   return true;
 }
 
-void ponyint_gc_free_views(pony_ctx_t* ctx)
+void ponyint_gc_free_visits(pony_ctx_t* ctx)
 {
-  gc_viewset_t* set = &ctx->views;
+  gc_visitset_t* set = &ctx->visits;
 
   if(set->slots != NULL)
-    ponyint_pool_free_size(set->capacity * sizeof(gc_view_t), set->slots);
+    ponyint_pool_free_size(set->capacity * sizeof(gc_visit_t), set->slots);
 
   memset(set, 0, sizeof(*set));
 }
 
-void ponyint_gc_end_views(pony_ctx_t* ctx)
+void ponyint_gc_end_visits(pony_ctx_t* ctx)
 {
-  gc_viewset_t* set = &ctx->views;
+  gc_visitset_t* set = &ctx->visits;
 
-  if((set->capacity > GC_VIEWS_MIN) && (set->count * 8 < set->capacity))
+  if((set->capacity > GC_VISITS_MIN) && (set->count * 8 < set->capacity))
   {
     // This mark used little of the storage, so give it back.
-    ponyint_gc_free_views(ctx);
+    ponyint_gc_free_visits(ctx);
     return;
   }
 
   if(set->count != 0)
   {
-    memset(set->slots, 0, set->capacity * sizeof(gc_view_t));
+    memset(set->slots, 0, set->capacity * sizeof(gc_visit_t));
     set->count = 0;
   }
 }
@@ -418,10 +419,10 @@ static GC_INLINE void recv_local_object(pony_ctx_t* ctx, void* p,
 // A visit the allocation's mark can't record: a repeat visit inside an
 // allocation, or a visit to an object that shares the start with an enclosing
 // struct. The visit is recorded by address and type.
-static PONY_NOINLINE void mark_local_view(pony_ctx_t* ctx, void* p,
+static PONY_NOINLINE void mark_local_visit(pony_ctx_t* ctx, void* p,
   pony_type_t* t)
 {
-  if((t->trace != NULL) && first_view(ctx, p, t))
+  if((t->trace != NULL) && first_visit(ctx, p, t))
     recurse(ctx, p, t->trace);
 }
 
@@ -485,7 +486,7 @@ static void mark_local_object_embed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
       break;
   }
 
-  mark_local_view(ctx, p, t);
+  mark_local_visit(ctx, p, t);
 }
 
 static GC_INLINE void send_remote_object(pony_ctx_t* ctx,
@@ -740,8 +741,8 @@ static pony_actor_t* actor_containing(void* p, pony_type_t* t)
 
 // Finds the actor that owns an object of a type that can share memory with
 // other objects, and the heap chunk the object is in, if any. False if no
-// actor owns it: such memory isn't collected, and what it references has been
-// traced here, unless it is a constant.
+// actor owns it: such memory isn't collected, and for a readable visit the
+// object is queued for tracing what it references, unless it is a constant.
 static GC_INLINE bool embeddable_owner(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int* mutability, pony_actor_t** actor, chunk_t** chunk)
 {

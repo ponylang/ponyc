@@ -391,15 +391,6 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
   codegen_finishfun(c);
 }
 
-// A struct with no fields has no size. Every other type has a size: a class
-// or actor has a descriptor, and a type whose last field is one of these gets
-// a byte of padding (see make_struct).
-static bool has_no_size(reach_type_t* t)
-{
-  return (t->underlying == TK_STRUCT) && (t->field_count == 0) &&
-    (((compile_type_t*)t->c_type)->structure != NULL);
-}
-
 static bool make_struct(compile_t* c, reach_type_t* t)
 {
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -465,15 +456,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
       return false;
   }
 
-  // An embedded field with no size at the end of an object would have the
-  // address of whatever is allocated after the object. A byte of padding
-  // after it keeps its address inside the object, so the runtime finds the
-  // object that holds it.
-  bool pad = (t->field_count > 0) && t->fields[t->field_count - 1].embed &&
-    has_no_size(t->fields[t->field_count - 1].type);
-  uint32_t count = t->field_count + extra + (pad ? 1 : 0);
-
-  size_t buf_size = count * sizeof(LLVMTypeRef);
+  size_t buf_size = (t->field_count + extra) * sizeof(LLVMTypeRef);
   LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
 
   // Create the type descriptor as element 0.
@@ -500,10 +483,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
     }
   }
 
-  if(pad)
-    elements[count - 1] = c->i8;
-
-  LLVMStructSetBody(type, elements, count, packed);
+  LLVMStructSetBody(type, elements, t->field_count + extra, packed);
   ponyint_pool_free_size(buf_size, elements);
   return true;
 }
@@ -777,6 +757,32 @@ static void flag_embedded(reach_type_t* t, uint8_t flag)
       flag_embedded(t->fields[i].type, flag);
     }
   }
+}
+
+LLVMValueRef gentype_embed_ptr(compile_t* c, reach_type_t* t,
+  LLVMValueRef object, uint32_t index)
+{
+  reach_type_t* f = t->fields[index].type;
+  compile_type_t* f_c_t = (compile_type_t*)f->c_type;
+
+  // A field with no size stores nothing, and its position can be the end of
+  // the object, which is the address of whatever is allocated after it. Its
+  // address is the object's, so it is always inside the object.
+  if((f->underlying == TK_STRUCT) && (f->field_count == 0) &&
+    (f_c_t->structure != NULL))
+    return object;
+
+  uint32_t base = 0;
+
+  if(t->underlying != TK_STRUCT)
+    base++;
+
+  if(t->underlying == TK_ACTOR)
+    base++;
+
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  return LLVMBuildStructGEP2(c->builder, c_t->structure, object, base + index,
+    "");
 }
 
 reach_type_t* gentype_first_embed(compile_t* c, reach_type_t* t)

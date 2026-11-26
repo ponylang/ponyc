@@ -6,6 +6,7 @@
 #include "gencontrol.h"
 #include "genexpr.h"
 #include "genreference.h"
+#include "gentype.h"
 #include "../pass/names.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
@@ -475,14 +476,6 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
 static void call_embed_finalisers(compile_t* c, reach_type_t* t,
   ast_t* call_location, LLVMValueRef obj)
 {
-  compile_type_t* c_t = (compile_type_t*)t->c_type;
-  uint32_t base = 0;
-  if(t->underlying != TK_STRUCT)
-    base++;
-
-  if(t->underlying == TK_ACTOR)
-    base++;
-
   for(uint32_t i = 0; i < t->field_count; i++)
   {
     reach_field_t* field = &t->fields[i];
@@ -496,8 +489,7 @@ static void call_embed_finalisers(compile_t* c, reach_type_t* t,
     final_fn = codegen_resolve_function(c, final_fn);
     LLVMTypeRef final_fn_type = LLVMGlobalGetValueType(final_fn);
 
-    LLVMValueRef field_ref = LLVMBuildStructGEP2(c->builder, c_t->structure,
-      obj, base + i, "");
+    LLVMValueRef field_ref = gentype_embed_ptr(c, t, obj, i);
     codegen_debugloc(c, call_location);
     LLVMBuildCall2(c->builder, final_fn_type, final_fn, &field_ref, 1, "");
     codegen_debugloc(c, NULL);

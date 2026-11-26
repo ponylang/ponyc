@@ -39,6 +39,11 @@ typedef struct compile_type_t
 
 bool gentypes(compile_t* c);
 
+// The address of an embedded field of t in object. A field with no size has
+// the address of the object that holds it.
+LLVMValueRef gentype_embed_ptr(compile_t* c, reach_type_t* t,
+  LLVMValueRef object, uint32_t index);
+
 // For a struct whose first field is embedded, that field's type: the object
 // that shares the struct's address. NULL otherwise.
 reach_type_t* gentype_first_embed(compile_t* c, reach_type_t* t);

@@ -13,7 +13,7 @@
 
 // A struct whose first field is embedded shares its address with that field.
 // The GcSharedAddress tests visit one address as both types and check that the
-// struct's own fields are traced whichever view comes first.
+// struct's own fields are traced whichever type is visited first.
 
 namespace
 {
@@ -105,7 +105,7 @@ protected:
 
   void TearDown() override
   {
-    ponyint_gc_free_views(ctx);
+    ponyint_gc_free_visits(ctx);
     ponyint_actormap_destroy(&ctx->acquire);
     ctx->current = NULL;
     ctx->msg_target = NULL;
@@ -179,7 +179,7 @@ protected:
 
   void end_epoch(pony_actor_t* actor)
   {
-    ponyint_gc_end_views(ctx);
+    ponyint_gc_end_visits(ctx);
     ponyint_actormap_destroy(&ctx->acquire);
     ponyint_gc_done(&actor->gc);
     ctx->msg_target = NULL;
@@ -187,7 +187,7 @@ protected:
 };
 }
 
-// Whichever view the mark reaches first, the struct's own trace runs once:
+// Whichever type the mark visits first, the struct's own trace runs once:
 // only the struct claims the allocation's mark.
 TEST_F(GcSharedAddress, MarkTracesStructAfterItsFirstField)
 {
@@ -229,19 +229,19 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
     EXPECT_EQ(count, c_traced);
   }
 
-  EXPECT_GE(ctx->views.capacity, count * 2);
+  EXPECT_GE(ctx->visits.capacity, count * 2);
   end_local_mark(&a);
-  EXPECT_GE(ctx->views.capacity, count * 2);
+  EXPECT_GE(ctx->visits.capacity, count * 2);
 
   start_local_mark(&a);
   pony_traceknown_embeddable(ctx, objects[0], &c_type, PONY_TRACE_MUTABLE);
   ponyint_gc_handlestack(ctx);
   end_local_mark(&a);
-  EXPECT_EQ(0u, ctx->views.capacity);
+  EXPECT_EQ(0u, ctx->visits.capacity);
 }
 
-// Sending and receiving the same two views count the struct's field once on
-// each side, so the counts match.
+// Sending and receiving visits as both types count the struct's field once
+// on each side, so the counts match.
 TEST_F(GcSharedAddress, SendAndReceiveCountStructFieldOnce)
 {
   for(bool c_first : {true, false})
@@ -274,7 +274,7 @@ TEST_F(GcSharedAddress, SendAndReceiveCountStructFieldOnce)
 }
 
 // An actor that gets its own object back in a message counts the struct's
-// field once, whichever view arrives first, so the counts return to zero.
+// field once, whichever type is visited first, so the counts return to zero.
 TEST_F(GcSharedAddress, ReceivingOwnObjectCountsStructFieldOnce)
 {
   for(bool c_first : {true, false})
@@ -322,9 +322,9 @@ TEST_F(GcSharedAddress, SendPendingAcquireCarriesTheStructType)
   end_epoch(&a);
 }
 
-// An actor holding both views of another actor's object marks the struct's
-// field in every collection, including after an earlier collection recorded
-// the struct's type for the address.
+// An actor holding another actor's struct and that struct's first field marks
+// the struct's other field in every collection, including after an earlier
+// collection recorded the struct's type for the address.
 TEST_F(GcSharedAddress, RemoteMarkTracesStructAfterItsFirstField)
 {
   field_mutability = PONY_TRACE_MUTABLE;
@@ -521,7 +521,7 @@ protected:
 
   void TearDown() override
   {
-    ponyint_gc_free_views(ctx);
+    ponyint_gc_free_visits(ctx);
     ponyint_actormap_destroy(&ctx->acquire);
     ctx->current = NULL;
     ponyint_gc_destroy(&a.gc);
@@ -559,7 +559,7 @@ protected:
       , &a
 #endif
       );
-    ponyint_gc_end_views(ctx);
+    ponyint_gc_end_visits(ctx);
     ponyint_gc_done(&a.gc);
   }
 };
