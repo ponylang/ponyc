@@ -576,7 +576,7 @@ static char* unit_base(arena_t* arena, arena_unit_t* rec)
 
 void* ponyint_pool_base(void* p)
 {
-  // Only addresses inside a region are read through. The region list only
+  // Memory is read only for an address inside a region. The region list only
   // grows, so walking it never races an unmap.
   uintptr_t addr = (uintptr_t)p;
   region_t* region = (region_t*)(addr & ~(uintptr_t)REGION_MASK);
