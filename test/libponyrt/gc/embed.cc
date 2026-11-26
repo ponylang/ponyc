@@ -201,11 +201,10 @@ TEST_F(GcSharedAddress, MarkTracesStructAfterItsFirstField)
     start_local_mark(&a);
     visit(s, c_first, PONY_TRACE_MUTABLE);
     EXPECT_EQ(1u, s_traced);
-    // The struct's field survives the sweep.
+    // The struct's trace marked its field (ponyint_heap_mark reports a mark
+    // that was already set).
+    EXPECT_TRUE(ponyint_heap_mark(ponyint_pagemap_get_chunk(s->d), s->d));
     end_local_mark(&a);
-    Child* next = static_cast<Child*>(ponyint_heap_alloc(&a, &a.heap,
-      sizeof(Child), TRACK_NO_FINALISERS));
-    EXPECT_NE(s->d, next);
   }
 }
 
@@ -250,9 +249,9 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
 // on each side, so the counts match.
 TEST_F(GcSharedAddress, SendAndReceiveCountStructFieldOnce)
 {
-  for(bool c_first : {true, false})
+  // A failed ASSERT returns from run, so the other order is still checked.
+  auto run = [&](bool c_first)
   {
-    SCOPED_TRACE(c_first ? "C first" : "S first");
     field_mutability = PONY_TRACE_IMMUTABLE;
     S* s = alloc_s(&a);
 
@@ -276,6 +275,12 @@ TEST_F(GcSharedAddress, SendAndReceiveCountStructFieldOnce)
     EXPECT_EQ(1u, foreign(&b, &a, s)->rc);
     end_epoch(&b);
     ctx->current = &a;
+  };
+
+  for(bool c_first : {true, false})
+  {
+    SCOPED_TRACE(c_first ? "C first" : "S first");
+    run(c_first);
   }
 }
 
@@ -283,9 +288,9 @@ TEST_F(GcSharedAddress, SendAndReceiveCountStructFieldOnce)
 // field once, whichever type is visited first, so the counts return to zero.
 TEST_F(GcSharedAddress, ReceivingOwnObjectCountsStructFieldOnce)
 {
-  for(bool c_first : {true, false})
+  // A failed ASSERT returns from run, so the other order is still checked.
+  auto run = [&](bool c_first)
   {
-    SCOPED_TRACE(c_first ? "C first" : "S first");
     field_mutability = PONY_TRACE_IMMUTABLE;
     S* s = alloc_s(&a);
 
@@ -301,7 +306,34 @@ TEST_F(GcSharedAddress, ReceivingOwnObjectCountsStructFieldOnce)
     EXPECT_EQ(0u, local(&a, s->d)->rc);
     EXPECT_EQ(0u, local(&a, s)->rc);
     end_epoch(&a);
+  };
+
+  for(bool c_first : {true, false})
+  {
+    SCOPED_TRACE(c_first ? "C first" : "S first");
+    run(c_first);
   }
+}
+
+// A type recorded for the address in an earlier round doesn't stop a later
+// round from tracing the struct when its first field is visited first.
+TEST_F(GcSharedAddress, EarlierRoundTypeDoesNotBlockTheStructTrace)
+{
+  field_mutability = PONY_TRACE_IMMUTABLE;
+  S* s = alloc_s(&a);
+
+  ctx->current = &a;
+  pony_gc_send(ctx, &b);
+  pony_traceknown_routed(ctx, s, &s_type, PONY_TRACE_IMMUTABLE);
+  ponyint_gc_handlestack(ctx);
+  end_epoch(&a);
+  ASSERT_NE(nullptr, local(&a, s->d));
+  ASSERT_EQ(1u, local(&a, s->d)->rc);
+
+  pony_gc_send(ctx, &b);
+  visit(s, true, PONY_TRACE_IMMUTABLE);
+  EXPECT_EQ(2u, local(&a, s->d)->rc);
+  end_epoch(&a);
 }
 
 // When a send reaches another actor's object first as its embedded field and

@@ -1,6 +1,6 @@
-// An actor sends its embedded val field and then has nothing left to do.
-// While another actor holds the field, the sending actor must not be
-// collected: its memory would be reused by the actors created afterwards.
+// Actors send their embedded val field and then have nothing left to do.
+// While another actor holds the fields, the sending actors must not be
+// collected: their memory would be reused by the actors created afterwards.
 class C
   let n: U64
   new val create(n': U64) => n = n'
@@ -16,14 +16,14 @@ actor Filler
   new create() => None
 
 actor Keeper
-  var _c: (C val | None) = None
+  let _cs: Array[C val] = Array[C val]
   var _bad: U64 = 0
   let _env: Env
 
   new create(env: Env) => _env = env
 
   be take(c: C val) =>
-    _c = c
+    _cs.push(c)
 
   be churn(i: U64) =>
     var k: USize = 0
@@ -31,13 +31,17 @@ actor Keeper
       Filler
       k = k + 1
     end
-    match _c
-    | let c: C val => if c.n != 0xDEADBEEF then _bad = _bad + 1 end
+    for c in _cs.values() do
+      if c.n != 0xDEADBEEF then _bad = _bad + 1 end
     end
-    if i < 200 then churn(i + 1) elseif _bad != 0 then _env.exitcode(1) end
+    if i < 1000 then churn(i + 1) elseif _bad != 0 then _env.exitcode(1) end
 
 actor Main
   new create(env: Env) =>
     let k = Keeper(env)
-    Donor(k)
+    var d: USize = 0
+    while d < 10 do
+      Donor(k)
+      d = d + 1
+    end
     k.churn(0)

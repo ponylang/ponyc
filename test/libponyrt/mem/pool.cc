@@ -4065,5 +4065,11 @@ TEST(Pool, BaseOfMemoryOutsideThePool)
   EXPECT_EQ(nullptr, ponyint_pool_base(pool_base_static_object));
   EXPECT_EQ(nullptr, ponyint_pool_base(from_c));
   free(from_c);
+
+  // An allocation too large for an arena has a mapping of its own.
+  size_t huge = (size_t)16 * 1024 * 1024;
+  char* oversized = static_cast<char*>(ponyint_pool_alloc_size(huge));
+  EXPECT_EQ(nullptr, ponyint_pool_base(oversized + 64));
+  ponyint_pool_free_size(huge, oversized);
 }
 #endif

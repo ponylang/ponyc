@@ -172,15 +172,87 @@ TEST_F(CodegenEmbedTest, EmbeddedInAnActor)
     "class H\n"
     "  embed d: D = D\n"
 
+    "class F\n"
+    "  var z: U64 = 0\n"
+
+    "class E\n"
+    "  embed f: F = F\n"
+
     "actor Main\n"
     "  embed c: C = C\n"
+    "  embed e: E = E\n"
     "  var _h: H = H\n"
     "  new create(env: Env) => None";
 
   TEST_COMPILE(src);
 
   ASSERT_NE(0, flags_of("C") & PONY_EMBED_IN_ACTOR);
+  // Embedded in an object that is embedded in an actor.
+  ASSERT_NE(0, flags_of("F") & PONY_EMBED_IN_ACTOR);
   ASSERT_NE(0, flags_of("Main") & PONY_EMBED_ACTOR_LOOKUP);
   ASSERT_EQ(0, flags_of("D") & PONY_EMBED_IN_ACTOR);
   ASSERT_EQ(0, flags_of("H") & PONY_EMBED_ACTOR_LOOKUP);
+}
+
+// A trace through an interface or trait reaches every class that provides it,
+// so it is routed when one of them is embedded somewhere.
+TEST_F(CodegenEmbedTest, InterfaceAndTraitReachingAnEmbeddableClassAreRouted)
+{
+  const char* src =
+    "interface I\n"
+    "  fun i(): U64\n"
+
+    "trait T\n"
+    "  fun t(): U64\n"
+
+    "class C is (I & T)\n"
+    "  var x: U64 = 7\n"
+    "  fun i(): U64 => x\n"
+    "  fun t(): U64 => x\n"
+
+    "class A\n"
+    "  embed c: C = C\n"
+
+    "actor Keeper\n"
+    "  var _i: (I val | None) = None\n"
+    "  var _t: (T val | None) = None\n"
+    "  be take_i(i: I val) => _i = i\n"
+    "  be take_t(t: T val) => _t = t\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: A val = recover A end\n"
+    "    let k = Keeper\n"
+    "    k.take_i(a.c)\n"
+    "    k.take_t(a.c)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_GT(calls_to("pony_traceunknown_routed", "Keeper_"), 0u);
+  ASSERT_EQ(0u, calls_to("pony_traceunknown", "Keeper_"));
+}
+
+// A struct whose first field with a size isn't embedded doesn't share its
+// address with an embedded object.
+TEST_F(CodegenEmbedTest, StructStartingWithAPlainFieldIsNotRouted)
+{
+  const char* src =
+    "class C\n"
+    "  var x: U64 = 0\n"
+
+    "struct S\n"
+    "  var a: U64 = 0\n"
+    "  embed c: C = C\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  var _s: S = S\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+
+  reach_type_t* s = reach_type_name(compile->reach, "S", &opt);
+  ASSERT_NE(nullptr, s);
+  ASSERT_EQ(nullptr, gentype_first_embed(compile, s));
+  ASSERT_EQ(0, flags_of("S") & PONY_EMBED_ROUTED);
 }

@@ -1,0 +1,1 @@
+--ponycdinterval=10
