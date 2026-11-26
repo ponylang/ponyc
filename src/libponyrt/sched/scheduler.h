@@ -100,9 +100,9 @@ typedef struct pony_ctx_t
   uint64_t last_tsc;
   schedulerstats_t schedulerstats;
 #endif
-  // Visits a mark made that an allocation's mark can't record: embedded
-  // objects that don't start their allocation, and ones that share the start
-  // with an enclosing struct. Empty between marks.
+  // Visits a mark made that an allocation's mark can't record: repeat visits
+  // inside an allocation, and visits to objects that share the start with an
+  // enclosing struct. Empty between marks.
   gc_viewset_t views;
 } pony_ctx_t;
 

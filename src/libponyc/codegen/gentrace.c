@@ -537,7 +537,7 @@ static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 
 static bool reach_may_be_routed(reach_type_t* t, int depth)
 {
-  if(((compile_type_t*)t->c_type)->embed_flags & PONY_EMBED_ROUTED)
+  if((((compile_type_t*)t->c_type)->embed_flags & PONY_EMBED_ROUTED) != 0)
     return true;
 
   switch(t->underlying)
@@ -568,8 +568,8 @@ static bool reach_may_be_routed(reach_type_t* t, int depth)
 }
 
 // True if an object traced through a value of this static type can be of a
-// type that shares memory with other objects (PONY_EMBED_ROUTED). The type is
-// NULL, or the answer is uncertain, only when every type might be.
+// type that shares memory with other objects (PONY_EMBED_ROUTED). A NULL
+// type, or one the check can't resolve, counts as true.
 static bool may_be_routed(compile_t* c, ast_t* type)
 {
   if(type == NULL)
@@ -590,7 +590,7 @@ static bool may_be_routed(compile_t* c, ast_t* type)
       return false;
     }
 
-    // The traced object is the tuple's box, which is never embedded.
+    // A value of a tuple type is a boxed tuple, which is never embedded.
     case TK_TUPLETYPE:
       return false;
 

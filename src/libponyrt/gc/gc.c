@@ -126,7 +126,7 @@ static size_t foreign_size(chunk_t* chunk, pony_type_t* t)
   if(chunk != NULL)
     return ponyint_heap_size(chunk);
 
-  return (t == NULL) ? 0 : t->size;
+  return t->size;
 }
 
 
@@ -221,7 +221,7 @@ static bool acquire_immutable(pony_ctx_t* ctx, pony_actor_t* actor,
 // stays the same on both sides only while that holds.
 static bool retrace_enclosing(object_t* obj, pony_type_t* t, int mutability)
 {
-  if((mutability == PONY_TRACE_OPAQUE) || (t == NULL) || (obj->type == t) ||
+  if((mutability == PONY_TRACE_OPAQUE) || (obj->type == t) ||
     (obj->type == NULL) || !ponyint_gc_embeds_at_start(t, obj->type))
     return false;
 
@@ -233,7 +233,7 @@ static bool retrace_enclosing(object_t* obj, pony_type_t* t, int mutability)
 // The type a readable visit traces with this round.
 static void note_traced_type(object_t* obj, pony_type_t* t, int mutability)
 {
-  if((mutability != PONY_TRACE_OPAQUE) && (t != NULL))
+  if(mutability != PONY_TRACE_OPAQUE)
     obj->type = t;
 }
 
@@ -462,9 +462,9 @@ static void recv_local_object_embed(pony_ctx_t* ctx, void* p, pony_type_t* t,
     recurse(ctx, p, t->trace);
 }
 
-// A visit the allocation's mark can't record: an object that doesn't start its
-// allocation, or one that shares the start with an enclosing struct. The
-// visit is recorded by address and type.
+// A visit the allocation's mark can't record: a repeat visit inside an
+// allocation, or a visit to an object that shares the start with an enclosing
+// struct. The visit is recorded by address and type.
 static PONY_NOINLINE void mark_local_view(pony_ctx_t* ctx, void* p,
   pony_type_t* t)
 {
@@ -993,7 +993,7 @@ static void mark_remote_object_embed(pony_ctx_t* ctx, pony_actor_t* actor,
 // owns.
 static pony_actor_t* actor_containing(void* p, pony_type_t* t)
 {
-  if((t == NULL) || ((t->embed_flags & PONY_EMBED_IN_ACTOR) == 0))
+  if((t->embed_flags & PONY_EMBED_IN_ACTOR) == 0)
     return NULL;
 
   return ponyint_actor_containing(p);
@@ -1215,12 +1215,11 @@ void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
   {
     chunk_t* chunk = ponyint_pagemap_get_chunk(obj->address);
 
-    if((obj->type->embed_flags & PONY_EMBED_ROUTED) != 0)
-      mark_local_object_embed(ctx, chunk, obj->address, obj->type,
-        PONY_TRACE_IMMUTABLE);
-    else
-      mark_local_object(ctx, chunk, obj->address, obj->type,
-        PONY_TRACE_IMMUTABLE);
+    // Immutable roots are marked through the plain path, so none may be of a
+    // type that shares memory with other objects.
+    pony_assert((obj->type->embed_flags & PONY_EMBED_ROUTED) == 0);
+    mark_local_object(ctx, chunk, obj->address, obj->type,
+      PONY_TRACE_IMMUTABLE);
   }
 }
 

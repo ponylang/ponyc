@@ -104,11 +104,13 @@ typedef void (*pony_final_fn)(void* p);
 /** Facts the compiler records about how a type's objects can share memory.
  *
  * PONY_EMBED_ROUTED: the type is embedded somewhere, or is a struct whose first
- * field is embedded. Traces of it go through pony_traceknown_embeddable.
+ * field is embedded. Traces of it go through pony_traceknown_embeddable or
+ * pony_traceunknown_embeddable.
  * PONY_EMBED_IN_ACTOR: an object of the type can be inside an actor.
  * PONY_EMBED_AT_START: an object of the type can share its address with an
  * enclosing struct (it is embedded at a struct's start).
- * PONY_EMBED_ACTOR_LOOKUP: an actor with an embedded field.
+ * PONY_EMBED_ACTOR_LOOKUP: the type is an actor with an embedded field, so the
+ * runtime must be able to find the actor from the address of that field.
  */
 #define PONY_EMBED_ROUTED 0x01
 #define PONY_EMBED_IN_ACTOR 0x02
@@ -122,8 +124,9 @@ typedef const struct _pony_type_t
   uint32_t size;
   uint32_t field_count;
   uint32_t field_offset;
-  // For a primitive, its instance. For a struct whose first field is embedded,
-  // that field's type: the two objects share an address.
+  // For a primitive, its instance. For a struct, the type of the embedded
+  // field with a non-zero size at the struct's start, if there is one: the
+  // two objects share an address.
   void* instance;
   char* name;
   pony_behavior_name_fn get_behavior_name;

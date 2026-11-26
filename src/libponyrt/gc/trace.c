@@ -108,8 +108,7 @@ PONY_API void pony_trace(pony_ctx_t* ctx, void* p)
 
 // For a type that can share memory with other objects, the function this trace
 // round uses: the matching embeddable function for a send, receive or mark,
-// and the round's own function otherwise (a collection during a behavior
-// records every visit by address and type already).
+// and the round's own function otherwise.
 static trace_object_fn embeddable_fn(pony_ctx_t* ctx)
 {
   if(ctx->trace_object == ponyint_gc_markobject)
@@ -132,12 +131,9 @@ PONY_API void pony_traceknown_embeddable(pony_ctx_t* ctx, void* p,
   if((sizeof(uintptr_t) >= 8) && (((uintptr_t)p >> 63) != 0))
     return;
 
-  if(t->dispatch != NULL)
-  {
-    ctx->trace_actor(ctx, (pony_actor_t*)p);
-  } else {
-    embeddable_fn(ctx)(ctx, p, t, m);
-  }
+  // An actor is never embedded, so no actor type is routed.
+  pony_assert(t->dispatch == NULL);
+  embeddable_fn(ctx)(ctx, p, t, m);
 }
 
 PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
@@ -178,7 +174,6 @@ PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m)
     ctx->trace_object(ctx, p, t, m);
   }
 }
-
 
 PONY_API void pony_traceunknown_embeddable(pony_ctx_t* ctx, void* p, int m)
 {

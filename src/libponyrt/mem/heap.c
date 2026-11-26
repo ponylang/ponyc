@@ -1110,7 +1110,6 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool claim)
   return HEAP_MARK_NEW;
 }
 
-
 bool ponyint_heap_mark(chunk_t* chunk, void* p)
 {
   // If it's an internal pointer, we shallow mark it instead. This will

@@ -9,9 +9,11 @@
 
 #include <gtest/gtest.h>
 
+// GC visits to objects that share memory with other objects.
+
 // A struct whose first field is embedded shares its address with that field.
-// These tests visit one address as both types and check that the struct's
-// own fields are traced whichever view comes first.
+// The GcSharedAddress tests visit one address as both types and check that the
+// struct's own fields are traced whichever view comes first.
 
 namespace
 {
@@ -185,8 +187,8 @@ protected:
 };
 }
 
-// The mark records the struct's visit apart from the allocation's mark, which
-// the embedded field's visit already set.
+// Whichever view the mark reaches first, the struct's own trace runs once:
+// only the struct claims the allocation's mark.
 TEST_F(GcSharedAddress, MarkTracesStructAfterItsFirstField)
 {
   for(bool c_first : {true, false})
@@ -198,7 +200,7 @@ TEST_F(GcSharedAddress, MarkTracesStructAfterItsFirstField)
     start_local_mark(&a);
     visit(s, c_first, PONY_TRACE_MUTABLE);
     EXPECT_EQ(1u, s_traced);
-    // The struct's field survives the sweep, and so does the struct.
+    // The struct's field survives the sweep.
     end_local_mark(&a);
     Child* next = static_cast<Child*>(ponyint_heap_alloc(&a, &a.heap,
       sizeof(Child), TRACK_NO_FINALISERS));
@@ -266,7 +268,7 @@ TEST_F(GcSharedAddress, RemoteMarkTracesStructAfterItsFirstField)
 
 // A mark that reaches another actor's object first through its embedded field
 // and then as the struct acquires it with the struct's descriptor.
-TEST_F(GcSharedAddress, UpgradeGivesPendingAcquireTheStructType)
+TEST_F(GcSharedAddress, PendingAcquireCarriesTheStructType)
 {
   field_mutability = PONY_TRACE_IMMUTABLE;
   S* s = alloc_s(&b);
@@ -283,7 +285,6 @@ TEST_F(GcSharedAddress, UpgradeGivesPendingAcquireTheStructType)
   end_epoch(&a);
 }
 
-// An interior visit keeps its allocation through the sweep.
 // A visit to an object with no size at the struct's address doesn't stand in
 // for the struct: the struct's field is still counted when it is sent.
 TEST_F(GcSharedAddress, ZeroSizeVisitDoesNotHideTheStruct)
@@ -299,6 +300,7 @@ TEST_F(GcSharedAddress, ZeroSizeVisitDoesNotHideTheStruct)
   end_epoch(&a);
 }
 
+// An interior visit keeps its allocation through the sweep.
 TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
 {
   ponyint_register_thread();
