@@ -105,7 +105,7 @@ typedef void (*pony_final_fn)(void* p);
  *
  * PONY_EMBED_ROUTED: the type is embedded somewhere, or is a struct that starts
  * with an embedded field with a non-zero size. Traces of it go through
- * pony_traceknown_embeddable or pony_traceunknown_embeddable.
+ * pony_traceknown_routed or pony_traceunknown_routed.
  * PONY_EMBED_IN_ACTOR: an object of the type can be inside an actor.
  * PONY_EMBED_ACTOR_LOOKUP: the type is an actor with an embedded field, so the
  * runtime must be able to find the actor from the address of that field.
@@ -323,7 +323,7 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m);
  * an embedded field with a non-zero size. The runtime then works out which
  * allocation, actor, or enclosing object the address belongs to.
  */
-PONY_API void pony_traceknown_embeddable(pony_ctx_t* ctx, void* p,
+PONY_API void pony_traceknown_routed(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int m);
 
 /** Trace an unknown type that might share memory with other objects.
@@ -331,7 +331,7 @@ PONY_API void pony_traceknown_embeddable(pony_ctx_t* ctx, void* p,
  * The compiler calls this instead of pony_traceunknown when one of the types
  * the value can have has PONY_EMBED_ROUTED.
  */
-PONY_API void pony_traceunknown_embeddable(pony_ctx_t* ctx, void* p, int m);
+PONY_API void pony_traceunknown_routed(pony_ctx_t* ctx, void* p, int m);
 
 /** Trace unknown.
  *

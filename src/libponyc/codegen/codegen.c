@@ -323,7 +323,7 @@ static void set_runtime_attrs(compile_t* c)
     LLVMAddAttributeAtIndex(fn, 2, readonly_attr);
   }
 
-  fn = LLVMGetNamedFunction(c->module, "pony_traceknown_embeddable");
+  fn = LLVMGetNamedFunction(c->module, "pony_traceknown_routed");
   if(fn != NULL)
   {
     LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -341,7 +341,7 @@ static void set_runtime_attrs(compile_t* c)
     LLVMAddAttributeAtIndex(fn, 2, readonly_attr);
   }
 
-  fn = LLVMGetNamedFunction(c->module, "pony_traceunknown_embeddable");
+  fn = LLVMGetNamedFunction(c->module, "pony_traceunknown_routed");
   if(fn != NULL)
   {
     LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -537,8 +537,8 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_traceknown", type);
 
-  // void pony_traceknown_embeddable(i8*, __object*, __Desc*, i32)
-  value = LLVMAddFunction(c->module, "pony_traceknown_embeddable", type);
+  // void pony_traceknown_routed(i8*, __object*, __Desc*, i32)
+  value = LLVMAddFunction(c->module, "pony_traceknown_routed", type);
 
   // void pony_traceunknown(i8*, __object*, i32)
   params[0] = c->ptr;
@@ -547,8 +547,8 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_traceunknown", type);
 
-  // void pony_traceunknown_embeddable(i8*, __object*, i32)
-  value = LLVMAddFunction(c->module, "pony_traceunknown_embeddable", type);
+  // void pony_traceunknown_routed(i8*, __object*, i32)
+  value = LLVMAddFunction(c->module, "pony_traceunknown_routed", type);
 
   // void pony_gc_send(i8*, __actor*)
   params[0] = c->ptr;

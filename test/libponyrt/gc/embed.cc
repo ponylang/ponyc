@@ -133,11 +133,11 @@ protected:
   {
     if(c_first)
     {
-      pony_traceknown_embeddable(ctx, s, &c_type, mutability);
-      pony_traceknown_embeddable(ctx, s, &s_type, mutability);
+      pony_traceknown_routed(ctx, s, &c_type, mutability);
+      pony_traceknown_routed(ctx, s, &s_type, mutability);
     } else {
-      pony_traceknown_embeddable(ctx, s, &s_type, mutability);
-      pony_traceknown_embeddable(ctx, s, &c_type, mutability);
+      pony_traceknown_routed(ctx, s, &s_type, mutability);
+      pony_traceknown_routed(ctx, s, &c_type, mutability);
     }
     ponyint_gc_handlestack(ctx);
   }
@@ -224,9 +224,9 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
   {
     for(size_t i = 0; i < count; i++)
     {
-      pony_traceknown_embeddable(ctx, objects[i], &c_type,
+      pony_traceknown_routed(ctx, objects[i], &c_type,
         PONY_TRACE_MUTABLE);
-      pony_traceknown_embeddable(ctx, objects[i], &s_type,
+      pony_traceknown_routed(ctx, objects[i], &s_type,
         PONY_TRACE_MUTABLE);
     }
 
@@ -239,8 +239,8 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
   EXPECT_GE(ctx->visits.capacity, count * 2);
 
   start_local_mark(&a);
-  pony_traceknown_embeddable(ctx, objects[0], &c_type, PONY_TRACE_MUTABLE);
-  pony_traceknown_embeddable(ctx, objects[0], &s_type, PONY_TRACE_MUTABLE);
+  pony_traceknown_routed(ctx, objects[0], &c_type, PONY_TRACE_MUTABLE);
+  pony_traceknown_routed(ctx, objects[0], &s_type, PONY_TRACE_MUTABLE);
   ponyint_gc_handlestack(ctx);
   end_local_mark(&a);
   EXPECT_EQ(0u, ctx->visits.capacity);
@@ -379,8 +379,8 @@ TEST_F(GcSharedAddress, ZeroSizeVisitDoesNotHideTheStruct)
   field_mutability = PONY_TRACE_IMMUTABLE;
   S* s = alloc_s(&a);
   pony_gc_send(ctx, &b);
-  pony_traceknown_embeddable(ctx, s, &zero_type, PONY_TRACE_IMMUTABLE);
-  pony_traceknown_embeddable(ctx, s, &s_type, PONY_TRACE_IMMUTABLE);
+  pony_traceknown_routed(ctx, s, &zero_type, PONY_TRACE_IMMUTABLE);
+  pony_traceknown_routed(ctx, s, &s_type, PONY_TRACE_IMMUTABLE);
   ponyint_gc_handlestack(ctx);
   ASSERT_NE(nullptr, local(&a, s->d));
   EXPECT_EQ(1u, local(&a, s->d)->rc);
@@ -578,7 +578,7 @@ TEST_F(GcEmbeddedInClass, InteriorVisitsEndAndAreCoveredByTheClass)
   A* obj = alloc_a();
   start_mark();
   for(int i = 0; i < 3; i++)
-    pony_traceknown_embeddable(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
+    pony_traceknown_routed(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
   ponyint_gc_handlestack(ctx);
   EXPECT_EQ(2u, b_traced);
   EXPECT_EQ(0u, a_traced);
@@ -588,7 +588,7 @@ TEST_F(GcEmbeddedInClass, InteriorVisitsEndAndAreCoveredByTheClass)
   EXPECT_EQ(1u, a_traced);
   EXPECT_EQ(3u, b_traced);
 
-  pony_traceknown_embeddable(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
+  pony_traceknown_routed(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
   ponyint_gc_handlestack(ctx);
   EXPECT_EQ(3u, b_traced);
   end_mark();
@@ -604,7 +604,7 @@ TEST_F(GcEmbeddedInClass, InteriorVisitAfterTheClassIsCovered)
   ponyint_gc_handlestack(ctx);
   EXPECT_EQ(1u, b_traced);
 
-  pony_traceknown_embeddable(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
+  pony_traceknown_routed(ctx, &obj->b, &b_type, PONY_TRACE_MUTABLE);
   ponyint_gc_handlestack(ctx);
   EXPECT_EQ(1u, b_traced);
   end_mark();
@@ -618,7 +618,7 @@ TEST_F(GcEmbeddedInClass, UnknownTraceFollowsTheDescriptorFlag)
   A* obj = alloc_a();
   start_mark();
   for(int i = 0; i < 3; i++)
-    pony_traceunknown_embeddable(ctx, &obj->b, PONY_TRACE_MUTABLE);
+    pony_traceunknown_routed(ctx, &obj->b, PONY_TRACE_MUTABLE);
   ponyint_gc_handlestack(ctx);
   EXPECT_EQ(2u, b_traced);
   end_mark();

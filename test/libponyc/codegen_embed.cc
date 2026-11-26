@@ -12,7 +12,7 @@
 #define TEST_COMPILE(src) DO(test_compile(src, "ir"))
 
 // Traces of a type that can share memory with other objects go to the
-// runtime's embeddable entry points; every other trace goes to the plain ones.
+// runtime's routed entry points; every other trace goes to the plain ones.
 
 class CodegenEmbedTest : public PassTest
 {
@@ -77,11 +77,11 @@ TEST_F(CodegenEmbedTest, ProgramWithoutEmbedUsesPlainTraces)
   TEST_COMPILE(src);
 
   ASSERT_GT(calls_to("pony_traceknown") + calls_to("pony_traceunknown"), 0u);
-  ASSERT_EQ(0u, calls_to("pony_traceknown_embeddable"));
-  ASSERT_EQ(0u, calls_to("pony_traceunknown_embeddable"));
+  ASSERT_EQ(0u, calls_to("pony_traceknown_routed"));
+  ASSERT_EQ(0u, calls_to("pony_traceunknown_routed"));
 }
 
-// A union of a tuple and an embeddable class: the trace that checks for a
+// A union of a tuple and an routed class: the trace that checks for a
 // boxed tuple can also see the class, so it must be routed.
 TEST_F(CodegenEmbedTest, UnionWithTupleAndEmbeddableTypeIsRouted)
 {
@@ -104,7 +104,7 @@ TEST_F(CodegenEmbedTest, UnionWithTupleAndEmbeddableTypeIsRouted)
   TEST_COMPILE(src);
 
   // Keeper traces the union when it receives it and when it collects.
-  ASSERT_GT(calls_to("pony_traceunknown_embeddable", "Keeper_"), 0u);
+  ASSERT_GT(calls_to("pony_traceunknown_routed", "Keeper_"), 0u);
   ASSERT_EQ(0u, calls_to("pony_traceunknown", "Keeper_"));
 }
 

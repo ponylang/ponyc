@@ -523,7 +523,7 @@ void gentrace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   // Only a type that can share memory with other objects needs the runtime to
   // work out what the address belongs to.
   if((c_t->embed_flags & PONY_EMBED_ROUTED) != 0)
-    gencall_runtime(c, "pony_traceknown_embeddable", args, 4, "");
+    gencall_runtime(c, "pony_traceknown_routed", args, 4, "");
   else
     gencall_runtime(c, "pony_traceknown", args, 4, "");
 }
@@ -616,7 +616,7 @@ static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   // Only a trace that can reach a type sharing memory with other objects needs
   // the runtime to check the object's descriptor for it.
   if(may_be_routed(c, type))
-    gencall_runtime(c, "pony_traceunknown_embeddable", args, 3, "");
+    gencall_runtime(c, "pony_traceunknown_routed", args, 3, "");
   else
     gencall_runtime(c, "pony_traceunknown", args, 3, "");
 }

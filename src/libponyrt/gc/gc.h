@@ -79,13 +79,13 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 // The same for a type that can share memory with other objects
 // (PONY_EMBED_ROUTED): embedded objects, objects in an actor's allocation, and
 // structs that share an address with their first field.
-void ponyint_gc_sendembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
+void ponyint_gc_sendrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 
-void ponyint_gc_recvembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
+void ponyint_gc_recvrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 
-void ponyint_gc_markembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
+void ponyint_gc_markrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 
 void ponyint_gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor);

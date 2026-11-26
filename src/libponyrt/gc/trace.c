@@ -107,23 +107,23 @@ PONY_API void pony_trace(pony_ctx_t* ctx, void* p)
 }
 
 // For a type that can share memory with other objects, the function this trace
-// round uses: the matching embeddable function for a send, receive or mark,
+// round uses: the matching routed function for a send, receive or mark,
 // and the round's own function otherwise.
-static trace_object_fn embeddable_fn(pony_ctx_t* ctx)
+static trace_object_fn routed_fn(pony_ctx_t* ctx)
 {
   if(ctx->trace_object == ponyint_gc_markobject)
-    return ponyint_gc_markembeddable;
+    return ponyint_gc_markrouted;
 
   if(ctx->trace_object == ponyint_gc_sendobject)
-    return ponyint_gc_sendembeddable;
+    return ponyint_gc_sendrouted;
 
   if(ctx->trace_object == ponyint_gc_recvobject)
-    return ponyint_gc_recvembeddable;
+    return ponyint_gc_recvrouted;
 
   return ctx->trace_object;
 }
 
-PONY_API void pony_traceknown_embeddable(pony_ctx_t* ctx, void* p,
+PONY_API void pony_traceknown_routed(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int m)
 {
   // Tagged pointers have bit 63 set. They encode a machine word directly
@@ -133,7 +133,7 @@ PONY_API void pony_traceknown_embeddable(pony_ctx_t* ctx, void* p,
 
   // An actor is never embedded, so no actor type is routed.
   pony_assert(t->dispatch == NULL);
-  embeddable_fn(ctx)(ctx, p, t, m);
+  routed_fn(ctx)(ctx, p, t, m);
 }
 
 PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
@@ -143,7 +143,7 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
   if((sizeof(uintptr_t) >= 8) && (((uintptr_t)p >> 63) != 0))
     return;
 
-  // The compiler calls pony_traceknown_embeddable for these types.
+  // The compiler calls pony_traceknown_routed for these types.
   pony_assert((t->embed_flags & PONY_EMBED_ROUTED) == 0);
 
   if(t->dispatch != NULL)
@@ -163,7 +163,7 @@ PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m)
 
   pony_type_t* t = *(pony_type_t**)p;
 
-  // The compiler calls pony_traceunknown_embeddable where one of these types
+  // The compiler calls pony_traceunknown_routed where one of these types
   // can be traced.
   pony_assert((t->embed_flags & PONY_EMBED_ROUTED) == 0);
 
@@ -175,7 +175,7 @@ PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m)
   }
 }
 
-PONY_API void pony_traceunknown_embeddable(pony_ctx_t* ctx, void* p, int m)
+PONY_API void pony_traceunknown_routed(pony_ctx_t* ctx, void* p, int m)
 {
   // Tagged pointers have bit 63 set. They encode a machine word directly
   // in the pointer and have no heap allocation to trace.
@@ -188,7 +188,7 @@ PONY_API void pony_traceunknown_embeddable(pony_ctx_t* ctx, void* p, int m)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
   } else if((t->embed_flags & PONY_EMBED_ROUTED) != 0) {
-    embeddable_fn(ctx)(ctx, p, t, m);
+    routed_fn(ctx)(ctx, p, t, m);
   } else {
     ctx->trace_object(ctx, p, t, m);
   }

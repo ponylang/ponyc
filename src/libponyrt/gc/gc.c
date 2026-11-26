@@ -11,10 +11,10 @@
 #include <stdlib.h>
 #endif
 
-// The object functions below take embeddable: whether the type can share
+// The object functions below take routed: whether the type can share
 // memory with other objects (PONY_EMBED_ROUTED). Every caller passes a
 // constant, and inlining each call drops the checks that the constant rules
-// out, so the plain and embeddable dispatchers each get their own version.
+// out, so the plain and routed dispatchers each get their own version.
 #ifdef _MSC_VER
 #  define GC_INLINE __forceinline
 #else
@@ -346,7 +346,7 @@ static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
 }
 
 static GC_INLINE void send_local_object(pony_ctx_t* ctx, void* p,
-  pony_type_t* t, int mutability, bool embeddable)
+  pony_type_t* t, int mutability, bool routed)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   object_t* obj = ponyint_objectmap_getorput(&gc->local, p, t);
@@ -354,7 +354,7 @@ static GC_INLINE void send_local_object(pony_ctx_t* ctx, void* p,
 
   if(visit == VISIT_SKIP)
   {
-    if(!embeddable || !retrace_enclosing(obj, t, mutability))
+    if(!routed || !retrace_enclosing(obj, t, mutability))
       return;
   } else {
     if(visit == VISIT_FIRST)
@@ -364,7 +364,7 @@ static GC_INLINE void send_local_object(pony_ctx_t* ctx, void* p,
       obj->rc++;
     }
 
-    if(embeddable)
+    if(routed)
       note_traced_type(obj, t, mutability);
   }
 
@@ -379,7 +379,7 @@ static GC_INLINE void send_local_object(pony_ctx_t* ctx, void* p,
 }
 
 static GC_INLINE void recv_local_object(pony_ctx_t* ctx, void* p,
-  pony_type_t* t, int mutability, bool embeddable)
+  pony_type_t* t, int mutability, bool routed)
 {
   // get the object
   size_t index = HASHMAP_UNKNOWN;
@@ -392,7 +392,7 @@ static GC_INLINE void recv_local_object(pony_ctx_t* ctx, void* p,
 
   if(visit == VISIT_SKIP)
   {
-    if(!embeddable || !retrace_enclosing(obj, t, mutability))
+    if(!routed || !retrace_enclosing(obj, t, mutability))
       return;
   } else {
     if(visit == VISIT_FIRST)
@@ -402,7 +402,7 @@ static GC_INLINE void recv_local_object(pony_ctx_t* ctx, void* p,
       obj->rc--;
     }
 
-    if(embeddable)
+    if(routed)
       note_traced_type(obj, t, mutability);
   }
 
@@ -447,7 +447,7 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 // objects embedded in it. A struct that starts with an embedded field shares
 // its start with that field, so it can find the mark already set by the
 // field's visit.
-static void mark_local_object_embed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
+static void mark_local_object_routed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
   pony_type_t* t, int mutability)
 {
   // Every mark of this actor runs the actor's own trace, which traces its
@@ -494,7 +494,7 @@ static void mark_local_object_embed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 }
 
 static GC_INLINE void send_remote_object(pony_ctx_t* ctx,
-  pony_actor_t* actor, void* p, pony_type_t* t, int mutability, bool embeddable)
+  pony_actor_t* actor, void* p, pony_type_t* t, int mutability, bool routed)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor);
@@ -518,11 +518,11 @@ static GC_INLINE void send_remote_object(pony_ctx_t* ctx,
 
   if(visit == VISIT_SKIP)
   {
-    if(!embeddable || !retrace_enclosing(obj, t, mutability))
+    if(!routed || !retrace_enclosing(obj, t, mutability))
       return;
 
     update_pending_type(ctx, actor, obj);
-  } else if(embeddable) {
+  } else if(routed) {
     note_traced_type(obj, t, mutability);
   }
 
@@ -571,7 +571,7 @@ static GC_INLINE void send_remote_object(pony_ctx_t* ctx,
 
 static GC_INLINE void recv_remote_object(pony_ctx_t* ctx,
   pony_actor_t* actor, void* p, pony_type_t* t, int mutability, chunk_t* chunk,
-  bool embeddable)
+  bool routed)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor);
@@ -610,9 +610,9 @@ static GC_INLINE void recv_remote_object(pony_ctx_t* ctx,
 
   if(visit == VISIT_SKIP)
   {
-    if(!embeddable || !retrace_enclosing(obj, t, mutability))
+    if(!routed || !retrace_enclosing(obj, t, mutability))
       return;
-  } else if(embeddable) {
+  } else if(routed) {
     note_traced_type(obj, t, mutability);
   }
 
@@ -625,7 +625,7 @@ static GC_INLINE void recv_remote_object(pony_ctx_t* ctx,
     {
       // Increase apparent used memory to provoke GC.
       ponyint_heap_used(ponyint_actor_heap(ctx->current),
-        embeddable ? foreign_size(chunk, t) : ponyint_heap_size(chunk));
+        routed ? foreign_size(chunk, t) : ponyint_heap_size(chunk));
 
       if(mutability == PONY_TRACE_IMMUTABLE && !might_reference_actor(t))
         ponyint_heap_used(ponyint_actor_heap(ctx->current),
@@ -652,7 +652,7 @@ static GC_INLINE void recv_remote_object(pony_ctx_t* ctx,
 
 static GC_INLINE void mark_remote_object(pony_ctx_t* ctx,
   pony_actor_t* actor, void* p, pony_type_t* t, int mutability, chunk_t* chunk,
-  bool embeddable)
+  bool routed)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor);
@@ -676,11 +676,11 @@ static GC_INLINE void mark_remote_object(pony_ctx_t* ctx,
 
   if(visit == VISIT_SKIP)
   {
-    if(!embeddable || !retrace_enclosing(obj, t, mutability))
+    if(!routed || !retrace_enclosing(obj, t, mutability))
       return;
 
     update_pending_type(ctx, actor, obj);
-  } else if(embeddable) {
+  } else if(routed) {
     note_traced_type(obj, t, mutability);
   }
 
@@ -688,7 +688,7 @@ static GC_INLINE void mark_remote_object(pony_ctx_t* ctx,
   {
     // Increase apparent used memory to provoke GC.
     ponyint_heap_used(ponyint_actor_heap(ctx->current),
-      embeddable ? foreign_size(chunk, t) : ponyint_heap_size(chunk));
+      routed ? foreign_size(chunk, t) : ponyint_heap_size(chunk));
 
     // Implicitly mark the owner.
     mark_remote_actor(ctx, gc, aref);
@@ -747,7 +747,7 @@ static pony_actor_t* actor_containing(void* p, pony_type_t* t)
 // other objects, and the heap chunk the object is in, if any. False if no
 // actor owns it: such memory isn't collected, and for a readable visit the
 // object is queued for tracing what it references, unless it is a constant.
-static GC_INLINE bool embeddable_owner(pony_ctx_t* ctx, void* p,
+static GC_INLINE bool routed_owner(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int* mutability, pony_actor_t** actor, chunk_t** chunk)
 {
   // An object with no size can share its address with another object. A
@@ -796,13 +796,13 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
     send_remote_object(ctx, actor, p, t, mutability, false);
 }
 
-void ponyint_gc_sendembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
+void ponyint_gc_sendrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
   pony_actor_t* actor;
   chunk_t* chunk;
 
-  if(!embeddable_owner(ctx, p, t, &mutability, &actor, &chunk))
+  if(!routed_owner(ctx, p, t, &mutability, &actor, &chunk))
     return;
 
   if(actor == ctx->current)
@@ -832,13 +832,13 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
     recv_remote_object(ctx, actor, p, t, mutability, chunk, false);
 }
 
-void ponyint_gc_recvembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
+void ponyint_gc_recvrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
   pony_actor_t* actor;
   chunk_t* chunk;
 
-  if(!embeddable_owner(ctx, p, t, &mutability, &actor, &chunk))
+  if(!routed_owner(ctx, p, t, &mutability, &actor, &chunk))
     return;
 
   if(actor == ctx->current)
@@ -868,17 +868,17 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
     mark_remote_object(ctx, actor, p, t, mutability, chunk, false);
 }
 
-void ponyint_gc_markembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
+void ponyint_gc_markrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
   pony_actor_t* actor;
   chunk_t* chunk;
 
-  if(!embeddable_owner(ctx, p, t, &mutability, &actor, &chunk))
+  if(!routed_owner(ctx, p, t, &mutability, &actor, &chunk))
     return;
 
   if(actor == ctx->current)
-    mark_local_object_embed(ctx, chunk, p, t, mutability);
+    mark_local_object_routed(ctx, chunk, p, t, mutability);
   else
     mark_remote_object(ctx, actor, p, t, mutability, chunk, true);
 }
@@ -956,7 +956,7 @@ void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
     chunk_t* chunk = ponyint_pagemap_get_chunk(obj->address);
 
     if((obj->type->embed_flags & PONY_EMBED_ROUTED) != 0)
-      mark_local_object_embed(ctx, chunk, obj->address, obj->type,
+      mark_local_object_routed(ctx, chunk, obj->address, obj->type,
         PONY_TRACE_IMMUTABLE);
     else
       mark_local_object(ctx, chunk, obj->address, obj->type,
