@@ -138,8 +138,6 @@ TEST_F(CodegenEmbedTest, ZeroSizeFieldBeforeTheFirstRealField)
   ASSERT_EQ(t, gentype_first_embed(compile, s));
 
   ASSERT_NE(0, flags_of("S") & PONY_EMBED_ROUTED);
-  ASSERT_NE(0, flags_of("T") & PONY_EMBED_AT_START);
-  ASSERT_NE(0, flags_of("Z") & PONY_EMBED_AT_START);
 }
 
 // Each reification is its own type: embedding one doesn't route another.

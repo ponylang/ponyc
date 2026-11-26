@@ -835,11 +835,6 @@ static void compute_embed_flags(compile_t* c)
 
       if(t->underlying == TK_ACTOR)
         c_t->embed_flags |= PONY_EMBED_ACTOR_LOOKUP;
-
-      // Embedded at a struct's start: shares the struct's address.
-      if((t->underlying == TK_STRUCT) &&
-        (LLVMOffsetOfElement(c->target_data, c_t->structure, f) == 0))
-        f_c_t->embed_flags |= PONY_EMBED_AT_START;
     }
 
     if(t->underlying == TK_ACTOR)

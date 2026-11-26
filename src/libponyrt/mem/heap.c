@@ -1050,7 +1050,7 @@ void ponyint_heap_mark_slots(chunk_t* chunk, uint32_t slots, bool shallow)
   }
 }
 
-heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool claim)
+heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
 {
   maybe_clear_chunk(chunk);
 
@@ -1075,12 +1075,6 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool claim)
     if(marked)
       return HEAP_MARK_MARKED;
 
-    if(!claim)
-    {
-      chunk->small.shallow &= ~slot;
-      return HEAP_MARK_UNCLAIMED;
-    }
-
     chunk->small.slots &= ~slot;
     return HEAP_MARK_NEW;
   }
@@ -1099,12 +1093,6 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool claim)
 
   if(marked)
     return HEAP_MARK_MARKED;
-
-  if(!claim)
-  {
-    set_large_chunk_shallow(chunk, 0);
-    return HEAP_MARK_UNCLAIMED;
-  }
 
   set_large_chunk_slot(chunk, 0);
   return HEAP_MARK_NEW;

@@ -107,17 +107,12 @@ typedef void (*pony_final_fn)(void* p);
  * with an embedded field with a non-zero size. Traces of it go through
  * pony_traceknown_embeddable or pony_traceunknown_embeddable.
  * PONY_EMBED_IN_ACTOR: an object of the type can be inside an actor.
- * PONY_EMBED_AT_START: an object of the type can share its address with an
- * enclosing struct (it is embedded at a struct's start). An embedded object
- * with no size shares its holder's address wherever it is, with or without
- * this flag.
  * PONY_EMBED_ACTOR_LOOKUP: the type is an actor with an embedded field, so the
  * runtime must be able to find the actor from the address of that field.
  */
 #define PONY_EMBED_ROUTED 0x01
 #define PONY_EMBED_IN_ACTOR 0x02
-#define PONY_EMBED_AT_START 0x04
-#define PONY_EMBED_ACTOR_LOOKUP 0x08
+#define PONY_EMBED_ACTOR_LOOKUP 0x04
 
 /// Describes a type to the runtime.
 typedef const struct _pony_type_t

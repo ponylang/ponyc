@@ -79,7 +79,7 @@ protected:
     // object that holds it.
     zero_type.size = 0;
     zero_type.might_reference_actor = true;
-    zero_type.embed_flags = PONY_EMBED_ROUTED | PONY_EMBED_AT_START;
+    zero_type.embed_flags = PONY_EMBED_ROUTED;
     ponyint_heap_init(&a.heap);
     ponyint_heap_init(&b.heap);
     ponyint_gc_done(&a.gc);
@@ -90,7 +90,7 @@ protected:
     c_type.trace = trace_c;
     c_type.might_reference_actor = true;
     // C is embedded at the start of S.
-    c_type.embed_flags = PONY_EMBED_ROUTED | PONY_EMBED_AT_START;
+    c_type.embed_flags = PONY_EMBED_ROUTED;
     s_type.size = sizeof(S);
     s_type.trace = trace_s;
     s_type.instance = &c_type;
@@ -187,8 +187,7 @@ protected:
 };
 }
 
-// Whichever type the mark visits first, the struct's own trace runs once:
-// only the struct claims the allocation's mark.
+// Whichever type the mark visits first, the struct's own trace runs once.
 TEST_F(GcSharedAddress, MarkTracesStructAfterItsFirstField)
 {
   for(bool c_first : {true, false})
@@ -219,14 +218,20 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
 
   start_local_mark(&a);
 
+  // Each struct is visited after its first field has marked the allocation,
+  // so each struct visit is recorded in the set.
   for(size_t round = 0; round < 2; round++)
   {
     for(size_t i = 0; i < count; i++)
+    {
       pony_traceknown_embeddable(ctx, objects[i], &c_type,
         PONY_TRACE_MUTABLE);
+      pony_traceknown_embeddable(ctx, objects[i], &s_type,
+        PONY_TRACE_MUTABLE);
+    }
 
     ponyint_gc_handlestack(ctx);
-    EXPECT_EQ(count, c_traced);
+    EXPECT_EQ(count, s_traced);
   }
 
   EXPECT_GE(ctx->visits.capacity, count * 2);
@@ -235,6 +240,7 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
 
   start_local_mark(&a);
   pony_traceknown_embeddable(ctx, objects[0], &c_type, PONY_TRACE_MUTABLE);
+  pony_traceknown_embeddable(ctx, objects[0], &s_type, PONY_TRACE_MUTABLE);
   ponyint_gc_handlestack(ctx);
   end_local_mark(&a);
   EXPECT_EQ(0u, ctx->visits.capacity);
@@ -399,7 +405,7 @@ TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
 #endif
     );
   EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST,
-    ponyint_heap_mark_object(chunk, p + 16, true));
+    ponyint_heap_mark_object(chunk, p + 16));
   ponyint_heap_endgc(&actor.heap, 0
 #ifdef USE_RUNTIMESTATS
     , &actor
@@ -433,15 +439,13 @@ TEST(HeapMarkObject, ReportsInteriorPointers)
 #endif
       );
     EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST,
-      ponyint_heap_mark_object(chunk, p + 16, true));
+      ponyint_heap_mark_object(chunk, p + 16));
     EXPECT_EQ(HEAP_MARK_INTERIOR,
-      ponyint_heap_mark_object(chunk, p + 16, true));
-    EXPECT_EQ(HEAP_MARK_UNCLAIMED, ponyint_heap_mark_object(chunk, p, false));
-    EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p, true));
-    EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p, true));
-    EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p, false));
+      ponyint_heap_mark_object(chunk, p + 16));
+    EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p));
+    EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p));
     EXPECT_EQ(HEAP_MARK_COVERED,
-      ponyint_heap_mark_object(chunk, p + 16, true));
+      ponyint_heap_mark_object(chunk, p + 16));
     ponyint_heap_endgc(&actor.heap, 0
 #ifdef USE_RUNTIMESTATS
       , &actor

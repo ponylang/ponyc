@@ -442,10 +442,11 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 }
 
 // A visit to a type that can share memory with other objects, in this actor's
-// own heap or its own allocation (no chunk). An allocation's mark means the
+// own heap or its own allocation (no chunk). An allocation's mark means an
 // object that starts the allocation has been traced, and that trace covers the
-// objects embedded in it. Only a type that can't share the allocation's start
-// with an enclosing struct claims the mark.
+// objects embedded in it. A struct that starts with an embedded field shares
+// its start with that field, so it can find the mark already set by the
+// field's visit.
 static void mark_local_object_embed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
   pony_type_t* t, int mutability)
 {
@@ -462,15 +463,19 @@ static void mark_local_object_embed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
     return;
   }
 
-  bool claim = (t->embed_flags & PONY_EMBED_AT_START) == 0;
-
-  switch(ponyint_heap_mark_object(chunk, p, claim))
+  switch(ponyint_heap_mark_object(chunk, p))
   {
     case HEAP_MARK_NEW:
       recurse(ctx, p, t->trace);
       return;
 
     case HEAP_MARK_MARKED:
+      // A struct's instance slot holds the type of the field at its start.
+      // Whichever was traced first, the struct's own trace still has to run.
+      if(t->instance == NULL)
+        return;
+      break;
+
     case HEAP_MARK_COVERED:
       return;
 
@@ -482,7 +487,6 @@ static void mark_local_object_embed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
       return;
 
     case HEAP_MARK_INTERIOR:
-    case HEAP_MARK_UNCLAIMED:
       break;
   }
 
