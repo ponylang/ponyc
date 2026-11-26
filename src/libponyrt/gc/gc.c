@@ -9,6 +9,10 @@
 #ifdef PLATFORM_IS_WINDOWS
 #  include <windows.h>
 #endif
+#ifdef PLATFORM_IS_MACOSX
+#  include <mach-o/ldsyms.h>
+#  include <mach-o/loader.h>
+#endif
 #ifdef USE_SYSTEMATIC_TESTING
 #include <stdlib.h>
 #endif
@@ -152,6 +156,46 @@ static char* program_image_end()
 
   return image_end;
 }
+#elif defined(PLATFORM_IS_MACOSX)
+// The executable's segments, other than the unmapped page zero, give the
+// image's bounds; the loader slides them all by the same amount.
+static char* image_start;
+static char* image_end;
+
+static void program_image_bounds()
+{
+  const struct mach_header_64* mh = &_mh_execute_header;
+  const struct load_command* lc = (const struct load_command*)(mh + 1);
+  uintptr_t slide = 0;
+  uintptr_t lo = UINTPTR_MAX;
+  uintptr_t hi = 0;
+
+  for(uint32_t i = 0; i < mh->ncmds; i++)
+  {
+    if(lc->cmd == LC_SEGMENT_64)
+    {
+      const struct segment_command_64* seg =
+        (const struct segment_command_64*)lc;
+
+      if(strcmp(seg->segname, SEG_TEXT) == 0)
+        slide = (uintptr_t)mh - (uintptr_t)seg->vmaddr;
+
+      if((strcmp(seg->segname, SEG_PAGEZERO) != 0) && (seg->vmsize != 0))
+      {
+        if(seg->vmaddr < lo)
+          lo = (uintptr_t)seg->vmaddr;
+
+        if((seg->vmaddr + seg->vmsize) > hi)
+          hi = (uintptr_t)(seg->vmaddr + seg->vmsize);
+      }
+    }
+
+    lc = (const struct load_command*)((const char*)lc + lc->cmdsize);
+  }
+
+  image_start = (char*)(lo + slide);
+  image_end = (char*)(hi + slide);
+}
 #endif
 
 // Objects in the program image are constants the compiler emitted, such as
@@ -163,6 +207,11 @@ static bool in_program_image(void* p)
   return ((char*)p >= __executable_start) && ((char*)p < _end);
 #elif defined(PLATFORM_IS_WINDOWS)
   return ((char*)p >= (char*)&__ImageBase) && ((char*)p < program_image_end());
+#elif defined(PLATFORM_IS_MACOSX)
+  if(image_end == NULL)
+    program_image_bounds();
+
+  return ((char*)p >= image_start) && ((char*)p < image_end);
 #else
   (void)p;
   return false;
