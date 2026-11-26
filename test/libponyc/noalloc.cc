@@ -315,12 +315,15 @@ TEST_F(NoAllocVirtualCallTest, NoAllocCallsNonNoAllocBeInterfaceError)
 static void noalloc_diag_handler(const llvm::DiagnosticInfo *DI, void *context)
 {
   if(DI->getSeverity() == llvm::DS_Error)
-    *static_cast<bool*>(context) = true;
+    (*static_cast<size_t*>(context))++;
 }
 
 class NoAllocLTOTest : public PassTest
 {
 protected:
+  // Number of allocation violations the last run_noalloc_check diagnosed.
+  size_t error_count = 0;
+
   // Run NoAllocCheck on the in-memory module. Returns true if any allocation
   // violation was diagnosed (i.e., the pass emitted a DS_Error).
   bool run_noalloc_check()
@@ -333,9 +336,9 @@ protected:
         function.setLinkage(llvm::GlobalValue::ExternalLinkage);
     }
 
-    bool had_error = false;
+    error_count = 0;
     auto &ctx = module->getContext();
-    ctx.setDiagnosticHandlerCallBack(noalloc_diag_handler, &had_error);
+    ctx.setDiagnosticHandlerCallBack(noalloc_diag_handler, &error_count);
 
     EXPECT_TRUE(pony_specific_opt(compile));
 
@@ -364,7 +367,7 @@ protected:
 
     ctx.setDiagnosticHandlerCallBack(nullptr, nullptr);
 
-    return had_error;
+    return error_count > 0;
   }
 };
 
@@ -398,6 +401,55 @@ TEST_F(NoAllocLTOTest, NoAllocWithAllocationFails)
   opt.release = true;
   TEST_COMPILE(src);
   ASSERT_TRUE(run_noalloc_check());
+}
+
+TEST_F(NoAllocLTOTest, NoAllocMatchingUnannotatedBodyFails)
+{
+  // A.make and Z.make have the same body, and only Z.make is \noalloc\.
+  // The allocation in Z.make must still be reported when ponyc merges
+  // identical functions. MergeFunctions keeps the body of the function whose
+  // name sorts first, so the unannotated class must sort before the annotated
+  // one for this test to cover a \noalloc\ function merging into an
+  // unannotated one.
+  const char* src =
+    "class A\n"
+    "  fun make(): String =>\n"
+    "    String\n"
+    "\n"
+    "class Z\n"
+    "  fun \\noalloc\\ make(): String =>\n"
+    "    String\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    A.make()\n"
+    "    Z.make()";
+
+  opt.release = true;
+  TEST_COMPILE(src);
+  ASSERT_TRUE(run_noalloc_check());
+}
+
+TEST_F(NoAllocLTOTest, NoAllocCallingAllocatingNoAllocReportsCalleeOnly)
+{
+  // A \noalloc\ caller trusts a \noalloc\ callee, so the callee's allocation
+  // is reported once, against the callee.
+  const char* src =
+    "class C\n"
+    "  fun \\noalloc\\ make(): String =>\n"
+    "    String\n"
+    "\n"
+    "  fun \\noalloc\\ wrap(): String =>\n"
+    "    make()\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    C.wrap()";
+
+  opt.release = true;
+  TEST_COMPILE(src);
+  ASSERT_TRUE(run_noalloc_check());
+  ASSERT_EQ(1u, error_count);
 }
 
 TEST_F(NoAllocLTOTest, NoAllocTransitiveAllocationFails)

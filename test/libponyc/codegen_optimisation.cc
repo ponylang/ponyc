@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
+#include <algorithm>
 #include <vector>
 
 #include <codegen/genopt.h>
@@ -422,4 +423,98 @@ TEST_F(CodegenOptimisationTest, MutationBuildEmitsLoopPolls)
 {
   opt.mutate = true;
   check_loop_polls();
+}
+
+
+TEST_F(CodegenOptimisationTest, IdenticalInstantiationsShareOneBody)
+{
+  // Every reified Holder.get (each type argument, each receiver capability)
+  // loads a pointer field, so they all compile to the same instructions.
+  // After optimisation, one of them keeps the body and the others only call
+  // it.
+  const char* src =
+    "class Foo\n"
+    "class Bar\n"
+
+    "class Holder[A: Any val]\n"
+    "  let _a: A\n"
+    "  new create(a: A) => _a = a\n"
+    "  fun \\noinline\\ get(): A => _a\n"
+
+    "actor Main\n"
+    "  var foo: Foo val = Foo\n"
+    "  var bar: Bar val = Bar\n"
+    "  new create(env: Env) =>\n"
+    "    foo = Holder[Foo val](Foo).get()\n"
+    "    bar = Holder[Bar val](Bar).get()";
+
+  opt.release = true;
+
+  TEST_COMPILE(src);
+  DO(optimise());
+
+  std::vector<llvm::Function*> getters;
+  for(auto& fn : *llvm::unwrap(compile->module))
+    if(!fn.isDeclaration() && fn.getName().starts_with("Holder_") &&
+      fn.getName().contains("_get_"))
+      getters.push_back(&fn);
+  ASSERT_LE(2u, getters.size());
+
+  auto is_getter = [&](llvm::Function* f)
+  {
+    return std::find(getters.begin(), getters.end(), f) != getters.end();
+  };
+
+  size_t forwarding = 0;
+  for(auto* fn : getters)
+  {
+    bool calls_getter = false;
+    for(auto& block : *fn)
+      for(auto& inst : block)
+        if(auto* call = llvm::dyn_cast<llvm::CallBase>(&inst))
+          calls_getter |= is_getter(call->getCalledFunction());
+    if(calls_getter)
+      forwarding++;
+  }
+  EXPECT_EQ(getters.size() - 1, forwarding);
+}
+
+
+TEST_F(CodegenOptimisationTest, IdenticalInstantiationsKeptSeparateInDebug)
+{
+  // Debug builds keep every reified Holder.get as its own function.
+  const char* src =
+    "class Foo\n"
+    "class Bar\n"
+
+    "class Holder[A: Any val]\n"
+    "  let _a: A\n"
+    "  new create(a: A) => _a = a\n"
+    "  fun \\noinline\\ get(): A => _a\n"
+
+    "actor Main\n"
+    "  var foo: Foo val = Foo\n"
+    "  var bar: Bar val = Bar\n"
+    "  new create(env: Env) =>\n"
+    "    foo = Holder[Foo val](Foo).get()\n"
+    "    bar = Holder[Bar val](Bar).get()";
+
+  opt.release = false;
+
+  TEST_COMPILE(src);
+  DO(optimise());
+
+  std::vector<llvm::Function*> getters;
+  for(auto& fn : *llvm::unwrap(compile->module))
+    if(!fn.isDeclaration() && fn.getName().starts_with("Holder_") &&
+      fn.getName().contains("_get_"))
+      getters.push_back(&fn);
+  ASSERT_LE(2u, getters.size());
+
+  for(auto* fn : getters)
+    for(auto& block : *fn)
+      for(auto& inst : block)
+        if(auto* call = llvm::dyn_cast<llvm::CallBase>(&inst))
+          EXPECT_EQ(getters.end(), std::find(getters.begin(), getters.end(),
+            call->getCalledFunction()));
 }

@@ -121,7 +121,7 @@ static bool check_function(Function &F,
         return true;
       }
 
-      if(callee->getMetadata("pony.noalloc") != nullptr)
+      if(callee->hasFnAttribute("pony.noalloc"))
         continue;
 
       if(check_function(*callee, cache, found))
@@ -149,7 +149,7 @@ PreservedAnalyses NoAllocCheck::run(Module &M, ModuleAnalysisManager &)
     if(F.isDeclaration())
       continue;
 
-    if(F.getMetadata("pony.noalloc") == nullptr)
+    if(!F.hasFnAttribute("pony.noalloc"))
       continue;
 
     AllocInfo found = {};
