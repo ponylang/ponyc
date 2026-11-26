@@ -14,6 +14,7 @@
 #include <llvm/Analysis/CGSCCPassManager.h>
 #include <llvm/Analysis/Lint.h>
 #include <llvm/Transforms/IPO/Inliner.h>
+#include <llvm/Transforms/IPO/MergeFunctions.h>
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar/SROA.h>
 #include <llvm/Transforms/Utils/ModuleUtils.h>
@@ -620,6 +621,11 @@ static bool pony_opt_module(compile_t* c, LLVMModuleRef module,
       pony_fn.addPass(DispatchPonyCtx());
       pony_fn.addPass(MergeMessageSend(c));
       MPM.addPass(createModuleToFunctionPassAdaptor(std::move(pony_fn)));
+
+      // Instantiations of a generic often compile to identical bodies. Keeping
+      // one body for each group of identical functions shrinks the bitcode the
+      // linker has to process.
+      MPM.addPass(MergeFunctionsPass());
     }
 
     if(c->opt->lint_llvm)

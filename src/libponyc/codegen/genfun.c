@@ -346,13 +346,17 @@ static void make_prototype(compile_t* c, reach_type_t* t,
 
   if(ast_has_annotation(m->fun->ast, "noalloc", c->opt->strtab))
   {
-    LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
     LLVMValueRef target = c_m->func;
 
     if(c_m->func_handler != NULL)
       target = c_m->func_handler;
 
-    LLVMSetMetadataStr(target, "pony.noalloc", md);
+    // A function attribute rather than metadata: MergeFunctions compares
+    // attributes but ignores metadata, so a \noalloc\ function never merges
+    // with an unannotated one.
+    LLVMAttributeRef attr = LLVMCreateStringAttribute(c->context,
+      "pony.noalloc", sizeof("pony.noalloc") - 1, "", 0);
+    LLVMAddAttributeAtIndex(target, LLVMAttributeFunctionIndex, attr);
   }
 
   compile_type_t* c_t = (compile_type_t*)t->c_type;
