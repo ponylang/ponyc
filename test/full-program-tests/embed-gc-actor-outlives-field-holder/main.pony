@@ -11,7 +11,7 @@ actor Donor
     k.take(c)
 
 actor Filler
-  // Same layout as Donor, so a freed Donor is reused by a Filler.
+  // Same layout as Donor, so a Filler can reuse a freed Donor's memory.
   embed c: C val = C(0x1111)
   new create() => None
 

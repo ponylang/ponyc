@@ -257,6 +257,10 @@ static LLVMValueRef make_first_embed(compile_t* c, reach_type_t* t)
   return codegen_resolve_global(c, ((compile_type_t*)f->c_type)->desc);
 }
 
+// The runtime's retrace of a struct that shares its address with its first
+// embedded field gives a sender and receiver the same counts only while
+// every type that can be retraced says it might reference an actor (see
+// retrace_enclosing in gc.c).
 static LLVMValueRef make_might_reference_actor(compile_t* c, reach_type_t* t)
 {
   (void)t;

@@ -118,6 +118,10 @@ void ponyint_image_init(void)
 
 #elif defined(__ELF__)
 
+#ifndef PT_GNU_RELRO
+#  define PT_GNU_RELRO 0x6474e552
+#endif
+
 typedef struct image_bounds_t
 {
   uintptr_t self;
@@ -138,17 +142,16 @@ static int find_image(struct dl_phdr_info* info, size_t size, void* data)
   uintptr_t relro_end = 0;
   bool contains = false;
 
-  for(ElfW(Half) i = 0; i < info->dlpi_phnum; i++)
+  for(size_t i = 0; i < info->dlpi_phnum; i++)
   {
-    const ElfW(Phdr)* ph = &info->dlpi_phdr[i];
-    uintptr_t start = (uintptr_t)(info->dlpi_addr + ph->p_vaddr);
-    uintptr_t end = start + (uintptr_t)ph->p_memsz;
+    uintptr_t start = (uintptr_t)(info->dlpi_addr + info->dlpi_phdr[i].p_vaddr);
+    uintptr_t end = start + (uintptr_t)info->dlpi_phdr[i].p_memsz;
 
-    if(ph->p_type == PT_GNU_RELRO)
+    if(info->dlpi_phdr[i].p_type == PT_GNU_RELRO)
     {
       relro_start = start;
       relro_end = end;
-    } else if(ph->p_type == PT_LOAD) {
+    } else if(info->dlpi_phdr[i].p_type == PT_LOAD) {
       if((b->self >= start) && (b->self < end))
         contains = true;
 
@@ -165,15 +168,14 @@ static int find_image(struct dl_phdr_info* info, size_t size, void* data)
 
   uintptr_t ro_end = hi;
 
-  for(ElfW(Half) i = 0; i < info->dlpi_phnum; i++)
+  for(size_t i = 0; i < info->dlpi_phnum; i++)
   {
-    const ElfW(Phdr)* ph = &info->dlpi_phdr[i];
-
-    if((ph->p_type != PT_LOAD) || ((ph->p_flags & PF_W) == 0))
+    if((info->dlpi_phdr[i].p_type != PT_LOAD) ||
+      ((info->dlpi_phdr[i].p_flags & PF_W) == 0))
       continue;
 
-    uintptr_t start = (uintptr_t)(info->dlpi_addr + ph->p_vaddr);
-    uintptr_t end = start + (uintptr_t)ph->p_memsz;
+    uintptr_t start = (uintptr_t)(info->dlpi_addr + info->dlpi_phdr[i].p_vaddr);
+    uintptr_t end = start + (uintptr_t)info->dlpi_phdr[i].p_memsz;
 
     // The writable part of a segment that begins with the RELRO region
     // starts where that region ends.

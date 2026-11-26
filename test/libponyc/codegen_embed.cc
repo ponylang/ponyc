@@ -159,3 +159,30 @@ TEST_F(CodegenEmbedTest, OnlyTheEmbeddedReificationIsRouted)
   ASSERT_NE(0, flags_of("Array_U8_val") & PONY_EMBED_ROUTED);
   ASSERT_EQ(0, flags_of("Array_U16_val") & PONY_EMBED_ROUTED);
 }
+
+// A type embedded in an actor can be found inside one, and the actor must be
+// findable from the address of that field.
+TEST_F(CodegenEmbedTest, EmbeddedInAnActor)
+{
+  const char* src =
+    "class C\n"
+    "  var x: U64 = 0\n"
+
+    "class D\n"
+    "  var y: U64 = 0\n"
+
+    "class H\n"
+    "  embed d: D = D\n"
+
+    "actor Main\n"
+    "  embed c: C = C\n"
+    "  var _h: H = H\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+
+  ASSERT_NE(0, flags_of("C") & PONY_EMBED_IN_ACTOR);
+  ASSERT_NE(0, flags_of("Main") & PONY_EMBED_ACTOR_LOOKUP);
+  ASSERT_EQ(0, flags_of("D") & PONY_EMBED_IN_ACTOR);
+  ASSERT_EQ(0, flags_of("H") & PONY_EMBED_ACTOR_LOOKUP);
+}

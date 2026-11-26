@@ -139,7 +139,6 @@ static size_t foreign_size(chunk_t* chunk, pony_type_t* t)
   return t->size;
 }
 
-
 static void recurse(pony_ctx_t* ctx, void* p, void* f)
 {
   if(f != NULL)
@@ -226,9 +225,10 @@ static bool acquire_immutable(pony_ctx_t* ctx, pony_actor_t* actor,
 // encloses the type already traced there traces again with the enclosing
 // type. The sender and the receiver trace the same visits in the same order,
 // so both make the same choice, and every trace uses the type the visit names.
-// Every readable visit that isn't skipped traces the object's fields, because
-// make_might_reference_actor is true for every compiled type; the choice
-// stays the same on both sides only while that holds.
+// Both sides make the same choice only if every readable visit that isn't
+// skipped traces the object's fields, which requires every type that can be
+// retraced to say it might reference an actor (see make_might_reference_actor
+// in gendesc.c).
 static bool retrace_enclosing(object_t* obj, pony_type_t* t, int mutability)
 {
   if((mutability == PONY_TRACE_OPAQUE) || (obj->type == t) ||
@@ -729,10 +729,11 @@ static GC_INLINE void mark_remote_object(pony_ctx_t* ctx,
 // in pool memory except inside an actor: Pony objects are allocated on actor
 // heaps, whose chunks the pagemap finds first. An actor too large for a pool
 // arena isn't found, and its embedded objects are treated as memory no actor
-// owns.
+// owns. An object with no size has no memory to keep, and one at the end of
+// an actor has the address of the next allocation, so it isn't looked up.
 static pony_actor_t* actor_containing(void* p, pony_type_t* t)
 {
-  if((t->embed_flags & PONY_EMBED_IN_ACTOR) == 0)
+  if(((t->embed_flags & PONY_EMBED_IN_ACTOR) == 0) || (t->size == 0))
     return NULL;
 
   return ponyint_actor_containing(p);
@@ -852,8 +853,7 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   if(actor == ctx->current)
     mark_local_object(ctx, chunk, p, t, mutability);
   else
-    mark_remote_object(ctx, actor, p, t, mutability, chunk,
-      false);
+    mark_remote_object(ctx, actor, p, t, mutability, chunk, false);
 }
 
 void ponyint_gc_markembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -880,8 +880,7 @@ void ponyint_gc_markembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   if(actor == ctx->current)
     mark_local_object_embed(ctx, chunk, p, t, mutability);
   else
-    mark_remote_object(ctx, actor, p, t, mutability, chunk,
-      true);
+    mark_remote_object(ctx, actor, p, t, mutability, chunk, true);
 }
 
 void ponyint_gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -956,11 +955,12 @@ void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
   {
     chunk_t* chunk = ponyint_pagemap_get_chunk(obj->address);
 
-    // Immutable roots are marked through the plain path, so none may be of a
-    // type that shares memory with other objects.
-    pony_assert((obj->type->embed_flags & PONY_EMBED_ROUTED) == 0);
-    mark_local_object(ctx, chunk, obj->address, obj->type,
-      PONY_TRACE_IMMUTABLE);
+    if((obj->type->embed_flags & PONY_EMBED_ROUTED) != 0)
+      mark_local_object_embed(ctx, chunk, obj->address, obj->type,
+        PONY_TRACE_IMMUTABLE);
+    else
+      mark_local_object(ctx, chunk, obj->address, obj->type,
+        PONY_TRACE_IMMUTABLE);
   }
 }
 
