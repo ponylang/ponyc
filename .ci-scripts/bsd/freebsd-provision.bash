@@ -93,7 +93,7 @@ cat > "$VM_ARTIFACTS/install-deps.sh" <<'INSTALLDEPS'
 #!/bin/sh
 set -e
 install_packages() {
-  pkg install -y cmake gmake libunwind git python3 rsync doas valgrind
+  pkg install -y cmake-core gmake libunwind git python3 rsync doas valgrind
 }
 if ! install_packages; then
   echo "Package install failed; forcing catalogue update and retrying..."
