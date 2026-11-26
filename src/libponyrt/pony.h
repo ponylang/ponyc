@@ -103,9 +103,9 @@ typedef void (*pony_final_fn)(void* p);
 
 /** Facts the compiler records about how a type's objects can share memory.
  *
- * PONY_EMBED_ROUTED: the type is embedded somewhere, or is a struct whose first
- * field is embedded. Traces of it go through pony_traceknown_embeddable or
- * pony_traceunknown_embeddable.
+ * PONY_EMBED_ROUTED: the type is embedded somewhere, or is a struct that starts
+ * with an embedded field with a non-zero size. Traces of it go through
+ * pony_traceknown_embeddable or pony_traceunknown_embeddable.
  * PONY_EMBED_IN_ACTOR: an object of the type can be inside an actor.
  * PONY_EMBED_AT_START: an object of the type can share its address with an
  * enclosing struct (it is embedded at a struct's start). An embedded object
@@ -324,9 +324,9 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m);
 /** Trace a known type that can share memory with other objects.
  *
  * The compiler calls this instead of pony_traceknown for a type with
- * PONY_EMBED_ROUTED: a type embedded in another, or a struct whose first field
- * is embedded. The runtime then works out which allocation, actor, or enclosing
- * object the address belongs to.
+ * PONY_EMBED_ROUTED: a type embedded in another, or a struct that starts with
+ * an embedded field with a non-zero size. The runtime then works out which
+ * allocation, actor, or enclosing object the address belongs to.
  */
 PONY_API void pony_traceknown_embeddable(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int m);
