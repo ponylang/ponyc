@@ -208,6 +208,38 @@ TEST_F(GcSharedAddress, MarkTracesStructAfterItsFirstField)
   }
 }
 
+// A mark that records many visits grows the set that holds them and still
+// finds every one; a later mark that records few gives the storage back.
+TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
+{
+  const size_t count = 100;
+  S* objects[count];
+  for(size_t i = 0; i < count; i++)
+    objects[i] = alloc_s(&a);
+
+  start_local_mark(&a);
+
+  for(size_t round = 0; round < 2; round++)
+  {
+    for(size_t i = 0; i < count; i++)
+      pony_traceknown_embeddable(ctx, objects[i], &c_type,
+        PONY_TRACE_MUTABLE);
+
+    ponyint_gc_handlestack(ctx);
+    EXPECT_EQ(count, c_traced);
+  }
+
+  EXPECT_GE(ctx->views.capacity, count * 2);
+  end_local_mark(&a);
+  EXPECT_GE(ctx->views.capacity, count * 2);
+
+  start_local_mark(&a);
+  pony_traceknown_embeddable(ctx, objects[0], &c_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  end_local_mark(&a);
+  EXPECT_EQ(0u, ctx->views.capacity);
+}
+
 // Sending and receiving the same two views count the struct's field once on
 // each side, so the counts match.
 TEST_F(GcSharedAddress, SendAndReceiveCountStructFieldOnce)

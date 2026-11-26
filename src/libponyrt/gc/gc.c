@@ -240,7 +240,7 @@ static bool retrace_enclosing(object_t* obj, pony_type_t* t, int mutability)
   return true;
 }
 
-// The type a readable visit traces with this round.
+// Records the type a readable visit traces with this round.
 static void note_traced_type(object_t* obj, pony_type_t* t, int mutability)
 {
   if(mutability != PONY_TRACE_OPAQUE)
@@ -763,8 +763,8 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_sendembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  // An object with no size shares its address with whatever follows it, so a
-  // visit to it only keeps that memory.
+  // An object with no size can share its address with whatever follows it,
+  // so a visit to it never traces the fields of an object there.
   if(t->size == 0)
     mutability = PONY_TRACE_OPAQUE;
 
@@ -811,8 +811,8 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_recvembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  // An object with no size shares its address with whatever follows it, so a
-  // visit to it only keeps that memory.
+  // An object with no size can share its address with whatever follows it,
+  // so a visit to it never traces the fields of an object there.
   if(t->size == 0)
     mutability = PONY_TRACE_OPAQUE;
 
@@ -859,8 +859,8 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_markembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  // An object with no size shares its address with whatever follows it, so a
-  // visit to it only keeps that memory.
+  // An object with no size can share its address with whatever follows it,
+  // so a visit to it never traces the fields of an object there.
   if(t->size == 0)
     mutability = PONY_TRACE_OPAQUE;
 
