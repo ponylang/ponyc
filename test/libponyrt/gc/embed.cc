@@ -241,6 +241,55 @@ TEST_F(GcSharedAddress, SendAndReceiveCountStructFieldOnce)
   }
 }
 
+// An actor that gets its own object back in a message counts the struct's
+// field once, whichever view arrives first, so the counts return to zero.
+TEST_F(GcSharedAddress, ReceivingOwnObjectCountsStructFieldOnce)
+{
+  for(bool c_first : {true, false})
+  {
+    SCOPED_TRACE(c_first ? "C first" : "S first");
+    field_mutability = PONY_TRACE_IMMUTABLE;
+    S* s = alloc_s(&a);
+
+    ctx->current = &a;
+    pony_gc_send(ctx, &b);
+    visit(s, c_first, PONY_TRACE_IMMUTABLE);
+    end_epoch(&a);
+    ASSERT_NE(nullptr, local(&a, s->d));
+    ASSERT_EQ(1u, local(&a, s->d)->rc);
+
+    pony_gc_recv(ctx);
+    visit(s, c_first, PONY_TRACE_IMMUTABLE);
+    EXPECT_EQ(0u, local(&a, s->d)->rc);
+    EXPECT_EQ(0u, local(&a, s)->rc);
+    end_epoch(&a);
+  }
+}
+
+// A send that reaches another actor's object first through its embedded field
+// and then as the struct acquires it with the struct's descriptor.
+TEST_F(GcSharedAddress, SendPendingAcquireCarriesTheStructType)
+{
+  field_mutability = PONY_TRACE_IMMUTABLE;
+  S* s = alloc_s(&b);
+  actorref_t* aref = ponyint_actormap_getorput(&a.gc.foreign, &b);
+  aref->rc = GC_INC_MORE;
+  ponyint_actorref_getorput(aref, s, &c_type)->rc = 1;
+  ponyint_actorref_getorput(aref, s->d, &child_type)->rc = 1;
+
+  ctx->current = &a;
+  pony_gc_send(ctx, &b);
+  visit(s, true, PONY_TRACE_IMMUTABLE);
+
+  size_t index = HASHMAP_UNKNOWN;
+  actorref_t* pending = ponyint_actormap_getactor(&ctx->acquire, &b, &index);
+  ASSERT_NE(nullptr, pending);
+  object_t* obj = ponyint_actorref_getobject(pending, s);
+  ASSERT_NE(nullptr, obj);
+  EXPECT_EQ(&s_type, obj->type);
+  end_epoch(&a);
+}
+
 // An actor holding both views of another actor's object marks the struct's
 // field in every collection, including after an earlier collection recorded
 // the struct's type for the address.
@@ -537,4 +586,34 @@ TEST_F(GcEmbeddedInClass, UnknownTraceFollowsTheDescriptorFlag)
   ponyint_gc_handlestack(ctx);
   EXPECT_EQ(2u, b_traced);
   end_mark();
+}
+
+namespace
+{
+void dispatch_nothing(pony_ctx_t* ctx, pony_actor_t* self, pony_msg_t* msg)
+{
+  (void)ctx;
+  (void)self;
+  (void)msg;
+}
+}
+
+// An embedded field of an actor leads back to the actor.
+TEST(ActorContaining, FindsTheActorFromAnInteriorAddress)
+{
+  ponyint_register_thread();
+  _pony_type_t type{};
+  type.size = sizeof(pony_actor_t) + 64;
+  type.dispatch = dispatch_nothing;
+  type.embed_flags = PONY_EMBED_ACTOR_LOOKUP;
+  pony_actor_t* actor = pony_create(pony_ctx(), &type, true);
+
+  char* field = reinterpret_cast<char*>(actor) + sizeof(pony_actor_t) + 8;
+  EXPECT_EQ(actor, ponyint_actor_containing(field));
+
+  uint64_t local = 0;
+  EXPECT_EQ(nullptr, ponyint_actor_containing(&local));
+
+  ponyint_destroy(actor);
+  ponyint_unregister_thread();
 }
