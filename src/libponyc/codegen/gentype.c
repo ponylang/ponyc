@@ -540,6 +540,11 @@ static LLVMMetadataRef make_debug_field(compile_t* c, reach_type_t* t,
   uint64_t size = LLVMABISizeOfType(c->target_data, type);
   uint64_t align = LLVMABIAlignmentOfType(c->target_data, type);
 
+  // An embedded field with no size has the address of the object that holds
+  // it (see gentype_embed_ptr).
+  if(t->fields[i].embed && (size == 0))
+    offset = 0;
+
   return LLVMDIBuilderCreateMemberType(c->di, c->di_unit, name, strlen(name),
     c_t->di_file, (unsigned)ast_line(ast), 8 * size, (uint32_t)(8 * align),
     8 * offset, flags, di_type);
@@ -708,12 +713,12 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   {
     reach_field_t* f = &t->fields[i];
     compile_type_t* f_c_t = (compile_type_t*)f->type->c_type;
-    LLVMValueRef field = LLVMBuildStructGEP2(c->builder, structure, object,
-      i + extra, "");
 
     if(!f->embed)
     {
       // Call the trace function indirectly depending on rcaps.
+      LLVMValueRef field = LLVMBuildStructGEP2(c->builder, structure, object,
+        i + extra, "");
       field = LLVMBuildLoad2(c->builder, f_c_t->mem_type, field, "");
       ast_t* field_type = f->ast;
       field = gen_assign_cast(c, f_c_t->use_type, field, field_type);
@@ -728,7 +733,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
         LLVMTypeRef trace_fn_type = LLVMGlobalGetValueType(trace_fn);
         LLVMValueRef args[2];
         args[0] = ctx;
-        args[1] = field;
+        args[1] = gentype_embed_ptr(c, t, object, i);
 
         LLVMBuildCall2(c->builder, trace_fn_type, trace_fn, args, 2, "");
       }
@@ -768,8 +773,7 @@ LLVMValueRef gentype_embed_ptr(compile_t* c, reach_type_t* t,
   // A field with no size stores nothing, and its position can be the end of
   // the object, which is the address of whatever is allocated after it. Its
   // address is the object's, so it is always inside the object.
-  if((f->underlying == TK_STRUCT) && (f->field_count == 0) &&
-    (f_c_t->structure != NULL))
+  if(LLVMABISizeOfType(c->target_data, f_c_t->structure) == 0)
     return object;
 
   uint32_t base = 0;

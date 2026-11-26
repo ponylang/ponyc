@@ -75,8 +75,8 @@ protected:
     ctx->current = &a;
     a.type = &actor_type;
     b.type = &actor_type;
-    // An embedded struct with no fields, which shares its address with
-    // whatever follows it.
+    // An embedded struct with no size, which shares its address with the
+    // object that holds it.
     zero_type.size = 0;
     zero_type.might_reference_actor = true;
     zero_type.embed_flags = PONY_EMBED_ROUTED | PONY_EMBED_AT_START;
