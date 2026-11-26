@@ -7,6 +7,7 @@
 #include "../mem/pool.h"
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
+#include "../gc/image.h"
 #include "../lang/process.h"
 #include "../lang/socket.h"
 #include "../lang/stdfd.h"
@@ -415,6 +416,7 @@ PONY_API int pony_init(int argc, char** argv)
   opt.tracing_flight_recorder_handle_term_int = false;
   opt.pintracing = false;
 
+  ponyint_image_init();
   ponyint_register_thread();
 
   // Allow override via bare function on Main actor

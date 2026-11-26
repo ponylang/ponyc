@@ -1,0 +1,212 @@
+#include "image.h"
+
+#if defined(PLATFORM_IS_WINDOWS)
+#  include <windows.h>
+#elif defined(PLATFORM_IS_MACOSX)
+#  include <dlfcn.h>
+#  include <mach-o/loader.h>
+#  include <string.h>
+#elif defined(__ELF__)
+#  include <link.h>
+#endif
+
+PONY_EXTERN_C_BEGIN
+
+uintptr_t ponyint_image_ro_start;
+uintptr_t ponyint_image_ro_end;
+
+#if defined(PLATFORM_IS_WINDOWS)
+
+EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+
+// The image runs from its base up to the first writable section.
+void ponyint_image_init(void)
+{
+  uintptr_t base = (uintptr_t)&__ImageBase;
+  IMAGE_NT_HEADERS* nt = (IMAGE_NT_HEADERS*)(base + __ImageBase.e_lfanew);
+  IMAGE_SECTION_HEADER* sec = IMAGE_FIRST_SECTION(nt);
+  uintptr_t end = base + nt->OptionalHeader.SizeOfImage;
+
+  for(WORD i = 0; i < nt->FileHeader.NumberOfSections; i++)
+  {
+    uintptr_t start = base + sec[i].VirtualAddress;
+
+    if(((sec[i].Characteristics & IMAGE_SCN_MEM_WRITE) != 0) && (start < end))
+      end = start;
+  }
+
+  ponyint_image_ro_start = base;
+  ponyint_image_ro_end = end;
+}
+
+#elif defined(PLATFORM_IS_MACOSX)
+
+#ifndef SG_READ_ONLY
+#  define SG_READ_ONLY 0x10
+#endif
+
+// The image runs from its lowest mapped segment up to the first segment that
+// stays writable. The loader makes __DATA_CONST read-only once it has fixed
+// up the pointers in it. Every segment slides by the same amount.
+void ponyint_image_init(void)
+{
+  Dl_info info;
+
+  if((dladdr((void*)&ponyint_image_init, &info) == 0) ||
+    (info.dli_fbase == NULL))
+    return;
+
+  const struct mach_header_64* mh =
+    (const struct mach_header_64*)info.dli_fbase;
+  const struct load_command* lc = (const struct load_command*)(mh + 1);
+  uintptr_t slide = 0;
+  uintptr_t lo = UINTPTR_MAX;
+  uintptr_t hi = 0;
+  uintptr_t ro_end = UINTPTR_MAX;
+
+  for(uint32_t i = 0; i < mh->ncmds; i++)
+  {
+    if(lc->cmd == LC_SEGMENT_64)
+    {
+      const struct segment_command_64* seg =
+        (const struct segment_command_64*)lc;
+
+      if(strncmp(seg->segname, SEG_TEXT, sizeof(seg->segname)) == 0)
+        slide = (uintptr_t)mh - (uintptr_t)seg->vmaddr;
+    }
+
+    lc = (const struct load_command*)((const char*)lc + lc->cmdsize);
+  }
+
+  lc = (const struct load_command*)(mh + 1);
+
+  for(uint32_t i = 0; i < mh->ncmds; i++)
+  {
+    if(lc->cmd == LC_SEGMENT_64)
+    {
+      const struct segment_command_64* seg =
+        (const struct segment_command_64*)lc;
+
+      if((seg->vmsize != 0) && (seg->maxprot != VM_PROT_NONE))
+      {
+        uintptr_t start = (uintptr_t)seg->vmaddr + slide;
+        uintptr_t end = start + (uintptr_t)seg->vmsize;
+        bool read_only = ((seg->initprot & VM_PROT_WRITE) == 0) ||
+          ((seg->flags & SG_READ_ONLY) != 0) ||
+          (strncmp(seg->segname, "__DATA_CONST", sizeof(seg->segname)) == 0);
+
+        if(start < lo)
+          lo = start;
+
+        if(end > hi)
+          hi = end;
+
+        if(!read_only && (start < ro_end))
+          ro_end = start;
+      }
+    }
+
+    lc = (const struct load_command*)((const char*)lc + lc->cmdsize);
+  }
+
+  if(lo >= hi)
+    return;
+
+  ponyint_image_ro_start = lo;
+  ponyint_image_ro_end = (ro_end < hi) ? ro_end : hi;
+}
+
+#elif defined(__ELF__)
+
+typedef struct image_bounds_t
+{
+  uintptr_t self;
+  uintptr_t start;
+  uintptr_t end;
+} image_bounds_t;
+
+// The image runs from its lowest loaded segment up to the first memory that
+// stays writable. The loader makes the RELRO region read-only once it has
+// relocated the pointers in it.
+static int find_image(struct dl_phdr_info* info, size_t size, void* data)
+{
+  (void)size;
+  image_bounds_t* b = (image_bounds_t*)data;
+  uintptr_t lo = UINTPTR_MAX;
+  uintptr_t hi = 0;
+  uintptr_t relro_start = 0;
+  uintptr_t relro_end = 0;
+  bool contains = false;
+
+  for(ElfW(Half) i = 0; i < info->dlpi_phnum; i++)
+  {
+    const ElfW(Phdr)* ph = &info->dlpi_phdr[i];
+    uintptr_t start = (uintptr_t)(info->dlpi_addr + ph->p_vaddr);
+    uintptr_t end = start + (uintptr_t)ph->p_memsz;
+
+    if(ph->p_type == PT_GNU_RELRO)
+    {
+      relro_start = start;
+      relro_end = end;
+    } else if(ph->p_type == PT_LOAD) {
+      if((b->self >= start) && (b->self < end))
+        contains = true;
+
+      if(start < lo)
+        lo = start;
+
+      if(end > hi)
+        hi = end;
+    }
+  }
+
+  if(!contains)
+    return 0;
+
+  uintptr_t ro_end = hi;
+
+  for(ElfW(Half) i = 0; i < info->dlpi_phnum; i++)
+  {
+    const ElfW(Phdr)* ph = &info->dlpi_phdr[i];
+
+    if((ph->p_type != PT_LOAD) || ((ph->p_flags & PF_W) == 0))
+      continue;
+
+    uintptr_t start = (uintptr_t)(info->dlpi_addr + ph->p_vaddr);
+    uintptr_t end = start + (uintptr_t)ph->p_memsz;
+
+    // The writable part of a segment that begins with the RELRO region
+    // starts where that region ends.
+    if((start >= relro_start) && (start < relro_end))
+      start = relro_end;
+
+    if((start < end) && (start < ro_end))
+      ro_end = start;
+  }
+
+  b->start = lo;
+  b->end = ro_end;
+  return 1;
+}
+
+void ponyint_image_init(void)
+{
+  image_bounds_t b = {(uintptr_t)&ponyint_image_init, 0, 0};
+
+  if(dl_iterate_phdr(find_image, &b) == 0)
+    return;
+
+  ponyint_image_ro_start = b.start;
+  ponyint_image_ro_end = b.end;
+}
+
+#else
+
+// The bounds stay empty, so nothing counts as a constant.
+void ponyint_image_init(void)
+{
+}
+
+#endif
+
+PONY_EXTERN_C_END

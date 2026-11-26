@@ -9,6 +9,7 @@ add_executable(libponyrt.tests
     ds/list.cc
     gc/embed.cc
     gc/gc.cc
+    gc/image.cc
     gc/marklocal.cc
     lang/socket.cc
     mem/alloc.cc
