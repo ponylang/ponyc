@@ -13,6 +13,7 @@ add_executable(libponyc.tests
     cap_safety.cc
     chain.cc
     codegen.cc
+    codegen_embed.cc
     codegen_ffi.cc
     codegen_optimisation.cc
     cshim.cc

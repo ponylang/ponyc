@@ -1119,8 +1119,10 @@ static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
         LLVMPositionBuilderAtEnd(c->builder, tuple_block);
       }
 
-      // This is a boxed tuple. Trace the box, then handle the elements.
-      trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE, type);
+      // This is a boxed tuple. Trace the box, then handle the elements. The
+      // value may also be any other type the original allows, so route by
+      // that type, not by the tuple's.
+      trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE, orig);
 
       LLVMValueRef desc = gendesc_fetch(c, object);
       LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
