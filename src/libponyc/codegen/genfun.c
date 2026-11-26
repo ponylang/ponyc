@@ -5,6 +5,7 @@
 #include "gentrace.h"
 #include "gencontrol.h"
 #include "genexpr.h"
+#include "gengc.h"
 #include "genreference.h"
 #include "../pass/names.h"
 #include "../type/assemble.h"
@@ -543,6 +544,7 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m,
   codegen_startfun(c, func, c_m->di_file, c_m->di_method, m->fun,
     ast_id(cap) == TK_AT);
   c->frame->is_partial = c_m->is_partial;
+  c->frame->reach_method = m;
   name_params(c, t, m, func);
   bool collecting = func == c_m->gc_func;
   if(collecting)
@@ -553,6 +555,8 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m,
     c->frame->gc_parent = LLVMGetParam(func, n - 1);
     if(t->underlying != TK_ACTOR)
       c->frame->gc_receiver = set_cap_and_ephemeral(t->ast, m->cap, TK_NONE);
+
+    gengc_start_copy(c, m, body);
   }
 
   bool finaliser = c_m->func == c_t->final_fn;
@@ -593,6 +597,7 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m,
         if(ret == NULL)
           return false;
 
+        gengc_exit_poll(c, ret, body, NULL);
         codegen_scope_lifetime_end(c);
         codegen_debugloc(c, ast_childlast(body));
 
@@ -624,6 +629,7 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m,
         ast_free_unattached(body_type);
         ast_free_unattached(r_result);
 
+        gengc_exit_poll(c, ret, body, NULL);
         codegen_scope_lifetime_end(c);
         codegen_debugloc(c, ast_childlast(body));
 
@@ -708,6 +714,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   // Generate the handler.
   codegen_startfun(c, c_m->func_handler, c_m->di_file, c_m->di_method, m->fun,
     false);
+  c->frame->reach_method = m;
   name_params(c, t, m, c_m->func_handler);
   c->frame->gc_actor = LLVMGetParam(c_m->func_handler, 0);
 
@@ -757,6 +764,7 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
 
   codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun, false);
   c->frame->is_partial = c_m->is_partial;
+  c->frame->reach_method = m;
   name_params(c, t, m, c_m->func);
 
   LLVMValueRef value = gen_expr(c, body);
@@ -807,6 +815,7 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   // Generate the handler.
   codegen_startfun(c, c_m->func_handler, c_m->di_file, c_m->di_method, m->fun,
     false);
+  c->frame->reach_method = m;
   name_params(c, t, m, c_m->func_handler);
   if(t->field_count == 0)
     c->frame->gc_actor = LLVMGetParam(c_m->func_handler, 0);

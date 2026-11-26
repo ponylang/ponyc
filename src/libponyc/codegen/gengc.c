@@ -10,6 +10,7 @@
 #include <string.h>
 #include "../type/subtype.h"
 #include "../type/typealias.h"
+#include "../pass/expr.h"
 
 bool gengc_contains_pointer(LLVMTypeRef type)
 {
@@ -388,13 +389,46 @@ static bool traceable_slot(ast_t* type)
   }
 }
 
+typedef enum
+{
+  ROOT_NOT_NEEDED,
+  ROOT_NEEDED,
+  ROOT_UNTRACEABLE
+} root_need_t;
+
+// Whether a value of this type must be a root when a poll can collect.
+static root_need_t root_need(compile_t* c, ast_t* type)
+{
+  if(!traceable_slot(type))
+    return ROOT_UNTRACEABLE;
+  bool actor = ast_id(type) == TK_NOMINAL &&
+    ast_id((ast_t*)ast_data(type)) == TK_ACTOR;
+  if(actor || !gentrace_needed(c, type, type))
+    return ROOT_NOT_NEEDED;
+  return ROOT_NEEDED;
+}
+
+// A stack slot in the entry block of the function being generated.
+static LLVMValueRef entry_alloca(compile_t* c, LLVMTypeRef type,
+  const char* name)
+{
+  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
+  LLVMMetadataRef location = LLVMGetCurrentDebugLocation2(c->builder);
+  LLVMPositionBuilderBefore(c->builder,
+    LLVMGetFirstInstruction(LLVMGetEntryBasicBlock(codegen_fun(c))));
+  LLVMSetCurrentDebugLocation2(c->builder, NULL);
+  LLVMValueRef slot = LLVMBuildAlloca(c->builder, type, name);
+  LLVMPositionBuilderAtEnd(c->builder, block);
+  LLVMSetCurrentDebugLocation2(c->builder, location);
+  return slot;
+}
+
 static bool add_root(compile_t* c, root_site_t position, const char* name,
   ast_t* type, stack_root_t** roots)
 {
-  bool eligible = traceable_slot(type);
-  bool actor = ast_id(type) == TK_NOMINAL &&
-    ast_id((ast_t*)ast_data(type)) == TK_ACTOR;
-  if(eligible && !actor && gentrace_needed(c, type, type))
+  root_need_t need = root_need(c, type);
+  bool eligible = need != ROOT_UNTRACEABLE;
+  if(need == ROOT_NEEDED)
   {
     gc_use_t* use = get_use(position.liveness, name);
     LLVMValueRef slot = codegen_getlocal(c, name);
@@ -469,7 +503,8 @@ static bool pattern_roots(compile_t* c, root_site_t position, ast_t* pattern,
   return true;
 }
 
-static bool collect_roots(compile_t* c, ast_t* site, stack_root_t** roots)
+static bool collect_roots(compile_t* c, ast_t* site, bool loop_poll,
+  stack_root_t** roots)
 {
   compile_frame_t* f = c->frame->function;
   if(f->gc_actor == NULL)
@@ -483,7 +518,7 @@ static bool collect_roots(compile_t* c, ast_t* site, stack_root_t** roots)
     return false;
   if(ast_has_annotation(method, "noalloc", c->opt->strtab))
     return false;
-  if(ast_id(site) == TK_WHILE && contains_local(ast_child(site)))
+  if(loop_poll && ast_id(site) == TK_WHILE && contains_local(ast_child(site)))
     return false;
 
   gc_liveness_t* live = method_liveness(c, f);
@@ -655,27 +690,163 @@ static void finish_with_roots(compile_t* c, LLVMValueRef ctx,
   ponyint_pool_free_size(bytes, params);
 }
 
-bool gengc_poll(compile_t* c, ast_t* statement)
+static void emit_poll(compile_t* c, stack_root_t* roots)
+{
+  compile_frame_t* f = c->frame->function;
+  LLVMValueRef args[] = {f->gc_actor,
+    f->gc_parent != NULL ? f->gc_parent : LLVMConstNull(c->ptr)};
+  LLVMValueRef ctx = gencall_runtime(c, "ponyint_gc_poll", args, 2, "");
+  LLVMBasicBlockRef marking = codegen_block(c, "gc_trace");
+  LLVMBasicBlockRef resume = codegen_block(c, "gc_resume");
+  LLVMBuildCondBr(c->builder, LLVMBuildIsNotNull(c->builder, ctx, ""),
+    marking, resume);
+  LLVMPositionBuilderAtEnd(c->builder, marking);
+  finish_with_roots(c, ctx, roots);
+  LLVMBuildBr(c->builder, resume);
+  LLVMPositionBuilderAtEnd(c->builder, resume);
+}
+
+static bool poll(compile_t* c, ast_t* statement, bool loop_poll)
 {
   stack_root_t* roots = NULL;
-  bool eligible = collect_roots(c, statement, &roots);
+  bool eligible = collect_roots(c, statement, loop_poll, &roots);
   if(eligible)
-  {
-    compile_frame_t* f = c->frame->function;
-    LLVMValueRef args[] = {f->gc_actor,
-      f->gc_parent != NULL ? f->gc_parent : LLVMConstNull(c->ptr)};
-    LLVMValueRef ctx = gencall_runtime(c, "ponyint_gc_poll", args, 2, "");
-    LLVMBasicBlockRef marking = codegen_block(c, "gc_trace");
-    LLVMBasicBlockRef resume = codegen_block(c, "gc_resume");
-    LLVMBuildCondBr(c->builder, LLVMBuildIsNotNull(c->builder, ctx, ""),
-      marking, resume);
-    LLVMPositionBuilderAtEnd(c->builder, marking);
-    finish_with_roots(c, ctx, roots);
-    LLVMBuildBr(c->builder, resume);
-    LLVMPositionBuilderAtEnd(c->builder, resume);
-  }
+    emit_poll(c, roots);
   free_roots(roots);
   return eligible;
+}
+
+bool gengc_poll(compile_t* c, ast_t* loop)
+{
+  return poll(c, loop, true);
+}
+
+// True if ast's value is the value the current method returns at the end of
+// its body: it is the body's last expression, or the last expression of a
+// branch of an `if` or `match` whose value is returned that way.
+static bool returned_expr(compile_t* c, ast_t* ast)
+{
+  ast_t* body = ast_childidx(c->frame->function->reify->ast, 7);
+  while(true)
+  {
+    ast_t* parent = ast_parent(ast);
+    if(parent == NULL)
+      return false;
+    switch(ast_id(parent))
+    {
+      case TK_SEQ:
+        if(ast_childlast(parent) != ast)
+          return false;
+        if(parent == body)
+          return true;
+        ast = parent;
+        break;
+
+      case TK_IF:
+        if(ast == ast_child(parent))
+          return false;
+        ast = parent;
+        break;
+
+      case TK_CASE:
+        if(ast != ast_childidx(parent, 2))
+          return false;
+        ast = ast_parent(ast_parent(parent));
+        break;
+
+      case TK_MATCH:
+        if(ast != ast_childidx(parent, 2))
+          return false;
+        ast = parent;
+        break;
+
+      default:
+        // This includes a `return`: a `then` clause or a dispose can run
+        // after its value is computed and read locals that a branch poll
+        // wouldn't root. The `return` polls after them instead.
+        return false;
+    }
+  }
+}
+
+void gengc_error_exit_poll(compile_t* c)
+{
+  // An error return carries no value, and nothing in this frame is live.
+  if(c->frame->function->gc_recursive_copy)
+    emit_poll(c, NULL);
+}
+
+bool gengc_polls_branches(compile_t* c, ast_t* construct)
+{
+  return ((ast_id(construct) == TK_IF) || (ast_id(construct) == TK_MATCH)) &&
+    c->frame->function->gc_recursive_copy &&
+    is_result_needed(construct, c->opt) && returned_expr(c, construct);
+}
+
+void gengc_exit_poll(compile_t* c, LLVMValueRef value, ast_t* expr,
+  ast_t* type)
+{
+  compile_frame_t* f = c->frame->function;
+  if(!f->gc_recursive_copy)
+    return;
+
+  // Each branch of a returned `if` or `match` already polled.
+  while((expr != NULL) && (ast_id(expr) == TK_SEQ))
+    expr = ast_childlast(expr);
+  if((expr != NULL) && gengc_polls_branches(c, expr))
+    return;
+
+  // value is the result of a call whose every target is a recursive
+  // collecting copy, which polls before it returns. A poll after that call,
+  // with nothing in between, would only stop LLVM from turning the call into a
+  // jump.
+  if((value == f->gc_recursive_result) &&
+    (LLVMGetLastInstruction(LLVMGetInsertBlock(c->builder)) == value))
+    return;
+
+  // Only the returned value is still live in this frame. Callers' roots are
+  // in their own frames.
+  ast_t* result = deferred_reify(f->reify,
+    (type != NULL) ? type : ast_childidx(f->reify->ast, 4), c->opt);
+  stack_root_t* roots = NULL;
+  switch(root_need(c, result))
+  {
+    case ROOT_UNTRACEABLE:
+      ast_free_unattached(result);
+      return;
+
+    case ROOT_NOT_NEEDED:
+      ast_free_unattached(result);
+      break;
+
+    case ROOT_NEEDED:
+    {
+      LLVMValueRef slot = entry_alloca(c, LLVMTypeOf(value), "gc_result");
+      LLVMBuildStore(c->builder, value, slot);
+      roots = POOL_ALLOC(stack_root_t);
+      roots->slot = slot;
+      roots->type = result;
+      roots->next = NULL;
+      break;
+    }
+  }
+  emit_poll(c, roots);
+  free_roots(roots);
+}
+
+void gengc_start_copy(compile_t* c, reach_method_t* m, ast_t* body)
+{
+  compile_frame_t* f = c->frame->function;
+  f->gc_recursive_copy = gengc_method_recursive(m);
+  if(!f->gc_recursive_copy)
+    return;
+
+  // A recursive method may have no loop to poll in, so it polls on entry
+  // and, through gengc_exit_poll, before it returns. If the roots at the first
+  // statement can't be traced, they can't be traced at any later statement
+  // either, so no call from this body runs a collecting copy.
+  if(!poll(c, ast_child(body), false))
+    f->gc_entry_declined = true;
 }
 
 static LLVMValueRef frame_slot(compile_t* c, LLVMTypeRef type,
@@ -713,10 +884,7 @@ static LLVMValueRef caller_frame(compile_t* c, LLVMValueRef parent,
   ponyint_pool_free_size(bytes, fields);
   LLVMBasicBlockRef caller = LLVMGetInsertBlock(c->builder);
   LLVMMetadataRef location = LLVMGetCurrentDebugLocation2(c->builder);
-  LLVMPositionBuilderBefore(c->builder,
-    LLVMGetFirstInstruction(LLVMGetEntryBasicBlock(codegen_fun(c))));
-  LLVMSetCurrentDebugLocation2(c->builder, NULL);
-  LLVMValueRef frame = LLVMBuildAlloca(c->builder, type, "gc_frame");
+  LLVMValueRef frame = entry_alloca(c, type, "gc_frame");
   *storage = frame;
   LLVMValueRef trace = LLVMAddFunction(c->module, "gc_trace_frame",
     c->trace_fn);
@@ -767,7 +935,7 @@ static LLVMValueRef caller_frame(compile_t* c, LLVMValueRef parent,
   return frame;
 }
 
-bool gengc_allocating_expr(ast_t* expr)
+static bool allocating_expr(ast_t* expr)
 {
   switch(ast_id(expr))
   {
@@ -787,7 +955,7 @@ bool gengc_allocating_expr(ast_t* expr)
   }
   for(ast_t* child = ast_child(expr); child != NULL; child = ast_sibling(child))
   {
-    if(gengc_allocating_expr(child))
+    if(allocating_expr(child))
       return true;
   }
   return false;
@@ -804,18 +972,225 @@ static bool method_eligible(compile_t* c, reach_type_t* t, reach_method_t* m)
   if(ast_name(module) == c->str_builtin &&
     (ast_name(id) == c->str_Array || ast_name(id) == c->str_String))
     return false;
-  return gengc_allocating_expr(ast_childidx(m->fun->ast, 7));
+  return allocating_expr(ast_childidx(m->fun->ast, 7));
 }
 
-bool gengc_method_eligible(compile_t* c, reach_type_t* t, reach_method_t* m)
+static bool base_eligible(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
   compile_method_t* cm = (compile_method_t*)m->c_method;
-  if(!cm->gc_eligibility_checked)
+  if(!cm->gc_base_checked)
   {
-    cm->gc_eligible = method_eligible(c, t, m);
-    cm->gc_eligibility_checked = true;
+    cm->gc_base_eligible = method_eligible(c, t, m);
+    cm->gc_base_checked = true;
   }
-  return cm->gc_eligible;
+  return cm->gc_base_eligible;
+}
+
+typedef struct gc_node_t
+{
+  reach_type_t* type;
+  reach_method_t* method;
+  struct gc_node_t* next;
+} gc_node_t;
+
+static compile_method_t* node_method(gc_node_t* node)
+{
+  return (compile_method_t*)node->method->c_method;
+}
+
+static gc_node_t* push_node(gc_node_t* list, reach_type_t* t, reach_method_t* m)
+{
+  gc_node_t* node = POOL_ALLOC(gc_node_t);
+  node->type = t;
+  node->method = m;
+  node->next = list;
+  return node;
+}
+
+static void free_nodes(gc_node_t* list)
+{
+  while(list != NULL)
+  {
+    gc_node_t* next = list->next;
+    POOL_FREE(gc_node_t, list);
+    list = next;
+  }
+}
+
+// The concrete methods that base_eligible accepts and that m's recorded calls
+// reach, directly or through a collecting dispatch. This includes every target
+// gengc_call and gencall_gc_dispatch can choose, and also targets of calls that
+// gengc_call compiles as ordinary calls, such as calls whose roots can't be
+// traced.
+static gc_node_t* successors(compile_t* c, reach_method_t* m)
+{
+  gc_node_t* list = NULL;
+  for(reach_callee_t* e = m->gc_callees; e != NULL; e = e->next)
+  {
+    if(gencall_is_concrete(e->type))
+    {
+      if(base_eligible(c, e->type, e->method))
+        list = push_node(list, e->type, e->method);
+      continue;
+    }
+
+    size_t i = HASHMAP_BEGIN;
+    reach_type_t* sub;
+    while((sub = reach_type_cache_next(&e->type->subtypes, &i)) != NULL)
+    {
+      reach_method_t* concrete = gencall_gc_concrete(c, sub, e->method);
+      if(concrete != NULL && base_eligible(c, sub, concrete))
+        list = push_node(list, sub, concrete);
+    }
+  }
+  return list;
+}
+
+typedef struct gc_visit_t
+{
+  gc_node_t node;
+  gc_node_t* successors;
+  gc_node_t* next_successor;
+  struct gc_visit_t* parent;
+} gc_visit_t;
+
+static gc_visit_t* open_visit(compile_t* c, gc_visit_t* parent,
+  reach_type_t* t, reach_method_t* m, uint32_t* counter, gc_node_t** stack)
+{
+  compile_method_t* cm = (compile_method_t*)m->c_method;
+  cm->gc_index = cm->gc_lowlink = ++(*counter);
+  cm->gc_state = GC_ON_STACK;
+  *stack = push_node(*stack, t, m);
+
+  gc_visit_t* visit = POOL_ALLOC(gc_visit_t);
+  visit->node.type = t;
+  visit->node.method = m;
+  visit->node.next = NULL;
+  visit->successors = successors(c, m);
+  visit->next_successor = visit->successors;
+  visit->parent = parent;
+  return visit;
+}
+
+// Pops the strongly connected component rooted at root and records, for
+// every member, whether it is recursive and whether it gets a collecting copy:
+// it is recursive, has a loop, or calls a method outside the component that
+// gets one.
+static void close_component(compile_method_t* root, gc_node_t** stack)
+{
+  gc_node_t* members = NULL;
+  size_t size = 0;
+  bool self_call = false;
+  bool calls_copy = false;
+  compile_method_t* cm;
+  do
+  {
+    gc_node_t* top = *stack;
+    *stack = top->next;
+    top->next = members;
+    members = top;
+    cm = node_method(top);
+    cm->gc_state = GC_RESOLVED;
+    size++;
+    self_call |= cm->gc_self_call;
+    calls_copy |= top->method->has_loop || cm->gc_calls_copy;
+  } while(cm != root);
+
+  bool recursive = size > 1 || self_call;
+  for(gc_node_t* n = members; n != NULL; n = n->next)
+  {
+    cm = node_method(n);
+    cm->gc_recursive = recursive;
+    cm->gc_copy = recursive || calls_copy;
+  }
+  free_nodes(members);
+}
+
+// Tarjan's strongly connected components over the methods reachable from
+// (t, m).
+static void resolve_components(compile_t* c, reach_type_t* t, reach_method_t* m)
+{
+  uint32_t counter = 0;
+  gc_node_t* stack = NULL;
+  gc_visit_t* visit = open_visit(c, NULL, t, m, &counter, &stack);
+
+  while(visit != NULL)
+  {
+    compile_method_t* cm = node_method(&visit->node);
+    gc_node_t* next = visit->next_successor;
+    if(next != NULL)
+    {
+      visit->next_successor = next->next;
+      compile_method_t* to = node_method(next);
+      if(to == cm)
+      {
+        cm->gc_self_call = true;
+      } else if(to->gc_state == GC_UNVISITED) {
+        visit = open_visit(c, visit, next->type, next->method, &counter,
+          &stack);
+      } else if(to->gc_state == GC_ON_STACK) {
+        if(to->gc_index < cm->gc_lowlink)
+          cm->gc_lowlink = to->gc_index;
+      } else if(to->gc_copy) {
+        cm->gc_calls_copy = true;
+      }
+      continue;
+    }
+
+    if(cm->gc_lowlink == cm->gc_index)
+      close_component(cm, &stack);
+
+    gc_visit_t* parent = visit->parent;
+    if(parent != NULL)
+    {
+      compile_method_t* pm = node_method(&parent->node);
+      if(cm->gc_state == GC_ON_STACK)
+      {
+        if(cm->gc_lowlink < pm->gc_lowlink)
+          pm->gc_lowlink = cm->gc_lowlink;
+      } else if(cm->gc_copy) {
+        pm->gc_calls_copy = true;
+      }
+    }
+    free_nodes(visit->successors);
+    POOL_FREE(gc_visit_t, visit);
+    visit = parent;
+  }
+
+  pony_assert(stack == NULL);
+}
+
+bool gengc_method_has_copy(compile_t* c, reach_type_t* t, reach_method_t* m)
+{
+  if(!base_eligible(c, t, m))
+    return false;
+  compile_method_t* cm = (compile_method_t*)m->c_method;
+  // Starting a second search from a method still on the search stack would
+  // corrupt the first search.
+  pony_assert(cm->gc_state != GC_ON_STACK);
+  if(cm->gc_state == GC_UNVISITED)
+    resolve_components(c, t, m);
+  return cm->gc_copy;
+}
+
+bool gengc_method_recursive(reach_method_t* m)
+{
+  compile_method_t* cm = (compile_method_t*)m->c_method;
+  pony_assert(cm->gc_state == GC_RESOLVED);
+  return cm->gc_recursive;
+}
+
+bool gengc_call_recorded(compile_t* c, reach_type_t* t, reach_method_t* m)
+{
+  reach_method_t* caller = c->frame->function->reach_method;
+  if(caller == NULL)
+    return false;
+  for(reach_callee_t* e = caller->gc_callees; e != NULL; e = e->next)
+  {
+    if(e->type == t && e->method == m)
+      return true;
+  }
+  return false;
 }
 
 static bool has_enclosing_poll(compile_t* c)
@@ -828,34 +1203,49 @@ static bool has_enclosing_poll(compile_t* c)
   return false;
 }
 
+// True if every method a collecting call to (t, m) can run is a collecting
+// copy of a recursive method, so it polls before it returns.
+static bool routes_only_to_recursive(compile_t* c, reach_type_t* t,
+  reach_method_t* m)
+{
+  if(gencall_is_concrete(t))
+    return gengc_method_recursive(m);
+
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* sub;
+  bool any = false;
+  while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
+  {
+    if(!gencall_is_concrete(sub))
+      continue;
+    reach_method_t* concrete = gencall_gc_concrete(c, sub, m);
+    if(concrete == NULL || !gengc_method_has_copy(c, sub, concrete) ||
+      !gengc_method_recursive(concrete))
+      return false;
+    any = true;
+  }
+  return any;
+}
+
 LLVMValueRef gengc_call(compile_t* c, ast_t* site, reach_type_t* t,
   reach_method_t* m, LLVMValueRef* args, unsigned n)
 {
-  if(c->frame->function->gc_actor == NULL || m->cap == TK_AT ||
-    ast_id(m->fun->ast) != TK_FUN || contains_local(site))
+  if(c->frame->function->gc_actor == NULL ||
+    !gencall_gc_routable(site, t, m) || contains_local(site) ||
+    (gencall_is_concrete(t) && !gengc_method_has_copy(c, t, m)))
     return NULL;
   stack_root_t* roots = NULL;
-  if(!collect_roots(c, site, &roots))
+  if(!collect_roots(c, site, false, &roots))
   {
     free_roots(roots);
     return NULL;
   }
   LLVMValueRef target = NULL;
-  switch(t->underlying)
+  if(gencall_is_concrete(t))
   {
-    case TK_CLASS:
-    case TK_ACTOR:
-    case TK_PRIMITIVE:
-      if(gengc_method_eligible(c, t, m))
-        target = genfun_gc_target(c, t, m);
-      break;
-    case TK_INTERFACE:
-    case TK_TRAIT:
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-      target = gencall_gc_dispatch(c, t, m, has_enclosing_poll(c));
-      break;
-    default: {}
+    target = genfun_gc_target(c, t, m);
+  } else {
+    target = gencall_gc_dispatch(c, t, m, has_enclosing_poll(c));
   }
   if(target == NULL)
   {
@@ -863,6 +1253,7 @@ LLVMValueRef gengc_call(compile_t* c, ast_t* site, reach_type_t* t,
     return NULL;
   }
   compile_frame_t* f = c->frame->function;
+  pony_assert(!f->gc_entry_declined);
   LLVMValueRef parent = f->gc_parent != NULL ? f->gc_parent :
     LLVMConstNull(c->ptr);
   size_t bytes = (n + 2) * sizeof(LLVMValueRef);
@@ -875,6 +1266,8 @@ LLVMValueRef gengc_call(compile_t* c, ast_t* site, reach_type_t* t,
   free_roots(roots);
   LLVMValueRef result = codegen_call(c, LLVMGlobalGetValueType(target),
     target, values, n + 2, true);
+  if(f->gc_recursive_copy && routes_only_to_recursive(c, t, m))
+    f->gc_recursive_result = result;
   if(storage != NULL)
     gencall_lifetime_end(c, storage);
   if(layout != NULL && LLVMIsACallInst(result) != NULL)

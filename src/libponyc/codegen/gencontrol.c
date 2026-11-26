@@ -11,21 +11,6 @@
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
-static bool emitted_call(compile_t* c, LLVMBasicBlockRef block,
-  LLVMValueRef previous)
-{
-  if(LLVMGetInsertBlock(c->builder) != block)
-    return true;
-  LLVMValueRef inst = previous == NULL ? LLVMGetFirstInstruction(block) :
-    LLVMGetNextInstruction(previous);
-  for(; inst != NULL; inst = LLVMGetNextInstruction(inst))
-  {
-    if(LLVMIsACallInst(inst) != NULL || LLVMIsAInvokeInst(inst) != NULL)
-      return true;
-  }
-  return false;
-}
-
 LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
@@ -36,12 +21,6 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
     if(ast_id(child) == TK_NONE)
       break;
 
-    ast_t* next = ast_sibling(child);
-    bool may_poll = c->frame->function->gc_actor != NULL && next != NULL &&
-      ast_id(next) != TK_NONE && gengc_allocating_expr(child);
-    LLVMBasicBlockRef block = may_poll ? LLVMGetInsertBlock(c->builder) : NULL;
-    LLVMValueRef previous =
-      block == NULL ? NULL : LLVMGetLastInstruction(block);
     value = gen_expr(c, child);
 
     if(value == NULL)
@@ -50,9 +29,7 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
     if(value == GEN_NOVALUE)
       break;
 
-    if(may_poll && block != NULL && emitted_call(c, block, previous))
-      gengc_poll(c, next);
-    child = next;
+    child = ast_sibling(child);
   }
 
   return value;
@@ -62,6 +39,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 {
   bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, cond, left, right);
+  bool polls_branches = gengc_polls_branches(c, ast);
 
   LLVMValueRef c_value = gen_expr(c, cond);
 
@@ -138,6 +116,9 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
     if(l_value == NULL)
       return NULL;
 
+    if(polls_branches)
+      gengc_exit_poll(c, l_value, left, ast_type(ast));
+
     then_block = LLVMGetInsertBlock(c->builder);
     LLVMBuildBr(c->builder, post_block);
   }
@@ -175,6 +156,9 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
     if(r_value == NULL)
       return NULL;
+
+    if(polls_branches)
+      gengc_exit_poll(c, r_value, right, ast_type(ast));
 
     else_block = LLVMGetInsertBlock(c->builder);
     LLVMBuildBr(c->builder, post_block);
@@ -705,6 +689,7 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
       ast_t* type = deferred_reify(c->frame->reify, ast_type(expr), c->opt);
       LLVMValueRef ret = gen_assign_cast(c, unwrapped, value, type);
       ast_free_unattached(type);
+      gengc_exit_poll(c, ret, expr, NULL);
       codegen_scope_lifetime_end(c);
       ret = wrap_result(c, ret, LLVMConstInt(c->i1, 0, false));
       genfun_build_ret(c, ret);
@@ -727,6 +712,7 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 
     ast_free_unattached(type);
 
+    gengc_exit_poll(c, ret, expr, NULL);
     codegen_scope_lifetime_end(c);
     genfun_build_ret(c, ret);
   } else {
@@ -1031,6 +1017,8 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
   }
   else if(c->frame->is_partial)
   {
+    gengc_error_exit_poll(c);
+
     // Propagate error: return error tuple. The enclosing function is partial,
     // so its return type is {T, i1} or i1.
     LLVMTypeRef f_type = LLVMGlobalGetValueType(codegen_fun(c));

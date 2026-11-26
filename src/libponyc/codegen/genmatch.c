@@ -1,4 +1,5 @@
 #include "genmatch.h"
+#include "gengc.h"
 #include "gencall.h"
 #include "gencontrol.h"
 #include "gendesc.h"
@@ -884,8 +885,9 @@ static bool guard_match(compile_t* c, ast_t* guard,
   return true;
 }
 
-static bool case_body(compile_t* c, ast_t* body,
-  LLVMBasicBlockRef post_block, LLVMValueRef phi, LLVMTypeRef phi_type)
+static bool case_body(compile_t* c, ast_t* match, bool polls_branches,
+  ast_t* body, LLVMBasicBlockRef post_block, LLVMValueRef phi,
+  LLVMTypeRef phi_type)
 {
   LLVMValueRef body_value = gen_expr(c, body);
 
@@ -902,6 +904,9 @@ static bool case_body(compile_t* c, ast_t* body,
     if(body_value == NULL)
       return false;
 
+    if(polls_branches)
+      gengc_exit_poll(c, body_value, body, ast_type(match));
+
     LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
     LLVMAddIncoming(phi, &body_value, &block, 1);
   }
@@ -915,6 +920,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 {
   bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, match_expr, cases, else_expr);
+  bool polls_branches = gengc_polls_branches(c, ast);
 
   // We will have no type if all cases jump away.
   LLVMTypeRef phi_type = NULL;
@@ -1000,7 +1006,8 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
       ok = ok && guard_match(c, guard, next_block);
 
       // Case body.
-      ok = ok && case_body(c, body, post_block, phi, phi_type);
+      ok = ok && case_body(c, ast, polls_branches, body, post_block, phi,
+        phi_type);
 
       if(next_block != NULL)
         LLVMMoveBasicBlockAfter(next_block, LLVMGetInsertBlock(c->builder));
@@ -1026,7 +1033,8 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
     LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
     LLVMPositionBuilderAtEnd(c->builder, else_block);
     codegen_pushscope(c, else_expr);
-    bool ok = case_body(c, else_expr, post_block, phi, phi_type);
+    bool ok = case_body(c, ast, polls_branches, else_expr,
+      post_block, phi, phi_type);
     codegen_scope_lifetime_end(c);
     codegen_popscope(c);
 

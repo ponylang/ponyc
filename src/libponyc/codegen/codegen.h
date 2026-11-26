@@ -135,7 +135,15 @@ typedef struct compile_frame_t
   LLVMValueRef gc_parent;
   ast_t* gc_receiver;
   struct gc_liveness_t* gc_liveness;
+  // The method whose body this function frame generates, if any.
+  reach_method_t* reach_method;
   bool gc_loop_poll;
+  // This is a collecting copy of a recursive method.
+  bool gc_recursive_copy;
+  // The entry poll of this collecting copy couldn't trace its roots.
+  bool gc_entry_declined;
+  // The last call whose every target is a recursive collecting copy.
+  LLVMValueRef gc_recursive_result;
   bool is_function;
   bool early_termination;
   bool bare_function;
@@ -190,38 +198,7 @@ typedef struct compile_t
   const char* str_Main;
   const char* str_Env;
 
-  const char* str_add;
-  const char* str_sub;
-  const char* str_mul;
-  const char* str_div;
-  const char* str_rem;
-  const char* str_neg;
-  const char* str_add_unsafe;
-  const char* str_sub_unsafe;
-  const char* str_mul_unsafe;
-  const char* str_div_unsafe;
-  const char* str_rem_unsafe;
-  const char* str_neg_unsafe;
-  const char* str_and;
-  const char* str_or;
-  const char* str_xor;
-  const char* str_not;
-  const char* str_shl;
-  const char* str_shr;
-  const char* str_shl_unsafe;
-  const char* str_shr_unsafe;
   const char* str_eq;
-  const char* str_ne;
-  const char* str_lt;
-  const char* str_le;
-  const char* str_ge;
-  const char* str_gt;
-  const char* str_eq_unsafe;
-  const char* str_ne_unsafe;
-  const char* str_lt_unsafe;
-  const char* str_le_unsafe;
-  const char* str_ge_unsafe;
-  const char* str_gt_unsafe;
 
   const char* str_this;
   const char* str_create;
