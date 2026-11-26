@@ -204,6 +204,11 @@ TEST_F(CodegenEmbedTest, ZeroSizeFieldAtTheEndIsInsideTheObject)
     "  embed z: Z = Z\n"
     "  new create() => None\n"
 
+    "struct \\packed\\ P\n"
+    "  var x: U8 = 0\n"
+    "  embed z: Z = Z\n"
+    "  new create() => None\n"
+
     "class M\n"
     "  embed z: Z = Z\n"
     "  var x: U64 = 0\n"
@@ -211,6 +216,7 @@ TEST_F(CodegenEmbedTest, ZeroSizeFieldAtTheEndIsInsideTheObject)
     "actor Main\n"
     "  var _c: C = C\n"
     "  var _s: S = S\n"
+    "  var _p: P = P\n"
     "  var _m: M = M\n"
     "  embed z: Z = Z\n"
     "  new create(env: Env) => None";
@@ -219,7 +225,7 @@ TEST_F(CodegenEmbedTest, ZeroSizeFieldAtTheEndIsInsideTheObject)
 
   // Element 0 of a class is its descriptor; an actor also has its header.
   struct { const char* name; unsigned header; } types[] =
-    {{"C", 1}, {"S", 0}, {"Main", 2}};
+    {{"C", 1}, {"S", 0}, {"P", 0}, {"Main", 2}};
 
   for(auto& type : types)
   {
@@ -230,7 +236,7 @@ TEST_F(CodegenEmbedTest, ZeroSizeFieldAtTheEndIsInsideTheObject)
     unsigned z = type.header + t->field_count - 1;
     uint64_t offset = LLVMOffsetOfElement(compile->target_data,
       c_t->structure, z);
-    ASSERT_LT(offset, c_t->abi_size);
+    EXPECT_LT(offset, c_t->abi_size);
   }
 
   // A field with no size before another field needs no padding.

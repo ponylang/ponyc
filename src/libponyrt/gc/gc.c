@@ -762,8 +762,9 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_sendembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  // An object with no size shares its address with the field after it, so a
-  // visit to it never traces the fields of an object there.
+  // An object with no size can share its address with another object. A
+  // readable visit to it would mark that address as traced, so a later visit
+  // to the object there wouldn't trace its fields.
   if(t->size == 0)
     mutability = PONY_TRACE_OPAQUE;
 
@@ -810,8 +811,9 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_recvembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  // An object with no size shares its address with the field after it, so a
-  // visit to it never traces the fields of an object there.
+  // An object with no size can share its address with another object. A
+  // readable visit to it would mark that address as traced, so a later visit
+  // to the object there wouldn't trace its fields.
   if(t->size == 0)
     mutability = PONY_TRACE_OPAQUE;
 
@@ -858,8 +860,9 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_markembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  // An object with no size shares its address with the field after it, so a
-  // visit to it never traces the fields of an object there.
+  // An object with no size can share its address with another object. A
+  // readable visit to it would mark that address as traced, so a later visit
+  // to the object there wouldn't trace its fields.
   if(t->size == 0)
     mutability = PONY_TRACE_OPAQUE;
 
