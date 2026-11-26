@@ -617,8 +617,8 @@ void* ponyint_pool_base(void* p)
     return base;
 
   // A slab starts on a unit boundary and holds objects of one power-of-two
-  // size, so an object starts at a multiple of that size. A class larger
-  // than a unit holds one object.
+  // size, so an object starts at a multiple of that size. A slab of a size
+  // class at least as large as a unit holds one object.
   size_t size = class_size(rec->size_class);
 
   if(size >= UNIT_SIZE)

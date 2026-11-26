@@ -121,12 +121,9 @@ chunk_t* ponyint_pagemap_get_chunk(const void* addr)
  * times in order to retrieve both the chunk_t* and the pony_actor_t*.
  *
  * NOTE: the multiple atomic instructions to retrieve the chunk_t* followed
- * by the pony_actor_t* should be safe because the only times the pagemap
- * is updated are when a chunk_t is first allocated by an actor, when the
- * chunk_t is deallocated/freed by GC, and, in builds using the memalign pool,
- * when an actor with an embedded field is created or destroyed. In each case
- * at most one actor, the owner of the chunk_t or the creator of the actor,
- * holds a reference to memory that would resolve to that pagemap entry.
+ * by the pony_actor_t* should be safe because every update to the pagemap
+ * happens while at most one actor can hold a reference to memory that would
+ * resolve to that pagemap entry.
  */
 chunk_t* ponyint_pagemap_get(const void* addr, pony_actor_t** actor)
 {
@@ -169,12 +166,9 @@ chunk_t* ponyint_pagemap_get(const void* addr, pony_actor_t** actor)
  * a small chunk_t (exactly one pagemap entry).
  *
  * NOTE: the multiple atomic instructions to set the chunk_t* followed
- * by the pony_actor_t* should be safe because the only times the pagemap
- * is updated are when a chunk_t is first allocated by an actor, when the
- * chunk_t is deallocated/freed by GC, and, in builds using the memalign pool,
- * when an actor with an embedded field is created or destroyed. In each case
- * at most one actor, the owner of the chunk_t or the creator of the actor,
- * holds a reference to memory that would resolve to that pagemap entry.
+ * by the pony_actor_t* should be safe because every update to the pagemap
+ * happens while at most one actor can hold a reference to memory that would
+ * resolve to that pagemap entry.
  */
 void ponyint_pagemap_set(const void* addr, chunk_t* chunk, pony_actor_t* actor)
 {
@@ -246,12 +240,9 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk, pony_actor_t* actor)
  * a large chunk_t's (more than one pagemap entry required).
  *
  * NOTE: the multiple atomic instructions to set the chunk_t* followed
- * by the pony_actor_t* should be safe because the only times the pagemap
- * is updated are when a chunk_t is first allocated by an actor, when the
- * chunk_t is deallocated/freed by GC, and, in builds using the memalign pool,
- * when an actor with an embedded field is created or destroyed. In each case
- * at most one actor, the owner of the chunk_t or the creator of the actor,
- * holds a reference to memory that would resolve to that pagemap entry.
+ * by the pony_actor_t* should be safe because every update to the pagemap
+ * happens while at most one actor can hold a reference to memory that would
+ * resolve to that pagemap entry.
  */
 void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, pony_actor_t* actor, size_t size)
 {

@@ -804,8 +804,8 @@ reach_type_t* gentype_first_embed(compile_t* c, reach_type_t* t)
 }
 
 // Records how each type's objects can share memory with other objects, so that
-// traces of the types that can are routed to the runtime code that handles it
-// and every other trace takes the plain path.
+// traces of the types that can are routed to the runtime code that handles
+// shared memory and every other trace takes the plain path.
 static void compute_embed_flags(compile_t* c)
 {
   size_t i = HASHMAP_BEGIN;

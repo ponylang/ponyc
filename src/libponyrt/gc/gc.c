@@ -738,6 +738,38 @@ static pony_actor_t* actor_containing(void* p, pony_type_t* t)
   return ponyint_actor_containing(p);
 }
 
+// Finds the actor that owns an object of a type that can share memory with
+// other objects, and the heap chunk the object is in, if any. False if no
+// actor owns it: such memory isn't collected, and what it references has been
+// traced here, unless it is a constant.
+static GC_INLINE bool embeddable_owner(pony_ctx_t* ctx, void* p,
+  pony_type_t* t, int* mutability, pony_actor_t** actor, chunk_t** chunk)
+{
+  // An object with no size can share its address with another object. A
+  // readable visit to it would mark that address as traced, so a later visit
+  // to the object there wouldn't trace its fields.
+  if(t->size == 0)
+    *mutability = PONY_TRACE_OPAQUE;
+
+  *actor = NULL;
+  *chunk = ponyint_pagemap_get(p, actor);
+
+  if(*chunk != NULL)
+    return true;
+
+  if(ponyint_image_constant(p))
+    return false;
+
+  *actor = actor_containing(p, t);
+  if(*actor != NULL)
+    return true;
+
+  if(*mutability != PONY_TRACE_OPAQUE)
+    recurse(ctx, p, t->trace);
+
+  return false;
+}
+
 void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
@@ -762,24 +794,11 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_sendembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  // An object with no size can share its address with another object. A
-  // readable visit to it would mark that address as traced, so a later visit
-  // to the object there wouldn't trace its fields.
-  if(t->size == 0)
-    mutability = PONY_TRACE_OPAQUE;
+  pony_actor_t* actor;
+  chunk_t* chunk;
 
-  pony_actor_t* actor = NULL;
-  chunk_t* chunk = ponyint_pagemap_get(p, &actor);
-
-  if((chunk == NULL) &&
-    (ponyint_image_constant(p) || ((actor = actor_containing(p, t)) == NULL)))
-  {
-    // Memory in no actor's heap or allocation isn't collected, but what it
-    // references is traced, unless it is a constant.
-    if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
-      recurse(ctx, p, t->trace);
+  if(!embeddable_owner(ctx, p, t, &mutability, &actor, &chunk))
     return;
-  }
 
   if(actor == ctx->current)
     send_local_object(ctx, p, t, mutability, true);
@@ -811,24 +830,11 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_recvembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  // An object with no size can share its address with another object. A
-  // readable visit to it would mark that address as traced, so a later visit
-  // to the object there wouldn't trace its fields.
-  if(t->size == 0)
-    mutability = PONY_TRACE_OPAQUE;
+  pony_actor_t* actor;
+  chunk_t* chunk;
 
-  pony_actor_t* actor = NULL;
-  chunk_t* chunk = ponyint_pagemap_get(p, &actor);
-
-  if((chunk == NULL) &&
-    (ponyint_image_constant(p) || ((actor = actor_containing(p, t)) == NULL)))
-  {
-    // Memory in no actor's heap or allocation isn't collected, but what it
-    // references is traced, unless it is a constant.
-    if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
-      recurse(ctx, p, t->trace);
+  if(!embeddable_owner(ctx, p, t, &mutability, &actor, &chunk))
     return;
-  }
 
   if(actor == ctx->current)
     recv_local_object(ctx, p, t, mutability, true);
@@ -860,24 +866,11 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_markembeddable(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  // An object with no size can share its address with another object. A
-  // readable visit to it would mark that address as traced, so a later visit
-  // to the object there wouldn't trace its fields.
-  if(t->size == 0)
-    mutability = PONY_TRACE_OPAQUE;
+  pony_actor_t* actor;
+  chunk_t* chunk;
 
-  pony_actor_t* actor = NULL;
-  chunk_t* chunk = ponyint_pagemap_get(p, &actor);
-
-  if((chunk == NULL) &&
-    (ponyint_image_constant(p) || ((actor = actor_containing(p, t)) == NULL)))
-  {
-    // Memory in no actor's heap or allocation isn't collected, but what it
-    // references is traced, unless it is a constant.
-    if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
-      recurse(ctx, p, t->trace);
+  if(!embeddable_owner(ctx, p, t, &mutability, &actor, &chunk))
     return;
-  }
 
   if(actor == ctx->current)
     mark_local_object_embed(ctx, chunk, p, t, mutability);

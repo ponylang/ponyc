@@ -1,5 +1,6 @@
-// Another actor reaches an embedded struct through a val object and acquires
-// it from the owner. The owner's next collection must not crash.
+// Another actor reaches an embedded struct through a val object, acquires it
+// from the owner, keeps it, and collects. The owner's next collection must
+// not crash.
 use @pony_ctx[Pointer[None]]()
 use @pony_triggergc[None](ctx: Pointer[None])
 
