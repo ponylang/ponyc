@@ -87,7 +87,7 @@ protected:
     ponyint_gc_done(&a.gc);
     ponyint_gc_done(&b.gc);
 
-    // Compiled descriptors all say they might reference an actor.
+    // Compiled descriptors all have might_reference_actor set.
     c_type.size = sizeof(C);
     c_type.trace = trace_c;
     c_type.might_reference_actor = true;
@@ -226,10 +226,8 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
   {
     for(size_t i = 0; i < count; i++)
     {
-      pony_traceknown_routed(ctx, objects[i], &c_type,
-        PONY_TRACE_MUTABLE);
-      pony_traceknown_routed(ctx, objects[i], &s_type,
-        PONY_TRACE_MUTABLE);
+      pony_traceknown_routed(ctx, objects[i], &c_type, PONY_TRACE_MUTABLE);
+      pony_traceknown_routed(ctx, objects[i], &s_type, PONY_TRACE_MUTABLE);
     }
 
     ponyint_gc_handlestack(ctx);
@@ -306,8 +304,8 @@ TEST_F(GcSharedAddress, ReceivingOwnObjectCountsStructFieldOnce)
   }
 }
 
-// A send that reaches another actor's object first through its embedded field
-// and then as the struct acquires it with the struct's descriptor.
+// When a send reaches another actor's object first as its embedded field and
+// then as the struct, the pending acquire carries the struct's descriptor.
 TEST_F(GcSharedAddress, SendPendingAcquireCarriesTheStructType)
 {
   field_mutability = PONY_TRACE_IMMUTABLE;
@@ -355,8 +353,8 @@ TEST_F(GcSharedAddress, RemoteMarkTracesStructAfterItsFirstField)
   }
 }
 
-// A mark that reaches another actor's object first through its embedded field
-// and then as the struct acquires it with the struct's descriptor.
+// When a mark reaches another actor's object first as its embedded field and
+// then as the struct, the pending acquire carries the struct's descriptor.
 TEST_F(GcSharedAddress, PendingAcquireCarriesTheStructType)
 {
   field_mutability = PONY_TRACE_IMMUTABLE;
@@ -374,8 +372,8 @@ TEST_F(GcSharedAddress, PendingAcquireCarriesTheStructType)
   end_epoch(&a);
 }
 
-// A visit to an object with no size at the struct's address doesn't stand in
-// for the struct: the struct's field is still counted when it is sent.
+// A visit to an object with no size at the struct's address doesn't mark the
+// address as traced: the struct's field is still counted when it is sent.
 TEST_F(GcSharedAddress, ZeroSizeVisitDoesNotHideTheStruct)
 {
   field_mutability = PONY_TRACE_IMMUTABLE;
@@ -406,15 +404,13 @@ TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
     , &actor
 #endif
     );
-  EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST,
-    ponyint_heap_mark_object(chunk, p + 16));
+  EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST, ponyint_heap_mark_object(chunk, p + 16));
   ponyint_heap_endgc(&actor.heap, 0
 #ifdef USE_RUNTIMESTATS
     , &actor
 #endif
     );
-  void* next = ponyint_heap_alloc(&actor, &actor.heap, 64,
-    TRACK_NO_FINALISERS);
+  void* next = ponyint_heap_alloc(&actor, &actor.heap, 64, TRACK_NO_FINALISERS);
   EXPECT_NE(static_cast<void*>(p), next);
 
   ponyint_heap_destroy(&actor.heap);
@@ -442,12 +438,10 @@ TEST(HeapMarkObject, ReportsInteriorPointers)
       );
     EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST,
       ponyint_heap_mark_object(chunk, p + 16));
-    EXPECT_EQ(HEAP_MARK_INTERIOR,
-      ponyint_heap_mark_object(chunk, p + 16));
+    EXPECT_EQ(HEAP_MARK_INTERIOR, ponyint_heap_mark_object(chunk, p + 16));
     EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p));
     EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p));
-    EXPECT_EQ(HEAP_MARK_COVERED,
-      ponyint_heap_mark_object(chunk, p + 16));
+    EXPECT_EQ(HEAP_MARK_COVERED, ponyint_heap_mark_object(chunk, p + 16));
     ponyint_heap_endgc(&actor.heap, 0
 #ifdef USE_RUNTIMESTATS
       , &actor
@@ -613,8 +607,8 @@ TEST_F(GcEmbeddedInClass, InteriorVisitAfterTheClassIsCovered)
 }
 
 // A trace of an interface-typed reference that can reach B reads the descriptor
-// at run time and takes the same path for B: visits end after the recorded
-// repeat.
+// at run time and, finding B routed, traces it as a known trace of B would:
+// visits end after the recorded repeat.
 TEST_F(GcEmbeddedInClass, UnknownTraceFollowsTheDescriptorFlag)
 {
   A* obj = alloc_a();
@@ -651,7 +645,8 @@ const _pony_type_t huge_actor_type = {0, (uint32_t)huge_actor_size, 0, 0,
   nullptr, nullptr, nullptr, nullptr, dispatch_nothing, nullptr, 0, true,
   PONY_EMBED_ACTOR_LOOKUP, nullptr, nullptr, nullptr};
 
-// The address of a field of an actor leads back to the actor.
+// ponyint_actor_containing finds an actor from the address of one of its
+// fields.
 TEST(ActorContaining, FindsTheActorFromAnInteriorAddress)
 {
   ponyint_register_thread();

@@ -16,10 +16,11 @@ extern uintptr_t ponyint_image_ro_end;
 // before any scheduler thread starts.
 void ponyint_image_init(void);
 
-// Whether p is in memory that is read-only once the program is loaded. The
-// compiler's constants, such as string literals, are there. Such memory can't
-// hold a reference to anything allocated at run time, so the GC has nothing
-// to do for an object there.
+// Whether p is in the runtime's image, in memory that is read-only once the
+// program is loaded. The compiler's constants, such as string literals, are
+// there. That memory can't hold a pointer written at run time, so the GC
+// doesn't trace an object there. An object there that points to writable
+// memory holding Pony references isn't traced through either.
 static inline bool ponyint_image_constant(const void* p)
 {
   return ((uintptr_t)p - ponyint_image_ro_start) <

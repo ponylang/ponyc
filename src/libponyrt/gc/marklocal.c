@@ -1,5 +1,6 @@
 #include "marklocal.h"
 #include "gc.h"
+#include "image.h"
 #include "frames.h"
 #include "../actor/actor.h"
 #include "../mem/pagemap.h"
@@ -117,6 +118,10 @@ static bool queue_object(pony_ctx_t* ctx, void* p, pony_type_t* type, int mode)
   if(owner != ctx->current)
     chunk = NULL;
 
+  // Constants in the program image aren't traced (see image.h).
+  if((chunk == NULL) && ponyint_image_constant(p))
+    return false;
+
   bool recurse = mode != PONY_TRACE_OPAQUE && type != NULL &&
     type->trace != NULL;
   if(chunk == NULL && !recurse)
@@ -224,6 +229,7 @@ static PONY_NOINLINE pony_ctx_t* begin_mark(pony_actor_t* actor,
   mark->ctx.current = actor;
   mark->ctx.trace_actor = trace_actor;
   mark->ctx.trace_object = trace_object;
+  mark->ctx.trace_routed = trace_object;
 
   if(!ponyint_gc_trace_frames(&mark->ctx, frame))
   {

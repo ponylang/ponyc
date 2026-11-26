@@ -77,6 +77,8 @@ typedef struct pony_ctx_t
   scheduler_t* scheduler;
   pony_actor_t* current;
   trace_object_fn trace_object;
+  // The trace_object of this round for a type with PONY_EMBED_ROUTED.
+  trace_object_fn trace_routed;
   trace_actor_fn trace_actor;
   // Temporary stack for GC tracing; empty when GC not running
   gcstack_t* stack;

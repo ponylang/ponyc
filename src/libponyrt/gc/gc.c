@@ -129,9 +129,9 @@ void ponyint_gc_end_visits(pony_ctx_t* ctx)
   }
 }
 
-// Memory reachable through an object that another actor owns, counted against
-// this actor's heap to provoke a collection. An object in an actor's own
-// allocation has no heap chunk.
+// The memory an object that another actor owns is counted as, against this
+// actor's heap to provoke a collection: its heap chunk, or the object itself
+// when it is in an actor's own allocation and has no chunk.
 static size_t foreign_size(chunk_t* chunk, pony_type_t* t)
 {
   if(chunk != NULL)
@@ -221,19 +221,34 @@ static bool acquire_immutable(pony_ctx_t* ctx, pony_actor_t* actor,
   return true;
 }
 
-// Objects in a struct's first embedded field share the struct's address and
-// its object-map entry. During one trace round, a visit as a type that
+// True when u is embedded at the start of t, directly or through other
+// embedded objects, so the two share an address and t's trace covers u. Only
+// called with a routed type: a struct's instance slot holds the type
+// embedded at its start, and a class's is NULL.
+static bool embeds_at_start(pony_type_t* t, pony_type_t* u)
+{
+  for(pony_type_t* x = (pony_type_t*)t->instance; x != NULL;
+    x = (pony_type_t*)x->instance)
+  {
+    if(x == u)
+      return true;
+  }
+
+  return false;
+}
+
+// An object embedded as a struct's first field shares the struct's address
+// and its object-map entry. During one trace round, a visit as a type that
 // encloses the type already traced there traces again with the enclosing
-// type. The sender and the receiver trace the same visits in the same order,
-// so both make the same choice, and every trace uses the type the visit names.
-// Both sides make the same choice only if every readable visit that isn't
-// skipped traces the object's fields, which requires every type that can be
-// retraced to say it might reference an actor (see make_might_reference_actor
-// in gendesc.c).
+// type, so every trace uses the type the visit names. The sender and the
+// receiver trace the same visits in the same order, so they make the same
+// choice, as long as every non-opaque visit that isn't skipped traces the
+// object's fields. That requires every type that can be retraced to have
+// might_reference_actor set (see make_might_reference_actor in gendesc.c).
 static bool retrace_enclosing(object_t* obj, pony_type_t* t, int mutability)
 {
   if((mutability == PONY_TRACE_OPAQUE) || (obj->type == t) ||
-    (obj->type == NULL) || !ponyint_gc_embeds_at_start(t, obj->type))
+    (obj->type == NULL) || !embeds_at_start(t, obj->type))
     return false;
 
   pony_assert(might_reference_actor(t));
@@ -241,7 +256,7 @@ static bool retrace_enclosing(object_t* obj, pony_type_t* t, int mutability)
   return true;
 }
 
-// Records the type a readable visit traces with this round.
+// Records the type a non-opaque visit traces with this round.
 static void note_traced_type(object_t* obj, pony_type_t* t, int mutability)
 {
   if(mutability != PONY_TRACE_OPAQUE)
@@ -741,13 +756,13 @@ static pony_actor_t* actor_containing(void* p, pony_type_t* t)
 
 // Finds the actor that owns an object of a type that can share memory with
 // other objects, and the heap chunk the object is in, if any. False if no
-// actor owns it: such memory isn't collected, and for a readable visit the
+// actor owns it: such memory isn't collected, and for a non-opaque visit the
 // object is queued for tracing what it references, unless it is a constant.
 static GC_INLINE bool routed_owner(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int* mutability, pony_actor_t** actor, chunk_t** chunk)
 {
   // An object with no size can share its address with another object. A
-  // readable visit to it would mark that address as traced, so a later visit
+  // non-opaque visit to it would mark that address as traced, so a later visit
   // to the object there wouldn't trace its fields.
   if(t->size == 0)
     *mutability = PONY_TRACE_OPAQUE;

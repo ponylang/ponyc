@@ -11,6 +11,7 @@ PONY_API void pony_gc_send(pony_ctx_t* ctx, pony_actor_t* to)
   pony_assert(ctx->current != NULL);
   pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_sendobject;
+  ctx->trace_routed = ponyint_gc_sendrouted;
   ctx->trace_actor = ponyint_gc_sendactor;
 
   // Record the destination of the message being traced so the send-trace can
@@ -28,6 +29,7 @@ PONY_API void pony_gc_recv(pony_ctx_t* ctx)
   pony_assert(ctx->current != NULL);
   pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_recvobject;
+  ctx->trace_routed = ponyint_gc_recvrouted;
   ctx->trace_actor = ponyint_gc_recvactor;
 }
 
@@ -35,6 +37,7 @@ void ponyint_gc_mark(pony_ctx_t* ctx)
 {
   pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_markobject;
+  ctx->trace_routed = ponyint_gc_markrouted;
   ctx->trace_actor = ponyint_gc_markactor;
 }
 
@@ -50,6 +53,7 @@ PONY_API void pony_send_done(pony_ctx_t* ctx)
   // ASIO and bootstrap paths pass NULL), so nothing reads a stale value.
   ctx->msg_target = NULL;
   ctx->trace_object = NULL;
+  ctx->trace_routed = NULL;
 }
 
 PONY_API void pony_recv_done(pony_ctx_t* ctx)
@@ -58,15 +62,14 @@ PONY_API void pony_recv_done(pony_ctx_t* ctx)
   ponyint_gc_handlestack(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
   ctx->trace_object = NULL;
+  ctx->trace_routed = NULL;
 }
 
 void ponyint_mark_done(pony_ctx_t* ctx)
 {
   ponyint_gc_markimmutable(ctx, ponyint_actor_gc(ctx->current));
   ponyint_gc_handlestack(ctx);
-  // Only a mark records visits in the set.
-  if(ctx->visits.capacity != 0)
-    ponyint_gc_end_visits(ctx);
+  ponyint_gc_end_visits(ctx);
 
 #ifdef USE_RUNTIMESTATS
   uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
@@ -80,6 +83,7 @@ void ponyint_mark_done(pony_ctx_t* ctx)
   ponyint_gc_sweep(ctx, ponyint_actor_gc(ctx->current));
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
   ctx->trace_object = NULL;
+  ctx->trace_routed = NULL;
 }
 
 PONY_API void pony_send_next(pony_ctx_t* ctx, pony_actor_t* to)
@@ -106,23 +110,6 @@ PONY_API void pony_trace(pony_ctx_t* ctx, void* p)
   ctx->trace_object(ctx, p, NULL, PONY_TRACE_OPAQUE);
 }
 
-// For a type that can share memory with other objects, the function this trace
-// round uses: the matching routed function for a send, receive or mark,
-// and the round's own function otherwise.
-static trace_object_fn routed_fn(pony_ctx_t* ctx)
-{
-  if(ctx->trace_object == ponyint_gc_markobject)
-    return ponyint_gc_markrouted;
-
-  if(ctx->trace_object == ponyint_gc_sendobject)
-    return ponyint_gc_sendrouted;
-
-  if(ctx->trace_object == ponyint_gc_recvobject)
-    return ponyint_gc_recvrouted;
-
-  return ctx->trace_object;
-}
-
 PONY_API void pony_traceknown_routed(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int m)
 {
@@ -133,7 +120,7 @@ PONY_API void pony_traceknown_routed(pony_ctx_t* ctx, void* p,
 
   // An actor is never embedded, so no actor type is routed.
   pony_assert(t->dispatch == NULL);
-  routed_fn(ctx)(ctx, p, t, m);
+  ctx->trace_routed(ctx, p, t, m);
 }
 
 PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
@@ -188,7 +175,7 @@ PONY_API void pony_traceunknown_routed(pony_ctx_t* ctx, void* p, int m)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
   } else if((t->embed_flags & PONY_EMBED_ROUTED) != 0) {
-    routed_fn(ctx)(ctx, p, t, m);
+    ctx->trace_routed(ctx, p, t, m);
   } else {
     ctx->trace_object(ctx, p, t, m);
   }

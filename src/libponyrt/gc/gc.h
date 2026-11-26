@@ -50,23 +50,6 @@ void ponyint_gc_end_visits(pony_ctx_t* ctx);
 // Releases the storage for recorded visits.
 void ponyint_gc_free_visits(pony_ctx_t* ctx);
 
-// True when u is embedded at the start of t, directly or through other
-// embedded objects, so the two share an address and t's trace covers u.
-static inline bool ponyint_gc_embeds_at_start(pony_type_t* t,
-  pony_type_t* u)
-{
-  // A struct's descriptor holds the type embedded at its start in its
-  // instance slot; a class's is NULL.
-  for(pony_type_t* x = (pony_type_t*)t->instance; x != NULL;
-    x = (pony_type_t*)x->instance)
-  {
-    if(x == u)
-      return true;
-  }
-
-  return false;
-}
-
 void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 
@@ -76,9 +59,9 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 
-// The same for a type that can share memory with other objects
-// (PONY_EMBED_ROUTED): embedded objects, objects in an actor's allocation, and
-// structs that share an address with their first field.
+// Send, receive and mark functions for a type that can share memory with
+// other objects (PONY_EMBED_ROUTED): embedded objects, objects in an actor's
+// allocation, and structs that share an address with their first field.
 void ponyint_gc_sendrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 

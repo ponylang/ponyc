@@ -614,7 +614,7 @@ static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   args[2] = LLVMConstInt(c->i32, mutability, false);
 
   // Only a trace that can reach a type sharing memory with other objects needs
-  // the runtime to check the object's descriptor for it.
+  // the runtime to check the object's descriptor for PONY_EMBED_ROUTED.
   if(may_be_routed(c, type))
     gencall_runtime(c, "pony_traceunknown_routed", args, 3, "");
   else

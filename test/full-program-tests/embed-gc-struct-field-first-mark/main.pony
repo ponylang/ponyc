@@ -1,6 +1,6 @@
-// A struct's first embedded field shares the struct's address. Main holds the
-// field before the struct, so its collection reaches the address as the field
-// first. The struct's other field must still be traced.
+// A struct's first embedded field shares the struct's address. Main declares
+// the field before the struct, so its collection reaches the address as the
+// field first. The struct's other field must still be traced.
 class C
   let x: U64 = 7
 

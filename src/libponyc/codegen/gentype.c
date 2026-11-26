@@ -488,6 +488,17 @@ static bool make_struct(compile_t* c, reach_type_t* t)
   return true;
 }
 
+// Whether field i of t is embedded and has no size. Such a field has the
+// address of the object that holds it (see gentype_embed_ptr).
+static bool embed_has_no_size(compile_t* c, reach_type_t* t, uint32_t i)
+{
+  if(!t->fields[i].embed)
+    return false;
+
+  compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
+  return LLVMABISizeOfType(c->target_data, f_c_t->structure) == 0;
+}
+
 static LLVMMetadataRef make_debug_field(compile_t* c, reach_type_t* t,
   uint32_t i)
 {
@@ -540,9 +551,7 @@ static LLVMMetadataRef make_debug_field(compile_t* c, reach_type_t* t,
   uint64_t size = LLVMABISizeOfType(c->target_data, type);
   uint64_t align = LLVMABIAlignmentOfType(c->target_data, type);
 
-  // An embedded field with no size has the address of the object that holds
-  // it (see gentype_embed_ptr).
-  if(t->fields[i].embed && (size == 0))
+  if(embed_has_no_size(c, t, i))
     offset = 0;
 
   return LLVMDIBuilderCreateMemberType(c->di, c->di_unit, name, strlen(name),
@@ -767,13 +776,12 @@ static void flag_embedded(reach_type_t* t, uint8_t flag)
 LLVMValueRef gentype_embed_ptr(compile_t* c, reach_type_t* t,
   LLVMValueRef object, uint32_t index)
 {
-  reach_type_t* f = t->fields[index].type;
-  compile_type_t* f_c_t = (compile_type_t*)f->c_type;
+  pony_assert(t->fields[index].embed);
 
   // A field with no size stores nothing, and its position can be the end of
   // the object, which is the address of whatever is allocated after it. Its
   // address is the object's, so it is always inside the object.
-  if(LLVMABISizeOfType(c->target_data, f_c_t->structure) == 0)
+  if(embed_has_no_size(c, t, index))
     return object;
 
   uint32_t base = 0;
@@ -804,9 +812,7 @@ reach_type_t* gentype_first_embed(compile_t* c, reach_type_t* t)
     if(LLVMOffsetOfElement(c->target_data, c_t->structure, i) != 0)
       return NULL;
 
-    compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
-
-    if(t->fields[i].embed && (f_c_t->abi_size != 0))
+    if(t->fields[i].embed && !embed_has_no_size(c, t, i))
       return t->fields[i].type;
   }
 
