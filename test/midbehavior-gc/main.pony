@@ -31,6 +31,9 @@ actor \nodoc\ Main
     match mode
     | "transfer" => _Owner
     | "alias-order" => _AliasSender
+    | "recursion" => _Recurser
+    | "unwind" => _Unwinder
+    | "result" => _Returner
     else
       _churn(43, true)
     end

@@ -1,6 +1,7 @@
 #include "reach.h"
 #include "subtype.h"
 #include "../ast/astbuild.h"
+#include "../codegen/gencall.h"
 #include "../codegen/genname.h"
 #include "../codegen/genopt.h"
 #include "../pass/expr.h"
@@ -256,6 +257,13 @@ static bool reach_mangled_cmp(reach_method_t* a, reach_method_t* b)
 
 static void reach_mangled_free(reach_method_t* m)
 {
+  while(m->gc_callees != NULL)
+  {
+    reach_callee_t* next = m->gc_callees->next;
+    POOL_FREE(reach_callee_t, m->gc_callees);
+    m->gc_callees = next;
+  }
+
   if(m->param_count > 0)
     ponyint_pool_free_size(m->param_count * sizeof(reach_param_t), m->params);
 
@@ -1758,7 +1766,7 @@ static void reachable_pattern(reach_t* r, reach_method_t* m,
 }
 
 static reach_type_t* reachable_fun(reach_t* r, deferred_reification_t* reify,
-  ast_t* ast, pass_opt_t* opt, bool address_taken)
+  ast_t* ast, pass_opt_t* opt, bool address_taken, reach_method_t** callee)
 {
   AST_GET_CHILDREN(ast, receiver, method);
   ast_t* typeargs = NULL;
@@ -1779,23 +1787,26 @@ static reach_type_t* reachable_fun(reach_t* r, deferred_reification_t* reify,
     default: {}
   }
 
-  ast_t* type = ast_type(receiver);
+  ast_t* receiver_type = deferred_reify(reify, ast_type(receiver), opt);
   const char* method_name = ast_name(method);
 
-  // type will be reified in reachable_method
-  reach_type_t* t = reachable_method(r, reify, type, method_name, typeargs, opt);
+  reach_type_t* t = reachable_method(r, NULL, receiver_type, method_name,
+    typeargs, opt);
 
-  if(address_taken && t->is_trait && target_is_x86(opt->triple) &&
-    target_is_ilp32(opt->triple) && !r->limit_exceeded)
-  {
-    ast_t* receiver_type = deferred_reify(reify, type, opt);
-    reach_method_t* m = reach_method(t, cap_dispatch(receiver_type), method_name,
-      typeargs, opt);
-    if((m != NULL) && (m->cap != TK_AT) && is_float(m->result->ast))
-      m->needs_c_callback = true;
-    ast_free_unattached(receiver_type);
-  }
+  bool c_callback = address_taken && t->is_trait &&
+    target_is_x86(opt->triple) && target_is_ilp32(opt->triple);
+  reach_method_t* m = NULL;
+  if((c_callback || (callee != NULL)) && !r->limit_exceeded)
+    m = reach_method(t, cap_dispatch(receiver_type), method_name, typeargs,
+      opt);
 
+  if(c_callback && (m != NULL) && (m->cap != TK_AT) && is_float(m->result->ast))
+    m->needs_c_callback = true;
+
+  if(callee != NULL)
+    *callee = m;
+
+  ast_free_unattached(receiver_type);
   ast_free_unattached(typeargs);
   return t;
 }
@@ -1809,7 +1820,7 @@ static void reachable_addressof(reach_t* r, deferred_reification_t* reify,
   {
     case TK_FUNREF:
     case TK_BEREF:
-      reachable_fun(r, reify, expr, opt, true);
+      reachable_fun(r, reify, expr, opt, true, NULL);
       break;
 
     default: {}
@@ -1841,16 +1852,39 @@ static void exclude_literal_mutations(reach_type_t* literal,
   }
 }
 
+static void record_callee(reach_method_t* m, ast_t* call, reach_type_t* t,
+  reach_method_t* callee, pass_opt_t* opt)
+{
+  if(!gencall_gc_routable(call, t, callee) ||
+    gencall_is_inline(opt, m->fun, call))
+    return;
+
+  for(reach_callee_t* e = m->gc_callees; e != NULL; e = e->next)
+  {
+    if((e->type == t) && (e->method == callee))
+      return;
+  }
+
+  reach_callee_t* e = POOL_ALLOC(reach_callee_t);
+  e->type = t;
+  e->method = callee;
+  e->next = m->gc_callees;
+  m->gc_callees = e;
+}
+
 static void reachable_call(reach_t* r, reach_method_t* m,
   ast_t* ast, pass_opt_t* opt)
 {
   deferred_reification_t* reify = m->fun;
   AST_GET_CHILDREN(ast, postfix, positional, named, question);
-  reach_type_t* literal = reachable_fun(r, reify, postfix, opt, false);
+  reach_method_t* callee = NULL;
+  reach_type_t* receiver = reachable_fun(r, reify, postfix, opt, false,
+    &callee);
+  record_callee(m, ast, receiver, callee, opt);
 
   if(!opt->mutate || m->intrinsic || r->limit_exceeded ||
     !ast_checkflag(ast, AST_FLAG_OBJECT_LITERAL) ||
-    (literal->literal_mutation_exclusions == MUTATE_OP_ALL) ||
+    (receiver->literal_mutation_exclusions == MUTATE_OP_ALL) ||
     (ast_id(reify->thistype) != TK_NOMINAL))
     return;
 
@@ -1865,10 +1899,10 @@ static void reachable_call(reach_t* r, reach_method_t* m,
     exclusions |= owner->literal_mutation_exclusions;
     if(exclusions != MUTATE_OP_ALL)
       owner->nested_literals = ponyint_list_push(owner->nested_literals,
-        literal);
+        receiver);
   }
 
-  exclude_literal_mutations(literal, exclusions);
+  exclude_literal_mutations(receiver, exclusions);
 }
 
 static void reachable_ffi(reach_t* r, deferred_reification_t* reify,
@@ -2042,6 +2076,9 @@ static void reachable_expr(reach_t* r, reach_method_t* m,
       case TK_DISPOSING_BLOCK:
       case TK_RECOVER:
       {
+        if((ast_id(ast) == TK_WHILE) || (ast_id(ast) == TK_REPEAT))
+          m->has_loop = true;
+
         if(is_result_needed(ast, opt) && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
         {
           ast_t* type = deferred_reify(reify, ast_type(ast), opt);

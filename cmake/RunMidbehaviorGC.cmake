@@ -94,4 +94,28 @@ foreach(mode debug release)
     check_behavior_sweeps("${trace}" _AliasReceiver tag_first TRUE)
     check_behavior_sweeps("${trace}" _AliasReceiver val_first TRUE)
     check_behavior_sweeps("${trace}" _AliasReceiver check TRUE)
+    file(REMOVE "${trace}")
+    execute_process(
+        COMMAND "${dir}/midbehavior-gc${CMAKE_EXECUTABLE_SUFFIX}"
+            recursion --ponymaxthreads=1 --ponynoscale
+            --ponytracingcategories=actor_behavior,actor_gc
+        WORKING_DIRECTORY "${dir}"
+        COMMAND_ERROR_IS_FATAL ANY)
+    check_behavior_sweeps("${trace}" _Recurser _run TRUE)
+    file(REMOVE "${trace}")
+    execute_process(
+        COMMAND "${dir}/midbehavior-gc${CMAKE_EXECUTABLE_SUFFIX}"
+            unwind --ponymaxthreads=1 --ponynoscale
+            --ponytracingcategories=actor_behavior,actor_gc
+        WORKING_DIRECTORY "${dir}"
+        COMMAND_ERROR_IS_FATAL ANY)
+    check_behavior_sweeps("${trace}" _Unwinder _run TRUE)
+    file(REMOVE "${trace}")
+    execute_process(
+        COMMAND "${dir}/midbehavior-gc${CMAKE_EXECUTABLE_SUFFIX}"
+            result --ponymaxthreads=1 --ponynoscale
+            --ponytracingcategories=actor_behavior,actor_gc
+        WORKING_DIRECTORY "${dir}"
+        COMMAND_ERROR_IS_FATAL ANY)
+    check_behavior_sweeps("${trace}" _Returner _run TRUE)
 endforeach()

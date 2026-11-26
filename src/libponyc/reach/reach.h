@@ -25,6 +25,15 @@ DECLARE_HASHMAP(reach_method_names, reach_method_names_t,
 DECLARE_HASHMAP(reach_types, reach_types_t, reach_type_t);
 DECLARE_HASHMAP(reach_type_cache, reach_type_cache_t, reach_type_t);
 
+// The reified receiver type and the method of a call in a method body. The
+// type may be an interface, trait, union or intersection.
+typedef struct reach_callee_t
+{
+  reach_type_t* type;
+  reach_method_t* method;
+  struct reach_callee_t* next;
+} reach_callee_t;
+
 typedef void (*compile_opaque_free_fn)(void* p);
 
 typedef struct compile_opaque_t
@@ -59,6 +68,14 @@ struct reach_method_t
   size_t param_count;
   reach_param_t* params;
   reach_type_t* result;
+
+  // The parts of the body that reach traverses contain a `while` or `repeat`
+  // loop.
+  bool has_loop;
+
+  // One entry per distinct receiver type and method among the calls in the
+  // body that gencall_gc_routable accepts and that aren't compiled inline.
+  reach_callee_t* gc_callees;
 
   compile_opaque_t* c_method;
   uint32_t c_callback_index;

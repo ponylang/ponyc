@@ -48,95 +48,248 @@ static void ffi_decl_free(ffi_decl_t* d)
 DEFINE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t, ffi_decl_hash, ffi_decl_cmp,
   ffi_decl_free);
 
-static bool special_case_operator(compile_t* c, ast_t* ast,
-  LLVMValueRef *value, bool short_circuit, bool native128)
+typedef enum
+{
+  INLINE_NONE,
+  INLINE_PLATFORM,
+  INLINE_ADD,
+  INLINE_SUB,
+  INLINE_MUL,
+  INLINE_DIV,
+  INLINE_REM,
+  INLINE_NEG,
+  INLINE_ADD_UNSAFE,
+  INLINE_SUB_UNSAFE,
+  INLINE_MUL_UNSAFE,
+  INLINE_DIV_UNSAFE,
+  INLINE_REM_UNSAFE,
+  INLINE_NEG_UNSAFE,
+  INLINE_AND_SC,
+  INLINE_OR_SC,
+  INLINE_AND,
+  INLINE_OR,
+  INLINE_XOR,
+  INLINE_NOT,
+  INLINE_SHL,
+  INLINE_SHR,
+  INLINE_SHL_UNSAFE,
+  INLINE_SHR_UNSAFE,
+  INLINE_EQ,
+  INLINE_NE,
+  INLINE_LT,
+  INLINE_LE,
+  INLINE_GE,
+  INLINE_GT,
+  INLINE_EQ_UNSAFE,
+  INLINE_NE_UNSAFE,
+  INLINE_LT_UNSAFE,
+  INLINE_LE_UNSAFE,
+  INLINE_GE_UNSAFE,
+  INLINE_GT_UNSAFE
+} inline_call_t;
+
+static inline_call_t inline_operator(const char* name, bool short_circuit,
+  bool native128)
+{
+  static const struct
+  {
+    const char* name;
+    inline_call_t op;
+    bool needs_native128;
+  } operators[] =
+  {
+    {"add", INLINE_ADD, false},
+    {"sub", INLINE_SUB, false},
+    {"mul", INLINE_MUL, true},
+    {"div", INLINE_DIV, true},
+    {"rem", INLINE_REM, true},
+    {"neg", INLINE_NEG, false},
+    {"add_unsafe", INLINE_ADD_UNSAFE, false},
+    {"sub_unsafe", INLINE_SUB_UNSAFE, false},
+    {"mul_unsafe", INLINE_MUL_UNSAFE, true},
+    {"div_unsafe", INLINE_DIV_UNSAFE, true},
+    {"rem_unsafe", INLINE_REM_UNSAFE, true},
+    {"neg_unsafe", INLINE_NEG_UNSAFE, false},
+    {"op_xor", INLINE_XOR, false},
+    {"op_not", INLINE_NOT, false},
+    {"shl", INLINE_SHL, false},
+    {"shr", INLINE_SHR, false},
+    {"shl_unsafe", INLINE_SHL_UNSAFE, false},
+    {"shr_unsafe", INLINE_SHR_UNSAFE, false},
+    {"eq", INLINE_EQ, false},
+    {"ne", INLINE_NE, false},
+    {"lt", INLINE_LT, false},
+    {"le", INLINE_LE, false},
+    {"ge", INLINE_GE, false},
+    {"gt", INLINE_GT, false},
+    {"eq_unsafe", INLINE_EQ_UNSAFE, false},
+    {"ne_unsafe", INLINE_NE_UNSAFE, false},
+    {"lt_unsafe", INLINE_LT_UNSAFE, false},
+    {"le_unsafe", INLINE_LE_UNSAFE, false},
+    {"ge_unsafe", INLINE_GE_UNSAFE, false},
+    {"gt_unsafe", INLINE_GT_UNSAFE, false}
+  };
+
+  if(strcmp(name, "op_and") == 0)
+    return short_circuit ? INLINE_AND_SC : INLINE_AND;
+
+  if(strcmp(name, "op_or") == 0)
+    return short_circuit ? INLINE_OR_SC : INLINE_OR;
+
+  for(size_t i = 0; i < sizeof(operators) / sizeof(operators[0]); i++)
+  {
+    if(strcmp(name, operators[i].name) == 0)
+    {
+      if(operators[i].needs_native128 && !native128)
+        return INLINE_NONE;
+
+      return operators[i].op;
+    }
+  }
+
+  return INLINE_NONE;
+}
+
+// Which inline instructions gen_call compiles this call to, or INLINE_NONE if
+// it compiles to a method call.
+static inline_call_t inline_call(pass_opt_t* opt,
+  deferred_reification_t* reify, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, postfix, positional, named, question);
+
+  if((ast_id(postfix) != TK_FUNREF) || (ast_id(named) != TK_NONE))
+    return INLINE_NONE;
+
+  AST_GET_CHILDREN(postfix, receiver, method);
+  ast_t* receiver_type = deferred_reify(reify, ast_type(receiver), opt);
+
+  const char* name = NULL;
+
+  if(ast_id(receiver_type) == TK_NOMINAL)
+  {
+    AST_GET_CHILDREN(receiver_type, module, id);
+
+    if(strcmp(ast_name(module), "$0") == 0) // Builtin module.
+      name = ast_name(id);
+  }
+
+  ast_free_unattached(receiver_type);
+
+  if(name == NULL)
+    return INLINE_NONE;
+
+  const char* method_name = ast_name(method);
+
+  if(strcmp(name, "Bool") == 0)
+    return inline_operator(method_name, true, true);
+
+  static const char* const numbers[] =
+  {
+    "I8", "I16", "I32", "I64", "ILong", "ISize",
+    "U8", "U16", "U32", "U64", "ULong", "USize",
+    "F32", "F64"
+  };
+
+  for(size_t i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++)
+  {
+    if(strcmp(name, numbers[i]) == 0)
+      return inline_operator(method_name, false, true);
+  }
+
+  if((strcmp(name, "I128") == 0) || (strcmp(name, "U128") == 0))
+    return inline_operator(method_name, false,
+      target_is_native128(opt->triple));
+
+  if(strcmp(name, "Platform") == 0)
+    return INLINE_PLATFORM;
+
+  return INLINE_NONE;
+}
+
+bool gencall_is_inline(pass_opt_t* opt, deferred_reification_t* reify,
+  ast_t* call)
+{
+  return inline_call(opt, reify, call) != INLINE_NONE;
+}
+
+bool gencall_gc_routable(ast_t* call, reach_type_t* t, reach_method_t* m)
+{
+  if((m == NULL) || (m->fun == NULL) || (m->cap == TK_AT) ||
+    (ast_id(m->fun->ast) != TK_FUN) ||
+    (ast_id(ast_child(call)) == TK_FUNCHAIN))
+    return false;
+
+  switch(t->underlying)
+  {
+    case TK_CLASS:
+    case TK_ACTOR:
+    case TK_PRIMITIVE:
+    case TK_INTERFACE:
+    case TK_TRAIT:
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+static LLVMValueRef special_case_operator(compile_t* c, ast_t* ast,
+  inline_call_t op)
 {
   AST_GET_CHILDREN(ast, postfix, positional, named, question);
   AST_GET_CHILDREN(postfix, left, method);
 
   ast_t* right = ast_child(positional);
-  const char* name = ast_name(method);
-  bool special_case = true;
-  *value = NULL;
+  LLVMValueRef value = NULL;
 
   codegen_debugloc(c, ast);
   ast_t* saved_mutate_ast = c->frame->mutate_ast;
   c->frame->mutate_ast = ast;
 
-  if(name == c->str_add)
-    *value = gen_add(c, left, right, true);
-  else if(name == c->str_sub)
-    *value = gen_sub(c, left, right, true);
-  else if((name == c->str_mul) && native128)
-    *value = gen_mul(c, left, right, true);
-  else if((name == c->str_div) && native128)
-    *value = gen_div(c, left, right, true);
-  else if((name == c->str_rem) && native128)
-    *value = gen_rem(c, left, right, true);
-  else if(name == c->str_neg)
-    *value = gen_neg(c, left, true);
-  else if(name == c->str_add_unsafe)
-    *value = gen_add(c, left, right, false);
-  else if(name == c->str_sub_unsafe)
-    *value = gen_sub(c, left, right, false);
-  else if((name == c->str_mul_unsafe) && native128)
-    *value = gen_mul(c, left, right, false);
-  else if((name == c->str_div_unsafe) && native128)
-    *value = gen_div(c, left, right, false);
-  else if((name == c->str_rem_unsafe) && native128)
-    *value = gen_rem(c, left, right, false);
-  else if(name == c->str_neg_unsafe)
-    *value = gen_neg(c, left, false);
-  else if((name == c->str_and) && short_circuit)
-    *value = gen_and_sc(c, left, right);
-  else if((name == c->str_or) && short_circuit)
-    *value = gen_or_sc(c, left, right);
-  else if((name == c->str_and) && !short_circuit)
-    *value = gen_and(c, left, right);
-  else if((name == c->str_or) && !short_circuit)
-    *value = gen_or(c, left, right);
-  else if(name == c->str_xor)
-    *value = gen_xor(c, left, right);
-  else if(name == c->str_not)
-    *value = gen_not(c, left);
-  else if(name == c->str_shl)
-    *value = gen_shl(c, left, right, true);
-  else if(name == c->str_shr)
-    *value = gen_shr(c, left, right, true);
-  else if(name == c->str_shl_unsafe)
-    *value = gen_shl(c, left, right, false);
-  else if(name == c->str_shr_unsafe)
-    *value = gen_shr(c, left, right, false);
-  else if(name == c->str_eq)
-    *value = gen_eq(c, left, right, true);
-  else if(name == c->str_ne)
-    *value = gen_ne(c, left, right, true);
-  else if(name == c->str_lt)
-    *value = gen_lt(c, left, right, true);
-  else if(name == c->str_le)
-    *value = gen_le(c, left, right, true);
-  else if(name == c->str_ge)
-    *value = gen_ge(c, left, right, true);
-  else if(name == c->str_gt)
-    *value = gen_gt(c, left, right, true);
-  else if(name == c->str_eq_unsafe)
-    *value = gen_eq(c, left, right, false);
-  else if(name == c->str_ne_unsafe)
-    *value = gen_ne(c, left, right, false);
-  else if(name == c->str_lt_unsafe)
-    *value = gen_lt(c, left, right, false);
-  else if(name == c->str_le_unsafe)
-    *value = gen_le(c, left, right, false);
-  else if(name == c->str_ge_unsafe)
-    *value = gen_ge(c, left, right, false);
-  else if(name == c->str_gt_unsafe)
-    *value = gen_gt(c, left, right, false);
-  else
-    special_case = false;
+  switch(op)
+  {
+    case INLINE_ADD: value = gen_add(c, left, right, true); break;
+    case INLINE_SUB: value = gen_sub(c, left, right, true); break;
+    case INLINE_MUL: value = gen_mul(c, left, right, true); break;
+    case INLINE_DIV: value = gen_div(c, left, right, true); break;
+    case INLINE_REM: value = gen_rem(c, left, right, true); break;
+    case INLINE_NEG: value = gen_neg(c, left, true); break;
+    case INLINE_ADD_UNSAFE: value = gen_add(c, left, right, false); break;
+    case INLINE_SUB_UNSAFE: value = gen_sub(c, left, right, false); break;
+    case INLINE_MUL_UNSAFE: value = gen_mul(c, left, right, false); break;
+    case INLINE_DIV_UNSAFE: value = gen_div(c, left, right, false); break;
+    case INLINE_REM_UNSAFE: value = gen_rem(c, left, right, false); break;
+    case INLINE_NEG_UNSAFE: value = gen_neg(c, left, false); break;
+    case INLINE_AND_SC: value = gen_and_sc(c, left, right); break;
+    case INLINE_OR_SC: value = gen_or_sc(c, left, right); break;
+    case INLINE_AND: value = gen_and(c, left, right); break;
+    case INLINE_OR: value = gen_or(c, left, right); break;
+    case INLINE_XOR: value = gen_xor(c, left, right); break;
+    case INLINE_NOT: value = gen_not(c, left); break;
+    case INLINE_SHL: value = gen_shl(c, left, right, true); break;
+    case INLINE_SHR: value = gen_shr(c, left, right, true); break;
+    case INLINE_SHL_UNSAFE: value = gen_shl(c, left, right, false); break;
+    case INLINE_SHR_UNSAFE: value = gen_shr(c, left, right, false); break;
+    case INLINE_EQ: value = gen_eq(c, left, right, true); break;
+    case INLINE_NE: value = gen_ne(c, left, right, true); break;
+    case INLINE_LT: value = gen_lt(c, left, right, true); break;
+    case INLINE_LE: value = gen_le(c, left, right, true); break;
+    case INLINE_GE: value = gen_ge(c, left, right, true); break;
+    case INLINE_GT: value = gen_gt(c, left, right, true); break;
+    case INLINE_EQ_UNSAFE: value = gen_eq(c, left, right, false); break;
+    case INLINE_NE_UNSAFE: value = gen_ne(c, left, right, false); break;
+    case INLINE_LT_UNSAFE: value = gen_lt(c, left, right, false); break;
+    case INLINE_LE_UNSAFE: value = gen_le(c, left, right, false); break;
+    case INLINE_GE_UNSAFE: value = gen_ge(c, left, right, false); break;
+    case INLINE_GT_UNSAFE: value = gen_gt(c, left, right, false); break;
+    default: pony_assert(0);
+  }
 
   c->frame->mutate_ast = saved_mutate_ast;
   codegen_debugloc(c, NULL);
-  return special_case;
+  return value;
 }
 
 static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
@@ -156,65 +309,21 @@ static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
 
 static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
 {
-  AST_GET_CHILDREN(ast, postfix, positional, named, question);
+  inline_call_t op = inline_call(c->opt, c->frame->reify, ast);
 
-  if((ast_id(postfix) != TK_FUNREF) || (ast_id(named) != TK_NONE))
-    return false;
-
-  AST_GET_CHILDREN(postfix, receiver, method);
-  ast_t* receiver_type = deferred_reify(c->frame->reify, ast_type(receiver),
-    c->opt);
-
-  const char* name = NULL;
-
-  if(ast_id(receiver_type) == TK_NOMINAL)
+  switch(op)
   {
-    AST_GET_CHILDREN(receiver_type, module, id);
+    case INLINE_NONE:
+      return false;
 
-    if(ast_name(module) == c->str_builtin)
-      name = ast_name(id);
+    case INLINE_PLATFORM:
+      *value = special_case_platform(c, ast);
+      return true;
+
+    default:
+      *value = special_case_operator(c, ast, op);
+      return true;
   }
-
-  ast_free_unattached(receiver_type);
-
-  if(name == NULL)
-    return false;
-
-  if(name == c->str_Bool)
-    return special_case_operator(c, ast, value, true, true);
-
-  if((name == c->str_I8) ||
-    (name == c->str_I16) ||
-    (name == c->str_I32) ||
-    (name == c->str_I64) ||
-    (name == c->str_ILong) ||
-    (name == c->str_ISize) ||
-    (name == c->str_U8) ||
-    (name == c->str_U16) ||
-    (name == c->str_U32) ||
-    (name == c->str_U64) ||
-    (name == c->str_ULong) ||
-    (name == c->str_USize) ||
-    (name == c->str_F32) ||
-    (name == c->str_F64)
-    )
-  {
-    return special_case_operator(c, ast, value, false, true);
-  }
-
-  if((name == c->str_I128) || (name == c->str_U128))
-  {
-    bool native128 = target_is_native128(c->opt->triple);
-    return special_case_operator(c, ast, value, false, native128);
-  }
-
-  if(name == c->str_Platform)
-  {
-    *value = special_case_platform(c, ast);
-    return true;
-  }
-
-  return false;
 }
 
 static bool contains_boxable(ast_t* type);
@@ -252,10 +361,9 @@ static bool has_boxed_param_mismatch(reach_method_t* m,
 }
 
 // Check whether a concrete subtype's method is safe for devirtualization.
-// Returns the resolved function pointer, or NULL if the candidate must be
-// skipped.
-static LLVMValueRef devirt_candidate_func(compile_t* c, reach_type_t* sub,
-  reach_method_t* m, const char* method_name)
+// Returns the subtype's method, or NULL if the candidate must be skipped.
+static reach_method_t* devirt_candidate_method(compile_t* c,
+  reach_type_t* sub, reach_method_t* m, const char* method_name)
 {
   if(sub->can_be_boxed)
     return NULL;
@@ -276,10 +384,22 @@ static LLVMValueRef devirt_candidate_func(compile_t* c, reach_type_t* sub,
 
   compile_method_t* c_m_sub = (compile_method_t*)m_sub->c_method;
 
-  if((c_m_sub != NULL) && (c_m_sub->func != NULL))
-    return codegen_resolve_function(c, c_m_sub->func);
+  if((c_m_sub == NULL) || (c_m_sub->func == NULL))
+    return NULL;
 
-  return NULL;
+  return m_sub;
+}
+
+static LLVMValueRef devirt_candidate_func(compile_t* c, reach_type_t* sub,
+  reach_method_t* m, const char* method_name)
+{
+  reach_method_t* m_sub = devirt_candidate_method(c, sub, m, method_name);
+
+  if(m_sub == NULL)
+    return NULL;
+
+  compile_method_t* c_m_sub = (compile_method_t*)m_sub->c_method;
+  return codegen_resolve_function(c, c_m_sub->func);
 }
 
 static void return_call(compile_t* c, LLVMValueRef call)
@@ -299,14 +419,30 @@ static size_t devirt_count(reach_type_t* t)
   reach_type_t* sub;
   while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
   {
-    if(sub->underlying == TK_CLASS || sub->underlying == TK_ACTOR ||
-      sub->underlying == TK_PRIMITIVE)
-    {
-      if(++count > GUARDED_DEVIRT_MAX)
-        break;
-    }
+    if(gencall_is_concrete(sub) && (++count > GUARDED_DEVIRT_MAX))
+      break;
   }
   return count;
+}
+
+bool gencall_is_concrete(reach_type_t* t)
+{
+  return (t->underlying == TK_CLASS) || (t->underlying == TK_ACTOR) ||
+    (t->underlying == TK_PRIMITIVE);
+}
+
+reach_method_t* gencall_gc_concrete(compile_t* c, reach_type_t* sub,
+  reach_method_t* m)
+{
+  if(!gencall_is_concrete(sub))
+    return NULL;
+  const char* method_name = ast_name(ast_childidx(m->fun->ast, 1));
+  reach_method_t* concrete = devirt_candidate_method(c, sub, m, method_name);
+  if(concrete == NULL ||
+    ((compile_method_t*)concrete->c_method)->func_type !=
+      ((compile_method_t*)m->c_method)->func_type)
+    return NULL;
+  return concrete;
 }
 
 LLVMValueRef gencall_gc_dispatch(compile_t* c, reach_type_t* t,
@@ -317,7 +453,6 @@ LLVMValueRef gencall_gc_dispatch(compile_t* c, reach_type_t* t,
   // branches than guarded devirtualization allows.
   if(loop_polls && devirt_count(t) > GUARDED_DEVIRT_MAX)
     return NULL;
-  const char* method_name = ast_name(ast_childidx(m->fun->ast, 1));
   const char* name = genname_program_fn(m->full_name, ".gc.dispatch",
     c->opt->strtab);
   LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
@@ -335,14 +470,8 @@ LLVMValueRef gencall_gc_dispatch(compile_t* c, reach_type_t* t,
   reach_type_t* sub;
   while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
   {
-    if((sub->underlying != TK_CLASS && sub->underlying != TK_ACTOR &&
-      sub->underlying != TK_PRIMITIVE) ||
-      devirt_candidate_func(c, sub, m, method_name) == NULL)
-      continue;
-    reach_method_t* concrete = reach_method(sub, m->cap, method_name,
-      m->typeargs, c->opt);
-    if(!gengc_method_eligible(c, sub, concrete) ||
-      ((compile_method_t*)concrete->c_method)->func_type != ordinary)
+    reach_method_t* concrete = gencall_gc_concrete(c, sub, m);
+    if(concrete == NULL || !gengc_method_has_copy(c, sub, concrete))
       continue;
     LLVMValueRef target = genfun_gc_target(c, sub, concrete);
     LLVMTypeRef type = LLVMGlobalGetValueType(target);
@@ -1199,6 +1328,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
     if(!bare && ast_id(postfix) != TK_FUNCHAIN)
     {
+      pony_assert(!gencall_gc_routable(ast, t, m) ||
+        gengc_call_recorded(c, t, m));
       codegen_debugloc(c, ast);
       r = gengc_call(c, ast, t, m, args, (unsigned)i);
       if(r == NULL)

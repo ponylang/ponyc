@@ -11,6 +11,25 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
 LLVMValueRef gen_funptr(compile_t* c, ast_t* ast);
 
+// True if gen_call compiles this call to inline instructions instead of a
+// method call.
+bool gencall_is_inline(pass_opt_t* opt, deferred_reification_t* reify,
+  ast_t* call);
+
+// True if this call, which resolves to method m on a receiver of type t, is
+// of a kind gen_call can route to a collecting copy or a collecting dispatch.
+// Doesn't exclude calls gen_call compiles inline; see gencall_is_inline.
+bool gencall_gc_routable(ast_t* call, reach_type_t* t, reach_method_t* m);
+
+// True if t is a class, actor or primitive.
+bool gencall_is_concrete(reach_type_t* t);
+
+// The method of the concrete type sub that a collecting dispatch for the
+// abstract method m would call directly, or NULL if there is none. Doesn't
+// check whether that method gets a collecting copy.
+reach_method_t* gencall_gc_concrete(compile_t* c, reach_type_t* sub,
+  reach_method_t* m);
+
 LLVMValueRef gencall_gc_dispatch(compile_t* c, reach_type_t* t,
   reach_method_t* m, bool loop_polls);
 

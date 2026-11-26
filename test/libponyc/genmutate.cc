@@ -6360,6 +6360,88 @@ TEST_F(GenMutateTest, MonomorphSharedJson)
 }
 
 
+TEST_F(GenMutateCodegenTest, MutantSelectsInCollectingCopy)
+{
+  const char* src =
+    "primitive Sum\n"
+    "  fun apply(n: U64): U64 =>\n"
+    "    var total: U64 = 0\n"
+    "    var i: U64 = 0\n"
+    "    while i < n do\n"
+    "      Array[U64]\n"
+    "      total = total + i\n"
+    "      i = i + 1\n"
+    "    end\n"
+    "    total\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Sum(U64(3))\n";
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  auto records = site_records(7, "aor");
+  auto increment = site_records(8, "aor");
+  ASSERT_FALSE(records.empty());
+  ASSERT_FALSE(increment.empty());
+  records.insert(records.end(), increment.begin(), increment.end());
+  for(auto* r : records)
+  {
+    check_site_wiring(r);
+    size_t copies = 0;
+    for(auto& fn : selecting_functions(r->id))
+      if(fn.size() > 3 && fn.compare(fn.size() - 3, 3, ".gc") == 0)
+        copies++;
+    EXPECT_GE(copies, 1u);
+    // Checks that the original and its copy select the mutant together.
+    EXPECT_FALSE(selecting_methods(r->id).empty());
+  }
+  verify_module();
+}
+
+TEST_F(GenMutateCodegenTest, SharedMutantSelectsInCollectingCopies)
+{
+  const char* src =
+    "primitive Sum[A]\n"
+    "  fun apply(n: U64): U64 =>\n"
+    "    var total: U64 = 0\n"
+    "    var i: U64 = 0\n"
+    "    while i < n do\n"
+    "      Array[U64]\n"
+    "      total = total + i\n"
+    "      i = i + 1\n"
+    "    end\n"
+    "    total\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Sum[U8](U64(3))\n"
+    "    Sum[U64](U64(3))\n";
+  opt.mutate = true;
+  opt.mutate_operators = MUTATE_OP_AOR;
+  DO(test_compile(src, "ir"));
+  auto records = site_records(7, "aor");
+  auto increment = site_records(8, "aor");
+  ASSERT_FALSE(records.empty());
+  ASSERT_FALSE(increment.empty());
+  records.insert(records.end(), increment.begin(), increment.end());
+  for(auto* r : records)
+  {
+    EXPECT_TRUE(r->shared);
+    check_site_wiring(r);
+    for(const char* type : {"U8", "U64"})
+    {
+      size_t copies = 0;
+      for(auto& fn : selecting_functions(r->id))
+        if((fn.find(std::string("Sum_") + type + "_") != std::string::npos) &&
+          (fn.size() > 3) && (fn.compare(fn.size() - 3, 3, ".gc") == 0))
+          copies++;
+      EXPECT_GE(copies, 1u) << type;
+    }
+    // Checks that the originals and their copies select the mutant together.
+    EXPECT_FALSE(selecting_methods(r->id).empty());
+  }
+  verify_module();
+}
+
 TEST_F(GenMutateCodegenTest, MonomorphGenericType)
 {
   const char* src =
