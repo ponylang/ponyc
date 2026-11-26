@@ -186,3 +186,56 @@ TEST_F(CodegenEmbedTest, EmbeddedInAnActor)
   ASSERT_EQ(0, flags_of("D") & PONY_EMBED_IN_ACTOR);
   ASSERT_EQ(0, flags_of("H") & PONY_EMBED_ACTOR_LOOKUP);
 }
+
+// An embedded field with no size at the end of an object gets a byte of
+// padding after it, so its address is inside the object.
+TEST_F(CodegenEmbedTest, ZeroSizeFieldAtTheEndIsInsideTheObject)
+{
+  const char* src =
+    "struct Z\n"
+    "  new create() => None\n"
+
+    "class C\n"
+    "  var x: U64 = 0\n"
+    "  embed z: Z = Z\n"
+
+    "struct S\n"
+    "  var x: U64 = 0\n"
+    "  embed z: Z = Z\n"
+    "  new create() => None\n"
+
+    "class M\n"
+    "  embed z: Z = Z\n"
+    "  var x: U64 = 0\n"
+
+    "actor Main\n"
+    "  var _c: C = C\n"
+    "  var _s: S = S\n"
+    "  var _m: M = M\n"
+    "  embed z: Z = Z\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+
+  // Element 0 of a class is its descriptor; an actor also has its header.
+  struct { const char* name; unsigned header; } types[] =
+    {{"C", 1}, {"S", 0}, {"Main", 2}};
+
+  for(auto& type : types)
+  {
+    SCOPED_TRACE(type.name);
+    reach_type_t* t = reach_type_name(compile->reach, type.name, &opt);
+    ASSERT_NE(nullptr, t);
+    compile_type_t* c_t = (compile_type_t*)t->c_type;
+    unsigned z = type.header + t->field_count - 1;
+    uint64_t offset = LLVMOffsetOfElement(compile->target_data,
+      c_t->structure, z);
+    ASSERT_LT(offset, c_t->abi_size);
+  }
+
+  // A field with no size before another field needs no padding.
+  reach_type_t* m = reach_type_name(compile->reach, "M", &opt);
+  ASSERT_NE(nullptr, m);
+  compile_type_t* m_c_t = (compile_type_t*)m->c_type;
+  ASSERT_EQ(3u, LLVMCountStructElementTypes(m_c_t->structure));
+}

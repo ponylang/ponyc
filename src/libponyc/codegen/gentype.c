@@ -391,6 +391,15 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
   codegen_finishfun(c);
 }
 
+// A struct with no fields has no size. Every other type has a size: a class
+// or actor has a descriptor, and a type whose last field is one of these gets
+// a byte of padding (see make_struct).
+static bool has_no_size(reach_type_t* t)
+{
+  return (t->underlying == TK_STRUCT) && (t->field_count == 0) &&
+    (((compile_type_t*)t->c_type)->structure != NULL);
+}
+
 static bool make_struct(compile_t* c, reach_type_t* t)
 {
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -456,7 +465,15 @@ static bool make_struct(compile_t* c, reach_type_t* t)
       return false;
   }
 
-  size_t buf_size = (t->field_count + extra) * sizeof(LLVMTypeRef);
+  // An embedded field with no size at the end of an object would have the
+  // address of whatever is allocated after the object. A byte of padding
+  // after it keeps its address inside the object, so the runtime finds the
+  // object that holds it.
+  bool pad = (t->field_count > 0) && t->fields[t->field_count - 1].embed &&
+    has_no_size(t->fields[t->field_count - 1].type);
+  uint32_t count = t->field_count + extra + (pad ? 1 : 0);
+
+  size_t buf_size = count * sizeof(LLVMTypeRef);
   LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
 
   // Create the type descriptor as element 0.
@@ -483,7 +500,10 @@ static bool make_struct(compile_t* c, reach_type_t* t)
     }
   }
 
-  LLVMStructSetBody(type, elements, t->field_count + extra, packed);
+  if(pad)
+    elements[count - 1] = c->i8;
+
+  LLVMStructSetBody(type, elements, count, packed);
   ponyint_pool_free_size(buf_size, elements);
   return true;
 }
