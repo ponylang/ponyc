@@ -7,6 +7,7 @@
 #include "../mem/pool.h"
 #include "../mem/pagemap.h"
 #include "../gc/cycle.h"
+#include "../gc/image.h"
 #include "../gc/trace.h"
 #include "../tracing/tracing.h"
 #include "ponyassert.h"
@@ -797,10 +798,10 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
   return !ponyint_messageq_markempty(&actor->q);
 }
 
-// The memalign pool can't say where the allocation containing an address
-// starts, so an actor with an embedded field is recorded in the pagemap
-// instead, given a whole pagemap entry so no other allocation shares it.
-// Only builds that choose the memalign pool pay for the larger allocation.
+// The memalign pool has no way to find where the allocation containing an
+// address starts, so an actor with an embedded field is recorded in the
+// pagemap instead, given a whole pagemap entry so no other allocation shares
+// it. Only builds that choose the memalign pool pay for the larger allocation.
 static size_t actor_alloc_size(pony_type_t* type)
 {
 #ifdef POOL_USE_MEMALIGN
@@ -809,6 +810,22 @@ static size_t actor_alloc_size(pony_type_t* type)
     return POOL_ALIGN;
 #endif
   return type->size;
+}
+
+// Whether the actor's allocation is recorded in the pagemap so that an address
+// of one of its embedded fields leads back to it. The arena pool finds an
+// actor from its own records, except one too large for an arena, which has a
+// mapping of its own.
+static bool actor_in_pagemap(pony_actor_t* actor)
+{
+  if((actor->type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) == 0)
+    return false;
+
+#ifdef POOL_USE_ARENA
+  return ponyint_pool_base(actor) == NULL;
+#else
+  return true;
+#endif
 }
 
 void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
@@ -849,12 +866,10 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
 
   size_t alloc_size = actor_alloc_size(actor->type);
 
-#ifdef POOL_USE_MEMALIGN
   // Forget the actor's pagemap entries before its memory can be reused.
-  if((actor->type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) != 0)
+  if(actor_in_pagemap(actor))
     ponyint_pagemap_set_bulk(actor, NULL, NULL,
       ponyint_pool_used_size(alloc_size));
-#endif
 
   // Free variable sized actors correctly.
   ponyint_pool_free_size(alloc_size, actor);
@@ -925,14 +940,32 @@ bool ponyint_actor_getnoblock()
 
 pony_actor_t* ponyint_actor_containing(void* p)
 {
-#ifdef POOL_USE_ARENA
-  pony_actor_t* actor = (pony_actor_t*)ponyint_pool_base(p);
-#else
   pony_actor_t* actor = NULL;
-  if(ponyint_pagemap_get(p, &actor) != NULL)
-    actor = NULL;
+
+#ifdef POOL_USE_ARENA
+  void* base = ponyint_pool_base(p);
+
+  if(base != NULL)
+  {
+    // Memory from the pool that isn't an actor can be handed to Pony through
+    // FFI. An actor starts with its descriptor, which is a constant in the
+    // program image; anything else isn't taken for an actor.
+    pony_type_t* t = *(pony_type_t**)base;
+
+    if(!ponyint_image_constant(t) || (t->dispatch == NULL) ||
+      ((t->embed_flags & PONY_EMBED_ACTOR_LOOKUP) == 0) ||
+      ((char*)p >= ((char*)base + t->size)))
+      return NULL;
+
+    return (pony_actor_t*)base;
+  }
 #endif
-  pony_assert((actor == NULL) || (actor->type->dispatch != NULL));
+
+  // Every pagemap entry that names an actor and no chunk was recorded by
+  // pony_create for that actor.
+  if(ponyint_pagemap_get(p, &actor) != NULL)
+    return NULL;
+
   return actor;
 }
 
@@ -947,11 +980,9 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   memset(actor, 0, type->size);
   actor->type = type;
 
-#ifdef POOL_USE_MEMALIGN
-  if((type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) != 0)
+  if(actor_in_pagemap(actor))
     ponyint_pagemap_set_bulk(actor, NULL, actor,
       ponyint_pool_used_size(alloc_size));
-#endif
 
 #ifdef USE_SYSTEMATIC_TESTING
   // Assign a stable, monotonic creation-order id (ids start at 1; 0 is never a

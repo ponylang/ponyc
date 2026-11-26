@@ -728,13 +728,9 @@ static GC_INLINE void mark_remote_object(pony_ctx_t* ctx,
     recurse(ctx, p, t->trace);
 }
 
-// An object with no heap chunk can be embedded in an actor. Only types the
-// compiler found embedded in an actor are looked up, so constants and memory
-// from C of other types cost nothing here. An object of such a type is never
-// in pool memory except inside an actor: Pony objects are allocated on actor
-// heaps, whose chunks the pagemap finds first. An actor too large for a pool
-// arena isn't found, and its embedded objects are treated as memory no actor
-// owns.
+// An object with no heap chunk can be embedded in an actor. Only types with
+// PONY_EMBED_IN_ACTOR are looked up, so constants and memory from C of other
+// types cost nothing here.
 static pony_actor_t* actor_containing(void* p, pony_type_t* t)
 {
   if((t->embed_flags & PONY_EMBED_IN_ACTOR) == 0)

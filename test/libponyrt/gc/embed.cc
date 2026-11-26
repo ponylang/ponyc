@@ -2,9 +2,11 @@
 
 #include <actor/actor.h>
 #include <gc/gc.h>
+#include <gc/image.h>
 #include <gc/trace.h>
 #include <mem/heap.h>
 #include <mem/pagemap.h>
+#include <mem/pool.h>
 #include <sched/scheduler.h>
 
 #include <gtest/gtest.h>
@@ -634,16 +636,28 @@ void dispatch_nothing(pony_ctx_t* ctx, pony_actor_t* self, pony_msg_t* msg)
 }
 }
 
-// An embedded field of an actor leads back to the actor.
+// Actor descriptors are constants in the program image, as compiled ones are.
+// Fields: id, size, field_count, field_offset, instance, name,
+// get_behavior_name, trace, dispatch, final, event_notify,
+// might_reference_actor, embed_flags, traits, fields, vtable.
+const _pony_type_t small_actor_type = {0,
+  (uint32_t)(sizeof(pony_actor_t) + 64), 0, 0, nullptr, nullptr, nullptr,
+  nullptr, dispatch_nothing, nullptr, 0, true, PONY_EMBED_ACTOR_LOOKUP,
+  nullptr, nullptr, nullptr};
+
+// Larger than an arena, so the pool gives it a mapping of its own.
+const size_t huge_actor_size = 16 * 1024 * 1024;
+const _pony_type_t huge_actor_type = {0, (uint32_t)huge_actor_size, 0, 0,
+  nullptr, nullptr, nullptr, nullptr, dispatch_nothing, nullptr, 0, true,
+  PONY_EMBED_ACTOR_LOOKUP, nullptr, nullptr, nullptr};
+
+// The address of a field of an actor leads back to the actor.
 TEST(ActorContaining, FindsTheActorFromAnInteriorAddress)
 {
   ponyint_register_thread();
-  _pony_type_t type{};
-  type.size = sizeof(pony_actor_t) + 64;
-  type.dispatch = dispatch_nothing;
-  type.embed_flags = PONY_EMBED_ACTOR_LOOKUP;
-  pony_actor_t* actor = pony_create(pony_ctx(), &type, true);
+  ponyint_image_init();
 
+  pony_actor_t* actor = pony_create(pony_ctx(), &small_actor_type, true);
   char* field = reinterpret_cast<char*>(actor) + sizeof(pony_actor_t) + 8;
   EXPECT_EQ(actor, ponyint_actor_containing(field));
 
@@ -651,5 +665,35 @@ TEST(ActorContaining, FindsTheActorFromAnInteriorAddress)
   EXPECT_EQ(nullptr, ponyint_actor_containing(&local));
 
   ponyint_destroy(actor);
+  ponyint_unregister_thread();
+}
+
+// An actor too large for an arena is found too.
+TEST(ActorContaining, FindsAnActorTooLargeForAnArena)
+{
+  ponyint_register_thread();
+  ponyint_image_init();
+
+  pony_actor_t* actor = pony_create(pony_ctx(), &huge_actor_type, true);
+  char* field = reinterpret_cast<char*>(actor) + huge_actor_size - 8;
+  EXPECT_EQ(actor, ponyint_actor_containing(field));
+
+  ponyint_destroy(actor);
+  EXPECT_EQ(nullptr, ponyint_actor_containing(field));
+  ponyint_unregister_thread();
+}
+
+// Pool memory handed to Pony through FFI isn't taken for an actor.
+TEST(ActorContaining, PoolMemoryThatIsNotAnActor)
+{
+  ponyint_register_thread();
+  ponyint_image_init();
+
+  size_t size = sizeof(pony_actor_t) + 64;
+  char* block = static_cast<char*>(ponyint_pool_alloc_size(size));
+  memset(block, 0, size);
+  EXPECT_EQ(nullptr, ponyint_actor_containing(block + 16));
+
+  ponyint_pool_free_size(size, block);
   ponyint_unregister_thread();
 }
