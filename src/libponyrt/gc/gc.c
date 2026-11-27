@@ -758,12 +758,6 @@ static pony_actor_t* actor_containing(void* p, pony_type_t* t)
 static GC_INLINE bool routed_owner(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int* mutability, pony_actor_t** actor, chunk_t** chunk)
 {
-  // An object with no size can share its address with another object. A
-  // non-opaque visit to it would mark that address as traced, so a later visit
-  // to the object there wouldn't trace its fields.
-  if(t->size == 0)
-    *mutability = PONY_TRACE_OPAQUE;
-
   *actor = NULL;
   *chunk = ponyint_pagemap_get(p, actor);
 

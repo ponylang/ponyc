@@ -5,6 +5,7 @@
 #include "util.h"
 #include <llvm-c/Core.h>
 #include "llvm_config_begin.h"
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/InstrTypes.h>
 #include <llvm/IR/Module.h>
 #include "llvm_config_end.h"
@@ -340,4 +341,56 @@ TEST_F(CodegenEmbedTest, ClassEmbeddingAFieldWithNoSizeIsRouted)
 
   ASSERT_NE(0, flags_of("D") & PONY_EMBED_ROUTED);
   ASSERT_EQ(0, flags_of("P") & PONY_EMBED_ROUTED);
+}
+
+// A known trace of a type with no size is opaque, whatever the reference's
+// capability: an object with no size has its holder's address.
+TEST_F(CodegenEmbedTest, KnownTraceOfATypeWithNoSizeIsOpaque)
+{
+  const char* src =
+    "struct Z\n"
+    "  new create() => None\n"
+
+    "class D\n"
+    "  embed z: Z = Z\n"
+    "  var x: U64 = 0\n"
+
+    "actor Keeper\n"
+    "  var _z: Z val = recover Z end\n"
+    "  be take(z: Z val) => _z = z\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let d: D val = recover D end\n"
+    "    Keeper.take(d.z)";
+
+  TEST_COMPILE(src);
+
+  auto module = llvm::unwrap(compile->module);
+  auto z_desc = module->getNamedGlobal("Z_Desc");
+  ASSERT_NE(nullptr, z_desc);
+
+  size_t traces = 0;
+
+  for(auto& function : *module)
+  {
+    for(auto& block : function)
+    {
+      for(auto& inst : block)
+      {
+        auto call = llvm::dyn_cast<llvm::CallBase>(&inst);
+        if((call == nullptr) || (call->getCalledFunction() == nullptr) ||
+          (call->getCalledFunction()->getName() != "pony_traceknown_routed") ||
+          (call->getArgOperand(2)->stripPointerCasts() != z_desc))
+          continue;
+
+        auto m = llvm::dyn_cast<llvm::ConstantInt>(call->getArgOperand(3));
+        ASSERT_NE(nullptr, m);
+        EXPECT_EQ(2u, m->getZExtValue());
+        traces++;
+      }
+    }
+  }
+
+  ASSERT_GT(traces, 0u);
 }

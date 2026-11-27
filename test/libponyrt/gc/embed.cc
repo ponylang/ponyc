@@ -429,14 +429,15 @@ TEST_F(GcSharedAddress, PendingAcquireCarriesTheStructType)
   end_epoch(&a);
 }
 
-// A visit to an object with no size at the struct's address doesn't mark the
-// address as traced: the struct's field is still counted when it is sent.
+// An opaque visit to an object with no size at the struct's address doesn't
+// mark the address as traced: the struct's field is still counted when it is
+// sent.
 TEST_F(GcSharedAddress, ZeroSizeVisitDoesNotHideTheStruct)
 {
   field_mutability = PONY_TRACE_IMMUTABLE;
   S* s = alloc_s(&a);
   pony_gc_send(ctx, &b);
-  pony_traceknown_routed(ctx, s, &zero_type, PONY_TRACE_IMMUTABLE);
+  pony_traceknown_routed(ctx, s, &zero_type, PONY_TRACE_OPAQUE);
   pony_traceknown_routed(ctx, s, &s_type, PONY_TRACE_IMMUTABLE);
   ponyint_gc_handlestack(ctx);
   ASSERT_NE(nullptr, local(&a, s->d));
@@ -450,7 +451,7 @@ TEST_F(GcSharedAddress, ZeroSizeVisitDoesNotHideTheStruct)
   // The same holds for the actor that receives them.
   ctx->current = &b;
   pony_gc_recv(ctx);
-  pony_traceknown_routed(ctx, s, &zero_type, PONY_TRACE_IMMUTABLE);
+  pony_traceknown_routed(ctx, s, &zero_type, PONY_TRACE_OPAQUE);
   pony_traceknown_routed(ctx, s, &s_type, PONY_TRACE_IMMUTABLE);
   ponyint_gc_handlestack(ctx);
   ASSERT_NE(nullptr, foreign(&b, &a, s));

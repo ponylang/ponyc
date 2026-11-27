@@ -333,14 +333,15 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m);
 
 /** Trace an object whose type can share memory with other objects.
  *
- * Use this in place of pony_traceknown when t has PONY_EMBED_ROUTED: a type
- * embedded in another, or a struct that starts with an embedded field with a
- * non-zero size. It also accepts a type without the flag.
+ * Use this in place of pony_traceknown when t has PONY_EMBED_ROUTED. It also
+ * accepts a type without the flag.
  *
  * @param ctx The current context.
  * @param p The pointer being traced.
  * @param t The pony_type_t for the object pointed to.
- * @param m Logical mutability of the object pointed to.
+ * @param m Logical mutability of the object pointed to. Must be
+ * PONY_TRACE_OPAQUE when t has a size of 0: such an object has the address of
+ * the object that holds it.
  */
 PONY_API void pony_traceknown_routed(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int m);

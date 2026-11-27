@@ -120,6 +120,10 @@ PONY_API void pony_traceknown_routed(pony_ctx_t* ctx, void* p,
 
   // An actor is never embedded, so no actor type is routed.
   pony_assert(t->dispatch == NULL);
+
+  // An object with no size can share its address with another object, so it
+  // is traced as opaque; a non-opaque visit would mark that address as traced.
+  pony_assert((t->size != 0) || (m == PONY_TRACE_OPAQUE));
   ctx->trace_routed(ctx, p, t, m);
 }
 
