@@ -75,6 +75,7 @@ const _pony_type_t counted_routed_type = {0, sizeof(Object), 0, 0, nullptr,
 const Object constant_object = {&counted_type, 1};
 const Object constant_routed_object = {&counted_routed_type, 1};
 Object writable_object = {&counted_type, 1};
+Object writable_routed_object = {&counted_routed_type, 1};
 }
 
 // A send or a mark doesn't trace an object in read-only image memory, on the
@@ -111,8 +112,10 @@ TEST(Image, GcDoesNotTraceConstants)
     EXPECT_EQ(0u, constant_traced);
 
     pony_traceknown(ctx, &writable_object, &counted_type, PONY_TRACE_MUTABLE);
+    pony_traceknown_routed(ctx, &writable_routed_object, &counted_routed_type,
+      PONY_TRACE_MUTABLE);
     ponyint_gc_handlestack(ctx);
-    EXPECT_EQ(1u, constant_traced);
+    EXPECT_EQ(2u, constant_traced);
 
     ponyint_gc_end_visits(ctx);
     ponyint_actormap_destroy(&ctx->acquire);

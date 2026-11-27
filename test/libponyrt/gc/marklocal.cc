@@ -1,5 +1,6 @@
 #include <actor/actor.h>
 #include <gc/frames.h>
+#include <gc/image.h>
 #include <mem/heap.h>
 #include <mem/pagemap.h>
 #include <sched/scheduler.h>
@@ -34,6 +35,21 @@ void trace_frame(pony_ctx_t* ctx, void* p)
   pony_trace(ctx, p);
   pony_traceunknown(ctx, p, PONY_TRACE_MUTABLE);
 }
+
+size_t counted_traces = 0;
+
+void trace_counted(pony_ctx_t* ctx, void* p)
+{
+  (void)ctx;
+  (void)p;
+  counted_traces++;
+}
+
+const _pony_type_t counted_type = {0, sizeof(Node), 0, 0, nullptr, nullptr,
+  nullptr, trace_counted, nullptr, nullptr, 0, true, 0, nullptr, nullptr,
+  nullptr};
+const Node constant_node = {&counted_type, nullptr};
+Node writable_node = {&counted_type, nullptr};
 
 class LocalGc : public testing::Test
 {
@@ -332,6 +348,26 @@ TEST_F(LocalGc, IndexedUnwindRefusesThenCollectsThroughSupportedSite)
   EXPECT_EQ(dead, node());
 }
 #endif
+
+// A mark inside a behaviour doesn't trace an object in the read-only part of
+// the image, and does trace a writable object outside every heap.
+TEST_F(LocalGc, ConstantsAreNotTraced)
+{
+  ponyint_image_init();
+  ASSERT_TRUE(ponyint_image_constant(&constant_node));
+  ASSERT_FALSE(ponyint_image_constant(&writable_node));
+  node();
+  counted_traces = 0;
+
+  actor.heap.next_gc = 0;
+  pony_ctx_t* marking = ponyint_gc_poll(&actor, nullptr);
+  ASSERT_NE(nullptr, marking);
+  pony_traceknown(marking, const_cast<Node*>(&constant_node), &counted_type,
+    PONY_TRACE_MUTABLE);
+  pony_traceknown(marking, &writable_node, &counted_type, PONY_TRACE_MUTABLE);
+  ASSERT_TRUE(ponyint_gc_finish(marking));
+  EXPECT_EQ(1u, counted_traces);
+}
 
 TEST_F(LocalGc, ShallowAndReadableNeighboursHaveIndependentChildren)
 {
