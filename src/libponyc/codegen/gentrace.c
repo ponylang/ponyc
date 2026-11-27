@@ -535,7 +535,7 @@ static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
     mutability);
 }
 
-static bool reach_may_be_routed(reach_type_t* t, int depth)
+static bool type_may_be_routed(reach_type_t* t, int depth)
 {
   if((((compile_type_t*)t->c_type)->embed_flags & PONY_EMBED_ROUTED) != 0)
     return true;
@@ -547,6 +547,8 @@ static bool reach_may_be_routed(reach_type_t* t, int depth)
     case TK_INTERFACE:
     case TK_TRAIT:
     {
+      // Subtype links run both ways, so the walk can come back to a type it
+      // has seen; past this depth, treat the type as routed.
       if(depth > 32)
         return true;
 
@@ -555,7 +557,7 @@ static bool reach_may_be_routed(reach_type_t* t, int depth)
 
       while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
       {
-        if(reach_may_be_routed(sub, depth + 1))
+        if(type_may_be_routed(sub, depth + 1))
           return true;
       }
 
@@ -597,7 +599,7 @@ static bool may_be_routed(compile_t* c, ast_t* type)
     case TK_NOMINAL:
     {
       reach_type_t* t = reach_type(c->reach, type, c->opt);
-      return (t == NULL) || reach_may_be_routed(t, 0);
+      return (t == NULL) || type_may_be_routed(t, 0);
     }
 
     default:

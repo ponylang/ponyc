@@ -819,9 +819,9 @@ reach_type_t* gentype_first_embed(compile_t* c, reach_type_t* t)
   return NULL;
 }
 
-// Records how each type's objects can share memory with other objects, so that
-// traces of the types that can are routed to the runtime code that handles
-// shared memory and every other trace takes the plain path.
+// Records how each type's objects can share memory with other objects. Traces
+// of a type that can are routed to the runtime code that handles shared
+// memory; every other trace takes the plain path.
 static void compute_embed_flags(compile_t* c)
 {
   size_t i = HASHMAP_BEGIN;
@@ -846,8 +846,8 @@ static void compute_embed_flags(compile_t* c)
     if(t->underlying == TK_ACTOR)
       flag_embedded(t, PONY_EMBED_IN_ACTOR);
 
-    // A struct that shares its address with its first field. The struct's
-    // other embedded fields sit beside that field.
+    // A struct that shares its address with its first embedded field with a
+    // non-zero size. The struct's other embedded fields sit beside that field.
     reach_type_t* first = gentype_first_embed(c, t);
 
     if(first != NULL)

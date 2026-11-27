@@ -117,7 +117,6 @@ void ponyint_gc_end_visits(pony_ctx_t* ctx)
 
   if((set->capacity > GC_VISITS_MIN) && (set->count * 8 < set->capacity))
   {
-    // This mark used little of the storage, so give it back.
     ponyint_gc_free_visits(ctx);
     return;
   }
@@ -129,9 +128,9 @@ void ponyint_gc_end_visits(pony_ctx_t* ctx)
   }
 }
 
-// The memory an object that another actor owns is counted as, against this
-// actor's heap to provoke a collection: its heap chunk, or the object itself
-// when it is in an actor's own allocation and has no chunk.
+// The amount added to this actor's heap use, to provoke a collection, for an
+// object another actor owns: the size of its heap chunk, or the type's size
+// when the object is inside an actor's own allocation and has no chunk.
 static size_t foreign_size(chunk_t* chunk, pony_type_t* t)
 {
   if(chunk != NULL)
@@ -238,13 +237,12 @@ static bool embeds_at_start(pony_type_t* t, pony_type_t* u)
 }
 
 // An object embedded as a struct's first field shares the struct's address
-// and its object-map entry. During one trace round, a visit as a type that
-// encloses the type already traced there traces again with the enclosing
-// type, so every trace uses the type the visit names. The sender and the
-// receiver trace the same visits in the same order, so they make the same
-// choice, as long as every non-opaque visit that isn't skipped traces the
-// object's fields. That requires every type that can be retraced to have
-// might_reference_actor set (see make_might_reference_actor in gendesc.c).
+// and its object-map entry. Within one trace round, a visit as a type that
+// encloses the type already traced there traces the object again as the
+// enclosing type. The sender and the receiver trace the same visits in the
+// same order, so they make the same choice. That holds only while every type
+// that can be retraced has might_reference_actor set, which the assert below
+// checks (see make_might_reference_actor in gendesc.c).
 static bool retrace_enclosing(object_t* obj, pony_type_t* t, int mutability)
 {
   if((mutability == PONY_TRACE_OPAQUE) || (obj->type == t) ||
@@ -263,7 +261,8 @@ static void note_traced_type(object_t* obj, pony_type_t* t, int mutability)
     obj->type = t;
 }
 
-// A pending acquire for this object carries its descriptor to the owner.
+// Gives a pending acquire for this object the object's current type, so the
+// owner traces it as that type.
 static void update_pending_type(pony_ctx_t* ctx, pony_actor_t* actor,
   object_t* obj)
 {

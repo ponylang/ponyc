@@ -312,7 +312,8 @@ PONY_API void pony_trace(pony_ctx_t* ctx, void* p);
 /** Trace an object.
  *
  * This should be called for every pointer field in an object when the object's
- * trace function is invoked.
+ * trace function is invoked, unless the field's type has PONY_EMBED_ROUTED: use
+ * pony_traceknown_routed for that.
  *
  * @param ctx The current context.
  * @param p The pointer being traced.
@@ -321,32 +322,42 @@ PONY_API void pony_trace(pony_ctx_t* ctx, void* p);
  */
 PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m);
 
-/** Trace a known type that can share memory with other objects.
+/** Trace an object whose type can share memory with other objects.
  *
- * The compiler calls this instead of pony_traceknown for a type with
- * PONY_EMBED_ROUTED: a type embedded in another, or a struct that starts with
- * an embedded field with a non-zero size. The runtime then works out which
- * allocation, actor, or enclosing object the address belongs to.
+ * Use this in place of pony_traceknown when t has PONY_EMBED_ROUTED: a type
+ * embedded in another, or a struct that starts with an embedded field with a
+ * non-zero size. It also accepts a type without the flag.
+ *
+ * @param ctx The current context.
+ * @param p The pointer being traced.
+ * @param t The pony_type_t for the object pointed to.
+ * @param m Logical mutability of the object pointed to.
  */
 PONY_API void pony_traceknown_routed(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int m);
 
-/** Trace an unknown type that might share memory with other objects.
- *
- * The compiler calls this instead of pony_traceunknown when one of the types
- * the value can have has PONY_EMBED_ROUTED.
- */
-PONY_API void pony_traceunknown_routed(pony_ctx_t* ctx, void* p, int m);
-
 /** Trace unknown.
  *
- * This should be called for fields in an object with an unknown type.
+ * This should be called for fields in an object with an unknown type, unless
+ * one of the types the field can hold has PONY_EMBED_ROUTED: use
+ * pony_traceunknown_routed for that.
  *
  * @param ctx The current context.
  * @param p The pointer being traced.
  * @param m Logical mutability of the object pointed to.
  */
 PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m);
+
+/** Trace unknown, where the value can be of a type that shares memory.
+ *
+ * Use this in place of pony_traceunknown when one of the types the field can
+ * hold has PONY_EMBED_ROUTED. It also accepts an object of any other type.
+ *
+ * @param ctx The current context.
+ * @param p The pointer being traced.
+ * @param m Logical mutability of the object pointed to.
+ */
+PONY_API void pony_traceunknown_routed(pony_ctx_t* ctx, void* p, int m);
 
 /** Initialize the runtime.
  *

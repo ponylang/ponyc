@@ -34,8 +34,7 @@ typedef struct gc_visit_t
   pony_type_t* type;
 } gc_visit_t;
 
-// An open-addressing set of (address, type) visits. Its storage is kept
-// between trace rounds and released when a round uses little of it.
+// An open-addressing set of the (address, type) visits a mark recorded.
 typedef struct gc_visitset_t
 {
   gc_visit_t* slots;
@@ -60,8 +59,8 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 
 // Send, receive and mark functions for a type that can share memory with
-// other objects (PONY_EMBED_ROUTED): embedded objects, objects in an actor's
-// allocation, and structs that share an address with their first field.
+// other objects (PONY_EMBED_ROUTED): embedded objects, and structs that share
+// an address with their first field.
 void ponyint_gc_sendrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 

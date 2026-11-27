@@ -237,12 +237,34 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
   end_local_mark(&a);
   EXPECT_GE(ctx->visits.capacity, count * 2);
 
+  // The next mark records the struct's visit afresh and traces it again.
+  s_traced = 0;
   start_local_mark(&a);
   pony_traceknown_routed(ctx, objects[0], &c_type, PONY_TRACE_MUTABLE);
   pony_traceknown_routed(ctx, objects[0], &s_type, PONY_TRACE_MUTABLE);
   ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, s_traced);
   end_local_mark(&a);
   EXPECT_EQ(0u, ctx->visits.capacity);
+}
+
+// An immutable root that is routed and has no heap chunk, as an object in an
+// actor's own allocation has none, is marked without touching a heap.
+TEST_F(GcSharedAddress, RoutedImmutableRootWithoutAChunk)
+{
+  _pony_type_t root_type = c_type;
+  root_type.might_reference_actor = false;
+  C inside{};
+  inside.type = &root_type;
+  object_t* obj = ponyint_objectmap_getorput(&a.gc.local, &inside, &root_type);
+  obj->immutable = true;
+  obj->rc = 1;
+
+  start_local_mark(&a);
+  ponyint_gc_markimmutable(ctx, &a.gc);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(0u, c_traced);
+  end_local_mark(&a);
 }
 
 // Sending and receiving visits as both types count the struct's field once
@@ -663,11 +685,19 @@ void dispatch_nothing(pony_ctx_t* ctx, pony_actor_t* self, pony_msg_t* msg)
 }
 
 // Actor descriptors are constants in the program image, as compiled ones are.
-// Fields: id, size, field_count, field_offset, instance, name,
-// get_behavior_name, trace, dispatch, final, event_notify,
-// might_reference_actor, embed_flags, traits, fields, vtable.
 const _pony_type_t small_actor_type = {0,
   (uint32_t)(sizeof(pony_actor_t) + 64), 0, 0, nullptr, nullptr, nullptr,
+  nullptr, dispatch_nothing, nullptr, 0, true, PONY_EMBED_ACTOR_LOOKUP,
+  nullptr, nullptr, nullptr};
+
+// Constants that start pool memory in PoolMemoryThatIsNotAnActor.
+const _pony_type_t not_an_actor_type = {0, 64, 0, 0, nullptr, nullptr,
+  nullptr, nullptr, nullptr, nullptr, 0, true, PONY_EMBED_ACTOR_LOOKUP,
+  nullptr, nullptr, nullptr};
+const _pony_type_t plain_actor_type = {0,
+  (uint32_t)(sizeof(pony_actor_t) + 64), 0, 0, nullptr, nullptr, nullptr,
+  nullptr, dispatch_nothing, nullptr, 0, true, 0, nullptr, nullptr, nullptr};
+const _pony_type_t tiny_actor_type = {0, 16, 0, 0, nullptr, nullptr, nullptr,
   nullptr, dispatch_nothing, nullptr, 0, true, PONY_EMBED_ACTOR_LOOKUP,
   nullptr, nullptr, nullptr};
 
@@ -720,6 +750,20 @@ TEST(ActorContaining, PoolMemoryThatIsNotAnActor)
   char* block = static_cast<char*>(ponyint_pool_alloc_size(size));
   memset(block, 0, size);
   EXPECT_EQ(nullptr, ponyint_actor_containing(block + 16));
+
+  // A first word in the image that isn't an actor descriptor.
+  *reinterpret_cast<const _pony_type_t**>(block) = &not_an_actor_type;
+  EXPECT_EQ(nullptr, ponyint_actor_containing(block + 16));
+
+  // An actor descriptor for a type with no embedded field.
+  *reinterpret_cast<const _pony_type_t**>(block) = &plain_actor_type;
+  EXPECT_EQ(nullptr, ponyint_actor_containing(block + 16));
+
+  // An actor descriptor, but the address is past that actor's size.
+  *reinterpret_cast<const _pony_type_t**>(block) = &tiny_actor_type;
+  EXPECT_EQ(nullptr, ponyint_actor_containing(block + 16));
+  EXPECT_EQ(reinterpret_cast<pony_actor_t*>(block),
+    ponyint_actor_containing(block + 8));
 
   ponyint_pool_free_size(size, block);
   ponyint_unregister_thread();

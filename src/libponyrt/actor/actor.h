@@ -37,6 +37,8 @@ enum
   ACTOR_FLAG_CD_CONTACTED = 1 << 4,
   ACTOR_FLAG_RC_OVER_ZERO_SEEN = 1 << 5,
   ACTOR_FLAG_PINNED = 1 << 6,
+  // pony_create recorded the actor's allocation in the pagemap.
+  ACTOR_FLAG_IN_PAGEMAP = 1 << 7,
 };
 
 enum

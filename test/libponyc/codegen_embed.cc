@@ -50,7 +50,10 @@ protected:
   {
     reach_type_t* t = reach_type_name(compile->reach, type_name, &opt);
     if(t == NULL)
-      return 0xFF;
+    {
+      ADD_FAILURE() << "no reachable type " << type_name;
+      return 0;
+    }
 
     return ((compile_type_t*)t->c_type)->embed_flags;
   }
@@ -81,9 +84,9 @@ TEST_F(CodegenEmbedTest, ProgramWithoutEmbedUsesPlainTraces)
   ASSERT_EQ(0u, calls_to("pony_traceunknown_routed"));
 }
 
-// A union of a tuple and an routed class: the trace that checks for a
-// boxed tuple can also see the class, so it must be routed.
-TEST_F(CodegenEmbedTest, UnionWithTupleAndEmbeddableTypeIsRouted)
+// A union of a tuple and a routed class: the trace that checks for a
+// boxed tuple can also receive a C, so it must be routed.
+TEST_F(CodegenEmbedTest, UnionWithTupleAndEmbeddedTypeIsRouted)
 {
   const char* src =
     "class C\n"
@@ -196,7 +199,7 @@ TEST_F(CodegenEmbedTest, EmbeddedInAnActor)
 
 // A trace through an interface or trait reaches every class that provides it,
 // so it is routed when one of them is embedded somewhere.
-TEST_F(CodegenEmbedTest, InterfaceAndTraitReachingAnEmbeddableClassAreRouted)
+TEST_F(CodegenEmbedTest, InterfaceAndTraitReachingAnEmbeddedClassAreRouted)
 {
   const char* src =
     "interface I\n"
@@ -286,8 +289,31 @@ TEST_F(CodegenEmbedTest, FieldsBesideAStructsStartAreFlagged)
 
   TEST_COMPILE(src);
 
-  ASSERT_NE(0xFF, flags_of("F"));
   ASSERT_NE(0, flags_of("F") & PONY_EMBED_BESIDE_START);
   ASSERT_NE(0, flags_of("G") & PONY_EMBED_BESIDE_START);
   ASSERT_EQ(0, flags_of("E") & PONY_EMBED_BESIDE_START);
+}
+
+// A trace of a field whose type is embedded somewhere is routed.
+TEST_F(CodegenEmbedTest, KnownTraceOfAnEmbeddedTypeIsRouted)
+{
+  const char* src =
+    "class C\n"
+    "  var x: U64 = 7\n"
+
+    "class A\n"
+    "  embed c: C = C\n"
+
+    "actor Keeper\n"
+    "  var _c: C val = recover C end\n"
+    "  be take(c: C val) => _c = c\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: A val = recover A end\n"
+    "    Keeper.take(a.c)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_GT(calls_to("pony_traceknown_routed", "Keeper_"), 0u);
 }

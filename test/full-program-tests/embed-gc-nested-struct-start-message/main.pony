@@ -1,4 +1,5 @@
 // S2 starts with S1, which starts with C. C and S2 go in one message, C first.
+// The receiver's collections must trace S2's field e.
 class C
   let x: U64 = 7
 

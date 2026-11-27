@@ -130,7 +130,8 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
   if((sizeof(uintptr_t) >= 8) && (((uintptr_t)p >> 63) != 0))
     return;
 
-  // The compiler calls pony_traceknown_routed for these types.
+  // The compiler calls pony_traceknown_routed for a type with
+  // PONY_EMBED_ROUTED.
   pony_assert((t->embed_flags & PONY_EMBED_ROUTED) == 0);
 
   if(t->dispatch != NULL)
@@ -150,8 +151,8 @@ PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m)
 
   pony_type_t* t = *(pony_type_t**)p;
 
-  // The compiler calls pony_traceunknown_routed where one of these types
-  // can be traced.
+  // The compiler calls pony_traceunknown_routed where a type with
+  // PONY_EMBED_ROUTED can be traced.
   pony_assert((t->embed_flags & PONY_EMBED_ROUTED) == 0);
 
   if(t->dispatch != NULL)

@@ -1,6 +1,6 @@
-// An actor larger than an arena (S4 is 8 MiB) sends its embedded String to a
-// Reader and has nothing left to do. While the Reader holds the String, the
-// actor must not be collected: its memory would be returned to the system.
+// Actors larger than an arena (S4 is 8 MiB) send their embedded String to a
+// Reader and have nothing left to do. While the Reader holds the Strings, the
+// actors must not be collected: their memory would be returned to the system.
 struct S0
   var f0: U64 = 0
   var f1: U64 = 0
@@ -118,7 +118,7 @@ actor Reader
     spin(0)
 
   be spin(i: USize) =>
-    if i < 2000 then
+    if i < 4000 then
       spin(i + 1)
     else
       match _s
@@ -138,7 +138,7 @@ actor Main
   new create(env: Env) =>
     let r = Reader(env)
     var i: USize = 0
-    while i < 4 do
+    while i < 12 do
       Holder(r)
       i = i + 1
     end

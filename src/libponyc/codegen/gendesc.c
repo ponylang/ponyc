@@ -257,10 +257,9 @@ static LLVMValueRef make_first_embed(compile_t* c, reach_type_t* t)
   return codegen_resolve_global(c, ((compile_type_t*)f->c_type)->desc);
 }
 
-// The runtime's retrace of a struct that shares its address with its first
-// embedded field gives a sender and receiver the same counts only while
-// every type that can be retraced has might_reference_actor set (see
-// retrace_enclosing in gc.c).
+// retrace_enclosing in gc.c asserts that every type it retraces has
+// might_reference_actor set. If one didn't, the sender and the receiver of a
+// message could count that struct's fields differently.
 static LLVMValueRef make_might_reference_actor(compile_t* c, reach_type_t* t)
 {
   (void)t;
@@ -461,8 +460,6 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_SIZE] = LLVMConstInt(c->i32, c_t->abi_size, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);
-  // A struct has no instance; its slot holds the descriptor of the embedded
-  // field with a non-zero size at its start, if there is one.
   if(t->underlying == TK_STRUCT)
     args[DESC_INSTANCE] = make_first_embed(c, t);
   else

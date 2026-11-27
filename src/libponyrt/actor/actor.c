@@ -832,14 +832,7 @@ static bool actor_in_pagemap(pony_actor_t* actor)
   if((actor->type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) == 0)
     return false;
 
-  if(type_in_pagemap(actor->type))
-    return true;
-
-#ifdef POOL_USE_ARENA
-  return ponyint_pool_base(actor) == NULL;
-#else
-  return false;
-#endif
+  return type_in_pagemap(actor->type) || (ponyint_pool_base(actor) == NULL);
 }
 
 void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
@@ -881,7 +874,7 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
   size_t alloc_size = actor_alloc_size(actor->type);
 
   // Forget the actor's pagemap entries before its memory can be reused.
-  if(actor_in_pagemap(actor))
+  if(has_internal_flag(actor, ACTOR_FLAG_IN_PAGEMAP))
     ponyint_pagemap_set_bulk(actor, NULL, NULL,
       ponyint_pool_used_size(alloc_size));
 
@@ -955,8 +948,6 @@ bool ponyint_actor_getnoblock()
 pony_actor_t* ponyint_actor_containing(void* p)
 {
   pony_actor_t* actor = NULL;
-
-#ifdef POOL_USE_ARENA
   void* base = ponyint_pool_base(p);
 
   if(base != NULL)
@@ -973,7 +964,6 @@ pony_actor_t* ponyint_actor_containing(void* p)
       ((char*)p < ((char*)base + t->size)))
       return (pony_actor_t*)base;
   }
-#endif
 
   // Every pagemap entry that names an actor and no chunk was recorded by
   // pony_create for that actor.
@@ -995,8 +985,11 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   actor->type = type;
 
   if(actor_in_pagemap(actor))
+  {
+    set_internal_flag(actor, ACTOR_FLAG_IN_PAGEMAP);
     ponyint_pagemap_set_bulk(actor, NULL, actor,
       ponyint_pool_used_size(alloc_size));
+  }
 
 #ifdef USE_SYSTEMATIC_TESTING
   // Assign a stable, monotonic creation-order id (ids start at 1; 0 is never a

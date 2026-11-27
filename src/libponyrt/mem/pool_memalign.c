@@ -141,6 +141,12 @@ void ponyint_pool_set_memory_profile(uint32_t rung)
   (void)rung;
 }
 
+void* ponyint_pool_base(void* p)
+{
+  (void)p;
+  return NULL;
+}
+
 void ponyint_pool_drain()
 {
 }

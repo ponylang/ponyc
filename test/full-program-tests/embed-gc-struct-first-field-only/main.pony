@@ -1,4 +1,5 @@
 // Main keeps only a struct's first embedded field; that field references D.
+// D must survive Main's collections.
 class D
   let n: U64
   new create(n': U64) => n = n'
