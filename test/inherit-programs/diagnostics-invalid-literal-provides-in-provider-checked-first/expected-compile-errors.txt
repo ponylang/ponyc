@@ -1,0 +1,2 @@
+main.pony:13:13: invalid provides type. Can only be interfaces, traits and intersects of those.
+    main.pony:13:23: invalid type here

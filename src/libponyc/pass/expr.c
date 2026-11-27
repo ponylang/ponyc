@@ -713,7 +713,16 @@ ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
         ast_t* def = (ast_id(p) == TK_NOMINAL) ? (ast_t*)ast_data(p) : NULL;
         if((def != NULL) && has_inherited_methods(def) &&
           !catch_up_provided(options, p))
+        {
+          // A provider's check that is still running here ended fatally,
+          // which skips the visit that ends it. Its literals' classes can be
+          // part checked, so the pass stops, as it would had the provider's
+          // own visit ended that way.
+          if(program_trait_check_in_progress(def))
+            return AST_FATAL;
+
           provided_ok = false;
+        }
       }
       break;
     }
