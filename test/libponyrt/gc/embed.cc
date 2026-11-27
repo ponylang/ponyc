@@ -441,7 +441,22 @@ TEST_F(GcSharedAddress, ZeroSizeVisitDoesNotHideTheStruct)
   ponyint_gc_handlestack(ctx);
   ASSERT_NE(nullptr, local(&a, s->d));
   EXPECT_EQ(1u, local(&a, s->d)->rc);
+  // The object map records the struct's type for the shared address, not the
+  // empty one visited first.
+  ASSERT_NE(nullptr, local(&a, s));
+  EXPECT_EQ(&s_type, local(&a, s)->type);
   end_epoch(&a);
+
+  // The same holds for the actor that receives them.
+  ctx->current = &b;
+  pony_gc_recv(ctx);
+  pony_traceknown_routed(ctx, s, &zero_type, PONY_TRACE_IMMUTABLE);
+  pony_traceknown_routed(ctx, s, &s_type, PONY_TRACE_IMMUTABLE);
+  ponyint_gc_handlestack(ctx);
+  ASSERT_NE(nullptr, foreign(&b, &a, s));
+  EXPECT_EQ(&s_type, foreign(&b, &a, s)->type);
+  end_epoch(&b);
+  ctx->current = &a;
 }
 
 // An interior visit keeps its allocation through the sweep.

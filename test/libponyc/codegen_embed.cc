@@ -315,3 +315,29 @@ TEST_F(CodegenEmbedTest, KnownTraceOfAnEmbeddedTypeIsRouted)
 
   ASSERT_GT(calls_to("pony_traceknown_routed", "Keeper_"), 0u);
 }
+
+// A class that embeds a field with no size shares its address with that field,
+// so traces of the class are routed.
+TEST_F(CodegenEmbedTest, ClassEmbeddingAFieldWithNoSizeIsRouted)
+{
+  const char* src =
+    "struct Z\n"
+    "  new create() => None\n"
+
+    "class D\n"
+    "  embed z: Z = Z\n"
+    "  var x: U64 = 0\n"
+
+    "class P\n"
+    "  var x: U64 = 0\n"
+
+    "actor Main\n"
+    "  var _d: D = D\n"
+    "  var _p: P = P\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+
+  ASSERT_NE(0, flags_of("D") & PONY_EMBED_ROUTED);
+  ASSERT_EQ(0, flags_of("P") & PONY_EMBED_ROUTED);
+}
