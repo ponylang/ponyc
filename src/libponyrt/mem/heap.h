@@ -124,10 +124,10 @@ typedef enum
 
 /**
  * Mark the allocation that p is in, if p starts it, and report what was found.
- * A pointer inside the allocation keeps it with a shallow mark. own_type is true
- * only when the object traced at p is known to be of the allocation's own
- * type; at a shared start, the allocation is then marked. False means it may be
- * the field at the start, and a shared start isn't marked.
+ * A pointer inside the allocation keeps it with a shallow mark. own_type is
+ * true only when the object traced at p is known to be of the allocation's own
+ * type; at a shared start, the allocation is then marked. False means it may
+ * be the field at the start, and a shared start isn't marked.
  */
 heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type);
 

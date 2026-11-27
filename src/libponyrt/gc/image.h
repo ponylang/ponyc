@@ -13,10 +13,10 @@ extern uintptr_t ponyint_image_ro_start;
 extern uintptr_t ponyint_image_ro_end;
 
 // Finds the read-only part of the image that holds the runtime. Call it once,
-// before any scheduler thread starts and before any actor is created: actor
-// lookup (ponyint_actor_containing) uses the bounds to recognise descriptors,
-// and pony_create and actor destruction use them to decide whether an actor
-// has a pagemap entry, so the two must see the same bounds.
+// before any scheduler thread starts and before any actor is created. The
+// bounds must not change while actors exist: whether an actor has a pagemap
+// entry is decided from them when it is created and again when it is
+// destroyed.
 void ponyint_image_init(void);
 
 #if defined(__ELF__) && !defined(PLATFORM_IS_MACOSX) && \

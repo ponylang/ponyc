@@ -161,8 +161,8 @@ bool HeapToStack::runOnInstruction(IRBuilder<> &builder, Instruction *inst,
   else if((fun->getName().compare("pony_alloc_small") == 0) ||
     (fun->getName().compare("pony_alloc_small_shared_start") == 0))
   {
-    // Memory on the stack has no heap chunk, so a stack copy of a struct that
-    // shares its start needs nothing recorded.
+    // Memory on the stack has no heap chunk, so a struct allocated on the
+    // stack that shares its start needs nothing recorded.
     small = true;
   }
   else

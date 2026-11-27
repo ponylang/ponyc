@@ -6,6 +6,27 @@
 
 PONY_EXTERN_C_BEGIN
 
+// The index of each field of a type descriptor, in the order of
+// _pony_type_t in pony.h.
+#define DESC_ID 0
+#define DESC_SIZE 1
+#define DESC_FIELD_COUNT 2
+#define DESC_FIELD_OFFSET 3
+#define DESC_INSTANCE 4
+#define DESC_NAME 5
+#define DESC_GET_BEHAVIOR_NAME 6
+#define DESC_TRACE 7
+#define DESC_DISPATCH 8
+#define DESC_FINALISE 9
+#define DESC_EVENT_NOTIFY 10
+#define DESC_MIGHT_REFERENCE_ACTOR 11
+#define DESC_EMBED_FLAGS 12
+#define DESC_TRAITS 13
+#define DESC_FIELDS 14
+#define DESC_VTABLE 15
+
+#define DESC_LENGTH 16
+
 void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type);
 
 void gendesc_type(compile_t* c, reach_type_t* t);

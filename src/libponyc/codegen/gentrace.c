@@ -516,7 +516,7 @@ void gentrace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 
   // An object with no size can share its address with another object. A
   // non-opaque visit to it would mark that address as traced, so a later visit
-  // to the object there wouldn't trace its fields.
+  // to the holder at that address wouldn't trace the holder's fields.
   if(c_t->abi_size == 0)
     mutability = PONY_TRACE_OPAQUE;
 

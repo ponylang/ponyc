@@ -4084,8 +4084,8 @@ TEST(Pool, BaseOfAnArenaHeader)
   ponyint_pool_free_size(1024, p);
 }
 
-// ponyint_pool_size_in_arena says which sizes ponyint_pool_base finds the start
-// of, on both sides of the largest size an arena holds.
+// ponyint_pool_size_in_arena returns true for exactly the sizes whose start
+// ponyint_pool_base finds, on both sides of the largest size an arena holds.
 TEST(Pool, SizeInArenaMatchesBase)
 {
   std::vector<size_t> sizes = {32, 1024, 65536, (size_t)POOL_MAX * 2,

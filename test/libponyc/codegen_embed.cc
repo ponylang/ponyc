@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <platform.h>
+#include <codegen/gendesc.h>
 #include <codegen/gentype.h>
 #include <reach/reach.h>
 #include "util.h"
@@ -388,7 +389,7 @@ TEST_F(CodegenEmbedTest, KnownTraceOfATypeWithNoSizeIsOpaque)
 
         auto m = llvm::dyn_cast<llvm::ConstantInt>(call->getArgOperand(3));
         ASSERT_NE(nullptr, m);
-        EXPECT_EQ(2u, m->getZExtValue());
+        EXPECT_EQ((uint64_t)PONY_TRACE_OPAQUE, m->getZExtValue());
         traces++;
       }
     }
@@ -432,8 +433,8 @@ TEST_F(CodegenEmbedTest, StructDescriptorNamesTheTypeAtItsStart)
     auto desc = module->getNamedGlobal(name);
     ASSERT_NE(nullptr, desc);
     ASSERT_TRUE(desc->hasInitializer());
-    // DESC_INSTANCE in gendesc.c.
-    auto instance = desc->getInitializer()->getAggregateElement(4u);
+    auto instance =
+      desc->getInitializer()->getAggregateElement((unsigned)DESC_INSTANCE);
     ASSERT_NE(nullptr, instance);
 
     if(std::string(name) == "Shared_Desc")
@@ -475,4 +476,38 @@ TEST_F(CodegenEmbedTest, TypeEmbeddedAtAStructsStartIsFlagged)
   ASSERT_NE(0, flags_of("S") & PONY_EMBED_AT_START);
   ASSERT_EQ(0, flags_of("L") & PONY_EMBED_AT_START);
   ASSERT_EQ(0, flags_of("T") & PONY_EMBED_AT_START);
+}
+
+// A struct that starts with an embedded field and is larger than the largest
+// small allocation is allocated with the large shared-start allocator.
+TEST_F(CodegenEmbedTest, LargeStructSharingItsStartIsAllocatedAsSuch)
+{
+  const char* src =
+    "class E\n"
+    "  var x: U64 = 0\n"
+
+    "struct Pad\n"
+    "  var p0: U64 = 0\n  var p1: U64 = 0\n  var p2: U64 = 0\n"
+    "  var p3: U64 = 0\n  var p4: U64 = 0\n  var p5: U64 = 0\n"
+    "  var p6: U64 = 0\n  var p7: U64 = 0\n"
+    "  new create() => None\n"
+
+    "struct Shared\n"
+    "  embed e: E = E\n"
+    "  embed a: Pad = Pad\n  embed b: Pad = Pad\n  embed c: Pad = Pad\n"
+    "  embed d: Pad = Pad\n  embed f: Pad = Pad\n  embed g: Pad = Pad\n"
+    "  embed h: Pad = Pad\n  embed i: Pad = Pad\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    make_shared()\n"
+    "  fun make_shared(): Shared => Shared";
+
+  TEST_COMPILE(src);
+
+  ASSERT_GT(calls_to("pony_alloc_large_shared_start", "Main_ref_make_shared"),
+    0u);
+  ASSERT_EQ(0u,
+    calls_to("pony_alloc_small_shared_start", "Main_ref_make_shared"));
 }

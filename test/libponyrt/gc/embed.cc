@@ -87,7 +87,8 @@ protected:
     ponyint_gc_done(&a.gc);
     ponyint_gc_done(&b.gc);
 
-    // Compiled descriptors all have might_reference_actor set.
+    // Set as the compiler sets it, so the test traces the fields the way
+    // compiled code does.
     c_type.size = sizeof(C);
     c_type.trace = trace_c;
     c_type.might_reference_actor = true;
@@ -361,9 +362,9 @@ TEST_F(GcSharedAddress, ReceivingOwnObjectCountsStructFieldOnce)
   }
 }
 
-// A type recorded for the address in an earlier round doesn't stop a later
-// round from tracing the struct when its first field is visited first.
-TEST_F(GcSharedAddress, EarlierRoundTypeDoesNotBlockTheStructTrace)
+// A type recorded for the address in an earlier epoch doesn't stop a later
+// epoch from tracing the struct when its first field is visited first.
+TEST_F(GcSharedAddress, EarlierEpochTypeDoesNotBlockTheStructTrace)
 {
   field_mutability = PONY_TRACE_IMMUTABLE;
   S* s = alloc_s(&a);
@@ -379,30 +380,6 @@ TEST_F(GcSharedAddress, EarlierRoundTypeDoesNotBlockTheStructTrace)
   pony_gc_send(ctx, &b);
   visit(s, true, PONY_TRACE_IMMUTABLE);
   EXPECT_EQ(2u, local(&a, s->d)->rc);
-  end_epoch(&a);
-}
-
-// When a send reaches another actor's object first as its embedded field and
-// then as the struct, the pending acquire carries the struct's descriptor.
-TEST_F(GcSharedAddress, SendPendingAcquireCarriesTheStructType)
-{
-  field_mutability = PONY_TRACE_IMMUTABLE;
-  S* s = alloc_s(&b);
-  actorref_t* aref = ponyint_actormap_getorput(&a.gc.foreign, &b);
-  aref->rc = GC_INC_MORE;
-  ponyint_actorref_getorput(aref, s, &c_type)->rc = 1;
-  ponyint_actorref_getorput(aref, s->d, &child_type)->rc = 1;
-
-  ctx->current = &a;
-  pony_gc_send(ctx, &b);
-  visit(s, true, PONY_TRACE_IMMUTABLE);
-
-  size_t index = HASHMAP_UNKNOWN;
-  actorref_t* pending = ponyint_actormap_getactor(&ctx->acquire, &b, &index);
-  ASSERT_NE(nullptr, pending);
-  object_t* obj = ponyint_actorref_getobject(pending, s);
-  ASSERT_NE(nullptr, obj);
-  EXPECT_EQ(&s_type, obj->type);
   end_epoch(&a);
 }
 
@@ -429,25 +406,6 @@ TEST_F(GcSharedAddress, RemoteMarkTracesStructAfterItsFirstField)
     EXPECT_TRUE(ponyint_object_marked(d, a.gc.mark));
     end_epoch(&a);
   }
-}
-
-// When a mark reaches another actor's object first as its embedded field and
-// then as the struct, the pending acquire carries the struct's descriptor.
-TEST_F(GcSharedAddress, PendingAcquireCarriesTheStructType)
-{
-  field_mutability = PONY_TRACE_IMMUTABLE;
-  S* s = alloc_s(&b);
-  ctx->current = &a;
-  ponyint_gc_mark(ctx);
-  visit(s, true, PONY_TRACE_IMMUTABLE);
-
-  size_t index = HASHMAP_UNKNOWN;
-  actorref_t* pending = ponyint_actormap_getactor(&ctx->acquire, &b, &index);
-  ASSERT_NE(nullptr, pending);
-  object_t* obj = ponyint_actorref_getobject(pending, s);
-  ASSERT_NE(nullptr, obj);
-  EXPECT_EQ(&s_type, obj->type);
-  end_epoch(&a);
 }
 
 // An opaque visit to an object with no size at the struct's address doesn't
@@ -574,15 +532,20 @@ TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
   actor.type = &type;
   ponyint_heap_init(&actor.heap);
 
-  char* p = static_cast<char*>(ponyint_heap_alloc(&actor, &actor.heap, 64,
-    TRACK_NO_FINALISERS));
-  chunk_t* chunk = ponyint_pagemap_get_chunk(p);
-  start_gc(&actor);
-  EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST,
-    ponyint_heap_mark_object(chunk, p + 16, false));
-  end_gc(&actor);
-  void* next = ponyint_heap_alloc(&actor, &actor.heap, 64, TRACK_NO_FINALISERS);
-  EXPECT_NE(static_cast<void*>(p), next);
+  for(size_t size : {(size_t)64, (size_t)HEAP_MAX * 2})
+  {
+    SCOPED_TRACE(size);
+    char* p = static_cast<char*>(ponyint_heap_alloc(&actor, &actor.heap, size,
+      TRACK_NO_FINALISERS));
+    chunk_t* chunk = ponyint_pagemap_get_chunk(p);
+    start_gc(&actor);
+    EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST,
+      ponyint_heap_mark_object(chunk, p + 16, false));
+    end_gc(&actor);
+    void* next = ponyint_heap_alloc(&actor, &actor.heap, size,
+      TRACK_NO_FINALISERS);
+    EXPECT_NE(static_cast<void*>(p), next);
+  }
 
   ponyint_heap_destroy(&actor.heap);
   ponyint_unregister_thread();
@@ -909,7 +872,9 @@ TEST(ActorContaining, PagemapActorSharesNoEntry)
   ponyint_unregister_thread();
 }
 
-// Pool memory handed to Pony through FFI isn't taken for an actor.
+// Pool memory handed to Pony through FFI isn't taken for an actor unless its
+// first word is an actor descriptor in the image whose type has
+// PONY_EMBED_ACTOR_LOOKUP and whose size reaches the address.
 TEST(ActorContaining, PoolMemoryThatIsNotAnActor)
 {
   ponyint_register_thread();

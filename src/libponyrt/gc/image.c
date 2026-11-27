@@ -20,7 +20,8 @@ uintptr_t ponyint_image_ro_end;
 
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 
-// The image runs from its base up to the first writable section.
+// The read-only part of the image runs from its base up to the first writable
+// section.
 void ponyint_image_init(void)
 {
   uintptr_t base = (uintptr_t)&__ImageBase;
@@ -46,9 +47,10 @@ void ponyint_image_init(void)
 #  define SG_READ_ONLY 0x10
 #endif
 
-// The image runs from its lowest mapped segment up to the first segment that
-// stays writable. The loader makes __DATA_CONST read-only once it has fixed
-// up the pointers in it. Every segment slides by the same amount.
+// The read-only part of the image runs from its lowest mapped segment up to
+// the first segment that stays writable. The loader makes __DATA_CONST
+// read-only once it has fixed up the pointers in it. Every segment slides by
+// the same amount.
 void ponyint_image_init(void)
 {
   Dl_info info;

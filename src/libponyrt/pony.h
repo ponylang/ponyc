@@ -104,8 +104,8 @@ typedef void (*pony_final_fn)(void* p);
 /** Facts the compiler records about how a type's objects can share memory.
  *
  * PONY_EMBED_ROUTED: the type is embedded somewhere, is a struct that starts
- * with an embedded field with a non-zero size, or embeds a field with no size
- * (which has its holder's address). Traces of it go through
+ * with an embedded field with a non-zero size, or is a class or struct that
+ * embeds a field with no size (which has its holder's address). Traces of it go through
  * pony_traceknown_routed or pony_traceunknown_routed.
  * PONY_EMBED_IN_ACTOR: an object of the type can be inside an actor.
  * PONY_EMBED_ACTOR_LOOKUP: the type is an actor with an embedded field, so the

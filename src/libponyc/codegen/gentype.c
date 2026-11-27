@@ -842,9 +842,11 @@ static void compute_embed_flags(compile_t* c)
       if(t->underlying == TK_ACTOR)
         c_t->embed_flags |= PONY_EMBED_ACTOR_LOOKUP;
       else if(embed_has_no_size(c, t, f))
+      {
         // A field with no size has the address of the object that holds it
         // (see gentype_embed_ptr), so the holder shares its address too.
         c_t->embed_flags |= PONY_EMBED_ROUTED;
+      }
     }
 
     if(t->underlying == TK_ACTOR)

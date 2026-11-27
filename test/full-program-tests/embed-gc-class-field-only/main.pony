@@ -1,6 +1,5 @@
 // Main keeps only an embedded field from the middle of an object, not the
-// object that holds it. The holder's memory must stay allocated, and the
-// field's own references must still be traced.
+// object that holds it. The field's own references must still be traced.
 class D
   let n: U64
 

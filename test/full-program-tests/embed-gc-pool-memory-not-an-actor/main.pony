@@ -1,6 +1,6 @@
-// C code hands Pony a struct in memory from the runtime's pool allocator. The
-// struct's type is embedded in an actor elsewhere, but this memory is not an
-// actor, and the GC must not treat it as one.
+// Memory from the runtime's pool allocator, obtained through FFI, holds a
+// struct. The struct's type is embedded in an actor elsewhere, but this memory
+// is not an actor, and the GC must not treat it as one.
 use @ponyint_pool_alloc_size[NullablePointer[S]](size: USize)
 use @memset[Pointer[None]](p: NullablePointer[S] tag, c: I32, n: USize)
 

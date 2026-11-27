@@ -804,7 +804,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
 // and ponyint_actor_containing takes it for an actor by its descriptor, which
 // is a constant in the program image; a type whose descriptor isn't there is
 // recorded instead. The memalign pool can't find the allocation's start.
-static bool type_in_pagemap(pony_type_t* type)
+static bool type_always_in_pagemap(pony_type_t* type)
 {
   if((type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) == 0)
     return false;
@@ -820,21 +820,21 @@ static bool type_in_pagemap(pony_type_t* type)
 // no other allocation shares it.
 static size_t actor_alloc_size(pony_type_t* type)
 {
-  if(type_in_pagemap(type) && (type->size < POOL_ALIGN))
+  if(type_always_in_pagemap(type) && (type->size < POOL_ALIGN))
     return POOL_ALIGN;
 
   return type->size;
 }
 
 // Whether an actor of this type has its allocation recorded in the pagemap:
-// the type is, or the actor is too large for an arena and has a mapping of its
-// own.
-static bool actor_in_pagemap(pony_type_t* type)
+// the type is, or the actor is too large for an arena, so its allocation is a
+// mapping of its own.
+static bool actors_of_type_in_pagemap(pony_type_t* type)
 {
   if((type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) == 0)
     return false;
 
-  return type_in_pagemap(type) ||
+  return type_always_in_pagemap(type) ||
     !ponyint_pool_size_in_arena(actor_alloc_size(type));
 }
 
@@ -877,7 +877,7 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
   size_t alloc_size = actor_alloc_size(actor->type);
 
   // Forget the actor's pagemap entries before its memory can be reused.
-  if(actor_in_pagemap(actor->type))
+  if(actors_of_type_in_pagemap(actor->type))
     ponyint_pagemap_set_bulk(actor, NULL, NULL,
       ponyint_pool_used_size(alloc_size));
 
@@ -987,7 +987,7 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   memset(actor, 0, type->size);
   actor->type = type;
 
-  if(actor_in_pagemap(type))
+  if(actors_of_type_in_pagemap(type))
     ponyint_pagemap_set_bulk(actor, NULL, actor,
       ponyint_pool_used_size(alloc_size));
 
@@ -1236,8 +1236,8 @@ void ponyint_sendi_inject(pony_actor_t* to, uint32_t id, intptr_t i)
   ponyint_sendv_inject(to, &m->msg);
 }
 
-// HeapToStack (libponylto) matches pony_alloc and pony_alloc_small by name
-// at call sites to promote heap allocations to the stack. With -O2 bitcode
+// HeapToStack (libponylto) matches pony_alloc, pony_alloc_small and
+// pony_alloc_small_shared_start by name at call sites to promote heap allocations to the stack. With -O2 bitcode
 // the CGSCC inliner would inline these before HeapToStack runs, removing the
 // call sites HeapToStack needs. noinline preserves them through the inliner;
 // InlineRemainingAllocPass (plugin.cc) strips it afterward and inlines the
