@@ -1085,17 +1085,6 @@ static void rescope_copied_method(ast_t** method, ast_t* entity,
   rescope_copy_narrowings(*method, entity, opt);
 }
 
-static bool is_within(ast_t* ast, ast_t* outer)
-{
-  for(; ast != NULL; ast = ast_parent(ast))
-  {
-    if(ast == outer)
-      return true;
-  }
-
-  return false;
-}
-
 // A body taken from another trait's method declares its locals in that
 // method's scope. Declare them in the scope of the method that receives the
 // body.
@@ -1115,7 +1104,7 @@ static void move_body_symbols(ast_t* from_method, ast_t* body,
   while((sym = symtab_next(symtab, &i)) != NULL)
   {
     if((sym->def != NULL) && (sym->status != SYM_NOCASE) &&
-      is_within(sym->def, body))
+      ast_is_within(sym->def, body))
       ast_set(to_method, sym->name, sym->def, sym->status, true, opt->strtab);
   }
 }
@@ -1133,7 +1122,7 @@ static void remove_body_symbols(ast_t* method, ast_t* body)
 
   while((sym = symtab_next(symtab, &i)) != NULL)
   {
-    if((sym->def != NULL) && is_within(sym->def, body))
+    if((sym->def != NULL) && ast_is_within(sym->def, body))
     {
       // Removing an entry shifts a later one into its slot, so look at the
       // same slot again.

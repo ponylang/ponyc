@@ -436,8 +436,8 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     }
     else if(!is_subtype(arg_type, wp_type, &info, opt) &&
       (!is_bare || (!void_star_param(wp_type, arg_type))) &&
-      !(is_subtype_via_narrowing(opt, arg, arg_type, wp_type) &&
-        (errorframe_discard(&info), true)))
+      !errorframe_discard_if(
+        is_subtype_via_narrowing(opt, arg, arg_type, wp_type), &info))
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not assignable to parameter");
@@ -633,8 +633,8 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
   errorframe_t info = NULL;
   narrowed_receiver_t nr = {opt, a_type, ast_id(cap)};
   bool ok = is_subtype(a_type, t_type, &info, opt) ||
-    (visit_copy_narrowings(opt, ast, narrowed_receiver_ok, &nr) &&
-      (errorframe_discard(&info), true));
+    errorframe_discard_if(
+      visit_copy_narrowings(opt, ast, narrowed_receiver_ok, &nr), &info);
 
   if(!ok)
   {

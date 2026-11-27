@@ -850,15 +850,6 @@ static void viewpoint_adaptation_info(errorframe_t* frame, ast_t* expr,
     ast_print_type_no_cap(receiver_type, opt->strtab));
 }
 
-// Discard the frames of a failed check that a later check made moot.
-static bool discard_if(bool accepted, errorframe_t* info)
-{
-  if(accepted)
-    errorframe_discard(info);
-
-  return accepted;
-}
-
 // In inherited code, whether an iftype assigned to a target of type `expected`
 // passes branch by branch (check_iftype_return). It then takes that type,
 // which replaces `*r_type`.
@@ -959,8 +950,10 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     return false;
   }
   else if(!is_subtype(r_type, wl_type, &info, opt) &&
-    !discard_if(is_subtype_via_narrowing(opt, ast, r_type, wl_type), &info) &&
-    !discard_if(join_assignable(opt, right, wl_type, &r_type), &info))
+    !errorframe_discard_if(
+      is_subtype_via_narrowing(opt, ast, r_type, wl_type), &info) &&
+    !errorframe_discard_if(
+      join_assignable(opt, right, wl_type, &r_type), &info))
   {
     ast_error_frame(&frame, ast, "right side must be a subtype of left side");
 

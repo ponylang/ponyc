@@ -134,11 +134,15 @@ void errorframe_report(errorframe_t* frame, errors_t* errors);
 /// The frame is left empty.
 void errorframe_discard(errorframe_t* frame);
 
+/// When `accepted`, discard any errors in the given frame, leaving it empty.
+/// Returns `accepted`.
+bool errorframe_discard_if(bool accepted, errorframe_t* frame);
+
 /* The words that make a message one of the notes on errors in inherited
  * code: "in method 'f' inherited by C from T", and "'_H' is private to
  * package 'lib' and reaches this code through ...". The compiler builds the
- * notes with these words and recognises them by them. The full-program runner
- * recognises them by the same words, in `_is_note` in
+ * notes from these words and identifies them by these words. The full-program
+ * runner recognises them by the same words, in `_is_note` in
  * test/full-program-runner/_compile_errors.pony, and requires a test's
  * expected errors to list each note it recognises. If these words change and
  * those don't, the runner stops requiring the notes.

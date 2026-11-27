@@ -1129,17 +1129,6 @@ static ast_t* new_literal_typeparam(ast_t* def, ast_t* t_params)
   return NULL;
 }
 
-static bool is_within(ast_t* ast, ast_t* outer)
-{
-  for(; ast != NULL; ast = ast_parent(ast))
-  {
-    if(ast == outer)
-      return true;
-  }
-
-  return false;
-}
-
 // Point the references in an anonymous type's text to the type parameters it
 // takes from its literal's enclosing type and method at the anonymous type's
 // own parameters, which were made from those (each new parameter's data is
@@ -1161,7 +1150,7 @@ static void remap_literal_typeparams(ast_t* ast, ast_t* literal,
     def = NULL;
 
   if((def != NULL) && (def != ast) &&
-    ((id == TK_TYPEPARAM) || !is_within(def, literal)))
+    ((id == TK_TYPEPARAM) || !ast_is_within(def, literal)))
   {
     ast_t* p = new_literal_typeparam(def, t_params);
     if(p != NULL)

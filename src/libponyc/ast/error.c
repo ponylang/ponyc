@@ -424,6 +424,14 @@ void errorframe_discard(errorframe_t* frame)
   *frame = NULL;
 }
 
+bool errorframe_discard_if(bool accepted, errorframe_t* frame)
+{
+  if(accepted)
+    errorframe_discard(frame);
+
+  return accepted;
+}
+
 
 static bool is_copy_note(errormsg_t* e)
 {

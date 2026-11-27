@@ -152,6 +152,10 @@ void ast_inheritstatus(ast_t* dst, ast_t* src);
 void ast_inheritbranch(ast_t* dst, ast_t* src);
 void ast_consolidate_branches(ast_t* ast, size_t count);
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name);
+
+/** Whether `ast` is `outer` or a node below it. */
+bool ast_is_within(ast_t* ast, ast_t* outer);
+
 bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner,
   errorframe_t* errorf);
 void ast_clear(ast_t* ast);

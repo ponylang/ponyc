@@ -1084,8 +1084,8 @@ void ast_add_internal_annotation(ast_t* ast, const char* name,
   ast_t* id = ast_from_string(annotation, name, strtab);
   ast_append(annotation, id);
 
-  // The syntax pass rejects internal annotations in source; record it as done
-  // on these nodes.
+  // The syntax pass rejects internal annotations in source, so record that
+  // pass as already run on these nodes.
   ast_pass_record(annotation, PASS_SYNTAX);
   ast_pass_record(id, PASS_SYNTAX);
 }
@@ -1488,6 +1488,17 @@ void ast_consolidate_branches(ast_t* ast, size_t count)
       }
     }
   }
+}
+
+bool ast_is_within(ast_t* ast, ast_t* outer)
+{
+  for(; ast != NULL; ast = ast_parent(ast))
+  {
+    if(ast == outer)
+      return true;
+  }
+
+  return false;
 }
 
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
