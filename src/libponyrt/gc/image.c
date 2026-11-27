@@ -171,6 +171,35 @@ bool ponyint_image_elf_bounds(struct dl_phdr_info* info, uintptr_t self,
 
   uintptr_t end_ro = hi;
 
+  // Nothing of the object is mapped between two loaded segments that are more
+  // than a page apart, and other memory can be mapped there later, so the
+  // read-only part ends at the first such gap.
+  for(size_t i = 0; i < info->dlpi_phnum; i++)
+  {
+    if(info->dlpi_phdr[i].p_type != PT_LOAD)
+      continue;
+
+    uintptr_t start = (uintptr_t)(info->dlpi_addr + info->dlpi_phdr[i].p_vaddr);
+    uintptr_t end = (start + (uintptr_t)info->dlpi_phdr[i].p_memsz +
+      page_size - 1) & ~(page_size - 1);
+    bool followed = (end >= hi);
+
+    for(size_t j = 0; !followed && (j < info->dlpi_phnum); j++)
+    {
+      if(info->dlpi_phdr[j].p_type != PT_LOAD)
+        continue;
+
+      uintptr_t next =
+        (uintptr_t)(info->dlpi_addr + info->dlpi_phdr[j].p_vaddr);
+
+      if((next >= start) && ((next & ~(page_size - 1)) <= end) && (j != i))
+        followed = true;
+    }
+
+    if(!followed && (end < end_ro))
+      end_ro = end;
+  }
+
   for(size_t i = 0; i < info->dlpi_phnum; i++)
   {
     if((info->dlpi_phdr[i].p_type != PT_LOAD) ||

@@ -60,7 +60,8 @@ TEST(Image, WritableMemoryIsNotReadOnly)
 #if defined(__ELF__)
 // Protection is per page, so the read-only part ends at the start of the page
 // holding the first writable byte, even when the writable segment, or the
-// writable memory after the RELRO region, starts inside a page.
+// writable memory after the RELRO region, starts inside a page. It also ends
+// at the first gap between loaded segments.
 TEST(Image, ReadOnlyPartEndsWhereItsPageIsWritable)
 {
   const uintptr_t page = 0x1000;
@@ -103,6 +104,25 @@ TEST(Image, ReadOnlyPartEndsWhereItsPageIsWritable)
   EXPECT_EQ(0x401000u, end);
 
   info.dlpi_phdr = relro;
+  info.dlpi_phnum = 3;
+  ASSERT_TRUE(ponyint_image_elf_bounds(&info, 0x400010, page, &start, &end));
+  EXPECT_EQ(0x402000u, end);
+
+  // Code, then read-only data more than a page later, as a linker aligning
+  // segments to a larger page than the system's leaves it: nothing is mapped
+  // in between, so the read-only part ends before the gap.
+  phdr_t gap[3] = {};
+  gap[0] = plain[0];
+  gap[1].p_type = PT_LOAD;
+  gap[1].p_flags = PF_R;
+  gap[1].p_vaddr = 0x10000;
+  gap[1].p_memsz = 0x800;
+  gap[2].p_type = PT_LOAD;
+  gap[2].p_flags = PF_R | PF_W;
+  gap[2].p_vaddr = 0x20000;
+  gap[2].p_memsz = 0x800;
+
+  info.dlpi_phdr = gap;
   info.dlpi_phnum = 3;
   ASSERT_TRUE(ponyint_image_elf_bounds(&info, 0x400010, page, &start, &end));
   EXPECT_EQ(0x402000u, end);
