@@ -28,6 +28,7 @@ actor Main
   var _s: NullablePointer[S] = NullablePointer[S].none()
   let _h: Holder = Holder
   var _i: USize = 0
+  var _last: D = D(0)
 
   new create(env: Env) =>
     _env = env
@@ -42,7 +43,7 @@ actor Main
   be churn() =>
     var k: USize = 0
     while k < 1000 do
-      String(64).>append("abcdefgh")
+      _last = D(k.u64())
       k = k + 1
     end
     try
