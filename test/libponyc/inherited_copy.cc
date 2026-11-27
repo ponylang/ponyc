@@ -33,7 +33,8 @@ protected:
 
       for(errormsg_t* f = e->frame; f != NULL; f = f->frame)
       {
-        if(strstr(f->msg, " inherited by ") != NULL)
+        if((strncmp(f->msg, COPY_NOTE_START, strlen(COPY_NOTE_START)) == 0) &&
+          (strstr(f->msg, COPY_NOTE_INHERITED) != NULL))
           note = f->msg;
       }
 
@@ -116,7 +117,7 @@ TEST_F(InheritedCopyTest, DefaultArgumentOfCopy)
 
 TEST_F(InheritedCopyTest, ClassFromLiteralInCopy)
 {
-  // C comes first, so the class C's copy of m makes from the literal is
+  // C comes first, so the class made from the literal in C's copy of m is
   // checked first; its error ends the pass, and it carries the note.
   const char* src =
     "class C is T\n"

@@ -61,8 +61,8 @@ class \nodoc\ iso _ASTInheritedKinds is UnitTest
   """
   Which nodes are inherited code: the class C's copy of mk made from T's
   literal, the methods of the literal classes holding W's checked w, and C's
-  copy of mk and D's copies of g. The class T's check made from its literal,
-  and T's and G's own methods, are not.
+  copy of mk and D's copies of g. The class made from T's literal when T
+  itself is checked, and T's and G's own methods, are not.
   """
   fun name(): String => "ast/inherited-kinds"
 

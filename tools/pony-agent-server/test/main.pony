@@ -1998,7 +1998,14 @@ class \nodoc\ iso _ImplementorsInheritedLiteralTest is UnitTest
     | let r: ImplementorsResult val =>
       h.assert_eq[USize](1, r.nominal.size())
       try
-        h.assert_eq[U8]('$', r.nominal(0)?(0)?)
+        let listed = r.nominal(0)?
+        match _FixtureHelper.find_type_def(prog, listed)
+        | let def: AST box =>
+          h.assert_true(def.has_annotation("ponyint_anon_trait"),
+            listed + " is not the class made in the trait's own check")
+        | None =>
+          h.fail("no class named " + listed)
+        end
       else
         h.fail("no implementor")
       end

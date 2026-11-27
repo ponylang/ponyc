@@ -317,7 +317,8 @@ TEST_F(InheritedLiteralTest, CaptureFreeCopiesShareTraitClasses)
 
 TEST_F(InheritedLiteralTest, FirstLevelSharesGenericTraitClass)
 {
-  // The classes for f1 and f2; C's first level shares f1's at [U8].
+  // Two classes, for the literals in f1 and f2. The literal in C's copy of f1
+  // uses f1's class at [U8], so it adds none.
   const char* src =
     "trait T1[A: Any val]\n"
     "  fun n(): String => \"T1\"\n"
@@ -374,7 +375,8 @@ TEST_F(InheritedLiteralTest, LambdaWithoutTypeParameters)
 
 TEST_F(InheritedLiteralTest, CaptureFreeLiteralOneClass)
 {
-  // One class for the capture-free literal; C's and D's first levels are it.
+  // One class for the capture-free literal. The literal in C's and D's copies
+  // of m uses it, so they add none.
   const char* src =
     "trait T\n"
     "  fun val m(): T val => object val is T end\n"

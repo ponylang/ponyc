@@ -1,8 +1,8 @@
 // g's iftype keeps the lambda adding 1 for A = U8 and the one adding 2
 // otherwise. Each class's copy of g makes classes for both lambdas, and a
 // copy can share another copy's class. C2 gives U8 and C1 gives U16, so the
-// test expects C2's g to add 1 and C1's to add 2, printing "2 3", whichever
-// class is declared first.
+// test expects C2's g to add 1 and C1's to add 2, printing "2 3". Here C1 is
+// declared first.
 trait T[A: Any val]
   fun app(f: {(U64): U64} val): {(U64): U64} val => f
   fun g(): {(U64): U64} val =>

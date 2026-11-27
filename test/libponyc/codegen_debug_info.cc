@@ -112,7 +112,8 @@ TEST_F(CodegenDebugInfoTest, InheritedBodyNamesTheBodysFileAndLine)
 
 TEST_F(CodegenDebugInfoTest, InheritedMethodNamesItsTraitsFileAndLine)
 {
-  // Both, in both.pony, gives get's signature and body, at line 9.
+  // Both, in both.pony, gives get's signature at line 9 and its body at lines
+  // 10 and 11.
   add_module_path("both", FIXTURE("both"));
 
   const char* src =
@@ -130,6 +131,66 @@ TEST_F(CodegenDebugInfoTest, InheritedMethodNamesItsTraitsFileAndLine)
   ASSERT_TRUE(sp != NULL);
   ASSERT_TRUE(ends_with(file_of(sp), "both.pony")) << file_of(sp);
   ASSERT_EQ(9u, LLVMDISubprogramGetLine(sp));
+
+  std::vector<unsigned> lines = body_lines("C_box_get_W");
+  ASSERT_FALSE(lines.empty());
+
+  for(unsigned line : lines)
+  {
+    ASSERT_GE(line, 10u);
+    ASSERT_LE(line, 11u);
+  }
+}
+
+TEST_F(CodegenDebugInfoTest, InheritedSpecializationNamesItsFileAndLine)
+{
+  // Grouped, in group.pony, gives g a general body and, at line 9, a body for
+  // U8 at lines 10 and 11. C's g for U8 names that file and line.
+  add_module_path("group", FIXTURE("group"));
+
+  const char* src =
+    "use o = \"group\"\n"
+    "class C is o.Grouped\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    C.g[U8](1)";
+
+  TEST_COMPILE(src);
+
+  // Each g C has is for U8; their names are generated from the type argument
+  // and the receiver capability, so find them as the C functions with "_g_"
+  // in their names.
+  size_t found = 0;
+
+  for(LLVMValueRef f = LLVMGetFirstFunction(compile->module); f != NULL;
+    f = LLVMGetNextFunction(f))
+  {
+    size_t len = 0;
+    std::string name(LLVMGetValueName2(f, &len), len);
+
+    if((name.compare(0, 2, "C_") != 0) ||
+      (name.find("_g_") == std::string::npos) ||
+      (LLVMGetSubprogram(f) == NULL))
+      continue;
+
+    found++;
+    LLVMMetadataRef sp = LLVMGetSubprogram(f);
+    ASSERT_TRUE(ends_with(file_of(sp), "group.pony")) << name;
+    ASSERT_EQ(9u, LLVMDISubprogramGetLine(sp)) << name;
+
+    std::vector<unsigned> lines = body_lines(name.c_str());
+    ASSERT_FALSE(lines.empty()) << name;
+
+    for(unsigned line : lines)
+    {
+      ASSERT_GE(line, 10u) << name;
+      ASSERT_LE(line, 11u) << name;
+    }
+  }
+
+  ASSERT_GT(found, 0u);
 }
 
 TEST_F(CodegenDebugInfoTest, LiteralMethodNamesTheLiteralsFile)
@@ -147,8 +208,9 @@ TEST_F(CodegenDebugInfoTest, LiteralMethodNamesTheLiteralsFile)
 
   TEST_COMPILE(src);
 
-  // The class is in the getter package's module. It is a val primitive
-  // (the literal has no fields), named by its package's hygienic counter.
+  // The literal's class has no fields, so its get is a `val` method; its name
+  // is generated, so find it as the one `_val_get_W` function that isn't
+  // Getter's.
   LLVMMetadataRef sp = NULL;
 
   for(size_t i = 0; i < compile->per_module_count; i++)

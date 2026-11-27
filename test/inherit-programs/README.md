@@ -24,7 +24,9 @@ as described in `test/full-program-tests/README.md`.
 
 The runner treats each directory as one test and doesn't look below it, so
 groups are a prefix on the directory name. A new program goes in the group of
-the behavior its comment describes.
+the behavior its comment describes. Some programs declare no trait or
+interface: they check the same compiler code with plain types, methods and
+literals.
 
 - `name-binding-`: names in an inherited method body mean what they mean where
   the body is written: types, values, packages, `use` aliases, methods of other
@@ -42,8 +44,9 @@ the behavior its comment describes.
   inheriting type, redundancy errors not repeated for each inheriting type, and
   how many errors are reported (related to #6724, which asks for each error
   once; errors in inherited code are still reported for each inheriting type).
-- `object-literal-`: object literals written in ordinary code that inherit
-  default methods (#6731).
+- `object-literal-`: object literals and lambdas written in ordinary code: the
+  default methods they inherit (#6731), what they capture, and their fields
+  and result types.
 - `trait-literal-`: object literals and lambdas written in a trait's methods:
   the classes they make for the trait and for each inheriting type, literals
   whose types grow, literals that refer to their own trait, and declaration
