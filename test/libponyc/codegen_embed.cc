@@ -260,38 +260,36 @@ TEST_F(CodegenEmbedTest, StructStartingWithAPlainFieldIsNotRouted)
   ASSERT_EQ(0, flags_of("S") & PONY_EMBED_ROUTED);
 }
 
-// A struct's embedded fields after one at its start, and the objects embedded
-// in them, are marked as sitting beside that start; nothing else is.
-TEST_F(CodegenEmbedTest, FieldsBesideAStructsStartAreFlagged)
+// A struct that starts with an embedded field is allocated so the GC knows
+// its start is shared; a struct that starts with a plain field isn't.
+TEST_F(CodegenEmbedTest, StructSharingItsStartIsAllocatedAsSuch)
 {
   const char* src =
     "class E\n"
     "  var x: U64 = 0\n"
 
-    "class G\n"
+    "struct Shared\n"
+    "  embed e: E = E\n"
     "  var y: U64 = 0\n"
+    "  new create() => None\n"
 
-    "class F\n"
-    "  embed g: G = G\n"
-
-    "class H\n"
+    "struct Plain\n"
+    "  var y: U64 = 0\n"
     "  embed e: E = E\n"
-
-    "struct S\n"
-    "  embed e: E = E\n"
-    "  embed f: F = F\n"
     "  new create() => None\n"
 
     "actor Main\n"
-    "  var _s: S = S\n"
-    "  var _h: H = H\n"
-    "  new create(env: Env) => None";
+    "  new create(env: Env) =>\n"
+    "    make_shared()\n"
+    "    make_plain()\n"
+    "  fun make_shared(): Shared => Shared\n"
+    "  fun make_plain(): Plain => Plain";
 
   TEST_COMPILE(src);
 
-  ASSERT_NE(0, flags_of("F") & PONY_EMBED_BESIDE_START);
-  ASSERT_NE(0, flags_of("G") & PONY_EMBED_BESIDE_START);
-  ASSERT_EQ(0, flags_of("E") & PONY_EMBED_BESIDE_START);
+  ASSERT_GT(calls_to("pony_alloc_small_shared_start", "Main_ref_make_shared"), 0u);
+  ASSERT_EQ(0u, calls_to("pony_alloc_small_shared_start", "Main_ref_make_plain"));
+  ASSERT_GT(calls_to("pony_alloc_small", "Main_ref_make_plain"), 0u);
 }
 
 // A trace of a field whose type is embedded somewhere is routed.

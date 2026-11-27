@@ -250,6 +250,30 @@ static void set_runtime_attrs(compile_t* c)
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
   }
 
+  fn = LLVMGetNamedFunction(c->module, "pony_alloc_small_shared_start");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
+      deref_alloc_small_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_alloc_large_shared_start");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
+      deref_alloc_large_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
+  }
+
   fn = LLVMGetNamedFunction(c->module, "pony_realloc");
   if(fn != NULL)
   {
@@ -490,6 +514,18 @@ static void init_runtime_decls(compile_t* c)
   params[1] = c->intptr;
   type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_large", type);
+
+  // i8* pony_alloc_small_shared_start(i8*, i32)
+  params[0] = c->ptr;
+  params[1] = c->i32;
+  type = LLVMFunctionType(c->ptr, params, 2, false);
+  value = LLVMAddFunction(c->module, "pony_alloc_small_shared_start", type);
+
+  // i8* pony_alloc_large_shared_start(i8*, intptr)
+  params[0] = c->ptr;
+  params[1] = c->intptr;
+  type = LLVMFunctionType(c->ptr, params, 2, false);
+  value = LLVMAddFunction(c->module, "pony_alloc_large_shared_start", type);
 
   // i8* pony_realloc(i8*, i8*, intptr, intptr)
   params[0] = c->ptr;

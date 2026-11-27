@@ -1268,6 +1268,21 @@ PONY_API void* pony_alloc_large(pony_ctx_t* ctx, size_t size)
     TRACK_NO_FINALISERS);
 }
 
+PONY_API void* pony_alloc_small_shared_start(pony_ctx_t* ctx,
+  uint32_t sizeclass)
+{
+  void* p = pony_alloc_small(ctx, sizeclass);
+  ponyint_heap_set_shared_start(p);
+  return p;
+}
+
+PONY_API void* pony_alloc_large_shared_start(pony_ctx_t* ctx, size_t size)
+{
+  void* p = pony_alloc_large(ctx, size);
+  ponyint_heap_set_shared_start(p);
+  return p;
+}
+
 PONY_API void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size, size_t copy)
 {
   pony_assert(ctx->current != NULL);

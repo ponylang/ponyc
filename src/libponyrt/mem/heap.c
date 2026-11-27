@@ -53,7 +53,8 @@ typedef struct chunk_t
 #define LARGE_CHUNK_SHALLOW_BITMASK ((uintptr_t)0x1 << LARGE_CHUNK_SHALLOW_BITMASK_SHIFT_AMOUNT)
 #define LARGE_CHUNK_FINALISER_BITMASK_SHIFT_AMOUNT (uintptr_t)4
 #define LARGE_CHUNK_FINALISER_BITMASK ((uintptr_t)0x1 << LARGE_CHUNK_FINALISER_BITMASK_SHIFT_AMOUNT)
-#define CHUNK_M_BITMASK ~(CHUNK_TYPE_BITMASK | CHUNK_NEEDS_TO_BE_CLEARED_BITMASK | SMALL_CHUNK_SIZECLASS_BITMASK | LARGE_CHUNK_SLOT_BITMASK | LARGE_CHUNK_SHALLOW_BITMASK | LARGE_CHUNK_FINALISER_BITMASK)
+#define LARGE_CHUNK_SHARED_START_BITMASK ((uintptr_t)0x1 << 5)
+#define CHUNK_M_BITMASK ~(CHUNK_TYPE_BITMASK | CHUNK_NEEDS_TO_BE_CLEARED_BITMASK | SMALL_CHUNK_SIZECLASS_BITMASK | LARGE_CHUNK_SLOT_BITMASK | LARGE_CHUNK_SHALLOW_BITMASK | LARGE_CHUNK_FINALISER_BITMASK | LARGE_CHUNK_SHARED_START_BITMASK)
 
 enum
 {
@@ -509,11 +510,16 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full, chunk
 
     maybe_clear_chunk(chunk);
 
-    // A deep mark comes from a readable reference to the object itself,
-    // which can't exist until every field is defined, or from keeping a
-    // finaliser that was already traceable.
-    chunk->small.traceable = chunk->small.finalisers & ~chunk->small.slots;
+    // For a slot with a finaliser, traceable says its object is fully
+    // constructed. A deep mark comes from a readable reference to the object
+    // itself, which can't exist until every field is defined, or from keeping
+    // a finaliser that was already traceable. For a slot without one, it says
+    // the allocation's start is shared (see ponyint_heap_set_shared_start),
+    // which lasts while the slot is in use.
+    uint32_t shared = chunk->small.traceable & ~chunk->small.finalisers;
+    uint32_t traceable = chunk->small.finalisers & ~chunk->small.slots;
     chunk->small.slots &= chunk->small.shallow;
+    chunk->small.traceable = traceable | (shared & ~chunk->small.slots);
 
     set_chunk_needs_clearing(chunk);
 
@@ -939,6 +945,7 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
 
   // note if a finaliser needs to run or not
   set_large_chunk_finaliser(chunk, (track_finalisers_mask & 1));
+  chunk->m = (char*)((uintptr_t)chunk->m & ~LARGE_CHUNK_SHARED_START_BITMASK);
   chunk->large.traceable = false;
   chunk->large.local_index = 0;
 
@@ -1050,6 +1057,23 @@ void ponyint_heap_mark_slots(chunk_t* chunk, uint32_t slots, bool shallow)
   }
 }
 
+void ponyint_heap_set_shared_start(void* p)
+{
+  chunk_t* chunk = ponyint_pagemap_get_chunk(p);
+  pony_assert(chunk != NULL);
+
+  if(get_chunk_is_small_chunk(chunk))
+  {
+    // A struct has no finaliser, so the slot's traceable bit is free.
+    uint32_t slot = FIND_SLOT(p, get_m(chunk));
+    pony_assert((chunk->small.finalisers & slot) == 0);
+    chunk->small.traceable |= slot;
+  } else {
+    pony_assert(get_large_chunk_finaliser(chunk) == 0);
+    chunk->m = (char*)((uintptr_t)chunk->m | LARGE_CHUNK_SHARED_START_BITMASK);
+  }
+}
+
 heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
 {
   maybe_clear_chunk(chunk);
@@ -1072,6 +1096,12 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
       return first ? HEAP_MARK_INTERIOR_FIRST : HEAP_MARK_INTERIOR;
     }
 
+    if((chunk->small.traceable & ~chunk->small.finalisers & slot) != 0)
+    {
+      chunk->small.shallow &= ~slot;
+      return HEAP_MARK_SHARED_START;
+    }
+
     if(marked)
       return HEAP_MARK_MARKED;
 
@@ -1089,6 +1119,12 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
     bool first = get_large_chunk_shallow(chunk) != 0;
     set_large_chunk_shallow(chunk, 0);
     return first ? HEAP_MARK_INTERIOR_FIRST : HEAP_MARK_INTERIOR;
+  }
+
+  if(((uintptr_t)chunk->m & LARGE_CHUNK_SHARED_START_BITMASK) != 0)
+  {
+    set_large_chunk_shallow(chunk, 0);
+    return HEAP_MARK_SHARED_START;
   }
 
   if(marked)
@@ -1186,10 +1222,10 @@ void ponyint_heap_free(chunk_t* chunk, void* p)
 
       // clear finaliser
       chunk->small.finalisers &= ~slot;
-      chunk->small.traceable &= ~slot;
     }
 
     // free slot
+    chunk->small.traceable &= ~slot;
     chunk->small.slots |= slot;
   }
 }

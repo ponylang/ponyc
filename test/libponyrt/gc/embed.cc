@@ -123,8 +123,11 @@ protected:
     Child* child = static_cast<Child*>(ponyint_heap_alloc(owner, &owner->heap,
       sizeof(Child), TRACK_NO_FINALISERS));
     child->type = &child_type;
+    // S starts with an embedded field, so it is allocated as compiled code
+    // allocates such a struct.
     S* s = static_cast<S*>(ponyint_heap_alloc(owner, &owner->heap, sizeof(S),
       TRACK_NO_FINALISERS));
+    ponyint_heap_set_shared_start(s);
     s->c.type = &c_type;
     s->c.x = 7;
     s->d = child;
@@ -442,6 +445,81 @@ TEST_F(GcSharedAddress, ZeroSizeVisitDoesNotHideTheStruct)
 }
 
 // An interior visit keeps its allocation through the sweep.
+namespace
+{
+void start_gc(pony_actor_t* actor)
+{
+  ponyint_heap_startgc(&actor->heap
+#ifdef USE_RUNTIMESTATS
+    , actor
+#endif
+    );
+}
+
+void end_gc(pony_actor_t* actor)
+{
+  ponyint_heap_endgc(&actor->heap, 0
+#ifdef USE_RUNTIMESTATS
+    , actor
+#endif
+    );
+}
+}
+
+// An allocation whose start is shared is never marked, is kept while its
+// start is visited, and loses the record when it is freed, so a later
+// allocation in the same slot is marked as usual.
+TEST(HeapMarkObject, SharedStartLastsAsLongAsTheAllocation)
+{
+  // 16 KiB is recycled through the list for the largest chunks.
+  for(size_t size : {(size_t)64, (size_t)16384})
+  {
+    SCOPED_TRACE(size);
+    ponyint_register_thread();
+    pony_actor_t actor{};
+    _pony_type_t type{};
+    actor.type = &type;
+    ponyint_heap_init(&actor.heap);
+
+    // Another allocation, kept throughout, so a small chunk stays in use and
+    // the freed slot is reused inside it.
+    char* keeper = static_cast<char*>(ponyint_heap_alloc(&actor, &actor.heap,
+      size, TRACK_NO_FINALISERS));
+    char* p = static_cast<char*>(ponyint_heap_alloc(&actor, &actor.heap,
+      size, TRACK_NO_FINALISERS));
+    ponyint_heap_set_shared_start(p);
+    chunk_t* chunk = ponyint_pagemap_get_chunk(p);
+    chunk_t* keeper_chunk = ponyint_pagemap_get_chunk(keeper);
+
+    // Each collection that visits its start keeps it, and it stays recorded.
+    for(int i = 0; i < 2; i++)
+    {
+      start_gc(&actor);
+      ponyint_heap_mark_object(keeper_chunk, keeper);
+      EXPECT_EQ(HEAP_MARK_SHARED_START, ponyint_heap_mark_object(chunk, p));
+      EXPECT_EQ(HEAP_MARK_SHARED_START, ponyint_heap_mark_object(chunk, p));
+      end_gc(&actor);
+    }
+
+    // A collection that doesn't visit it frees it. An allocation that reuses
+    // the memory is marked as usual.
+    start_gc(&actor);
+    ponyint_heap_mark_object(keeper_chunk, keeper);
+    end_gc(&actor);
+
+    char* q = static_cast<char*>(ponyint_heap_alloc(&actor, &actor.heap,
+      size, TRACK_NO_FINALISERS));
+    ASSERT_EQ(p, q);
+    chunk = ponyint_pagemap_get_chunk(q);
+    start_gc(&actor);
+    EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, q));
+    end_gc(&actor);
+
+    ponyint_heap_destroy(&actor.heap);
+    ponyint_unregister_thread();
+  }
+}
+
 TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
 {
   ponyint_register_thread();
@@ -762,8 +840,12 @@ TEST(ActorContaining, PoolMemoryThatIsNotAnActor)
   // An actor descriptor, but the address is past that actor's size.
   *reinterpret_cast<const _pony_type_t**>(block) = &tiny_actor_type;
   EXPECT_EQ(nullptr, ponyint_actor_containing(block + 16));
+#ifdef POOL_USE_ARENA
+  // The arena pool recognises an actor by its descriptor; the memalign pool
+  // finds actors only through the pagemap.
   EXPECT_EQ(reinterpret_cast<pony_actor_t*>(block),
     ponyint_actor_containing(block + 8));
+#endif
 
   ponyint_pool_free_size(size, block);
   ponyint_unregister_thread();

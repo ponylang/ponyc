@@ -8,6 +8,7 @@
 #include "genfun.h"
 #include "genname.h"
 #include "gentagged.h"
+#include "gentype.h"
 #include "genopt.h"
 #include "gentrace.h"
 #include "../pkg/platformfuns.h"
@@ -2095,17 +2096,26 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   if(size == 0)
     size = 1;
 
+  // A struct that starts with an embedded field shares its start with it, and
+  // the GC needs to know (see ponyint_heap_set_shared_start). A struct has no
+  // finaliser.
+  bool shared_start = gentype_first_embed(c, t) != NULL;
+
   if(size <= HEAP_MAX)
   {
     uint32_t index = ponyint_heap_index(size);
     args[1] = LLVMConstInt(c->i32, index, false);
-    if(c_t->final_fn == NULL)
+    if(shared_start)
+      result = gencall_runtime(c, "pony_alloc_small_shared_start", args, 2, "");
+    else if(c_t->final_fn == NULL)
       result = gencall_runtime(c, "pony_alloc_small", args, 2, "");
     else
       result = gencall_runtime(c, "pony_alloc_small_final", args, 2, "");
   } else {
     args[1] = LLVMConstInt(c->intptr, size, false);
-    if(c_t->final_fn == NULL)
+    if(shared_start)
+      result = gencall_runtime(c, "pony_alloc_large_shared_start", args, 2, "");
+    else if(c_t->final_fn == NULL)
       result = gencall_runtime(c, "pony_alloc_large", args, 2, "");
     else
       result = gencall_runtime(c, "pony_alloc_large_final", args, 2, "");
