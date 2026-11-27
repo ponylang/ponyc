@@ -834,6 +834,33 @@ TEST(ActorContaining, FindsAnActorTooLargeForAnArena)
   ponyint_unregister_thread();
 }
 
+// An actor type whose descriptor isn't in the image, as when the runtime is
+// built into a different image from the program.
+static struct _pony_type_t writable_actor_type = {0,
+  (uint32_t)(sizeof(pony_actor_t) + 64), 0, 0, nullptr, nullptr, nullptr,
+  nullptr, dispatch_nothing, nullptr, 0, true, PONY_EMBED_ACTOR_LOOKUP,
+  nullptr, nullptr, nullptr};
+
+// Such an actor is found through the pagemap, which forgets it when it is
+// destroyed.
+TEST(ActorContaining, FindsAnActorWhoseTypeIsNotInTheImage)
+{
+  ponyint_register_thread();
+  ponyint_image_init();
+  ASSERT_FALSE(ponyint_image_constant(&writable_actor_type));
+
+  pony_actor_t* actor = pony_create(pony_ctx(), &writable_actor_type, true);
+  char* field = reinterpret_cast<char*>(actor) + sizeof(pony_actor_t) + 8;
+  EXPECT_EQ(actor, ponyint_actor_containing(field));
+
+  ponyint_destroy(actor);
+
+  pony_actor_t* in_pagemap = nullptr;
+  EXPECT_EQ(nullptr, ponyint_pagemap_get(field, &in_pagemap));
+  EXPECT_EQ(nullptr, in_pagemap);
+  ponyint_unregister_thread();
+}
+
 // Pool memory handed to Pony through FFI isn't taken for an actor.
 TEST(ActorContaining, PoolMemoryThatIsNotAnActor)
 {
@@ -857,10 +884,38 @@ TEST(ActorContaining, PoolMemoryThatIsNotAnActor)
   *reinterpret_cast<const _pony_type_t**>(block) = &tiny_actor_type;
   EXPECT_EQ(nullptr, ponyint_actor_containing(block + 16));
 #ifdef POOL_USE_ARENA
-  // The arena pool recognises an actor by its descriptor; the memalign pool
-  // finds actors only through the pagemap.
+  // In the arena pool, ponyint_pool_base finds the allocation's start, and
+  // ponyint_actor_containing takes it for an actor by its descriptor. The
+  // memalign pool finds actors only through the pagemap.
   EXPECT_EQ(reinterpret_cast<pony_actor_t*>(block),
     ponyint_actor_containing(block + 8));
+
+  uintptr_t ro_start = ponyint_image_ro_start;
+  uintptr_t ro_end = ponyint_image_ro_end;
+
+  // A descriptor that starts in the image but ends past it.
+  ponyint_image_ro_start = (uintptr_t)&tiny_actor_type;
+  ponyint_image_ro_end = (uintptr_t)&tiny_actor_type + sizeof(_pony_type_t) - 1;
+  EXPECT_EQ(nullptr, ponyint_actor_containing(block + 8));
+
+  // A descriptor in the image that isn't aligned.
+#pragma pack(push, 1)
+  struct misaligned_t
+  {
+    char pad;
+    struct _pony_type_t type;
+  };
+#pragma pack(pop)
+  static misaligned_t misaligned = {0, {0, 16, 0, 0, nullptr, nullptr,
+    nullptr, nullptr, dispatch_nothing, nullptr, 0, true,
+    PONY_EMBED_ACTOR_LOOKUP, nullptr, nullptr, nullptr}};
+  ponyint_image_ro_start = (uintptr_t)&misaligned;
+  ponyint_image_ro_end = (uintptr_t)&misaligned + sizeof(misaligned);
+  *reinterpret_cast<struct _pony_type_t**>(block) = &misaligned.type;
+  EXPECT_EQ(nullptr, ponyint_actor_containing(block + 8));
+
+  ponyint_image_ro_start = ro_start;
+  ponyint_image_ro_end = ro_end;
 #endif
 
   ponyint_pool_free_size(size, block);
