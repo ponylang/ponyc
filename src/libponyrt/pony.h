@@ -222,8 +222,8 @@ PONY_API ATTRIBUTE_MALLOC void* pony_alloc_large(pony_ctx_t* ctx, size_t size);
 
 /** Allocate a struct that starts with an embedded field with a non-zero size.
  *
- * The compiler uses these in place of pony_alloc_small and pony_alloc_large
- * for such a struct. The struct must not need a finaliser.
+ * Use these in place of pony_alloc_small and pony_alloc_large for such a
+ * struct. The struct must not need a finaliser.
  */
 PONY_API ATTRIBUTE_MALLOC void* pony_alloc_small_shared_start(pony_ctx_t* ctx,
   uint32_t sizeclass);
@@ -337,7 +337,7 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m);
 /** Trace an object whose type can share memory with other objects.
  *
  * Use this in place of pony_traceknown when t has PONY_EMBED_ROUTED. It also
- * accepts a type without the flag.
+ * accepts any other type except an actor's.
  *
  * @param ctx The current context.
  * @param p The pointer being traced.

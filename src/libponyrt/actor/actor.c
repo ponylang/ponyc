@@ -799,10 +799,11 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
 }
 
 // Whether actors of this type are recorded in the pagemap, so that the address
-// of one of their embedded fields leads back to them. The memalign pool has no
-// way to find where the allocation containing an address starts. The arena
-// pool does, and recognises an actor by its descriptor, which is a constant in
-// the program image; a type whose descriptor isn't there is recorded instead.
+// of one of their embedded fields leads back to them. With the arena pool,
+// ponyint_pool_base finds where the allocation containing an address starts,
+// and ponyint_actor_containing takes it for an actor by its descriptor, which
+// is a constant in the program image; a type whose descriptor isn't there is
+// recorded instead. The memalign pool can't find the allocation's start.
 static bool type_in_pagemap(pony_type_t* type)
 {
   if((type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) == 0)

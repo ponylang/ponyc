@@ -14,8 +14,8 @@ using namespace llvm;
 
 namespace pony {
 
-// After HeapToStack has run, strip noinline from pony_alloc and
-// pony_alloc_small and inline the remaining call sites. These functions
+// After HeapToStack has run, strip noinline from pony_alloc, pony_alloc_small
+// and pony_alloc_small_shared_start and inline the remaining call sites. These functions
 // carry noinline (actor.c) so HeapToStack can match them by name at
 // call sites.
 class InlineRemainingAllocPass
@@ -24,7 +24,7 @@ class InlineRemainingAllocPass
 public:
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &)
   {
-    SmallVector<Function*, 2> targets;
+    SmallVector<Function*, 3> targets;
 
     for(auto *name :
       {"pony_alloc", "pony_alloc_small", "pony_alloc_small_shared_start"})

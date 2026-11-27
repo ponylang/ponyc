@@ -257,9 +257,6 @@ static LLVMValueRef make_first_embed(compile_t* c, reach_type_t* t)
   return codegen_resolve_global(c, ((compile_type_t*)f->c_type)->desc);
 }
 
-// retrace_enclosing in gc.c asserts that every type it retraces has
-// might_reference_actor set. If one didn't, the sender and the receiver of a
-// message could count that struct's fields differently.
 static LLVMValueRef make_might_reference_actor(compile_t* c, reach_type_t* t)
 {
   (void)t;

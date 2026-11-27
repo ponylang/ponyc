@@ -25,9 +25,15 @@
 
 DEFINE_STACK(ponyint_gcstack, gcstack_t, void);
 
+// A routed type can share its address and its object-map entry with another
+// type, so the type the map records for an address can change from one round
+// to the next. Counting a routed type as possibly referencing an actor means
+// every holder traces its fields and it is never an immutable root, which the
+// owner would trace as whatever type the map records.
 static bool might_reference_actor(pony_type_t* t)
 {
-  return t != NULL && t->might_reference_actor;
+  return (t != NULL) && (t->might_reference_actor ||
+    ((t->embed_flags & PONY_EMBED_ROUTED) != 0));
 }
 
 static void acquire_actor(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -240,16 +246,13 @@ static bool embeds_at_start(pony_type_t* t, pony_type_t* u)
 // address and its object-map entry with that field. Within one trace round, a
 // visit as a type that encloses the type already traced there traces the
 // object again as the enclosing type. The sender and the receiver trace the
-// same visits in the same order, so they make the same choice. That holds only
-// while every type that can be retraced has might_reference_actor set, which
-// the assert below checks (see make_might_reference_actor in gendesc.c).
+// same visits in the same order, so they make the same choice.
 static bool retrace_enclosing(object_t* obj, pony_type_t* t, int mutability)
 {
   if((mutability == PONY_TRACE_OPAQUE) || (obj->type == t) ||
     (obj->type == NULL) || !embeds_at_start(t, obj->type))
     return false;
 
-  pony_assert(might_reference_actor(t));
   obj->type = t;
   return true;
 }
@@ -431,8 +434,8 @@ static GC_INLINE void recv_local_object(pony_ctx_t* ctx, void* p,
 }
 
 // A visit the allocation's mark can't record: a repeat visit inside an
-// allocation, or a visit to an object that shares the start with an enclosing
-// struct. The visit is recorded by address and type.
+// allocation, or a repeat visit at a shared start that may not be of the
+// allocation's own type. The visit is recorded by address and type.
 static PONY_NOINLINE void mark_local_visit(pony_ctx_t* ctx, void* p,
   pony_type_t* t)
 {
@@ -458,9 +461,10 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 // A visit to a type that can share memory with other objects, in this actor's
 // own heap or its own allocation (no chunk). An allocation's mark means the
 // object that starts the allocation has been traced, and that trace covers the
-// objects embedded in it. An allocation whose start is shared, a struct that
-// starts with an embedded field, is marked only by a visit of its own type;
-// other visits there are recorded by type.
+// objects embedded in it. An allocation whose start is shared (a struct that
+// starts with an embedded field with a non-zero size) is marked only by a visit
+// as a type without PONY_EMBED_AT_START. The first other visit there traces
+// the object; later ones are recorded by type.
 static void mark_local_object_routed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
   pony_type_t* t, int mutability)
 {
@@ -480,12 +484,18 @@ static void mark_local_object_routed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
   // Only a type embedded at the start of a struct can be at the start of an
   // allocation of another type, so a visit as any other type is a visit to the
   // allocation's own type. Its trace covers what is embedded in it.
-  heap_mark_t mark = ponyint_heap_mark_object(chunk, p,
-    (t->embed_flags & PONY_EMBED_AT_START) == 0);
-
-  switch(mark)
+  switch(ponyint_heap_mark_object(chunk, p,
+    (t->embed_flags & PONY_EMBED_AT_START) == 0))
   {
     case HEAP_MARK_NEW:
+      recurse(ctx, p, t->trace);
+      return;
+
+    case HEAP_MARK_SHARED_START_FIRST:
+    case HEAP_MARK_INTERIOR_FIRST:
+      // The first visit in this mark that the allocation's shallow mark
+      // records. A repeat finds that mark and is recorded by type, so a cycle
+      // through embedded objects is traced at most twice.
       recurse(ctx, p, t->trace);
       return;
 
@@ -494,23 +504,6 @@ static void mark_local_object_routed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
       return;
 
     case HEAP_MARK_SHARED_START:
-    case HEAP_MARK_SHARED_START_FIRST:
-      // The first visit to a field at the start traces it; repeats are
-      // recorded, as for HEAP_MARK_INTERIOR_FIRST.
-      if(mark == HEAP_MARK_SHARED_START_FIRST)
-      {
-        recurse(ctx, p, t->trace);
-        return;
-      }
-      break;
-
-    case HEAP_MARK_INTERIOR_FIRST:
-      // The first visit to anything inside this allocation in this mark. A
-      // repeat finds the allocation's shallow mark and is recorded, so a cycle
-      // through embedded objects is traced at most twice.
-      recurse(ctx, p, t->trace);
-      return;
-
     case HEAP_MARK_INTERIOR:
       break;
   }
@@ -756,7 +749,7 @@ static GC_INLINE void mark_remote_object(pony_ctx_t* ctx,
 // An object with no heap chunk can be embedded in an actor. Only types with
 // PONY_EMBED_IN_ACTOR are looked up. in_pagemap is the actor the pagemap gave
 // for p, if any.
-static pony_actor_t* actor_containing(pony_ctx_t* ctx, void* p,
+static pony_actor_t* embedded_field_owner(pony_ctx_t* ctx, void* p,
   pony_type_t* t, pony_actor_t* in_pagemap)
 {
   if((t->embed_flags & PONY_EMBED_IN_ACTOR) == 0)
@@ -790,7 +783,7 @@ static GC_INLINE bool routed_owner(pony_ctx_t* ctx, void* p,
   if(ponyint_image_constant(p))
     return false;
 
-  *actor = actor_containing(ctx, p, t, *actor);
+  *actor = embedded_field_owner(ctx, p, t, *actor);
   if(*actor != NULL)
     return true;
 
@@ -979,13 +972,8 @@ void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
   while((obj = ponyint_gc_next_immutable_root(gc, &i)) != NULL)
   {
     chunk_t* chunk = ponyint_pagemap_get_chunk(obj->address);
-
-    if((obj->type->embed_flags & PONY_EMBED_ROUTED) != 0)
-      mark_local_object_routed(ctx, chunk, obj->address, obj->type,
-        PONY_TRACE_IMMUTABLE);
-    else
-      mark_local_object(ctx, chunk, obj->address, obj->type,
-        PONY_TRACE_IMMUTABLE);
+    mark_local_object(ctx, chunk, obj->address, obj->type,
+      PONY_TRACE_IMMUTABLE);
   }
 }
 

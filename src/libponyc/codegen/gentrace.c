@@ -553,8 +553,8 @@ static bool type_may_be_routed(reach_type_t* t, int depth)
     case TK_INTERFACE:
     case TK_TRAIT:
     {
-      // Subtype links run both ways, so the walk can come back to a type it
-      // has seen; past this depth, treat the type as routed.
+      // A bound on the walk, so it ends even if the subtype sets ever contain
+      // abstract types; past this depth, treat the type as routed.
       if(depth > 32)
         return true;
 

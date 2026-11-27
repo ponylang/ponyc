@@ -241,7 +241,7 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
   end_local_mark(&a);
   EXPECT_GE(ctx->visits.capacity, count * 2);
 
-  // The next mark records the struct's visit afresh and traces it again.
+  // The next mark traces the struct again.
   s_traced = 0;
   start_local_mark(&a);
   pony_traceknown_routed(ctx, objects[0], &c_type, PONY_TRACE_MUTABLE);
@@ -252,23 +252,30 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
   EXPECT_EQ(0u, ctx->visits.capacity);
 }
 
-// An immutable root that is routed and has no heap chunk, as an object in an
-// actor's own allocation has none, is marked without touching a heap.
-TEST_F(GcSharedAddress, RoutedImmutableRootWithoutAChunk)
+// A routed type is never an immutable root, even without
+// might_reference_actor: the type the object map records for its address can
+// be the field at a struct's start rather than the struct.
+TEST_F(GcSharedAddress, RoutedTypeIsNeverAnImmutableRoot)
 {
-  _pony_type_t root_type = c_type;
-  root_type.might_reference_actor = false;
-  C inside{};
-  inside.type = &root_type;
-  object_t* obj = ponyint_objectmap_getorput(&a.gc.local, &inside, &root_type);
-  obj->immutable = true;
-  obj->rc = 1;
+  _pony_type_t routed_type = c_type;
+  routed_type.might_reference_actor = false;
+  _pony_type_t plain_type = c_type;
+  plain_type.might_reference_actor = false;
+  plain_type.embed_flags = 0;
 
-  start_local_mark(&a);
-  ponyint_gc_markimmutable(ctx, &a.gc);
-  ponyint_gc_handlestack(ctx);
-  EXPECT_EQ(0u, c_traced);
-  end_local_mark(&a);
+  S* s = alloc_s(&a);
+  S* t = alloc_s(&a);
+  object_t* routed = ponyint_objectmap_getorput(&a.gc.local, s, &routed_type);
+  routed->immutable = true;
+  routed->rc = 1;
+  object_t* plain = ponyint_objectmap_getorput(&a.gc.local, t, &plain_type);
+  plain->immutable = true;
+  plain->rc = 1;
+
+  size_t i = HASHMAP_BEGIN;
+  EXPECT_EQ(plain, ponyint_gc_next_immutable_root(&a.gc, &i));
+  EXPECT_EQ(nullptr, ponyint_gc_next_immutable_root(&a.gc, &i));
+  end_epoch(&a);
 }
 
 // Sending and receiving visits as both types count the struct's field once
@@ -483,13 +490,13 @@ void end_gc(pony_actor_t* actor)
 }
 }
 
-// An allocation whose start is shared is never marked, is kept while its
-// start is visited, and loses the record when it is freed, so a later
-// allocation in the same slot is marked as usual.
+// An allocation whose start is shared is marked only by a visit of its own
+// type, is kept while its start is visited, and loses the record when it is
+// freed, so a later allocation in the same slot is marked as usual.
 TEST(HeapMarkObject, SharedStartLastsAsLongAsTheAllocation)
 {
-  // A 16 KiB chunk is recycled through
-  // heap->recyclable[HEAP_RECYCLE_LARGE_OVERFLOW].
+  // 16 KiB is a large allocation, whose freed chunk the heap reuses for the
+  // next allocation of that size.
   for(size_t size : {(size_t)64, (size_t)16384})
   {
     SCOPED_TRACE(size);
@@ -781,7 +788,9 @@ const _pony_type_t small_actor_type = {0,
   nullptr, dispatch_nothing, nullptr, 0, true, PONY_EMBED_ACTOR_LOOKUP,
   nullptr, nullptr, nullptr};
 
-// Constants that start pool memory in PoolMemoryThatIsNotAnActor.
+// Descriptors in the image for the pool-memory tests: a type with no dispatch
+// function, an actor type without PONY_EMBED_ACTOR_LOOKUP, and a 16-byte actor
+// type with it.
 const _pony_type_t not_an_actor_type = {0, 64, 0, 0, nullptr, nullptr,
   nullptr, nullptr, nullptr, nullptr, 0, true, PONY_EMBED_ACTOR_LOOKUP,
   nullptr, nullptr, nullptr};
@@ -882,8 +891,9 @@ TEST(ActorContaining, PoolMemoryThatIsNotAnActor)
   EXPECT_EQ(nullptr, ponyint_actor_containing(block + 16));
 #ifdef POOL_USE_ARENA
   // In the arena pool, ponyint_pool_base finds the allocation's start, and
-  // ponyint_actor_containing takes it for an actor by its descriptor. The
-  // memalign pool finds actors only through the pagemap.
+  // ponyint_actor_containing takes it for an actor by its descriptor. With the
+  // memalign pool, ponyint_actor_containing finds actors only through the
+  // pagemap.
   EXPECT_EQ(reinterpret_cast<pony_actor_t*>(block),
     ponyint_actor_containing(block + 8));
 
