@@ -13,6 +13,7 @@
 #if defined(__ELF__)
 #  include <link.h>
 #  include <type_traits>
+#  include <unistd.h>
 #endif
 
 // The GC skips objects in memory that is read-only once the program is
@@ -35,6 +36,10 @@ TEST(Image, ConstantsAreReadOnly)
 
   ASSERT_TRUE(ponyint_image_constant(&constant_value));
   ASSERT_TRUE(ponyint_image_constant(&constant_pointer));
+#if defined(__ELF__)
+  // Protection is per page, so the read-only part ends on a page boundary.
+  EXPECT_EQ(0u, ponyint_image_ro_end % (uintptr_t)sysconf(_SC_PAGESIZE));
+#endif
 }
 
 TEST(Image, WritableMemoryIsNotReadOnly)

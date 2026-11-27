@@ -419,7 +419,8 @@ static GC_INLINE void recv_local_object(pony_ctx_t* ctx, void* p,
 }
 
 // A visit the allocation's mark and shallow mark can't record
-// (HEAP_MARK_SHARED_START or HEAP_MARK_INTERIOR). The visit is recorded by address and type.
+// (HEAP_MARK_SHARED_START or HEAP_MARK_INTERIOR). The visit is recorded by
+// address and type.
 static PONY_NOINLINE void mark_local_visit(pony_ctx_t* ctx, void* p,
   pony_type_t* t)
 {
@@ -447,8 +448,8 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 // returns whether the visit is the first its allocation's mark and shallow
 // mark record, is covered by a trace already made, or must be recorded by
 // type.
-// Kept out of its one caller: inlined into ponyint_gc_markrouted, it made each
-// routed mark visit slower.
+// Not inlined into ponyint_gc_markrouted, its only caller: inlined there, it
+// makes each routed visit slower.
 static PONY_NOINLINE void mark_local_object_routed(pony_ctx_t* ctx,
   chunk_t* chunk, void* p, pony_type_t* t, int mutability)
 {

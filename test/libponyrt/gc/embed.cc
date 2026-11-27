@@ -87,8 +87,7 @@ protected:
     ponyint_gc_done(&a.gc);
     ponyint_gc_done(&b.gc);
 
-    // Set as the compiler sets it, so the test traces the fields the way
-    // compiled code does.
+    // Holders trace the fields of these types.
     c_type.size = sizeof(C);
     c_type.trace = trace_c;
     c_type.might_reference_actor = true;

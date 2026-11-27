@@ -229,8 +229,8 @@ static PONY_NOINLINE pony_ctx_t* begin_mark(pony_actor_t* actor,
   mark->ctx.current = actor;
   mark->ctx.trace_actor = trace_actor;
   mark->ctx.trace_object = trace_object;
-  // mark_record keeps each typed view of an address apart, so routed types
-  // need nothing more.
+  // The local mark records each visit by address and type, so a routed type
+  // needs no separate function.
   mark->ctx.trace_routed = trace_object;
 
   if(!ponyint_gc_trace_frames(&mark->ctx, frame))
