@@ -487,7 +487,8 @@ void end_gc(pony_actor_t* actor)
 // allocation in the same slot is marked as usual.
 TEST(HeapMarkObject, SharedStartLastsAsLongAsTheAllocation)
 {
-  // 16 KiB is recycled through the list for the largest chunks.
+  // A 16 KiB chunk is recycled through
+  // heap->recyclable[HEAP_RECYCLE_LARGE_OVERFLOW].
   for(size_t size : {(size_t)64, (size_t)16384})
   {
     SCOPED_TRACE(size);

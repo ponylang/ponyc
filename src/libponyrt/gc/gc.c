@@ -221,9 +221,9 @@ static bool acquire_immutable(pony_ctx_t* ctx, pony_actor_t* actor,
 }
 
 // True when u is embedded at the start of t, directly or through other
-// embedded objects, so the two share an address and t's trace covers u. Only
-// called with a routed type: a struct's instance slot holds the type
-// embedded at its start, and a class's is NULL.
+// embedded objects, so the two share an address and t's trace covers u. t's
+// instance slot must hold a type or NULL, as a struct's or a class's does; a
+// primitive's holds its instance.
 static bool embeds_at_start(pony_type_t* t, pony_type_t* u)
 {
   for(pony_type_t* x = (pony_type_t*)t->instance; x != NULL;
@@ -236,8 +236,8 @@ static bool embeds_at_start(pony_type_t* t, pony_type_t* u)
   return false;
 }
 
-// An object embedded as a struct's first field shares the struct's address
-// and its object-map entry. Within one trace round, a visit as a type that
+// A struct that starts with an embedded field with a non-zero size shares its
+// address and its object-map entry with that field. Within one trace round, a visit as a type that
 // encloses the type already traced there traces the object again as the
 // enclosing type. The sender and the receiver trace the same visits in the
 // same order, so they make the same choice. That holds only while every type

@@ -850,8 +850,6 @@ static void compute_embed_flags(compile_t* c)
     if(t->underlying == TK_ACTOR)
       flag_embedded(t, PONY_EMBED_IN_ACTOR);
 
-    // A struct that shares its address with its first embedded field with a
-    // non-zero size.
     if(gentype_first_embed(c, t) != NULL)
       c_t->embed_flags |= PONY_EMBED_ROUTED;
   }

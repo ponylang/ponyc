@@ -2096,9 +2096,9 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   if(size == 0)
     size = 1;
 
-  // A struct that starts with an embedded field shares its start with it, and
-  // the GC needs to know (see ponyint_heap_set_shared_start). A struct has no
-  // finaliser.
+  // A struct that starts with an embedded field with a non-zero size is
+  // recorded in the heap as sharing its start (see
+  // ponyint_heap_set_shared_start). A struct has no finaliser.
   bool shared_start = gentype_first_embed(c, t) != NULL;
 
   if(size <= HEAP_MAX)

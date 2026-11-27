@@ -59,8 +59,7 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 
 // Send, receive and mark functions for a type that can share memory with
-// other objects (PONY_EMBED_ROUTED): embedded objects, and structs that share
-// an address with their first field.
+// other objects (PONY_EMBED_ROUTED).
 void ponyint_gc_sendrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 

@@ -261,8 +261,8 @@ TEST_F(CodegenEmbedTest, StructStartingWithAPlainFieldIsNotRouted)
   ASSERT_EQ(0, flags_of("S") & PONY_EMBED_ROUTED);
 }
 
-// A struct that starts with an embedded field is allocated so the GC knows
-// its start is shared; a struct that starts with a plain field isn't.
+// A struct that starts with an embedded field is allocated with the
+// shared-start allocator; a struct that starts with a plain field isn't.
 TEST_F(CodegenEmbedTest, StructSharingItsStartIsAllocatedAsSuch)
 {
   const char* src =

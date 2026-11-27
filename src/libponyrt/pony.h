@@ -216,11 +216,10 @@ PONY_API ATTRIBUTE_MALLOC void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizec
 /// Allocate when we know it's larger than HEAP_MAX.
 PONY_API ATTRIBUTE_MALLOC void* pony_alloc_large(pony_ctx_t* ctx, size_t size);
 
-/** Allocate a struct whose first embedded field shares its start.
+/** Allocate a struct that starts with an embedded field with a non-zero size.
  *
- * The compiler uses these, in place of pony_alloc_small and pony_alloc_large,
- * for a struct that starts with an embedded field with a non-zero size. The
- * GC then tells the struct and that field apart by type.
+ * The compiler uses these in place of pony_alloc_small and pony_alloc_large
+ * for such a struct. The struct must not need a finaliser.
  */
 PONY_API ATTRIBUTE_MALLOC void* pony_alloc_small_shared_start(pony_ctx_t* ctx,
   uint32_t sizeclass);
