@@ -233,6 +233,37 @@ TEST_F(CodegenOptimisationTest, HeapToStackStoreToAlloca)
 }
 
 
+TEST_F(CodegenOptimisationTest, HeapToStackStructSharingItsStart)
+{
+  // A struct that starts with an embedded field is allocated with
+  // pony_alloc_small_shared_start, and is promoted like any other allocation.
+  const char* src =
+    "class C\n"
+    "  var x: U64 = 1\n"
+
+    "struct S\n"
+    "  embed c: C = C\n"
+    "  var y: U64 = 2\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s = S\n"
+    "    let x = s.c.x + s.y";
+
+  opt.release = true;
+
+  TEST_COMPILE(src);
+
+  size_t before = count_calls_to("pony_alloc_small_shared_start");
+  ASSERT_GT(before, 0u);
+  DO(optimise_with_heap_to_stack());
+  size_t after = count_calls_to("pony_alloc_small_shared_start");
+
+  ASSERT_LT(after, before);
+}
+
+
 TEST_F(CodegenOptimisationTest, HeapToStackStoreToEscapingNotPromoted)
 {
   // An object stored into an actor field escapes — it must stay on the

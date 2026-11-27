@@ -13,6 +13,8 @@ static const char* const alloc_names[] = {
   "pony_alloc",
   "pony_alloc_small",
   "pony_alloc_large",
+  "pony_alloc_small_shared_start",
+  "pony_alloc_large_shared_start",
   "pony_alloc_final",
   "pony_alloc_small_final",
   "pony_alloc_large_final",

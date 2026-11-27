@@ -26,7 +26,8 @@ public:
   {
     SmallVector<Function*, 2> targets;
 
-    for(auto *name : {"pony_alloc", "pony_alloc_small"})
+    for(auto *name :
+      {"pony_alloc", "pony_alloc_small", "pony_alloc_small_shared_start"})
     {
       if(Function *F = M.getFunction(name))
         targets.push_back(F);

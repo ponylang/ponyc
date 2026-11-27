@@ -82,8 +82,12 @@ static bool can_allocate(Function* root, bool early,
 static bool small_allocation(Value* value)
 {
   auto* call = dyn_cast<CallBase>(value);
-  return call != nullptr && call->getCalledFunction() != nullptr &&
-    call->getCalledFunction()->getName() == "pony_alloc_small";
+  if(call == nullptr || call->getCalledFunction() == nullptr)
+    return false;
+
+  StringRef name = call->getCalledFunction()->getName();
+  return (name == "pony_alloc_small") ||
+    (name == "pony_alloc_small_shared_start");
 }
 
 // Count a recursive call as one small allocation. Its path must contain
