@@ -8,6 +8,7 @@
 #include <sched/scheduler.h>
 
 #include <gtest/gtest.h>
+#include <cstring>
 #include <stdlib.h>
 
 // The GC skips objects in memory that is read-only once the program is
@@ -90,13 +91,15 @@ TEST(Image, GcDoesNotTraceConstants)
   ponyint_gc_done(&actor.gc);
   ctx->current = &actor;
 
-  for(bool send : {false, true})
+  for(const char* mode : {"mark", "send", "receive"})
   {
-    SCOPED_TRACE(send ? "send" : "mark");
+    SCOPED_TRACE(mode);
     constant_traced = 0;
 
-    if(send)
+    if(strcmp(mode, "send") == 0)
       pony_gc_send(ctx, &actor);
+    else if(strcmp(mode, "receive") == 0)
+      pony_gc_recv(ctx);
     else
       ponyint_gc_mark(ctx);
 

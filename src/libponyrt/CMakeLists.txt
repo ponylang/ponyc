@@ -19,8 +19,8 @@ set(_c_src
     gc/cycle.c
     gc/delta.c
     gc/gc.c
-    gc/image.c
     gc/frames.c
+    gc/image.c
     gc/marklocal.c
     gc/objectmap.c
     gc/trace.c

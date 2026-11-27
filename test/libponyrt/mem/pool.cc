@@ -4073,6 +4073,17 @@ TEST(Pool, BaseOfMemoryOutsideThePool)
   ponyint_pool_free_size(huge, oversized);
 }
 
+// An address in an arena's own header isn't in any allocation.
+TEST(Pool, BaseOfAnArenaHeader)
+{
+  void* p = ponyint_pool_alloc_size(1024);
+  char* arena = reinterpret_cast<char*>(
+    (uintptr_t)p & ~(uintptr_t)(TEST_ARENA_SIZE - 1));
+  EXPECT_EQ(nullptr, ponyint_pool_base(arena));
+  EXPECT_EQ(nullptr, ponyint_pool_base(arena + 64));
+  ponyint_pool_free_size(1024, p);
+}
+
 // ponyint_pool_size_in_arena says which sizes ponyint_pool_base finds the start
 // of, on both sides of the largest size an arena holds.
 TEST(Pool, SizeInArenaMatchesBase)

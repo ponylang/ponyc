@@ -237,12 +237,12 @@ static bool embeds_at_start(pony_type_t* t, pony_type_t* u)
 }
 
 // A struct that starts with an embedded field with a non-zero size shares its
-// address and its object-map entry with that field. Within one trace round, a visit as a type that
-// encloses the type already traced there traces the object again as the
-// enclosing type. The sender and the receiver trace the same visits in the
-// same order, so they make the same choice. That holds only while every type
-// that can be retraced has might_reference_actor set, which the assert below
-// checks (see make_might_reference_actor in gendesc.c).
+// address and its object-map entry with that field. Within one trace round, a
+// visit as a type that encloses the type already traced there traces the
+// object again as the enclosing type. The sender and the receiver trace the
+// same visits in the same order, so they make the same choice. That holds only
+// while every type that can be retraced has might_reference_actor set, which
+// the assert below checks (see make_might_reference_actor in gendesc.c).
 static bool retrace_enclosing(object_t* obj, pony_type_t* t, int mutability)
 {
   if((mutability == PONY_TRACE_OPAQUE) || (obj->type == t) ||

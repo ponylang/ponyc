@@ -288,8 +288,10 @@ TEST_F(CodegenEmbedTest, StructSharingItsStartIsAllocatedAsSuch)
 
   TEST_COMPILE(src);
 
-  ASSERT_GT(calls_to("pony_alloc_small_shared_start", "Main_ref_make_shared"), 0u);
-  ASSERT_EQ(0u, calls_to("pony_alloc_small_shared_start", "Main_ref_make_plain"));
+  ASSERT_GT(calls_to("pony_alloc_small_shared_start", "Main_ref_make_shared"),
+    0u);
+  ASSERT_EQ(0u,
+    calls_to("pony_alloc_small_shared_start", "Main_ref_make_plain"));
   ASSERT_GT(calls_to("pony_alloc_small", "Main_ref_make_plain"), 0u);
 }
 
@@ -393,4 +395,50 @@ TEST_F(CodegenEmbedTest, KnownTraceOfATypeWithNoSizeIsOpaque)
   }
 
   ASSERT_GT(traces, 0u);
+}
+
+// A struct's descriptor records the type at its start in the instance slot
+// when that type is an embedded field with a size, and NULL otherwise.
+TEST_F(CodegenEmbedTest, StructDescriptorNamesTheTypeAtItsStart)
+{
+  const char* src =
+    "class E\n"
+    "  var x: U64 = 0\n"
+
+    "struct Shared\n"
+    "  embed e: E = E\n"
+    "  var y: U64 = 0\n"
+    "  new create() => None\n"
+
+    "struct Plain\n"
+    "  var y: U64 = 0\n"
+    "  embed e: E = E\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s = Shared\n"
+    "    let p = Plain";
+
+  TEST_COMPILE(src);
+
+  auto module = llvm::unwrap(compile->module);
+  auto e_desc = module->getNamedGlobal("E_Desc");
+  ASSERT_NE(nullptr, e_desc);
+
+  for(const char* name : {"Shared_Desc", "Plain_Desc"})
+  {
+    SCOPED_TRACE(name);
+    auto desc = module->getNamedGlobal(name);
+    ASSERT_NE(nullptr, desc);
+    ASSERT_TRUE(desc->hasInitializer());
+    // DESC_INSTANCE in gendesc.c.
+    auto instance = desc->getInitializer()->getAggregateElement(4u);
+    ASSERT_NE(nullptr, instance);
+
+    if(std::string(name) == "Shared_Desc")
+      EXPECT_EQ(e_desc, instance->stripPointerCasts());
+    else
+      EXPECT_TRUE(instance->isNullValue());
+  }
 }

@@ -460,7 +460,7 @@ TEST_F(GcSharedAddress, ZeroSizeVisitDoesNotHideTheStruct)
   ctx->current = &a;
 }
 
-// An interior visit keeps its allocation through the sweep.
+// Start and end a collection of one actor's heap.
 namespace
 {
 void start_gc(pony_actor_t* actor)
@@ -537,6 +537,7 @@ TEST(HeapMarkObject, SharedStartLastsAsLongAsTheAllocation)
   }
 }
 
+// An interior visit keeps its allocation through the sweep.
 TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
 {
   ponyint_register_thread();
@@ -548,17 +549,9 @@ TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
   char* p = static_cast<char*>(ponyint_heap_alloc(&actor, &actor.heap, 64,
     TRACK_NO_FINALISERS));
   chunk_t* chunk = ponyint_pagemap_get_chunk(p);
-  ponyint_heap_startgc(&actor.heap
-#ifdef USE_RUNTIMESTATS
-    , &actor
-#endif
-    );
+  start_gc(&actor);
   EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST, ponyint_heap_mark_object(chunk, p + 16));
-  ponyint_heap_endgc(&actor.heap, 0
-#ifdef USE_RUNTIMESTATS
-    , &actor
-#endif
-    );
+  end_gc(&actor);
   void* next = ponyint_heap_alloc(&actor, &actor.heap, 64, TRACK_NO_FINALISERS);
   EXPECT_NE(static_cast<void*>(p), next);
 
@@ -580,22 +573,14 @@ TEST(HeapMarkObject, ReportsInteriorPointers)
     char* p = static_cast<char*>(ponyint_heap_alloc(&actor, &actor.heap, size,
       TRACK_NO_FINALISERS));
     chunk_t* chunk = ponyint_pagemap_get_chunk(p);
-    ponyint_heap_startgc(&actor.heap
-#ifdef USE_RUNTIMESTATS
-      , &actor
-#endif
-      );
+    start_gc(&actor);
     EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST,
       ponyint_heap_mark_object(chunk, p + 16));
     EXPECT_EQ(HEAP_MARK_INTERIOR, ponyint_heap_mark_object(chunk, p + 16));
     EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p));
     EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p));
     EXPECT_EQ(HEAP_MARK_COVERED, ponyint_heap_mark_object(chunk, p + 16));
-    ponyint_heap_endgc(&actor.heap, 0
-#ifdef USE_RUNTIMESTATS
-      , &actor
-#endif
-      );
+    end_gc(&actor);
   }
 
   ponyint_heap_destroy(&actor.heap);
