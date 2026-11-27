@@ -10,6 +10,10 @@
 #include <gtest/gtest.h>
 #include <cstring>
 #include <stdlib.h>
+#if defined(__ELF__)
+#  include <link.h>
+#  include <type_traits>
+#endif
 
 // The GC skips objects in memory that is read-only once the program is
 // loaded, so that memory must not include anything a program can write.
@@ -47,6 +51,61 @@ TEST(Image, WritableMemoryIsNotReadOnly)
 
   free(heap);
 }
+
+#if defined(__ELF__)
+// Protection is per page, so the read-only part ends at the start of the page
+// holding the first writable byte, even when the writable segment, or the
+// writable memory after the RELRO region, starts inside a page.
+TEST(Image, ReadOnlyPartEndsWhereItsPageIsWritable)
+{
+  const uintptr_t page = 0x1000;
+  // The program header type, named the same way on every ELF platform.
+  using phdr_t = std::remove_const_t<
+    std::remove_pointer_t<decltype(dl_phdr_info::dlpi_phdr)>>;
+
+  // Code, then a writable segment starting inside a page.
+  phdr_t plain[2] = {};
+  plain[0].p_type = PT_LOAD;
+  plain[0].p_flags = PF_R | PF_X;
+  plain[0].p_vaddr = 0;
+  plain[0].p_memsz = 0x1200;
+  plain[1].p_type = PT_LOAD;
+  plain[1].p_flags = PF_R | PF_W;
+  plain[1].p_vaddr = 0x13d0;
+  plain[1].p_memsz = 0x200;
+
+  // Code, then a writable segment that begins with a RELRO region ending
+  // inside a page.
+  phdr_t relro[3] = {};
+  relro[0] = plain[0];
+  relro[1].p_type = PT_LOAD;
+  relro[1].p_flags = PF_R | PF_W;
+  relro[1].p_vaddr = 0x2000;
+  relro[1].p_memsz = 0x1800;
+  relro[2].p_type = PT_GNU_RELRO;
+  relro[2].p_vaddr = 0x2000;
+  relro[2].p_memsz = 0xa00;
+
+  struct dl_phdr_info info = {};
+  info.dlpi_addr = 0x400000;
+  uintptr_t start = 0;
+  uintptr_t end = 0;
+
+  info.dlpi_phdr = plain;
+  info.dlpi_phnum = 2;
+  ASSERT_TRUE(ponyint_image_elf_bounds(&info, 0x400010, page, &start, &end));
+  EXPECT_EQ(0x400000u, start);
+  EXPECT_EQ(0x401000u, end);
+
+  info.dlpi_phdr = relro;
+  info.dlpi_phnum = 3;
+  ASSERT_TRUE(ponyint_image_elf_bounds(&info, 0x400010, page, &start, &end));
+  EXPECT_EQ(0x402000u, end);
+
+  // An address outside every loaded segment isn't this object.
+  EXPECT_FALSE(ponyint_image_elf_bounds(&info, 0x900000, page, &start, &end));
+}
+#endif
 
 namespace
 {

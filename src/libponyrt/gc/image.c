@@ -8,6 +8,7 @@
 #  include <string.h>
 #elif defined(__ELF__)
 #  include <link.h>
+#  include <unistd.h>
 #endif
 
 PONY_EXTERN_C_BEGIN
@@ -125,17 +126,17 @@ void ponyint_image_init(void)
 typedef struct image_bounds_t
 {
   uintptr_t self;
+  uintptr_t page_size;
   uintptr_t start;
   uintptr_t end;
 } image_bounds_t;
 
-// The image runs from its lowest loaded segment up to the first memory that
-// stays writable. The loader makes the RELRO region read-only once it has
-// relocated the pointers in it.
-static int find_image(struct dl_phdr_info* info, size_t size, void* data)
+// The read-only part of the image runs from its lowest loaded segment up to
+// the first page that stays writable. The loader makes the RELRO region
+// read-only once it has relocated the pointers in it.
+bool ponyint_image_elf_bounds(struct dl_phdr_info* info, uintptr_t self,
+  uintptr_t page_size, uintptr_t* ro_start, uintptr_t* ro_end)
 {
-  (void)size;
-  image_bounds_t* b = (image_bounds_t*)data;
   uintptr_t lo = UINTPTR_MAX;
   uintptr_t hi = 0;
   uintptr_t relro_start = 0;
@@ -152,7 +153,7 @@ static int find_image(struct dl_phdr_info* info, size_t size, void* data)
       relro_start = start;
       relro_end = end;
     } else if(info->dlpi_phdr[i].p_type == PT_LOAD) {
-      if((b->self >= start) && (b->self < end))
+      if((self >= start) && (self < end))
         contains = true;
 
       if(start < lo)
@@ -164,9 +165,9 @@ static int find_image(struct dl_phdr_info* info, size_t size, void* data)
   }
 
   if(!contains)
-    return 0;
+    return false;
 
-  uintptr_t ro_end = hi;
+  uintptr_t end_ro = hi;
 
   for(size_t i = 0; i < info->dlpi_phnum; i++)
   {
@@ -182,18 +183,40 @@ static int find_image(struct dl_phdr_info* info, size_t size, void* data)
     if((start >= relro_start) && (start < relro_end))
       start = relro_end;
 
-    if((start < end) && (start < ro_end))
-      ro_end = start;
+    if(start >= end)
+      continue;
+
+    // Protection is per page, so the page holding the start of writable
+    // memory is writable from its first byte. A loader can hand the rest of
+    // that page to malloc.
+    start &= ~(page_size - 1);
+
+    if(start < end_ro)
+      end_ro = start;
   }
 
-  b->start = lo;
-  b->end = ro_end;
-  return 1;
+  *ro_start = lo;
+  *ro_end = end_ro;
+  return true;
+}
+
+static int find_image(struct dl_phdr_info* info, size_t size, void* data)
+{
+  (void)size;
+  image_bounds_t* b = (image_bounds_t*)data;
+  return ponyint_image_elf_bounds(info, b->self, b->page_size, &b->start,
+    &b->end) ? 1 : 0;
 }
 
 void ponyint_image_init(void)
 {
-  image_bounds_t b = {(uintptr_t)&ponyint_image_init, 0, 0};
+  long page_size = sysconf(_SC_PAGESIZE);
+
+  if(page_size <= 0)
+    return;
+
+  image_bounds_t b = {(uintptr_t)&ponyint_image_init, (uintptr_t)page_size,
+    0, 0};
 
   if(dl_iterate_phdr(find_image, &b) == 0)
     return;
