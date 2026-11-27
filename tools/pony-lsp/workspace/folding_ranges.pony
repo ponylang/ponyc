@@ -57,6 +57,8 @@ primitive FoldingRanges
     let synthetic_entities: Array[AST box] = Array[AST box]
     var max_entity_line: USize = 0
     for node in file'.ast.children() do
+      // Code a type inherited is folded where it is written, in its trait.
+      if node.is_inherited_code() then continue end
       match node.id()
       | TokenIds.tk_class()
       | TokenIds.tk_actor()
@@ -130,6 +132,7 @@ primitive FoldingRanges
       let entity_line = entity.line()
       let real_members: Array[(AST box, USize)] = Array[(AST box, USize)]
       for member in members.children() do
+        if member.is_inherited_code() then continue end
         match member.id()
         | TokenIds.tk_fun()
         | TokenIds.tk_be()
