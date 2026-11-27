@@ -281,10 +281,9 @@ jobs:
 
     # Builds the runtime optimized (release) with its asserts and the arena
     # allocator's integrity checks kept in, via -DPONY_ALWAYS_ASSERT=ON. A plain
-    # release compiles those checks out; the debug suites run them but
-    # unoptimized. This is the only lane that runs them against optimized code,
-    # where the compiler can expose ordering or undefined behavior the checks
-    # then catch.
+    # release compiles those checks out. This lane runs them in the release
+    # build's optimized code, where the compiler can expose ordering or
+    # undefined behavior the checks then catch.
     strategy:
       fail-fast: false
       matrix:
