@@ -1296,6 +1296,18 @@ void codegen_dispose_modules(compile_t* c)
   c->di = NULL;
 }
 
+void codegen_dispose_context(compile_t* c)
+{
+  // The context owns its modules; disposing it with modules left would leave
+  // codegen_cleanup disposing them a second time.
+  pony_assert((c->module == NULL) && (c->per_module_count == 0));
+
+  LLVMDisposeBuilder(c->builder);
+  c->builder = NULL;
+  LLVMContextDispose(c->context);
+  c->context = NULL;
+}
+
 void codegen_cleanup(compile_t* c)
 {
   while(c->frame != NULL)

@@ -306,6 +306,11 @@ bool codegen(ast_t* program, pass_opt_t* opt);
 bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
   pass_id last_pass);
 
+// Frees the IR builder and the LLVM context. Call after
+// codegen_dispose_modules, once nothing will use the builder, the context, or
+// anything created in it.
+void codegen_dispose_context(compile_t* c);
+
 void codegen_cleanup(compile_t* c);
 
 void codegen_dispose_modules(compile_t* c);

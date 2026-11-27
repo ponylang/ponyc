@@ -25,6 +25,9 @@
 #include "../../common/paths.h"
 #include "ponyassert.h"
 #include <string.h>
+#if defined(__GLIBC__)
+#  include <malloc.h>
+#endif
 
 #include <llvm-c/Linker.h>
 #include <vector>
@@ -3345,6 +3348,15 @@ bool genexe(compile_t* c, ast_t* program)
   }
 
   codegen_dispose_modules(c);
+  codegen_dispose_context(c);
+
+#if defined(__GLIBC__)
+  // glibc does not return most freed memory to the operating system on its
+  // own. Return it before linking: ponyc waits while the linker runs as a
+  // separate process, and memory glibc still holds counts against the machine
+  // during that time.
+  malloc_trim(0);
+#endif
 
   if(!link_exe(c, program, bc_files, bc_count))
   {
