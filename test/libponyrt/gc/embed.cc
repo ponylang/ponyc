@@ -717,6 +717,26 @@ TEST_F(GcEmbeddedInClass, InteriorVisitsEndAndAreCoveredByTheClass)
   end_mark();
 }
 
+// An opaque visit to B, as for a tag reference to it, keeps the allocation that
+// holds it through the sweep without tracing B.
+TEST_F(GcEmbeddedInClass, OpaqueInteriorVisitKeepsTheAllocation)
+{
+  A* obj = alloc_a();
+  start_mark();
+  pony_traceknown_routed(ctx, &obj->b, &b_type, PONY_TRACE_OPAQUE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(0u, b_traced);
+  end_mark();
+
+  // Enough allocations of the same size to reuse any freed slot in its chunk.
+  for(int i = 0; i < 64; i++)
+  {
+    void* next = ponyint_heap_alloc(&a, &a.heap, sizeof(A),
+      TRACK_NO_FINALISERS);
+    ASSERT_NE(static_cast<void*>(obj), next);
+  }
+}
+
 // Once the class that starts the allocation is traced, a pointer into it to B
 // needs nothing more.
 TEST_F(GcEmbeddedInClass, InteriorVisitAfterTheClassIsCovered)
