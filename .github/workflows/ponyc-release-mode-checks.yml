@@ -71,7 +71,7 @@ jobs:
       - name: Test with Release Runtime
         run: |
           PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
-          ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+          ctest --preset x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -110,7 +110,7 @@ jobs:
       - name: Test with Release Runtime
         run: |
           PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
-          ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+          ctest --preset x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -147,7 +147,7 @@ jobs:
       - name: Test with Release Runtime
         run: |
           PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
-          ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+          ctest --preset x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -212,7 +212,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20261016 \
-            bash -c "PONY_DEBUG=1 ctest --preset armv8-a-release -L ci-core && ctest --preset armv8-a-release -R '^(stdlib|full-programs)$'"
+            bash -c "PONY_DEBUG=1 ctest --preset armv8-a-release -L ci-core && ctest --preset armv8-a-release -R '^(stdlib|full-programs|inherit-programs)$'"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -275,7 +275,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20261016 \
-            bash -c "PONY_DEBUG=1 ctest --preset armv8-a-release -L ci-core && ctest --preset armv8-a-release -R '^(stdlib|full-programs)$'"
+            bash -c "PONY_DEBUG=1 ctest --preset armv8-a-release -L ci-core && ctest --preset armv8-a-release -R '^(stdlib|full-programs|inherit-programs)$'"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -338,7 +338,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20261016 \
-            bash -c "PONY_DEBUG=1 ctest --preset armv8-a-release -L ci-core && ctest --preset armv8-a-release -R '^(stdlib|full-programs)$'"
+            bash -c "PONY_DEBUG=1 ctest --preset armv8-a-release -L ci-core && ctest --preset armv8-a-release -R '^(stdlib|full-programs|inherit-programs)$'"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -383,7 +383,7 @@ jobs:
           PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
           export PONY_TEST_DEBUGGER
           PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
-          ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+          ctest --preset x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -420,7 +420,7 @@ jobs:
       - name: Test with Release Runtime
         run: |
           PONY_DEBUG=1 ctest --preset armv8-release -L ci-core
-          ctest --preset armv8-release -R "^(stdlib|full-programs)$"
+          ctest --preset armv8-release -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -469,7 +469,7 @@ jobs:
           $env:PONY_DEBUG = "1"
           ctest --preset windows-x86-64-release -L ci-core
           Remove-Item Env:PONY_DEBUG
-          ctest --preset windows-x86-64-release -R "^(stdlib|full-programs)$"
+          ctest --preset windows-x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -515,7 +515,7 @@ jobs:
           $env:PONY_DEBUG = "1"
           ctest --preset windows-arm64-release -L ci-core
           Remove-Item Env:PONY_DEBUG
-          ctest --preset windows-arm64-release -R "^(stdlib|full-programs)$"
+          ctest --preset windows-arm64-release -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

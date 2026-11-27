@@ -1124,3 +1124,20 @@ ast_t* typeparam_embed_narrowing(pass_opt_t* opt, ast_t* type, ast_t* scope)
   embed_narrowing(&type, scope, opt->strtab);
   return type;
 }
+
+bool type_mentions_typeparam(ast_t* type)
+{
+  if(type == NULL)
+    return false;
+
+  if(ast_id(type) == TK_TYPEPARAMREF)
+    return true;
+
+  for(ast_t* child = ast_child(type); child != NULL; child = ast_sibling(child))
+  {
+    if(type_mentions_typeparam(child))
+      return true;
+  }
+
+  return false;
+}

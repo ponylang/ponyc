@@ -26,6 +26,7 @@ primitive \nodoc\ _HoverIntegrationTests is TestList
     test(_HoverIntegrationCapKeywordTest.create(server))
     test(_HoverIntegrationFieldDocstringTest.create(server))
     test(_HoverIntegrationLambdaTest.create(server))
+    test(_HoverIntegrationInheritedLiteralTest.create(server))
 
 class \nodoc\ iso _HoverIntegrationLiteralsTest is UnitTest
   let _server: _LspTestServer
@@ -737,3 +738,29 @@ class val _HoverChecker
       end
     end
     ok
+
+class \nodoc\ iso _HoverIntegrationInheritedLiteralTest is UnitTest
+  """
+  Hover on a captured variable inside an object literal written in a trait
+  shows the trait's type for it, not one of the types a class that inherits
+  the method gives it, whether the trait is written before or after those
+  classes.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String => "hover/integration/inherited-literal"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "hover/_inherited_literal.pony",
+      [_HoverChecker(17, 29, ["let x: (U8 val | String val)"])])
+    _RunLspChecks(
+      h,
+      _server,
+      "hover/_inherited_literal_hosts_first.pony",
+      [_HoverChecker(15, 29, ["let x: (U8 val | String val)"])])

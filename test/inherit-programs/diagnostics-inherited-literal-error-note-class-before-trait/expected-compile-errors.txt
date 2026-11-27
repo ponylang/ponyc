@@ -1,0 +1,3 @@
+main.pony:8:39: function body isn't the result type
+    main.pony:8:25: function return type: U8 val
+    main.pony:4:12: in method 'm' inherited by C from T

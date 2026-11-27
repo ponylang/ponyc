@@ -205,18 +205,15 @@ primitive DocumentSymbols
     Walk the members of `entity` and append a child DocumentSymbol for each
     explicitly written member (field, constructor, function, or behaviour).
 
-    Three categories of members are filtered out:
+    Four categories of members are filtered out:
+    - Inherited methods (`AST.is_inherited_code()`): they are listed where
+      they are written, in their trait or interface.
     - Synthesized constructors: ponyc's sugar pass places the default `create`
       at the entity keyword's own source position (via token_dup). Any
       explicitly written member must appear after the entity keyword, so
       members at or before that position are skipped.
-    - Trait-merged methods: ponyc merges trait default method bodies into
-      implementing classes; those merged nodes carry the trait file's
-      source_file(). Members whose source_file() is a non-None string that
-      does not match the entity's source_file() are skipped. (When the
-      trait is defined in the same file as the implementing class, the
-      merged methods share the same source_file() and are instead caught
-      by the position or max_pos filters.)
+    - Members from another file: members whose source_file() is a non-None
+      string that does not match the entity's source_file() are skipped.
     - Comparable methods synthesized by add_comparable: ponyc's traits pass
       appends synthesized eq/ne to every primitive. These are built with the
       members node as the BUILD basis, so their position equals the members
@@ -247,6 +244,9 @@ primitive DocumentSymbols
     let doc_path = entity.source_file()
     let entity_pos = entity.position()
     for entity_child in members.children() do
+      // Code a type inherited is listed where it is written, in its trait.
+      if entity_child.is_inherited_code() then continue end
+
       // Skip members whose position is at or beyond max_pos.
       match max_pos
       | let m: Position =>
@@ -264,9 +264,7 @@ primitive DocumentSymbols
         continue
       end
 
-      // Skip members from other source files. ponyc merges trait
-      // default method bodies into implementing classes; those merged
-      // nodes carry the trait file's source_file(). Nodes with
+      // Skip members from other source files. Nodes with
       // source_file() == None are synthetic containers and are kept.
       match doc_path
       | let dp: String val =>

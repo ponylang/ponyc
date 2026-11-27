@@ -1,0 +1,9 @@
+main.pony:13:39: argument not assignable to parameter
+    main.pony:13:39: argument type is String val
+    main.pony:8:18: parameter type requires U8 val^
+    main.pony:13:39: String val is not a subtype of U8 val^
+main.pony:13:39: argument not assignable to parameter
+    main.pony:13:39: argument type is String val
+    main.pony:8:18: parameter type requires U8 val^
+    main.pony:13:39: String val is not a subtype of U8 val^
+    main.pony:14:12: in method 'f' inherited by C from T

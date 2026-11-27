@@ -1,4 +1,7 @@
 #include "expr.h"
+#include "../expr/lambda.h"
+#include "traits.h"
+#include "../pkg/program.h"
 #include "../expr/literal.h"
 #include "../expr/reference.h"
 #include "../expr/operator.h"
@@ -636,9 +639,110 @@ static void fold_union(pass_opt_t* opt, ast_t** astp)
     ast_replace(astp, child);
 }
 
+// Whether `entity` holds a method whose body a trait or interface supplied.
+static bool has_inherited_methods(ast_t* entity)
+{
+  ast_t* members = ast_childidx(entity, 4);
+
+  for(ast_t* m = ast_child(members); m != NULL; m = ast_sibling(m))
+  {
+    switch(ast_id(m))
+    {
+      case TK_FUN:
+      case TK_BE:
+      case TK_NEW:
+      {
+        ast_t* donor = (ast_t*)ast_data(m);
+        if((donor != NULL) && (donor != entity) &&
+          ((ast_id(donor) == TK_TRAIT) || (ast_id(donor) == TK_INTERFACE)))
+          return true;
+        break;
+      }
+
+      default: {}
+    }
+  }
+
+  return false;
+}
+
 ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
 {
+  // Whether the providers checked first, below, passed their checks.
+  bool provided_ok = true;
   ast_t* ast = *astp;
+
+  // A trait-view method holds a copy of a method its trait already checked.
+  if(is_trait_view_method(ast, options))
+    return AST_IGNORE;
+
+  switch(ast_id(ast))
+  {
+    case TK_FUN:
+    case TK_BE:
+    case TK_NEW:
+      copy_check_enter(ast, options);
+      break;
+
+    case TK_PARAM:
+      // A default argument being checked, which a call can't use until its
+      // check finishes.
+      if((ast_id(ast_childidx(ast, 2)) != TK_NONE) &&
+        (options->check.frame->module != NULL))
+        program_default_check_begin(options->check.frame->module, ast);
+      break;
+
+    default: {}
+  }
+
+  switch(ast_id(ast))
+  {
+    case TK_CLASS:
+    case TK_ACTOR:
+    case TK_PRIMITIVE:
+    case TK_STRUCT:
+    case TK_TRAIT:
+    case TK_INTERFACE:
+    {
+      // A provider that holds inherited code of its own is checked first, so
+      // the copies of its inherited methods are checked before this type
+      // inherits them.
+      ast_t* provides = ast_childidx(ast, 3);
+      for(ast_t* p = ast_child(provides); p != NULL; p = ast_sibling(p))
+      {
+        ast_t* def = (ast_id(p) == TK_NOMINAL) ? (ast_t*)ast_data(p) : NULL;
+        if((def != NULL) && has_inherited_methods(def) &&
+          !catch_up_provided(options, p))
+        {
+          // A provider's check that is still running here ended fatally,
+          // which skips the visit that ends it. Its literals' classes can be
+          // part checked, so the pass stops, as it would had the provider's
+          // own visit ended that way.
+          if(program_trait_check_in_progress(def))
+            return AST_FATAL;
+
+          provided_ok = false;
+        }
+      }
+      break;
+    }
+
+    default: {}
+  }
+
+  if((ast_id(ast) == TK_TRAIT) || (ast_id(ast) == TK_INTERFACE))
+  {
+    // Entering a trait's check while it is already running would check its
+    // methods while they are part checked.
+    if(program_trait_check_in_progress(ast))
+    {
+      ast_error(options->check.errors, ast,
+        "internal error: re-entered the check of a trait in progress");
+      return AST_FATAL;
+    }
+
+    program_trait_check_begin(ast, errors_get_count(options->check.errors));
+  }
 
   switch(ast_id(ast))
   {
@@ -660,10 +764,10 @@ ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
     default: {}
   }
 
-  return AST_OK;
+  return provided_ok ? AST_OK : AST_ERROR;
 }
 
-ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
+static ast_result_t pass_expr_node(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
   bool r = true;
@@ -673,9 +777,30 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_PRIMITIVE:
     case TK_STRUCT:
     case TK_CLASS:
-    case TK_ACTOR:
+    case TK_ACTOR:      r = expr_provides(options, ast); break;
+
+    case TK_PARAM:
+      if((options->check.frame->module != NULL) &&
+        program_default_check_end(options->check.frame->module, ast))
+      {
+        // Classes made while default arguments were checked wait for those
+        // checks to finish.
+        if(!drain_deferred_classes(options, options->check.frame->module))
+          return AST_FATAL;
+      }
+      r = expr_param(options, ast);
+      break;
+
     case TK_TRAIT:
-    case TK_INTERFACE:  r = expr_provides(options, ast); break;
+    case TK_INTERFACE:
+      r = expr_provides(options, ast);
+      program_trait_check_end(ast, errors_get_count(options->check.errors));
+
+      // Classes made while a trait's check ran wait for every running check
+      // to finish.
+      if(!drain_deferred_classes(options, ast))
+        return AST_FATAL;
+      break;
     case TK_NOMINAL:    r = expr_nominal(options, astp); break;
     case TK_TYPEALIASREF:
     {
@@ -697,7 +822,6 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_FVAR:
     case TK_FLET:
     case TK_EMBED:      r = expr_field(options, ast); break;
-    case TK_PARAM:      r = expr_param(options, ast); break;
     case TK_NEW:
     case TK_BE:
     case TK_FUN:        r = expr_fun(options, ast); break;
@@ -809,4 +933,19 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     return AST_ERROR;
 
   return AST_OK;
+}
+
+ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
+{
+  // The method node, before the visit can replace it.
+  ast_t* method = *astp;
+  token_id id = ast_id(method);
+  ast_result_t r = pass_expr_node(astp, options);
+
+  // Errors a method's own checks report at the end of its visit are in the
+  // method too.
+  if((id == TK_FUN) || (id == TK_BE) || (id == TK_NEW))
+    copy_check_leave(method, options);
+
+  return r;
 }

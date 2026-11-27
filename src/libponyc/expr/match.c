@@ -13,6 +13,7 @@
 #include "../expr/control.h"
 #include "../expr/reference.h"
 #include "../pass/expr.h"
+#include "../pass/traits.h"
 #include "../pass/pass.h"
 #include "ponyassert.h"
 
@@ -377,88 +378,31 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
     type = control_type_add_branch(opt, type, cases);
   }
 
-  // If the method definition containing the match site had its body inherited
-  // from a trait, we don't want to check exhaustiveness here -
-  // it should only be checked in the context of the original trait.
-  bool skip_exhaustive = false;
-  ast_t* body_donor = (ast_t*)ast_data(opt->check.frame->method);
-  if ((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT)
-    && (opt->check.frame->type != body_donor))
+  // In inherited code, a match that the providing trait's check accepts is
+  // not reported as redundant or as not exhaustive for the inheriting type.
+  bool copy = is_copy_context(opt);
+
+  // analyze exhaustiveness; in inherited code with an else clause, nothing
+  // uses the result.
+  ast_t* exhaustive_at = (copy && (ast_id(else_clause) != TK_NONE)) ? NULL :
+    is_match_exhaustive(opt, expr_type, cases);
+
+  if(exhaustive_at == NULL)
   {
-    skip_exhaustive = true;
-  }
-
-  if(!skip_exhaustive)
-  {
-    // analyze exhaustiveness
-    ast_t* exhaustive_at = is_match_exhaustive(opt, expr_type, cases);
-
-    if(exhaustive_at == NULL)
+    // match might not be exhaustive
+    if ((ast_id(else_clause) == TK_NONE))
     {
-      // match might not be exhaustive
-      if ((ast_id(else_clause) == TK_NONE))
-      {
-        if(ast_has_annotation(ast, "exhaustive", opt->strtab))
-        {
-          ast_error(opt->check.errors, ast,
-            "match marked \\exhaustive\\ is not exhaustive");
-          ast_free_unattached(type);
-          return false;
-        }
-
-        // If we have no else clause, and the match is not found to be exhaustive,
-        // we must generate an implicit else clause that returns None as the value.
-        ast_scope(else_clause);
-        ast_setid(else_clause, TK_SEQ);
-
-        BUILD(ref, else_clause,
-          NODE(TK_TYPEREF,
-            NONE
-            ID("None")
-            NONE));
-        ast_add(else_clause, ref);
-
-        if(!expr_typeref(opt, &ref) || !expr_seq(opt, else_clause))
-        {
-          ast_free_unattached(type);
-          return false;
-        }
-      }
-    }
-    else
-    {
-      // match is exhaustive
-      if(ast_sibling(exhaustive_at) != NULL)
-      {
-        // we have unreachable cases
-        ast_error(opt->check.errors, ast, "match contains unreachable cases");
-        ast_error_continue(opt->check.errors, ast_sibling(exhaustive_at),
-          "first unreachable case expression");
-        ast_free_unattached(type);
-        return false;
-      }
-      else if((ast_id(else_clause) != TK_NONE))
+      if(!copy && ast_has_annotation(ast, "exhaustive", opt->strtab))
       {
         ast_error(opt->check.errors, ast,
-          "match is exhaustive, the else clause is unreachable");
-        ast_error_continue(opt->check.errors, else_clause,
-          "unreachable code");
+          "match marked \\exhaustive\\ is not exhaustive");
         ast_free_unattached(type);
         return false;
       }
-    }
-  }
-  else if(ast_id(else_clause) == TK_NONE)
-  {
-    // Exhaustiveness analysis was skipped (body inherited from a trait), but
-    // the match still needs an implicit else clause for codegen when it isn't
-    // exhaustive. The traits pass copies the body before the expr pass runs,
-    // so the class's copy doesn't have the else clause that the trait's own
-    // expr pass would synthesize.
-    ast_t* exhaustive_at = is_match_exhaustive(opt, expr_type, cases);
 
-    if(exhaustive_at == NULL)
-    {
+      // If we have no else clause, and the match is not found to be
+      // exhaustive, we must generate an implicit else clause that returns None
+      // as the value.
       ast_scope(else_clause);
       ast_setid(else_clause, TK_SEQ);
 
@@ -474,6 +418,28 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
         ast_free_unattached(type);
         return false;
       }
+    }
+  }
+  else if(!copy)
+  {
+    // match is exhaustive
+    if(ast_sibling(exhaustive_at) != NULL)
+    {
+      // we have unreachable cases
+      ast_error(opt->check.errors, ast, "match contains unreachable cases");
+      ast_error_continue(opt->check.errors, ast_sibling(exhaustive_at),
+        "first unreachable case expression");
+      ast_free_unattached(type);
+      return false;
+    }
+    else if((ast_id(else_clause) != TK_NONE))
+    {
+      ast_error(opt->check.errors, ast,
+        "match is exhaustive, the else clause is unreachable");
+      ast_error_continue(opt->check.errors, else_clause,
+        "unreachable code");
+      ast_free_unattached(type);
+      return false;
     }
   }
 
@@ -979,20 +945,13 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
 
   ast_settype(ast, pattern_type);
 
-   // If the method definition containing the match site had its body inherited
-  // from a trait, we don't want to check it here -
-  // it should only be checked in the context of the original trait.
-  bool skip = false;
-  ast_t* body_donor = (ast_t*)ast_data(opt->check.frame->method);
-  if ((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT)
-    && (opt->check.frame->type != body_donor))
-  {
-    skip = true;
-  }
+  // In inherited code, the pattern is checked only by the providing trait's
+  // check, not again for each inheriting type.
+  bool copy = is_copy_context(opt);
 
   bool ok = true;
 
-  if (!skip)
+  if(!copy)
   {
     errorframe_t info = NULL;
 

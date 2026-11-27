@@ -1,4 +1,5 @@
 #include "control.h"
+#include "../pass/traits.h"
 #include "ponyassert.h"
 
 bool verify_try(pass_opt_t* opt, ast_t* ast)
@@ -6,8 +7,11 @@ bool verify_try(pass_opt_t* opt, ast_t* ast)
   pony_assert((ast_id(ast) == TK_TRY) || (ast_id(ast) == TK_TRY_NO_CHECK));
   AST_GET_CHILDREN(ast, body, else_clause, then_clause);
 
-  // It has to be possible for the left side to result in an error.
-  if((ast_id(ast) != TK_TRY_NO_CHECK) && !ast_canerror(body))
+  // It has to be possible for the left side to result in an error. In
+  // inherited code, a try the providing trait's check accepts is not reported
+  // as redundant for the inheriting type.
+  if((ast_id(ast) != TK_TRY_NO_CHECK) && !ast_canerror(body) &&
+    !is_copy_context(opt))
   {
     ast_error(opt->check.errors, body,
       "try expression never results in an error");

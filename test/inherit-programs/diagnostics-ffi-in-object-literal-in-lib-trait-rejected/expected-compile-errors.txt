@@ -1,0 +1,2 @@
+lib/lib.pony:8:9: Can't call an FFI function in a default method or behavior
+main.pony:4:1: can't load module 'lib'

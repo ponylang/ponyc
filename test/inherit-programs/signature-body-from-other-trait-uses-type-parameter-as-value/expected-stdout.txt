@@ -1,0 +1,2 @@
+narrowed x x
+x

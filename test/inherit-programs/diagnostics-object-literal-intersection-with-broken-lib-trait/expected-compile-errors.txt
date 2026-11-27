@@ -1,0 +1,4 @@
+lib/lib.pony:2:18: function body isn't the result type
+    lib/lib.pony:2:12: function return type: U8 val
+    lib/lib.pony:2:18: function body type: String val
+    lib/lib.pony:2:18: String val is not a subtype of U8 val

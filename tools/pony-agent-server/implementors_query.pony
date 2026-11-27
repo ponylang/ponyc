@@ -70,7 +70,12 @@ primitive ImplementorsQuery
         while true do
           match \exhaustive\ child
           | let node: AST box =>
-            if _is_concrete_entity(node.id()) then
+            // A class made from a literal in an inherited method is
+            // inherited code; the class made from the literal in the trait's
+            // own method is listed instead.
+            if _is_concrete_entity(node.id()) and
+              (not node.is_inherited_code())
+            then
               try
                 let name = node(0)?.token_value() as String val
 

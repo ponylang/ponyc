@@ -1,0 +1,1 @@
+main.pony:5:17: can't reference 'this' in a default argument

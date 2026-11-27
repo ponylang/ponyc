@@ -1,0 +1,1 @@
+main.pony:6:13: syntax error: expected mandatory type declaration on field after x

@@ -766,7 +766,7 @@ class \nodoc\ iso _SigHelpInheritedGenericTest is UnitTest
   Cursor on `7` (line 154, col 42) inside
   `_SigInheritedHolder[None].picked[U32](7)`. `picked` is inherited from a
   trait, and `_SigInheritedHolder` has its own type parameter `R`. The label
-  must show the name written in the trait, not the compiler-generated name.
+  shows the method's type parameter with the name written in the trait.
   """
   let _server: _LspTestServer
 

@@ -1,0 +1,10 @@
+lib/lib.pony:16:86: can't lookup fields or methods on private types from other modules
+    main.pony:6:18: in method 'g' inherited by Bar from Foo
+    main.pony:6:24: '_H' is private to package 'lib' and reaches this code through this type argument, written in package 'main'
+lib/lib.pony:16:86: couldn't find name in _H val
+    main.pony:6:18: in method 'g' inherited by Bar from Foo
+lib/lib.pony:16:86: can't lookup fields or methods on private types from other modules
+    main.pony:6:18: in method 'g' inherited by Bar from Foo
+    main.pony:6:24: '_H2' is private to package 'lib' and reaches this code through this type argument, written in package 'main'
+lib/lib.pony:16:86: couldn't find name in _H2 val
+    main.pony:6:18: in method 'g' inherited by Bar from Foo

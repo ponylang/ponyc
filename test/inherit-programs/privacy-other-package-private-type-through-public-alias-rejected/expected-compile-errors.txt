@@ -1,0 +1,6 @@
+p1/p1.pony:9:27: can't lookup fields or methods on private types from other modules
+    p2/p2.pony:2:13: in method 'f' inherited by T2 from T1
+    p2/p2.pony:2:19: '_H1' is private to package 'p1' and reaches this code through this type argument, written in package 'p2'
+p1/p1.pony:9:27: can't lookup fields or methods on private types from other modules
+    main.pony:7:12: in method 'f' inherited by C from T1
+    p2/p2.pony:2:19: '_H1' is private to package 'p1' and reaches this code through this type argument, written in package 'p2'

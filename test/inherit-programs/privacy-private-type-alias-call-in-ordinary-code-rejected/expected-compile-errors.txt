@@ -1,0 +1,1 @@
+main.pony:8:20: can't lookup fields or methods on private types from other modules

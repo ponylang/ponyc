@@ -1,0 +1,3 @@
+named T.here
+objlit T.here
+traitlit T.here

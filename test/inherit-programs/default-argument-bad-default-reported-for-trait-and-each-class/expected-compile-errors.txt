@@ -1,0 +1,5 @@
+main.pony:5:17: default argument is not a subtype of the parameter type
+main.pony:5:17: default argument is not a subtype of the parameter type
+    main.pony:6:13: in method 'f' inherited by C1 from T
+main.pony:5:17: default argument is not a subtype of the parameter type
+    main.pony:7:13: in method 'f' inherited by C2 from T

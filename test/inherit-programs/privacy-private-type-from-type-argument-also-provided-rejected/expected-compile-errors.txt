@@ -1,0 +1,3 @@
+lib/lib.pony:6:35: can't lookup fields or methods on private types from other modules
+    main.pony:7:13: in method 'bar' inherited by C from T
+    main.pony:7:17: '_Y' is private to package 'l2' and reaches this code through this type argument, written in package 'main'

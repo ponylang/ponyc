@@ -143,10 +143,10 @@ cmake --build --preset x86-64-debug
 PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core --output-on-failure
 ```
 
-Run the stdlib and full-program tests again with optimized Pony code generation:
+Run the stdlib, full-program and inherit-program tests again with optimized Pony code generation:
 
 ```bash
-env -u PONY_DEBUG ctest --preset x86-64-debug -R '^(stdlib|full-programs)$' --output-on-failure
+env -u PONY_DEBUG ctest --preset x86-64-debug -R '^(stdlib|full-programs|inherit-programs)$' --output-on-failure
 ```
 
 Build the six tool test binaries explicitly, then run them:

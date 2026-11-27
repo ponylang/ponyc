@@ -10,6 +10,7 @@ class val _Options
   let timeout_s: U64
   let debug: Bool
   let thin_lto: Bool
+  let checktree: Bool
   let debugger: String
   let verbose: Bool
   let max_parallel: USize
@@ -26,6 +27,7 @@ class val _Options
     timeout_s = command.option(_CliOptions._str_timeout_s()).u64()
     debug = command.option(_CliOptions._str_debug()).bool()
     thin_lto = command.option(_CliOptions._str_thin_lto()).bool()
+    checktree = command.option(_CliOptions._str_checktree()).bool()
     debugger = command.option(_CliOptions._str_debugger()).string()
     verbose = command.option(_CliOptions._str_verbose()).bool()
     max_parallel =
@@ -35,7 +37,9 @@ class val _Options
       recover
         let only' = Set[String]
         let only_str = command.option(_CliOptions._str_only()).string()
-        only'.union(only_str.split(",").values())
+        for name in only_str.split(",").values() do
+          if name.size() > 0 then only'.set(name) end
+        end
         only'
       end
     exclude =
@@ -55,6 +59,7 @@ primitive _CliOptions
   fun _str_timeout_s(): String => "timeout_s"
   fun _str_debug(): String => "debug"
   fun _str_thin_lto(): String => "thin-lto"
+  fun _str_checktree(): String => "checktree"
   fun _str_debugger(): String => "debugger"
   fun _str_verbose(): String => "verbose"
   fun _str_max_parallel(): String => "max_parallel"
@@ -96,6 +101,10 @@ primitive _CliOptions
               _str_thin_lto(),
               "Whether to compile with --thin-lto"
               where default' = false)?
+            OptionSpec.bool(
+              _str_checktree(),
+              "Whether to compile with --checktree"
+              where default' = false)?
             OptionSpec.string(
               _str_debugger(),
               "Debugger to use when running"
@@ -110,7 +119,8 @@ primitive _CliOptions
               where short' = 'P', default' = 1)?
             OptionSpec.string(
               _str_only(),
-              "Comma-separated list of test names to run"
+              "Comma-separated list of test names to run; a name that " +
+                "matches no test fails the run"
               where short' = 'O', default' = "")?
             OptionSpec.string(
               _str_exclude(),

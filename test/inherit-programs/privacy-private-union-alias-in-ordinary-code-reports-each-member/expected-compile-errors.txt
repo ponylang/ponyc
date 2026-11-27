@@ -1,0 +1,4 @@
+main.pony:8:20: can't lookup fields or methods on private types from other modules
+main.pony:8:20: couldn't find name in _H val
+main.pony:8:20: can't lookup fields or methods on private types from other modules
+main.pony:8:20: couldn't find name in _H2 val

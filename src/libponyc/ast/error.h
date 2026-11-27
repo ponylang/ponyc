@@ -134,6 +134,32 @@ void errorframe_report(errorframe_t* frame, errors_t* errors);
 /// The frame is left empty.
 void errorframe_discard(errorframe_t* frame);
 
+/// When `accepted`, discard any errors in the given frame, leaving it empty.
+/// Returns `accepted`.
+bool errorframe_discard_if(bool accepted, errorframe_t* frame);
+
+/* The words that make a message one of the notes on errors in inherited
+ * code: "in method 'f' inherited by C from T", and "'_H' is private to
+ * package 'lib' and reaches this code through ...". The compiler builds the
+ * notes from these words and identifies them by these words. The full-program
+ * runner recognises them by the same words, in `_is_note` in
+ * test/full-program-runner/_compile_errors.pony, and requires a test's
+ * expected errors to list each note it recognises. If these words change and
+ * those don't, the runner stops requiring the notes.
+ */
+#define COPY_NOTE_START "in method '"
+#define COPY_NOTE_INHERITED "' inherited by "
+#define BLAME_NOTE_REACHES "' and reaches this code through "
+
+/** Add the note naming the inherited method and the types it was inherited
+ * through to each error after the first `since` errors that has no such note
+ * yet and that `skip` (if given) doesn't exclude. It goes before a note saying
+ * how a private type reached the code.
+ */
+void errors_add_copy_note(errors_t* errors, size_t since,
+  bool (*skip)(size_t index, void* ctx), void* ctx, source_t* source,
+  size_t line, size_t pos, const char* fmt, ...);
+
 PONY_EXTERN_C_END
 
 #endif

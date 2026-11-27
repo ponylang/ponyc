@@ -186,6 +186,7 @@ Each runtime build runs these tests in both codegen modes:
 - **libponyc.tests** — compiler C/C++ unit tests (GTest)
 - **libponyrt.tests** — runtime C/C++ unit tests (GTest)
 - **full-programs** — compile-and-run integration tests
+- **inherit-programs** — compile-and-run programs about methods inherited from traits and interfaces
 - **full-program-runner-rejects-broken-config** — verifies the test runner rejects bad config
 - **validate-grammar** — `pony.g` validated against the compiler
 
@@ -376,10 +377,10 @@ cat > /home/pi/run-debug-ci-core.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
 echo "=== debug codegen ===" > /home/pi/debug-ci-core.log
-PONY_DEBUG=1 ctest --preset debug -L ci-core -E "^stdlib$" >> /home/pi/debug-ci-core.log 2>&1
+PONY_FULL_PROGRAM_PARALLEL=1 PONY_DEBUG=1 ctest --preset debug -L ci-core -E "^stdlib$" >> /home/pi/debug-ci-core.log 2>&1
 rc1=$?
 echo "=== release codegen ===" >> /home/pi/debug-ci-core.log
-ctest --preset debug -R "^full-programs$" >> /home/pi/debug-ci-core.log 2>&1
+PONY_FULL_PROGRAM_PARALLEL=1 ctest --preset debug -R "^(full-programs|inherit-programs)$" >> /home/pi/debug-ci-core.log 2>&1
 rc2=$?
 
 if [ $rc1 -eq 0 ] && [ $rc2 -eq 0 ]; then
@@ -595,10 +596,10 @@ cat > /home/pi/run-release-ci-core.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
 echo "=== debug codegen ===" > /home/pi/release-ci-core.log
-PONY_DEBUG=1 ctest --preset release -L ci-core -E "^stdlib$" >> /home/pi/release-ci-core.log 2>&1
+PONY_FULL_PROGRAM_PARALLEL=1 PONY_DEBUG=1 ctest --preset release -L ci-core -E "^stdlib$" >> /home/pi/release-ci-core.log 2>&1
 rc1=$?
 echo "=== release codegen ===" >> /home/pi/release-ci-core.log
-ctest --preset release -R "^full-programs$" >> /home/pi/release-ci-core.log 2>&1
+PONY_FULL_PROGRAM_PARALLEL=1 ctest --preset release -R "^(full-programs|inherit-programs)$" >> /home/pi/release-ci-core.log 2>&1
 rc2=$?
 
 if [ $rc1 -eq 0 ] && [ $rc2 -eq 0 ]; then

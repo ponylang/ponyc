@@ -33,9 +33,9 @@ echo "=== Run core tests (debug codegen) ==="
 PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core --output-on-failure
 
 echo ""
-echo "=== Run stdlib and full-program tests (release codegen) ==="
+echo "=== Run stdlib, full-program and inherit-program tests (release codegen) ==="
 env -u PONY_DEBUG ctest --preset x86-64-debug \
-  -R '^(stdlib|full-programs)$' --output-on-failure
+  -R '^(stdlib|full-programs|inherit-programs)$' --output-on-failure
 
 echo ""
 echo "=== Build and run tool tests ==="

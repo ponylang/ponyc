@@ -1126,18 +1126,7 @@ static bool single_method_interfaces_could_unify(subst_t* subst,
   // so both are in the same variable space (mirrors structural_could_match_pattern).
   if(ast_id(b_tps) != TK_NONE)
   {
-    BUILD(typeargs, b_tps, NODE(TK_TYPEARGS));
-    ast_t* tp = ast_child(b_tps);
-    while(tp != NULL)
-    {
-      AST_GET_CHILDREN(tp, tp_id, tp_constraint);
-      BUILD(typearg, tp, NODE(TK_TYPEPARAMREF, TREE(tp_id) NONE NONE));
-      ast_t* def = ast_get(tp, ast_name(tp_id), NULL);
-      ast_setdata(typearg, def);
-      typeparam_set_cap(typearg);
-      ast_append(typeargs, typearg);
-      tp = ast_sibling(tp);
-    }
+    ast_t* typeargs = typeargs_naming_typeparams(b_tps);
 
     rr_a = reify_method_def(r_a, a_tps, typeargs, opt);
     ast_free_unattached(typeargs);
@@ -1807,18 +1796,7 @@ static bool structural_could_match_pattern(ast_t* operand, ast_t* pattern,
     ast_t* rr_sub = r_sub;
     if(ast_id(super_tps) != TK_NONE)
     {
-      BUILD(typeargs, super_tps, NODE(TK_TYPEARGS));
-      ast_t* stp = ast_child(super_tps);
-      while(stp != NULL)
-      {
-        AST_GET_CHILDREN(stp, stp_id, stp_constraint);
-        BUILD(typearg, stp, NODE(TK_TYPEPARAMREF, TREE(stp_id) NONE NONE));
-        ast_t* def = ast_get(stp, ast_name(stp_id), NULL);
-        ast_setdata(typearg, def);
-        typeparam_set_cap(typearg);
-        ast_append(typeargs, typearg);
-        stp = ast_sibling(stp);
-      }
+      ast_t* typeargs = typeargs_naming_typeparams(super_tps);
 
       rr_sub = reify_method_def(r_sub, sub_tps, typeargs, opt);
       ast_free_unattached(typeargs);

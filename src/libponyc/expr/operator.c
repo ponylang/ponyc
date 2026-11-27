@@ -1,4 +1,5 @@
 #include "operator.h"
+#include "../pass/traits.h"
 #include "array.h"
 #include "literal.h"
 #include "postfix.h"
@@ -849,6 +850,21 @@ static void viewpoint_adaptation_info(errorframe_t* frame, ast_t* expr,
     ast_print_type_no_cap(receiver_type, opt->strtab));
 }
 
+// In inherited code, whether an iftype assigned to a target of type `expected`
+// passes branch by branch (check_iftype_return). It then takes that type,
+// which replaces `*r_type`.
+static bool join_assignable(pass_opt_t* opt, ast_t* right, ast_t* expected,
+  ast_t** r_type)
+{
+  if(!is_copy_context(opt) || (ast_id(right) != TK_IFTYPE_SET) ||
+    !check_iftype_return(opt, right, expected))
+    return false;
+
+  ast_settype(right, ast_dup(expected));
+  *r_type = ast_type(right);
+  return true;
+}
+
 bool expr_assign(pass_opt_t* opt, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
@@ -933,7 +949,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     errorframe_report(&frame, opt->check.errors);
     return false;
   }
-  else if(!is_subtype(r_type, wl_type, &info, opt))
+  else if(!is_subtype(r_type, wl_type, &info, opt) &&
+    !errorframe_discard_if(
+      is_subtype_via_narrowing(opt, ast, r_type, wl_type), &info) &&
+    !errorframe_discard_if(
+      join_assignable(opt, right, wl_type, &r_type), &info))
   {
     ast_error_frame(&frame, ast, "right side must be a subtype of left side");
 
@@ -1241,7 +1261,9 @@ bool expr_as(pass_opt_t* opt, ast_t** astp)
     return false;
   }
 
-  if(is_subtype(expr_type, type, NULL, opt))
+  // In inherited code, a cast the providing trait's check accepts is not
+  // reported as redundant for the inheriting type.
+  if(is_subtype(expr_type, type, NULL, opt) && !is_copy_context(opt))
   {
     if(is_subtype(type, expr_type, NULL, opt))
     {

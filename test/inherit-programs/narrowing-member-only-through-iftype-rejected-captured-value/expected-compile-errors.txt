@@ -1,0 +1,3 @@
+main.pony:7:41: couldn't find 'string' in 'B2'; it is found only through the narrowed type parameter 'A', and inherited code can't call a member through a narrowing that may not hold for the inheriting type
+    main.pony:7:41: bind the value to a local of a type that has 'string' first, for example: let v: Stringable val = ...
+    main.pony:13:15: in method 'f' inherited by object literal from Foo

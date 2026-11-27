@@ -1,0 +1,3 @@
+main.pony:9:31: this pattern can never match
+    main.pony:9:31: pattern type: String val
+    main.pony:9:38: U8 val^ cannot match String val^: String isn't a subtype of U8

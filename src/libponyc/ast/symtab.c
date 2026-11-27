@@ -71,6 +71,24 @@ symtab_t* symtab_dup(symtab_t* symtab)
   return n;
 }
 
+void symtab_remove_def(symtab_t* symtab, ast_t* def)
+{
+  size_t i = HASHMAP_BEGIN;
+  symbol_t* sym;
+
+  while((sym = symtab_next(symtab, &i)) != NULL)
+  {
+    if(sym->def == def)
+    {
+      // Removing an entry shifts a later one into its slot, so look at the
+      // same slot again.
+      symtab_removeindex(symtab, i);
+      i--;
+      sym_free(sym);
+    }
+  }
+}
+
 void symtab_free(symtab_t* symtab)
 {
   if(symtab == NULL)

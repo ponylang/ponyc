@@ -1,0 +1,4 @@
+main.pony:12:1: type does not implement its provides list
+    main.pony:14:14: S ref is not a subtype of Any ref: a struct can't be a subtype of an interface
+    main.pony:14:3: method result S ref is not a subtype of Any ref
+    main.pony:14:3: C ref is not a subtype of T ref: method 'get' has an incompatible signature

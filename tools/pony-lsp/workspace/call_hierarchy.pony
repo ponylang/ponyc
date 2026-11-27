@@ -386,9 +386,9 @@ class ref _OutgoingCallCollector is ASTVisitor
   grouped by callee and recording the call site ranges within the caller.
 
   Note: calls inside inherited trait default bodies are not visible here
-  because AST.visit filters cross-source children (grafted bodies retain the
-  trait's source file). This is intentional — those calls belong to the
-  trait's own hierarchy, not the concrete method's.
+  because AST.visit skips inherited code (`AST.is_inherited_code()`), in any
+  file. This is intentional — those calls belong to the trait's own
+  hierarchy, not the concrete method's.
   """
   let _method_file: String
   // Maps callee method identity (file+position) to (method_ast, call_ranges).

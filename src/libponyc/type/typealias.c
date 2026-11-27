@@ -1,6 +1,7 @@
 #include "typealias.h"
 #include "cap.h"
 #include "reify.h"
+#include "../ast/id.h"
 #include "../ast/source.h"
 #include "../ast/token.h"
 #include "../../libponyrt/mem/pool.h"
@@ -95,6 +96,37 @@ static ast_t* unfold_one(ast_t* typealiasref)
 // buffer is small and grows on demand.
 #define VISITED_INITIAL_CAP 8
 
+// Mark each private type an alias unfolds to with the position of the alias
+// reference: the text that named it, through the alias. The mark is the
+// nominal's optional seventh child, kept from an earlier mark if there is one.
+static void stamp_private_types(ast_t* type, ast_t* typealiasref)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    {
+      if(!is_name_private(ast_name(ast_childidx(type, 1))) ||
+        (ast_childcount(type) >= 7))
+        return;
+
+      if(ast_childcount(type) == 5)
+        ast_append(type, ast_from(typealiasref, TK_NONE));
+
+      ast_append(type, ast_from(typealiasref, TK_NONE));
+      return;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+      for(ast_t* c = ast_child(type); c != NULL; c = ast_sibling(c))
+        stamp_private_types(c, typealiasref);
+      return;
+
+    default: {}
+  }
+}
+
 ast_t* typealias_unfold(ast_t* typealiasref)
 {
   pony_assert(ast_id(typealiasref) == TK_TYPEALIASREF);
@@ -167,5 +199,9 @@ ast_t* typealias_unfold(ast_t* typealiasref)
   }
 
   ponyint_pool_free_size(v_cap * sizeof(ast_t*), visited);
+
+  if(r_alias != NULL)
+    stamp_private_types(r_alias, typealiasref);
+
   return r_alias;
 }

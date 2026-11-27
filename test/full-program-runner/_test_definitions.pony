@@ -40,25 +40,39 @@ class val _StdinDelay
 
 type _Stdin is (_StdinClose | _StdinWrite | _StdinDelay)
 
+class val _Runs
+  """
+  A test whose program compiles and runs: the exit code it must return, and
+  the stdout it must print when the test has an `expected-stdout.txt`.
+  """
+  let exit_code: I32
+  let stdout: (String val | None)
+
+  new val create(exit_code': I32, stdout': (String val | None)) =>
+    exit_code = exit_code'
+    stdout = stdout'
+
+type _Outcome is (_Runs | _ExpectedErrors)
+
 class val _TestDefinition
   let name: String
   let path: String
-  let expected_exit_code: I32
   let stdin: _Stdin
   let program_args: Array[String] val
+  let outcome: _Outcome
 
   new val create(
     name': String,
     path': String,
-    expected_exit_code': I32,
     stdin': _Stdin,
-    program_args': Array[String] val)
+    program_args': Array[String] val,
+    outcome': _Outcome)
   =>
     name = name'
     path = path'
-    expected_exit_code = expected_exit_code'
     stdin = stdin'
     program_args = program_args'
+    outcome = outcome'
 
 class val _BrokenTest
   """
@@ -96,6 +110,10 @@ class _TestDefinitions
   fun _str_stdin(): String => "stdin.txt"
   fun _str_stdin_delay_seconds(): String => "stdin-delay-seconds.txt"
   fun _str_program_args(): String => "program-args.txt"
+  fun _str_expected_stdout(): String => "expected-stdout.txt"
+
+  fun _str_expected_compile_errors(): String =>
+    "expected-compile-errors.txt"
 
   fun find(auth: FileAuth, path': String)
     : (Array[_TestDefinition] val | None)
@@ -212,6 +230,9 @@ class _TestDefinitions
     var stdin_data: (String val | None) = None
     var delay_seconds: (U64 | None) = None
     var program_args = recover val Array[String] end
+    var has_exit_code = false
+    var expected_stdout: (String val | None) = None
+    var expected_errors: (_ExpectedErrors | None) = None
     var config_error: (String | None) = None
     let ext_size = ISize.from[USize](_str_pony_extension().size())
     for entry in (consume entries).values() do
@@ -225,6 +246,7 @@ class _TestDefinitions
       end
 
       if entry_lower == _str_expected_exit_code() then
+        has_exit_code = true
         try
           let exit_code_fp = FilePath.from(dir_fp, entry)?
           match \exhaustive\ _get_expected_exit_code(exit_code_fp)
@@ -259,7 +281,42 @@ class _TestDefinitions
           config_error = "unable to read " + _str_program_args()
         end
       end
+
+      if entry_lower == _str_expected_stdout() then
+        try
+          expected_stdout = _get_expected_stdout(FilePath.from(dir_fp, entry)?)?
+        else
+          config_error = "unable to read " + _str_expected_stdout()
+        end
+      end
+
+      if entry_lower == _str_expected_compile_errors() then
+        try
+          match \exhaustive\ _CompileErrors.parse_expected(
+            _read_all(FilePath.from(dir_fp, entry)?)?)
+          | let e: _ExpectedErrors => expected_errors = e
+          | let reason: String => config_error = reason
+          end
+        else
+          config_error = "unable to read " + _str_expected_compile_errors()
+        end
+      end
     end
+
+    let outcome: _Outcome =
+      match \exhaustive\ expected_errors
+      | let e: _ExpectedErrors =>
+        if expected_stdout isnt None then
+          config_error = "a test can't have both " + _str_expected_stdout() +
+            " and " + _str_expected_compile_errors()
+        elseif has_exit_code then
+          config_error = "a test can't have both " +
+            _str_expected_exit_code() + " and " +
+            _str_expected_compile_errors()
+        end
+        e
+      | None => _Runs(expected_exit_code, expected_stdout)
+      end
 
     let stdin: _Stdin =
       match (delay_seconds, stdin_data)
@@ -276,8 +333,7 @@ class _TestDefinitions
       match \exhaustive\ config_error
       | let reason: String => _BrokenTest(child, reason)
       | None =>
-        _TestDefinition(
-          child, dir_path, expected_exit_code, stdin, program_args)
+        _TestDefinition(child, dir_path, stdin, program_args, outcome)
       end
     end
 
@@ -291,6 +347,21 @@ class _TestDefinitions
     else
       error
     end
+
+  fun _read_all(fp: FilePath): String val ? =>
+    match OpenFile(fp)
+    | let f: File => f.read_string(f.size())
+    else
+      error
+    end
+
+  fun _get_expected_stdout(fp: FilePath): String val ? =>
+    """
+    The contents of a test's expected-stdout.txt with each CRLF line end read
+    as LF, so a file checked out with either line end gives the same text.
+    """
+    let text = _read_all(fp)?
+    recover val text.clone() .> replace("\r\n", "\n") end
 
   fun _get_delay_seconds(fp: FilePath): U64 ? =>
     match OpenFile(fp)

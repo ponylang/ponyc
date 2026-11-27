@@ -1,0 +1,4 @@
+main.pony:10:36: function body isn't the result type
+    main.pony:10:12: function return type: T[Array[U8 val] val] val
+    main.pony:9:3: function body type: C val^
+    main.pony:9:3: C val^ does not implement trait T[Array[U8 val] val] val

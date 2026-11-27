@@ -17,6 +17,7 @@ primitive \nodoc\ _FoldingRangeIntegrationTests is TestList
     test(_FoldingRangeIfdefTest.create(server))
     test(_FoldingRangeNestedExpressionsTest.create(server))
     test(_FoldingRangeForExpressionsTest.create(server))
+    test(_FoldingRangeInheritedLiteralTest.create(server))
 
 class \nodoc\ iso _FoldingRangeClassTest is UnitTest
   """
@@ -352,6 +353,42 @@ class \nodoc\ iso _FoldingRangeForExpressionsTest is UnitTest
             (14, 21)
             (16, 19)
             (17, 18)])])
+
+class \nodoc\ iso _FoldingRangeInheritedLiteralTest is UnitTest
+  """
+  FoldingRange for inherited_literal.pony: the object literal in trait
+  InheritedLiteral's m() captures x, so each class that inherits m() has its
+  own class for it. The literal is folded once, where it is written.
+
+  inherited_literal.pony layout (0-indexed lines):
+    line 0: trait InheritedLiteral
+    line 1:   fun m(x: U32): Any val =>
+    line 2:     object val
+    line 3:       fun f(): U32 =>
+    line 4:         x
+    line 5:     end
+    line 7: class UsesLiteralA is InheritedLiteral
+    line 9: class UsesLiteralB is InheritedLiteral
+
+  Expected fold ranges:
+    (0, 4) — trait InheritedLiteral
+    (1, 4) — fun m
+    (2, 4) — the object literal's class, once
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "folding_range/integration/inherited_literal"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "folding_range/inherited_literal.pony",
+      [_FoldingRangeChecker([(0, 4); (1, 4); (2, 4)])])
 
 class val _FoldingRangeChecker
   """

@@ -49,6 +49,7 @@ actor \nodoc\ Main is TestList
     test(_CheckSuggestionsTest)
     test(_CheckErrorTest)
     test(_ImplementorsNominalTest)
+    test(_ImplementorsInheritedLiteralTest)
     test(_ImplementorsStructuralTest)
     test(_ImplementorsIntersectionProvidesTest)
     test(_ImplementorsPrivateFilterTest)
@@ -1941,9 +1942,10 @@ class \nodoc\ iso _MethodEnumeratorCallableAtTest is UnitTest
 class \nodoc\ iso _ScopeInheritedMethodTypeParamTest is UnitTest
   """
   Scope inside a generic method that `ScopeInheritedHolder` inherits from
-  `ScopeInherited` lists the method's type parameter by the name written in
-  the trait. The class comes before the trait in the fixture, so the position
-  resolves to the class's copy of the method.
+  `ScopeInherited` is the trait's own method, with the method's type
+  parameter by the name written in the trait, even though the class comes
+  before the trait in the fixture: the class's copy of the method is not
+  looked in.
   """
   fun name(): String => "scope/inherited-method-type-param"
 
@@ -1968,12 +1970,47 @@ class \nodoc\ iso _ScopeInheritedMethodTypeParamTest is UnitTest
       // of the method.
       match _FixtureHelper.find_scope_entry(result, "S")
       | let e: ScopeEntry val =>
-        h.assert_eq[String val]("typeparam", e.kind)
-      | None =>
-        h.fail("expected 'S' in scope")
+        h.fail("'S' is in scope: the class's copy was looked in")
+      | None => None
       end
     | let err: String val =>
       h.fail("scope at 232:5 failed: " + err)
+    end
+
+    session.dispose()
+
+class \nodoc\ iso _ImplementorsInheritedLiteralTest is UnitTest
+  """
+  An object literal written in a trait's method makes one class in the
+  trait's own check and one in each copy of the method a class inherits.
+  Only the trait's own class is listed as an implementor of the trait the
+  literal provides.
+  """
+  fun name(): String => "implementors/inherited_literal"
+
+  fun apply(h: TestHelper) =>
+    (let session, let prog) =
+      try _FixtureHelper.compile(h)?
+      else h.fail("fixture compilation failed"); return
+      end
+
+    match ImplementorsQuery(session, "AgentLiteralMarker")
+    | let r: ImplementorsResult val =>
+      h.assert_eq[USize](1, r.nominal.size())
+      try
+        let listed = r.nominal(0)?
+        match _FixtureHelper.find_type_def(prog, listed)
+        | let def: AST box =>
+          h.assert_true(def.has_annotation("ponyint_anon_trait"),
+            listed + " is not the class made in the trait's own check")
+        | None =>
+          h.fail("no class named " + listed)
+        end
+      else
+        h.fail("no implementor")
+      end
+    | let err: String val =>
+      h.fail("implementors AgentLiteralMarker failed: " + err)
     end
 
     session.dispose()

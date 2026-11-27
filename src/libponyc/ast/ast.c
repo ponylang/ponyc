@@ -466,6 +466,123 @@ ast_t* ast_dup(ast_t* ast)
   return duplicate(NULL, ast);
 }
 
+typedef struct node_pair_t
+{
+  ast_t* from;
+  ast_t* to;
+} node_pair_t;
+
+static size_t node_pair_hash(node_pair_t* p)
+{
+  return ponyint_hash_ptr(p->from);
+}
+
+static bool node_pair_cmp(node_pair_t* a, node_pair_t* b)
+{
+  return a->from == b->from;
+}
+
+static void node_pair_free(node_pair_t* p)
+{
+  POOL_FREE(node_pair_t, p);
+}
+
+DECLARE_HASHMAP(node_map, node_map_t, node_pair_t);
+DEFINE_HASHMAP(node_map, node_map_t, node_pair_t, node_pair_hash,
+  node_pair_cmp, node_pair_free);
+
+static void map_tree(node_map_t* map, ast_t* from, ast_t* to);
+static void remap_tree(node_map_t* map, ast_t* ast);
+
+// Record every node of the sibling lists starting at `from` and `to`.
+static void map_list(node_map_t* map, ast_t* from, ast_t* to)
+{
+  for(; from != NULL; from = from->sibling, to = to->sibling)
+  {
+    pony_assert(to != NULL);
+    map_tree(map, from, to);
+  }
+}
+
+// Record `from` and every node below it, including the nodes of its type and
+// annotation, against the node at the same place in `to`. A type or an
+// annotation is a single node: duplicate() copies it without its siblings.
+static void map_tree(node_map_t* map, ast_t* from, ast_t* to)
+{
+  node_pair_t* p = POOL_ALLOC(node_pair_t);
+  p->from = from;
+  p->to = to;
+  node_map_put(map, p);
+
+  map_list(map, from->child, to->child);
+
+  if(ast_type(from) != NULL)
+    map_tree(map, ast_type(from), ast_type(to));
+
+  if(ast_annotation(from) != NULL)
+    map_tree(map, ast_annotation(from), ast_annotation(to));
+}
+
+static ast_t* mapped_node(node_map_t* map, ast_t* node)
+{
+  node_pair_t key;
+  key.from = node;
+  size_t index = HASHMAP_UNKNOWN;
+  node_pair_t* p = node_map_get(map, &key, &index);
+  return (p == NULL) ? NULL : p->to;
+}
+
+// Point every data pointer and symbol table entry of `ast` and the nodes below
+// it that refers to a node of the original at the corresponding node of the
+// copy.
+static void remap_tree(node_map_t* map, ast_t* ast)
+{
+  if(ast->data != NULL)
+  {
+    ast_t* to = mapped_node(map, (ast_t*)ast->data);
+    if(to != NULL)
+      ast->data = to;
+  }
+
+  if(ast->symtab != NULL)
+  {
+    size_t i = HASHMAP_BEGIN;
+    symbol_t* sym;
+
+    while((sym = symtab_next(ast->symtab, &i)) != NULL)
+    {
+      if(sym->def != NULL)
+      {
+        ast_t* to = mapped_node(map, sym->def);
+        if(to != NULL)
+          sym->def = to;
+      }
+    }
+  }
+
+  for(ast_t* child = ast->child; child != NULL; child = child->sibling)
+    remap_tree(map, child);
+
+  if(ast_type(ast) != NULL)
+    remap_tree(map, ast_type(ast));
+
+  if(ast_annotation(ast) != NULL)
+    remap_tree(map, ast_annotation(ast));
+}
+
+ast_t* ast_dup_closed(ast_t* ast)
+{
+  ast_t* copy = duplicate(NULL, ast);
+
+  node_map_t map;
+  node_map_init(&map, 64);
+  map_tree(&map, ast, copy);
+  remap_tree(&map, copy);
+  node_map_destroy(&map);
+
+  return copy;
+}
+
 ast_t* ast_dup_partial(ast_t* ast, bool* dup_child, bool dup_type,
   bool dup_annotation, bool dup_symtab)
 {
@@ -951,6 +1068,28 @@ ast_t* ast_consumeannotation(ast_t* ast)
   return prev_annotation;
 }
 
+void ast_add_internal_annotation(ast_t* ast, const char* name,
+  strtable_t* strtab)
+{
+  pony_assert(ast != NULL);
+
+  ast_t* annotation = ast_annotation(ast);
+
+  if(annotation == NULL)
+  {
+    annotation = ast_blank(TK_ANNOTATION);
+    ast_setannotation(ast, annotation);
+  }
+
+  ast_t* id = ast_from_string(annotation, name, strtab);
+  ast_append(annotation, id);
+
+  // The syntax pass rejects internal annotations in source, so record that
+  // pass as already run on these nodes.
+  ast_pass_record(annotation, PASS_SYNTAX);
+  ast_pass_record(id, PASS_SYNTAX);
+}
+
 bool ast_has_annotation(ast_t* ast, const char* name, strtable_t* strtab)
 {
   pony_assert(ast != NULL);
@@ -1349,6 +1488,17 @@ void ast_consolidate_branches(ast_t* ast, size_t count)
       }
     }
   }
+}
+
+bool ast_is_within(ast_t* ast, ast_t* outer)
+{
+  for(; ast != NULL; ast = ast_parent(ast))
+  {
+    if(ast == outer)
+      return true;
+  }
+
+  return false;
 }
 
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
@@ -2065,31 +2215,4 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 
     p = next;
   }
-}
-
-ast_t* ast_get_provided_symbol_definition(ast_t* ast,
-  const char* name, sym_status_t* status)
-{
-  // The definition isn't in the local scope. let's check to see if our
-  // parent has a provided method body from a trait or interface. If yes,
-  // then we will find our definition.
-  ast_t* def = NULL;
-  bool found = false;
-
-  while(ast != NULL && !found)
-  {
-    if((ast_id(ast) == TK_FUN) || (ast_id(ast) == TK_BE))
-    {
-      // Methods with defaults provided by a trait/interface store the ast
-      // of the provided body in the ast data.
-      ast_t* body_donor = (ast_t *)ast_data(ast);
-      if (body_donor != NULL)
-        def = ast_get(body_donor, name, status);
-      found = true;
-    }
-
-    ast = ast_parent(ast);
-  }
-
-  return def;
 }

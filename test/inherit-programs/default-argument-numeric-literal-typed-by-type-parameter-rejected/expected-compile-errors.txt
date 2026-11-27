@@ -1,0 +1,2 @@
+main.pony:6:16: could not infer literal type, no valid types found
+main.pony:6:31: could not infer literal type, no valid types found

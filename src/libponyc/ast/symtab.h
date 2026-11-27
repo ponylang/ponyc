@@ -40,6 +40,10 @@ symtab_t* symtab_dup(symtab_t* symtab);
 
 void symtab_free(symtab_t* symtab);
 
+/** Remove every entry whose definition is `def`.
+ */
+void symtab_remove_def(symtab_t* symtab, ast_t* def);
+
 bool symtab_add(symtab_t* symtab, const char* name, ast_t* def,
   sym_status_t status, strtable_t* strtab);
 

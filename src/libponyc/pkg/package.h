@@ -148,6 +148,12 @@ const char* module_symbol(ast_t* module);
 const char* module_hygienic_id(typecheck_t* t, pass_opt_t* opt);
 
 /**
+ * Gets a new hygienic ID from the counter of the given module, the module a
+ * new node will be placed in.
+ */
+const char* module_hygienic_id_in(ast_t* module, pass_opt_t* opt);
+
+/**
  * Returns true if the current module is allowed to do C FFI.
  */
 bool module_allow_ffi(typecheck_t* t);
@@ -194,18 +200,6 @@ bool module_needs_export_include(ast_t* module);
  * Mark this module as needing -I<output> for export headers.
  */
 void module_set_needs_export_include(ast_t* module);
-
-/**
- * Gets the alias of a module in the current file from the hygienic ID
- * of that module. Returns NULL if there is no alias. The module must have
- * been imported in the current file.
- *
- * For example, if the module `foo` was imported in the current file with
- * `use foo = "foo"` and the global ID of the module "foo" is `$2`, the call
- * `module_alias_from_id(current_module_ast, "$2")` will return the string
- * "foo".
- */
-const char* module_alias_from_id(ast_t* module, const char* id, pass_opt_t* opt);
 
 /**
  * Adds a module to the dependency list of another module.

@@ -912,10 +912,8 @@ TEST_F(TypeArgInferenceTest, ConsumedIso_SatisfiesBoxConstraintInUnion)
 }
 
 
-// --- Diagnostics for methods inherited from a trait ---
-//
-// A method copied from a trait into a class gets renamed type parameters.
-// Diagnostics must show the names written in the trait.
+// Diagnostics for methods inherited from a trait show the type parameter
+// names written in the trait.
 
 TEST_F(TypeArgInferenceTest, InheritedMethod_MissingMemberErrorUsesSourceName)
 {
@@ -1036,14 +1034,13 @@ TEST_F(TypeArgInferenceTest, InheritedMethod_DanglingDefaultErrorUsesSourceName)
 
 TEST_F(TypeArgInferenceTest, InheritedMethod_LambdaCaptureErrorUsesSourceName)
 {
-  // Inside lib, `Take` is lib's. In Holder's copy of lift, the lambda's call
-  // to `Take` resolves to the main package's `Take`, which only takes U8, so
-  // the compiler reports an error only for the copy. That resolution is issue
-  // #6710; once it is fixed, this test needs another way to get an error from
-  // the copy only. The captured `r` has the method's own type parameter.
+  // The lambda passes the captured `r`, whose type is the method's own type
+  // parameter, to a primitive that only takes U8. An error in a lambda ends
+  // the expr pass, so one check reports it: Holder's copy of lift, which is
+  // checked before lib. The error names the parameter as it is written.
   add_module("lib",
     "primitive Take\n"
-    "  fun apply(x: Any val) => None\n"
+    "  fun apply(x: U8) => None\n"
 
     "trait Mapper\n"
     "  fun lift[R: Any val](r: R): {()} val =>\n"
@@ -1052,9 +1049,6 @@ TEST_F(TypeArgInferenceTest, InheritedMethod_LambdaCaptureErrorUsesSourceName)
   const char* src =
     "use l = \"lib\"\n"
 
-    "primitive Take\n"
-    "  fun apply(x: U8) => None\n"
-
     "class Holder is l.Mapper";
 
   const char* errs[] = {"argument not assignable to parameter", NULL};
@@ -1062,6 +1056,7 @@ TEST_F(TypeArgInferenceTest, InheritedMethod_LambdaCaptureErrorUsesSourceName)
     "argument type is this->R val",
     "parameter type requires U8 val^",
     "Any val is not a subtype of U8 val^",
+    "in method 'lift' inherited by Holder from Mapper",
     NULL
   };
   const char** frames[] = {frame0, NULL};

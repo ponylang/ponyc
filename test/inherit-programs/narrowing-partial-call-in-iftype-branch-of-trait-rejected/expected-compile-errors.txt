@@ -1,0 +1,4 @@
+main.pony:8:31: call is not partial but the method is - a question mark is required after this call
+    main.pony:5:21: method is here
+main.pony:7:12: function signature is not marked as partial but the function body can raise an error
+    main.pony:8:26: an error can be raised here

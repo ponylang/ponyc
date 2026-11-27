@@ -1,0 +1,2 @@
+lib/lib.pony:3:5: trait constructor cannot specify body
+main.pony:4:1: can't load module 'lib'

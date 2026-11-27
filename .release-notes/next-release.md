@@ -730,8 +730,6 @@ The same kind of name clash caused other failures, which are also fixed:
 - The compiler could crash with an assertion failure in `is_nominal_sub_structural` when the type parameter was passed on through an intermediate trait.
 - The compiler could hang on an object literal inside a generic method when the object literal provided a trait whose generic method had a type parameter with the same name as the enclosing method's.
 
-In tools built on the `pony_compiler` library, some type parameters now have generated names that start with `$m$`: those of methods inherited from a trait or interface, those of methods and lambdas declared inside such a method, and the copies of these type parameters that an object literal written inside such a method gets. `AST.nice_name()` returns the name written in the source.
-
 Other problems with generic methods are also fixed:
 
 - An `iftype` condition or specialization guard in a trait's generic default method that mentions the method's own type parameter, such as `iftype B <: Comparable[B] val`, was rejected with `type argument is outside its constraint` in every type that inherited the method.
@@ -766,3 +764,350 @@ In a debugger or profiler, one of these functions can appear under the name of a
 
 ponyc now releases the memory it used for code generation before the linker starts, so ponyc and the linker no longer hold that memory at the same time. Building the standard library's test program with optimizations, the peak memory of ponyc and the linker together dropped from about 8.9 GB to 7.3 GB on glibc-based Linux x86-64 and from about 7.3 GB to 6.7 GB on Windows x86-64. On macOS the peak didn't change. Builds on Linux distributions that use musl, such as Alpine, weren't measured.
 
+## Fix names in inherited default methods resolving in the inheriting type's scope
+
+When a type inherited a default method from a trait, names in the method's body could resolve to declarations visible from the inheriting type instead of the ones visible where the method is written. In this program, `Bar`'s type parameter `Helper` took the place of `lib`'s primitive `Helper` in `make()` as `Bar` inherits it:
+
+```pony
+// main.pony
+use l = "lib"
+
+actor Main
+  new create(env: Env) =>
+    env.out.print(Bar[Wrap].make())
+
+primitive Wrap
+  fun name(): String => "WRAP (captured!)"
+
+class Bar[Helper: Wrap] is l.Foo
+```
+
+```pony
+// lib/lib.pony
+trait Foo
+  fun make(): String => Helper.name()
+
+primitive Helper
+  fun name(): String => "helper"
+```
+
+The program printed `WRAP (captured!)`. It now prints `helper`. Names in an inherited default method now resolve where the method is written. This fixes issues #6710, #6711, #6725, and #6729.
+
+## Fix several compiler crashes and false errors
+
+These programs crashed the compiler or were rejected with errors they should not have had:
+
+- When a type inherited two default bodies for one method and the first body declared a local, the compiler crashed or reported a wrong error. The compiler now reports that the type has to give the method its own body: `multiple possible bodies for method m0, local disambiguation required`. This fixes issue #6722.
+- Overriding an inherited guarded specialization failed when the guard in the override was written differently from the guard in the trait, for example as a union with its members in the other order, or through a type alias. The compiler reported `specialization is unreachable because a previous guard matches all the same types`. The guards now compare as types. This fixes issue #6728.
+- The compiler failed an assertion when an object literal provided an intersection of traits or interfaces declared after the literal, including through an alias of the intersection. This now compiles. This fixes issue #6731.
+- Two traits that declared the same generic method with different type parameter names got a `clashing definitions` error. The type parameters now match by position. This fixes issue #6733.
+- The compiler segfaulted when an object literal inherited a trait method that calls a method on a value narrowed by `iftype`. This now compiles. This fixes issue #6735.
+- A generic trait method got the wrong type argument when an object literal inside the method provided the same trait. A call of the method on an object made from the literal now uses the type argument given in that call. This fixes issue #6736.
+- A method whose body named the type that declares the method, with the method's own type parameter as the type argument, was rejected with `function body isn't the result type`. It now compiles.
+
+## Fix object literals and lambdas in trait default methods
+
+Object literals and lambdas written in a trait's default methods crashed the compiler or failed to compile in these cases:
+
+- The literal's type grows with each use, such as a literal of `T[Array[A] val]` inside `T[A]`. One such program failed with `can't find definition of 'A'`.
+- The literal captures `this`.
+- The literal provides the trait it is written in.
+- Two traits build each other's literals.
+
+These now compile. A program that keeps calling methods whose types grow without limit still gets the compiler's maximum type instantiation depth error.
+
+## Fix generic code instantiated with unions
+
+A generic method returning `(A | B)`, called with `U8` for both `A` and `B`, crashed the compiler. The union of a type with itself is now that type.
+
+A method of `Foo[A]` that returns a `Foo[(A | None)]`, called again on its result, failed with `reached the maximum type instantiation depth`. `Foo[((A | None) | None)]` is now the same type as `Foo[(A | None)]`, so the program compiles.
+
+## Fix debug info for inherited methods
+
+Debug info for a method a type inherits from a trait named the inheriting type's file. It now names the file and line of the trait method whose body it has. This affects what a debugger shows when it steps into an inherited method.
+
+## Inherited methods in object literals are checked and run with the literal's result types and default arguments
+
+An object literal (outside a trait's methods) is now checked like a named class. Default methods it inherits from a trait use the literal's own method result types and default arguments. Previously they used the trait's.
+
+Inherited code now uses a literal's narrower result type:
+
+```pony
+primitive Name
+  fun apply[X](x: X): String =>
+    iftype X <: U64 then "u64" else "other" end
+
+trait T
+  fun get(): (U64 | None) => None
+  fun label(): String => Name(get())
+
+actor Main
+  new create(env: Env) =>
+    let o = object val is T fun get(): U64 => 1 end
+    env.out.print(o.label())
+```
+
+This printed `other`. It now prints `u64`.
+
+Inherited code now uses a literal's default arguments:
+
+```pony
+trait T
+  fun f(x: U64 = 1): U64 => x
+  fun g(): U64 => f()
+
+actor Main
+  new create(env: Env) =>
+    let o = object val is T fun f(x: U64 = 2): U64 => x end
+    env.out.print(o.g().string())
+```
+
+This printed `1`. It now prints `2`.
+
+This change can reject trait code that used to compile, when an object literal overrides a method with a narrower result and the compiler infers a type in the trait's code from that method. Errors in this code carry a note such as `in method 'f' inherited by object literal from Foo`. Annotate the type in the trait to fix them.
+
+A local whose type is inferred from the overridden method, then assigned the wider type, is rejected with `right side must be a subtype of left side`.
+
+Before:
+
+```pony
+trait Foo
+  fun mk(): (U8 | None)
+  fun f(): String =>
+    var v = mk()
+    v = None
+    "ok"
+
+actor Main
+  new create(env: Env) =>
+    let o = object is Foo fun mk(): U8 => 3 end
+    env.out.print(o.f())
+```
+
+After:
+
+```pony
+trait Foo
+  fun mk(): (U8 | None)
+  fun f(): String =>
+    var v: (U8 | None) = mk()
+    v = None
+    "ok"
+```
+
+An override that returns `String iso^` where the trait declares `String val`, used twice through an inferred local, is rejected with `argument not assignable to parameter`.
+
+Before:
+
+```pony
+primitive Sink
+  fun apply(s: String val): USize => s.size()
+
+trait Foo
+  fun name(): String val
+  fun f(): USize =>
+    let s = name()
+    Sink(s) + Sink(s)
+
+actor Main
+  new create(env: Env) =>
+    let o = object is Foo fun name(): String iso^ => "ab".clone() end
+    env.out.print(o.f().string())
+```
+
+After:
+
+```pony
+trait Foo
+  fun name(): String val
+  fun f(): USize =>
+    let s: String val = name()
+    Sink(s) + Sink(s)
+```
+
+A generic type argument inferred from the overridden method is the narrower type, so later code that uses the wider type is rejected.
+
+Before:
+
+```pony
+class Cell[A: Any val]
+  var v: A
+  new create(v': A) => v = v'
+  fun ref set(v': A) => v = v'
+
+trait Foo
+  fun mk(): (U8 | None)
+  fun f(): String =>
+    let c = Cell(mk())
+    c.set(None)
+    "ok"
+
+actor Main
+  new create(env: Env) =>
+    let o = object is Foo fun mk(): U8 => 3 end
+    env.out.print(o.f())
+```
+
+After:
+
+```pony
+trait Foo
+  fun mk(): (U8 | None)
+  fun f(): String =>
+    let c = Cell[(U8 | None)](mk())
+    c.set(None)
+    "ok"
+```
+
+## Object literals and lambdas in trait methods that capture nothing are one type
+
+An object literal or lambda written in a trait method that captures nothing is now one type wherever the method is inherited. This changes the results of `is` and `digestof` for these objects.
+
+```pony
+trait T
+  fun n(): String => "n"
+  fun m(): T val => object val is T end
+
+class C1 is T
+  new create() => None
+
+class C2 is T
+  new create() => None
+
+actor Main
+  new create(env: Env) =>
+    env.out.print((C1.m() is C2.m()).string() + " "
+      + (C1.m() is C1.m()).string() + " "
+      + (C1.m().m() is C2.m().m()).string() + " "
+      + (C1.m() is C1.m().m()).string())
+```
+
+This printed `false true true false`. It now prints `true true true true`.
+
+The same holds for a lambda whose type comes from the method it is passed to:
+
+```pony
+trait T
+  fun app(f: {(U64): U64} val): {(U64): U64} val => f
+  fun g(): {(U64): U64} val => app({(x) => x + 1})
+
+class val C is T
+  new val create() => None
+
+class val D is T
+  new val create() => None
+
+actor Main
+  new create(env: Env) =>
+    env.out.print((C.g() is D.g()).string() + " " + (C.g() is C.g()).string())
+```
+
+This printed `false true`. It now prints `true true`.
+
+In a generic trait, the literal is one type for each type argument. Two classes that both provide `T[U8]` share it.
+
+A lambda whose type comes from the method it is passed to is not shared in two cases: when its text names a type parameter of its trait or of its method, and when an inheriting type overrides the method the lambda is passed to with a different parameter type. In those cases each type that inherits the method gets its own class for that lambda. For such a lambda, `is` between an object made through one inheriting type and an object made through another is false.
+
+## `use` aliases in a trait's file no longer leak into inheriting types' files
+
+A `use` alias in a trait's file was visible in the file of a class that inherited from the trait. It no longer is. Code that relied on the leaked alias now fails with `can't find declaration of`. Add the `use` to the file that names the alias.
+
+Before:
+
+```pony
+// lib/lib.pony
+use u = "../ua"
+
+trait Foo
+  fun make(): String => u.Thing.name()
+```
+
+```pony
+// main.pony
+use l = "lib"
+
+actor Main
+  new create(env: Env) =>
+    env.out.print(Bar.make())
+    env.out.print(u.Thing.name())
+
+class Bar is l.Foo
+```
+
+After:
+
+```pony
+// main.pony
+use l = "lib"
+use u = "ua"
+
+actor Main
+  new create(env: Env) =>
+    env.out.print(Bar.make())
+    env.out.print(u.Thing.name())
+
+class Bar is l.Foo
+```
+
+## Check default arguments where they are declared
+
+Default arguments of inherited methods are now checked where they are declared and in the method as each type inherits it, not again at each call. An error in a default argument is reported there. For example, one bad default argument in a trait method inherited by two classes used to produce 5 errors. It now produces 3: one for the trait and one for each class.
+
+A default argument that needs itself through other default arguments is now an error. This program crashed the compiler:
+
+```pony
+primitive P
+  fun f(x: U8 = P.g()): U8 => x
+  fun g(y: U8 = P.f()): U8 => y
+
+actor Main
+  new create(env: Env) => env.out.print(P.f(3).string())
+```
+
+It now reports `default argument of parameter 'x' of 'P.f' uses itself through default arguments`.
+
+## Name the inheriting type and trait in errors in inherited code
+
+An error reported in code a type inherits from a trait now carries a note naming the inheriting type and the trait, such as `in method 'f' inherited by C from T`. Before, these errors had no such note, so you couldn't tell which inheriting type an error was for. This is related to issue #6724, which asks for each such error to be reported once. This change does not do that: the error is still reported once for the trait and once for each inheriting type, and each report now has its note.
+
+A privacy error in inherited code also says where the private type came from:
+
+```
+'_H' is private to package 'lib' and reaches this code through this type argument, written in package 'main'
+```
+
+Errors that only say some code is redundant, such as an unneeded `?` on a call, are now reported once, where the method is written in the trait, and not repeated for each inheriting type.
+
+## Tools show each trait default method once
+
+Tools built on the `pony_compiler` library now visit each default method body once, where it is written in the trait. `AST.visit` and the position index skip the nodes for which `AST.is_inherited_code()` returns `true`.
+
+As a result:
+
+- pony-lint reports advice in a trait's default method, such as `exhaustive-match`, once instead of once per inheriting type.
+- pony-lsp hover inside a trait's default method shows the trait's types.
+- pony-agent-server's implementors list shows the class made from a literal in a trait method once.
+
+## `__loc.type_name()` names in anonymous classes can be numbered differently
+
+The compiler-generated names, such as `$1$4`, that `__loc.type_name()` gives inside an anonymous class can be numbered differently in some programs. A program with two object literals that provide a trait whose method calls a function with a `__loc` default printed `own2 $1$3`. It now prints `own2 $1$4`. The compiler generates these names and they are not stable, so don't depend on their numbers.
+
+## Add an `AST` method to identify inherited code
+
+`AST` in the `pony_compiler` library has a new `fun box` method, `is_inherited_code(): Bool`. It returns `true` when the node is code a type holds because it inherited it from a trait or interface: a method the type inherited, a class the compiler made from an object literal or lambda in a method the type inherited, or a method of a class made from a literal in a trait method whose body is the trait's method. `AST.visit` skips these nodes and everything below them, and visits their text in the trait or interface where it is written.
+
+A walk that goes through `children()` itself can use `is_inherited_code()` to skip the same nodes `AST.visit` skips:
+
+```pony
+use "pony_compiler"
+
+primitive CountMethods
+  fun apply(ast: AST box): USize =>
+    var n: USize = if ast.id() == TokenIds.tk_fun() then 1 else 0 end
+    for child in ast.children() do
+      if not child.is_inherited_code() then
+        n = n + apply(child)
+      end
+    end
+    n
+```

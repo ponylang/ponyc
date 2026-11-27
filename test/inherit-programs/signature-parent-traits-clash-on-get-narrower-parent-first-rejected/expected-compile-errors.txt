@@ -1,0 +1,3 @@
+main.pony:21:19: clashing definitions for method 'get' provided, local disambiguation required
+    main.pony:21:19: provided here, type: fun
+    main.pony:21:14: and here, type: fun

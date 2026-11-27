@@ -1,0 +1,2 @@
+main.pony:7:39: function body isn't the result type
+    main.pony:7:25: function return type: U8 val

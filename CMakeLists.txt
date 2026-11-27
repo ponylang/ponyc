@@ -999,7 +999,10 @@ else()
     # fixtures) already being built under ALL. They go through cmake -P wrappers,
     # which also read the run-time test knobs from the environment -- the debugger
     # to run under (PONY_TEST_DEBUGGER), the full-program timeout
-    # (PONY_FULL_PROGRAM_TIMEOUT), the stdlib excludes (PONY_STDLIB_TEST_EXCLUDES).
+    # (PONY_FULL_PROGRAM_TIMEOUT), the tree checker for full programs
+    # (PONY_CHECKTREE), the number of inherit-programs built at once
+    # (PONY_FULL_PROGRAM_PARALLEL), the stdlib excludes
+    # (PONY_STDLIB_TEST_EXCLUDES).
     # Those are CI/environment concerns, set at run time with defaults in the
     # wrappers, not baked in at configure.
 
@@ -1018,6 +1021,24 @@ else()
             -DTESTS=${CMAKE_SOURCE_DIR}/test/full-program-tests
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+            -DDB_NAME=full-programs
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunFullPrograms.cmake)
+
+    # Programs about inherited default methods; each checks its output or its
+    # compile errors.
+    add_test(NAME inherit-programs
+        COMMAND ${CMAKE_COMMAND}
+            -DRUNNER=${_full_program_runner}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DOUTPUT=${PONY_OUTPUT_DIR}/inherit-programs
+            -DTEST_LIB=${PONY_OUTPUT_DIR}/test_lib
+            -DTESTS=${CMAKE_SOURCE_DIR}/test/inherit-programs
+            -DWORKDIR=${PONY_OUTPUT_DIR}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+            -DDB_NAME=inherit-programs
+            -DMAX_PARALLEL=4
+            -DPARALLEL_FROM_ENV=ON
+            -DCHECKTREE=ON
             -P ${CMAKE_SOURCE_DIR}/cmake/RunFullPrograms.cmake)
 
     add_test(NAME midbehavior-gc
@@ -1032,6 +1053,20 @@ else()
             -DRUNNER=${_full_program_runner}
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunBrokenConfig.cmake)
+
+    # A stand-in compiler that prints a canned error output or crashes, for the
+    # runner's expectation checks.
+    add_executable(full-program-runner-fake-compiler
+        ${CMAKE_SOURCE_DIR}/test/full-program-runner-fixtures/fake-compiler.c)
+
+    add_test(NAME full-program-runner-checks-expectations
+        COMMAND ${CMAKE_COMMAND}
+            -DRUNNER=${_full_program_runner}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DFAKE_COMPILER=$<TARGET_FILE:full-program-runner-fake-compiler>
+            -DTEST_LIB=${PONY_OUTPUT_DIR}/test_lib
+            -DWORKDIR=${PONY_OUTPUT_DIR}
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunExpectationChecks.cmake)
 
     add_test(NAME stdlib
         COMMAND ${CMAKE_COMMAND}
@@ -1090,6 +1125,13 @@ else()
             -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-inherited-default
             -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationInheritedDefault.cmake)
 
+    add_test(NAME mutation-deferred-object-literal
+        COMMAND ${CMAKE_COMMAND}
+            -DCOMPILER=$<TARGET_FILE:ponyc>
+            -DOUTPUT=${PONY_OUTPUT_DIR}/mutation-deferred-object-literal
+            -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-deferred-object-literal
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationDeferredObjectLiteral.cmake)
+
     add_test(NAME mutation-runner
         COMMAND ${CMAKE_COMMAND}
             -DCOMPILER=$<TARGET_FILE:ponyc>
@@ -1136,10 +1178,11 @@ else()
             -DTEST_SRC=${CMAKE_SOURCE_DIR}/test/mutation-runtime
             -P ${CMAKE_SOURCE_DIR}/cmake/RunMutationSpawnError.cmake)
 
-    set_tests_properties(full-programs midbehavior-gc
+    set_tests_properties(full-programs inherit-programs midbehavior-gc
         full-program-runner-rejects-broken-config
+        full-program-runner-checks-expectations
         stdlib validate-grammar mutation-runtime mutation-monomorphization
-        mutation-inherited-default
+        mutation-inherited-default mutation-deferred-object-literal
         mutation-runner mutation-baseline-fail mutation-reports mutation-string
         mutation-scope-check mutation-spawn-error
         PROPERTIES LABELS ci-core)

@@ -90,6 +90,12 @@ ast_t* typeparam_current(pass_opt_t* opt, ast_t* typeparamref, ast_t* scope);
  */
 ast_t* typeparam_embed_narrowing(pass_opt_t* opt, ast_t* type, ast_t* scope);
 
+/**
+ * Whether a type refers to a type parameter anywhere in it. NULL refers to
+ * none.
+ */
+bool type_mentions_typeparam(ast_t* type);
+
 PONY_EXTERN_C_END
 
 #endif

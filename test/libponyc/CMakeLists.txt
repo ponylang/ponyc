@@ -14,6 +14,7 @@ add_executable(libponyc.tests
     chain.cc
     codegen.cc
     codegen_ffi.cc
+    codegen_debug_info.cc
     codegen_optimisation.cc
     cshim.cc
     dontcare.cc
@@ -25,6 +26,8 @@ add_executable(libponyc.tests
     host.cc
     id.cc
     iftype.cc
+    inherited_copy.cc
+    inherited_literal.cc
     lambda.cc
     lexer.cc
     lexint.cc
@@ -84,8 +87,15 @@ if (MSVC)
     string(REPLACE "/" "\\\\" PONY_PACKAGES_DIR ${PONY_PACKAGES_DIR})
 endif (MSVC)
 
+set(PONY_TEST_FIXTURES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
+
+if (MSVC)
+    string(REPLACE "/" "\\\\" PONY_TEST_FIXTURES_DIR ${PONY_TEST_FIXTURES_DIR})
+endif (MSVC)
+
 target_compile_definitions(libponyc.tests
     PRIVATE PONY_PACKAGES_DIR="${PONY_PACKAGES_DIR}"
+    PRIVATE PONY_TEST_FIXTURES_DIR="${PONY_TEST_FIXTURES_DIR}"
 )
 
 target_link_directories(libponyc.tests

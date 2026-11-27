@@ -32,6 +32,15 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt,
 ast_t* reify_method_def(ast_t* ast, ast_t* typeparams, ast_t* typeargs,
   pass_opt_t* opt);
 
+/**
+ * Type arguments that name each of `typeparams`, the type parameters of a
+ * method, so that another method with as many type parameters can be reified
+ * to be compared with it. Each argument refers to the parameter that the
+ * method's signature refers to, including when reify_method_def declared a
+ * renamed copy of it. The caller frees the result with ast_free_unattached.
+ */
+ast_t* typeargs_naming_typeparams(ast_t* typeparams);
+
 deferred_reification_t* deferred_reify_new(ast_t* ast, ast_t* typeparams,
   ast_t* typeargs, ast_t* thistype);
 

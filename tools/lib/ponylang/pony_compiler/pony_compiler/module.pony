@@ -110,18 +110,22 @@ class val PositionIndex
 
     Unlike AST.visit(), which filters children by the parent's source file,
     this checks each node against the file's source and always recurses
-    into children. This is necessary because several compiler transformations
-    create mixed-source trees via ast_dup: type alias reification grafts
-    definition nodes (TK_TYPEARGS, TK_ID) that retain the stdlib source, and
-    default trait method bodies are copied into implementing classes. In both
-    cases, user-authored nodes appear as descendants of foreign-source parents.
-    The parent-relative filter in AST.visit() skips the foreign parent and
-    never reaches the user's nodes underneath.
+    into children. This is necessary because type alias reification grafts
+    definition nodes (TK_TYPEARGS, TK_ID) that retain the stdlib source, so
+    user-authored nodes appear as descendants of foreign-source parents. The
+    parent-relative filter in AST.visit() skips the foreign parent and never
+    reaches the user's nodes underneath.
+
+    Like AST.visit(), it skips code a type holds because it inherited it
+    (AST.is_inherited_code()): that text is indexed where it is written, in
+    the trait.
     """
     let filter_none = _is_filter_none_parent(ast.id())
     for child' in ast.children() do
       if filter_none and (child'.id() == TokenIds.tk_none()) then
         None // skip TK_NONE children of certain parent types
+      elseif child'.is_inherited_code() then
+        None // indexed where it is written, in the trait
       elseif (child'.id() == TokenIds.tk_typeargs()) and
         (not child'.data[None]().is_null())
       then

@@ -1,4 +1,5 @@
 #include "reference.h"
+#include "../pass/traits.h"
 #include "literal.h"
 #include "postfix.h"
 #include "call.h"
@@ -16,6 +17,7 @@
 #include "../type/typeparam.h"
 #include "../type/typealias.h"
 #include "../ast/astbuild.h"
+#include "../ast/id.h"
 #include "ponyassert.h"
 
 static bool check_provides(pass_opt_t* opt, ast_t* type, ast_t* provides,
@@ -160,7 +162,11 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
   {
     // Initialiser type must match declared type.
     if(!coerce_literals(&init, type, opt))
+    {
+      // An error type, so a call that uses this default reports nothing more.
+      ast_settype(init, ast_from(init, TK_ERRORTYPE));
       return false;
+    }
 
     if(jumps_away_no_value(opt, init, "a default argument"))
       return false;
@@ -194,6 +200,9 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
     }
 
     ast_free_unattached(type);
+
+    if(!ok)
+      ast_settype(init, ast_from(init, TK_ERRORTYPE));
   }
 
   return ok;
@@ -385,6 +394,28 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
     if(is_typecheck_error(type))
       return false;
+
+    // The reference already names its definition, which for inherited code
+    // was found where the code is written. Looking the name up again here
+    // would search the scope the code was copied into.
+    ast_t* ref_def = (ast_t*)ast_data(ast);
+    if((ref_def != NULL) && (ast_id(type) == TK_NOMINAL) &&
+      (ast_data(type) == NULL))
+    {
+      if((module_name != NULL) && is_name_private(name))
+      {
+        ast_error(opt->check.errors, id,
+          "can't access a private type from another module");
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        return false;
+      }
+
+      if(!names_nominal_def(opt, &type, ref_def, true))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        return false;
+      }
+    }
 
     // Has to be valid.
     if(!expr_nominal(opt, &type))
@@ -873,6 +904,16 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     typearg = ast_sibling(typearg);
   }
 
+  // The class is the frame's type; looking its name up from here could find
+  // a method type parameter with the same name.
+  if((ast_data(nominal) == NULL) &&
+    !names_nominal_def(opt, &nominal, opt->check.frame->type, true))
+  {
+    ast_error(opt->check.errors, ast, "couldn't create a type for 'this'");
+    ast_free(type);
+    return false;
+  }
+
   if(!expr_nominal(opt, &nominal))
   {
     ast_error(opt->check.errors, ast, "couldn't create a type for 'this'");
@@ -1081,31 +1122,85 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   return check_constraints(typeargs, typeparams, typeargs, true, opt);
 }
 
-static bool check_iftype_return(pass_opt_t* opt, ast_t* iftype_set,
+// Whether a branch of an iftype ends in a literal, whose type was inferred.
+static bool branch_ends_in_literal(ast_t* branch)
+{
+  ast_t* last = branch;
+
+  while((last != NULL) && (ast_id(last) == TK_SEQ))
+    last = ast_childlast(last);
+
+  if(last == NULL)
+    return false;
+
+  switch(ast_id(last))
+  {
+    case TK_INT:
+    case TK_FLOAT:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+bool check_iftype_return(pass_opt_t* opt, ast_t* iftype_set,
   ast_t* return_type)
 {
   pony_assert(ast_id(iftype_set) == TK_IFTYPE_SET);
   AST_GET_CHILDREN(iftype_set, left_control, right);
   AST_GET_CHILDREN(left_control, sub, super, left);
 
-  if(!ast_checkflag(left, AST_FLAG_JUMPS_AWAY))
+  // In inherited code, a branch that runs only for the instantiations where
+  // its narrowing holds (its condition still mentions a type parameter, and
+  // doesn't compare two different concrete types) was checked under that
+  // narrowing by the providing trait, and is generated only where the
+  // narrowing holds. An else branch is dead when the condition always holds.
+  bool copy = is_copy_context(opt);
+  bool always = copy && iftype_holds(sub, super, opt);
+  bool different_defs = (ast_id(sub) == TK_NOMINAL) &&
+    (ast_id(super) == TK_NOMINAL) && (ast_data(sub) != ast_data(super));
+  bool undecided = copy && !always && !different_defs &&
+    (type_mentions_typeparam(sub) || type_mentions_typeparam(super));
+
+  if(!ast_checkflag(left, AST_FLAG_JUMPS_AWAY) && !undecided)
   {
     ast_t* left_type = ast_type(left);
     if(is_typecheck_error(left_type))
       return false;
 
+    // A then branch that can't run in inherited code may have lost its
+    // narrowed type parameters to the inheriting type's arguments.
+    bool dead = copy && is_decided_false_branch(left, opt);
     ast_t* typeparam_store = ast_childidx(left_control, 3);
-    if(ast_id(typeparam_store) == TK_NONE)
+    if((ast_id(typeparam_store) == TK_NONE) && !dead)
       return false;
 
     ast_t* narrowed = ast_dup(return_type);
-    if(!typeparam_narrow(narrowed, typeparam_store))
+    if((ast_id(typeparam_store) != TK_NONE) &&
+      !typeparam_narrow(narrowed, typeparam_store))
     {
       ast_free_unattached(narrowed);
-      return false;
+
+      if(!dead)
+        return false;
+
+      narrowed = ast_dup(return_type);
     }
 
     bool ok = is_subtype(left_type, narrowed, NULL, opt);
+
+    // In inherited code, a then branch that can't run for the inheriting type
+    // is checked against the type the trait's check gave it, narrowed by the
+    // condition, unless a literal in the join had its type inferred from the
+    // inheriting type's view.
+    if(!ok && dead && !branch_ends_in_literal(left) &&
+      !branch_ends_in_literal(right))
+    {
+      ast_t* isect = type_isect(opt, left_type, super);
+      ok = is_subtype(isect, narrowed, NULL, opt);
+      ast_free_unattached(isect);
+    }
 
     if(!ok)
     {
@@ -1126,7 +1221,7 @@ static bool check_iftype_return(pass_opt_t* opt, ast_t* iftype_set,
       return false;
   }
 
-  if(!ast_checkflag(right, AST_FLAG_JUMPS_AWAY))
+  if(!ast_checkflag(right, AST_FLAG_JUMPS_AWAY) && !(copy && always))
   {
     if(ast_id(right) == TK_IFTYPE_SET)
     {

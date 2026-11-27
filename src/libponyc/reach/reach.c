@@ -5,6 +5,7 @@
 #include "../codegen/genopt.h"
 #include "../pass/expr.h"
 #include "../pass/pass.h"
+#include "../pass/traits.h"
 #include "../pass/timing.h"
 #include "../type/assemble.h"
 #include "../type/cap.h"
@@ -1071,6 +1072,11 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
     {
       case TK_NOMINAL:
       {
+        // A class whose instances are never made takes no calls through a
+        // trait or interface, so it needs none of their methods.
+        if(is_unreachable_anon_class((ast_t*)ast_data(t2->ast), opt))
+          break;
+
         if(nominal_interface)
         {
           ast_t* t2_def = (ast_t*)ast_data(t2->ast);
@@ -1162,6 +1168,9 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
   reach_type_t* t2;
   bool t_is_nominal = ast_id(t->ast) == TK_NOMINAL;
   ast_t* t_def = t_is_nominal ? (ast_t*)ast_data(t->ast) : NULL;
+
+  if((t_def != NULL) && is_unreachable_anon_class(t_def, opt))
+    return;
 
 #ifdef USE_REACH_INSTRUMENT
   reach_ct_add_traits_to_type_calls++;

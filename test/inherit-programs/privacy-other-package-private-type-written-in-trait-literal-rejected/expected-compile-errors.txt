@@ -1,0 +1,1 @@
+main.pony:10:19: can't access a private type from another module

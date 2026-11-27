@@ -1,0 +1,1 @@
+main.pony:9:35: a lambda parameter must specify a type or be inferable from context

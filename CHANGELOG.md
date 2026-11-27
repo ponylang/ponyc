@@ -82,6 +82,11 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix type parameter bugs in generic methods ([PR #6721](https://github.com/ponylang/ponyc/pull/6721))
 - Reduce memory use, build time, and binary size of optimized builds ([PR #6747](https://github.com/ponylang/ponyc/pull/6747))
 - Use less memory while linking ([PR #6748](https://github.com/ponylang/ponyc/pull/6748))
+- Fix names in inherited default methods resolving in the inheriting type's scope ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
+- Fix several compiler crashes and false errors in inherited methods ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
+- Fix object literals and lambdas in trait default methods ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
+- Fix generic code instantiated with unions ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
+- Fix debug info for inherited methods ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
 
 ### Added
 
@@ -89,6 +94,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add mutation testing ([PR #6311](https://github.com/ponylang/ponyc/pull/6311))
 - Allow garbage collection during a behavior ([PR #6688](https://github.com/ponylang/ponyc/pull/6688))
 - Add viewpoint adaptation hint to assignment errors ([PR #6720](https://github.com/ponylang/ponyc/pull/6720))
+- Add an `AST` method to identify inherited code ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
 
 ### Changed
 
@@ -105,6 +111,13 @@ All notable changes to the Pony compiler and standard library will be documented
 - NormalizeIRI and IRIEquivalent now reject illegal literal non-ASCII characters ([PR #6622](https://github.com/ponylang/ponyc/pull/6622))
 - cli float options and args now accept only decimal notation ([PR #6627](https://github.com/ponylang/ponyc/pull/6627))
 - cli bool options and args now accept only lowercase true and false ([PR #6645](https://github.com/ponylang/ponyc/pull/6645))
+- Inherited methods in object literals are checked and run with the literal's result types and default arguments ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
+- Object literals and lambdas in trait methods that capture nothing are one type ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
+- `use` aliases in a trait's file no longer leak into inheriting types' files ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
+- Check default arguments where they are declared ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
+- Name the inheriting type and trait in errors in inherited code ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
+- Tools show each trait default method once ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
+- `__loc.type_name()` names in anonymous classes can be numbered differently ([PR #6751](https://github.com/ponylang/ponyc/pull/6751))
 
 ## [0.78.2] - 2026-11-12
 

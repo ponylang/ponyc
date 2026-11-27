@@ -1,0 +1,2 @@
+main.pony:10:17: default argument is not a subtype of the parameter type
+    main.pony:10:17: String val is not a subtype of U8 val^

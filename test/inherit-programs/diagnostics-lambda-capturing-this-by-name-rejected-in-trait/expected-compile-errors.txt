@@ -1,0 +1,2 @@
+main.pony:7:21: right side must be a subtype of left side
+    main.pony:7:21: Foo box is not a subtype of Foo ref^: box is not a subcap of ref^

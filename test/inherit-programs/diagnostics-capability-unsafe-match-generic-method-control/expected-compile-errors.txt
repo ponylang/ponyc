@@ -1,0 +1,6 @@
+main.pony:10:7: this capture violates capabilities, because the match would need to differentiate by capability at runtime instead of matching on type alone
+    main.pony:8:39: the match type allows for more than one possibility with the same type as pattern type, but different capabilities. match type: (A val | B ref)
+    main.pony:10:7: pattern type: A val
+    main.pony:8:12: matching Any ref with Any val^ could violate capabilities: ref isn't a subcap of val^
+    main.pony:10:14: matching (A val | B ref) with A val ^ could violate capabilities
+    main.pony:9:11: the match expression with the inadequate capability is here

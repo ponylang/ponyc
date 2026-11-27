@@ -1,0 +1,2 @@
+lib/lib.pony:7:17: right side must be a subtype of left side
+    main.pony:6:12: in method 'bar' inherited by C from T

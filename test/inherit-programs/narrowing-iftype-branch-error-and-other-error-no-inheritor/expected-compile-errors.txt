@@ -1,0 +1,5 @@
+main.pony:6:41: couldn't find 'add'
+main.pony:7:18: function body isn't the result type
+    main.pony:7:12: function return type: U8 val
+    main.pony:7:18: function body type: String val
+    main.pony:7:18: String val is not a subtype of U8 val

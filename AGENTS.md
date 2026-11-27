@@ -63,12 +63,13 @@ Run the full core suite:
 ctest --preset debug -L ci-core
 ```
 
-Two environment variables control Pony compilation features at test time:
+Three environment variables control Pony compilation features at test time:
 
 - `PONY_DEBUG=1` — compile Pony sources with `-d` (debug codegen)
 - `PONY_THIN_LTO=1` — compile Pony sources with `--thin-lto`
+- `PONY_CHECKTREE=1` — compile each full-program test with `--checktree` (inherit-programs always uses it)
 
-These apply to stdlib tests, full-program tests, examples, and tool builds. Set them as command-line prefixes (`PONY_DEBUG=1 ctest ...`) or `export` them. CI runs tests in both codegen modes — the first `ctest` pass sets `PONY_DEBUG=1`, the second runs only the Pony-compilation tests (`stdlib`, `full-programs`) without it. PR builds run only debug codegen; release-mode-checks, weekly-checks, tier-3, and rolling-releases run both.
+`PONY_DEBUG` and `PONY_THIN_LTO` apply to stdlib tests, full-program tests, examples, and tool builds. Set them as command-line prefixes (`PONY_DEBUG=1 ctest ...`) or `export` them. CI runs tests in both codegen modes — the first `ctest` pass sets `PONY_DEBUG=1`, the second runs only the Pony-compilation tests (`stdlib`, `full-programs`, `inherit-programs`) without it. PR builds run only debug codegen; release-mode-checks, weekly-checks, tier-3, and rolling-releases run both.
 
 Run individual tests by name:
 
@@ -77,10 +78,14 @@ Run individual tests by name:
 - `ctest --preset debug -R midbehavior-gc` — mid-behavior GC integration tests; always builds both debug and optimized Pony code
 - `ctest --preset debug -R stdlib` — stdlib test suite
 - `ctest --preset debug -R full-programs` — compile-and-run integration tests
+- `ctest --preset debug -R inherit-programs` — compile-and-run programs about methods inherited from traits and interfaces; each checks its output or its compile errors
 - `ctest --preset debug -R validate-grammar` — checks `pony.g` against the compiler
 - `ctest --preset debug -R examples` — compiles all examples (not part of `ci-core`; runs locally and in the weekly `build-examples.yml` workflow)
 - `ctest --preset debug -R mutation-runtime` — compiles a test program with `--mutate`, runs baseline and mutant execution
 - `ctest --preset debug -R mutation-monomorphization` — checks generic mutant sharing, replacement coverage, and inherited method isolation
+- `ctest --preset debug -R mutation-inherited-default` — checks which closures returned by inherited defaults are shared and that `\nomutate\` on a signature excludes them
+- `ctest --preset debug -R mutation-deferred-object-literal` — checks the mutants listed for an object literal in a trait method that provides that same trait
+- `ctest --preset debug -R mutation-baseline-fail` — verifies pony-mutate reports the command, environment and output of a baseline run that fails
 - `ctest --preset debug -R mutation-string` — checks String return replacement across capabilities with debug and release codegen
 - `ctest --preset debug -R mutation-runner` — end-to-end test of the `pony-mutate` runner tool (scope filtering, operator filtering, terminal report)
 - `ctest --preset debug -R mutation-reports` — controlled reporter output and CLI report-file tests (requires Python 3)

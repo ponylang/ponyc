@@ -1,0 +1,2 @@
+main.pony:8:9: match contains unreachable cases
+    main.pony:10:9: first unreachable case expression

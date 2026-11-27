@@ -1,0 +1,1 @@
+main.pony:4:24: can't reference a parameter in a default argument

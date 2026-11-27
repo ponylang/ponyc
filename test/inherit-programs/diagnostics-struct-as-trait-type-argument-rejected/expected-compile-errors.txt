@@ -1,0 +1,1 @@
+main.pony:11:14: a struct cannot be used as a type argument

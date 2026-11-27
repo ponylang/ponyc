@@ -1,0 +1,4 @@
+main.pony:8:20: the subtype in an iftype condition must be a type parameter or a tuple of type parameters
+main.pony:7:7: can't reuse name 'g'
+    main.pony:7:7: previous use of 'g'
+main.pony:8:20: the subtype in an iftype condition must be a type parameter or a tuple of type parameters

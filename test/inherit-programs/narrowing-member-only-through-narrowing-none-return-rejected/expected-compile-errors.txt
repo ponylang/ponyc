@@ -1,0 +1,3 @@
+main.pony:9:54: couldn't find 'foo' in 'None'; it is found only through the narrowed type parameter 'A', and inherited code can't call a member through a narrowing that may not hold for the inheriting type
+    main.pony:9:54: bind the value to a local of a type that has 'foo' first, for example: let v: HasFoo val = ...
+    main.pony:10:28: in method 'f' inherited by G from Foo
