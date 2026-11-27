@@ -226,8 +226,8 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
 
   start_local_mark(&a);
 
-  // Each struct's first field is visited twice before the struct: the first
-  // visit traces it, and the second is recorded in the set, which grows.
+  // Each struct's first field is visited twice before the struct. Both visits
+  // trace it; the second is recorded in the set, which grows.
   for(size_t i = 0; i < count; i++)
   {
     pony_traceknown_routed(ctx, objects[i], &c_type, PONY_TRACE_MUTABLE);

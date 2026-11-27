@@ -106,17 +106,17 @@ typedef enum
   HEAP_MARK_NEW,
   // p starts its allocation, which was already marked.
   HEAP_MARK_MARKED,
-  // p starts an allocation whose start is shared, which isn't marked, and the
-  // object traced there may be only the field at the start. The allocation is
-  // kept with a shallow mark, which was already set.
+  // p starts an unmarked allocation whose start is shared, and the object
+  // traced there may be only the field at the start. The allocation's shallow
+  // mark, which keeps it, was already set.
   HEAP_MARK_SHARED_START,
   // As HEAP_MARK_SHARED_START, and this call set the allocation's shallow mark.
   HEAP_MARK_SHARED_START_FIRST,
-  // p is inside its allocation, which isn't marked, and this call set the
-  // allocation's shallow mark, which keeps it.
+  // p is inside an unmarked allocation, and this call set the allocation's
+  // shallow mark, which keeps it.
   HEAP_MARK_INTERIOR_FIRST,
-  // p is inside its allocation, which isn't marked, and the allocation's
-  // shallow mark was already set, by an earlier visit or an opaque one.
+  // p is inside an unmarked allocation whose shallow mark was already set, by
+  // an earlier visit or an opaque one.
   HEAP_MARK_INTERIOR,
   // p is inside its allocation, which is already marked.
   HEAP_MARK_COVERED

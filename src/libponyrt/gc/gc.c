@@ -232,6 +232,9 @@ static bool acquire_immutable(pony_ctx_t* ctx, pony_actor_t* actor,
 // primitive's holds its instance.
 static bool embeds_at_start(pony_type_t* t, pony_type_t* u)
 {
+  // A primitive's instance slot holds its instance, not a type.
+  pony_assert((t->embed_flags & PONY_EMBED_ROUTED) != 0);
+
   for(pony_type_t* x = (pony_type_t*)t->instance; x != NULL;
     x = (pony_type_t*)x->instance)
   {
@@ -444,12 +447,8 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 }
 
 // A visit to a type that can share memory with other objects, in this actor's
-// own heap or its own allocation (no chunk). ponyint_heap_mark_object (heap.h)
-// returns whether the visit is the first its allocation's mark and shallow
-// mark record, is covered by a trace already made, or must be recorded by
-// type.
-// Not inlined into ponyint_gc_markrouted, its only caller: inlined there, it
-// makes each routed visit slower.
+// own heap or its own allocation (no chunk). Kept out of line: inlined into
+// the routed mark, it makes each routed visit slower.
 static PONY_NOINLINE void mark_local_object_routed(pony_ctx_t* ctx,
   chunk_t* chunk, void* p, pony_type_t* t, int mutability)
 {

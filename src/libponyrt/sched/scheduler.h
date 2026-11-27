@@ -77,7 +77,8 @@ typedef struct pony_ctx_t
   scheduler_t* scheduler;
   pony_actor_t* current;
   trace_object_fn trace_object;
-  // The trace_object of this epoch for a type with PONY_EMBED_ROUTED.
+  // Used in place of trace_object for a type with PONY_EMBED_ROUTED; set and
+  // cleared with it.
   trace_object_fn trace_routed;
   trace_actor_fn trace_actor;
   // Temporary stack for GC tracing; empty when GC not running
@@ -102,8 +103,8 @@ typedef struct pony_ctx_t
   uint64_t last_tsc;
   schedulerstats_t schedulerstats;
 #endif
-  // Visits a mark recorded by address and type (see mark_local_visit). Empty
-  // between marks.
+  // The visits a mark recorded by address and type (see mark_local_visit).
+  // Empty between marks.
   gc_visitset_t visits;
 } pony_ctx_t;
 

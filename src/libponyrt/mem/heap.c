@@ -258,6 +258,19 @@ static void set_large_chunk_finaliser(chunk_t* chunk, uint32_t finaliser)
   chunk->m = (char*)(((uintptr_t)chunk->m & ~LARGE_CHUNK_FINALISER_BITMASK) | finaliser);
 }
 
+// A small chunk records a shared start in the traceable bit of a slot without
+// a finaliser.
+static bool get_small_slot_shared_start(chunk_t* chunk, uint32_t slot)
+{
+  return (chunk->small.traceable & ~chunk->small.finalisers & slot) != 0;
+}
+
+static void set_small_slot_shared_start(chunk_t* chunk, uint32_t slot)
+{
+  pony_assert((chunk->small.finalisers & slot) == 0);
+  chunk->small.traceable |= slot;
+}
+
 static uint32_t get_large_chunk_shared_start(chunk_t* chunk)
 {
   pony_assert(!get_chunk_is_small_chunk(chunk));
@@ -1091,8 +1104,7 @@ void ponyint_heap_set_shared_start(void* p)
     // A struct has no finaliser, so the slot's traceable bit is free.
     pony_assert(p == EXTERNAL_PTR(p, get_small_chunk_size(chunk)));
     uint32_t slot = FIND_SLOT(p, get_m(chunk));
-    pony_assert((chunk->small.finalisers & slot) == 0);
-    chunk->small.traceable |= slot;
+    set_small_slot_shared_start(chunk, slot);
   } else {
     pony_assert(p == get_m(chunk));
     pony_assert(get_large_chunk_finaliser(chunk) == 0);
@@ -1101,7 +1113,7 @@ void ponyint_heap_set_shared_start(void* p)
 }
 
 // When the runtime's bitcode is linked into a program and optimised with it,
-// this can be inlined into the GC's routed mark, which calls it for every
+// this can be inlined into the GC's mark path, where it runs once per routed
 // visit.
 #if defined(__clang__)
 __attribute__((always_inline))
@@ -1128,7 +1140,7 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type)
       return first ? HEAP_MARK_INTERIOR_FIRST : HEAP_MARK_INTERIOR;
     }
 
-    if((chunk->small.traceable & ~chunk->small.finalisers & slot) != 0)
+    if(get_small_slot_shared_start(chunk, slot))
     {
       if(marked)
         return HEAP_MARK_MARKED;

@@ -120,6 +120,11 @@ typedef void (*pony_final_fn)(void* p);
 #define PONY_EMBED_AT_START 0x08
 
 /// Describes a type to the runtime.
+///
+/// The compiler emits descriptors with this layout, indexing its fields by the
+/// DESC_* constants in src/libponyc/codegen/gendesc.h; a field added or moved
+/// here must be added or moved there, or the runtime reads descriptors at the
+/// wrong offsets.
 typedef const struct _pony_type_t
 {
   uint32_t id;

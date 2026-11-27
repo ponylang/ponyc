@@ -511,3 +511,40 @@ TEST_F(CodegenEmbedTest, LargeStructSharingItsStartIsAllocatedAsSuch)
   ASSERT_EQ(0u,
     calls_to("pony_alloc_small_shared_start", "Main_ref_make_shared"));
 }
+
+// The descriptor type the compiler emits lays its fields out as the runtime's
+// _pony_type_t does, at the indices named by DESC_*.
+TEST_F(CodegenEmbedTest, DescriptorLayoutMatchesTheRuntime)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+
+  LLVMTypeRef desc = compile->descriptor_type;
+  LLVMTargetDataRef data = compile->target_data;
+  auto offset = [&](unsigned index)
+  {
+    return (size_t)LLVMOffsetOfElement(data, desc, index);
+  };
+
+  EXPECT_EQ(offsetof(_pony_type_t, id), offset(DESC_ID));
+  EXPECT_EQ(offsetof(_pony_type_t, size), offset(DESC_SIZE));
+  EXPECT_EQ(offsetof(_pony_type_t, field_count), offset(DESC_FIELD_COUNT));
+  EXPECT_EQ(offsetof(_pony_type_t, field_offset), offset(DESC_FIELD_OFFSET));
+  EXPECT_EQ(offsetof(_pony_type_t, instance), offset(DESC_INSTANCE));
+  EXPECT_EQ(offsetof(_pony_type_t, name), offset(DESC_NAME));
+  EXPECT_EQ(offsetof(_pony_type_t, get_behavior_name),
+    offset(DESC_GET_BEHAVIOR_NAME));
+  EXPECT_EQ(offsetof(_pony_type_t, trace), offset(DESC_TRACE));
+  EXPECT_EQ(offsetof(_pony_type_t, dispatch), offset(DESC_DISPATCH));
+  EXPECT_EQ(offsetof(_pony_type_t, final), offset(DESC_FINALISE));
+  EXPECT_EQ(offsetof(_pony_type_t, event_notify), offset(DESC_EVENT_NOTIFY));
+  EXPECT_EQ(offsetof(_pony_type_t, might_reference_actor),
+    offset(DESC_MIGHT_REFERENCE_ACTOR));
+  EXPECT_EQ(offsetof(_pony_type_t, embed_flags), offset(DESC_EMBED_FLAGS));
+  EXPECT_EQ(offsetof(_pony_type_t, traits), offset(DESC_TRAITS));
+  EXPECT_EQ(offsetof(_pony_type_t, fields), offset(DESC_FIELDS));
+  EXPECT_EQ(offsetof(_pony_type_t, vtable), offset(DESC_VTABLE));
+}

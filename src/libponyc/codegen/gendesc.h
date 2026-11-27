@@ -7,7 +7,8 @@
 PONY_EXTERN_C_BEGIN
 
 // The index of each field of a type descriptor, in the order of
-// _pony_type_t in pony.h.
+// _pony_type_t in pony.h. A mismatch makes the runtime read descriptors at
+// the wrong offsets.
 #define DESC_ID 0
 #define DESC_SIZE 1
 #define DESC_FIELD_COUNT 2

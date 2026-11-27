@@ -798,11 +798,10 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
   return !ponyint_messageq_markempty(&actor->q);
 }
 
-// Whether the pool can't lead from the address of an embedded field to an actor
-// of this type. With the arena pool, ponyint_pool_base finds where the
-// allocation containing an address starts, and ponyint_actor_containing takes
-// it for an actor by its descriptor, which must be a constant in the program
-// image. The memalign pool can't find the allocation's start.
+// Whether ponyint_actor_containing can't find an actor of this type from the
+// address of one of its embedded fields by pool lookup: the memalign pool
+// can't find an allocation's start, and the arena pool needs the type's
+// descriptor in the read-only image.
 static bool pool_cannot_find_actor(pony_type_t* type)
 {
   if((type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) == 0)
