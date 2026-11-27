@@ -256,3 +256,38 @@ TEST_F(CodegenEmbedTest, StructStartingWithAPlainFieldIsNotRouted)
   ASSERT_EQ(nullptr, gentype_first_embed(compile, s));
   ASSERT_EQ(0, flags_of("S") & PONY_EMBED_ROUTED);
 }
+
+// A struct's embedded fields after one at its start, and the objects embedded
+// in them, are marked as sitting beside that start; nothing else is.
+TEST_F(CodegenEmbedTest, FieldsBesideAStructsStartAreFlagged)
+{
+  const char* src =
+    "class E\n"
+    "  var x: U64 = 0\n"
+
+    "class G\n"
+    "  var y: U64 = 0\n"
+
+    "class F\n"
+    "  embed g: G = G\n"
+
+    "class H\n"
+    "  embed e: E = E\n"
+
+    "struct S\n"
+    "  embed e: E = E\n"
+    "  embed f: F = F\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  var _s: S = S\n"
+    "  var _h: H = H\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+
+  ASSERT_NE(0xFF, flags_of("F"));
+  ASSERT_NE(0, flags_of("F") & PONY_EMBED_BESIDE_START);
+  ASSERT_NE(0, flags_of("G") & PONY_EMBED_BESIDE_START);
+  ASSERT_EQ(0, flags_of("E") & PONY_EMBED_BESIDE_START);
+}

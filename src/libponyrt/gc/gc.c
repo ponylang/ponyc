@@ -492,7 +492,11 @@ static void mark_local_object_routed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
       break;
 
     case HEAP_MARK_COVERED:
-      return;
+      // The mark can have come from the trace of a struct's first field, which
+      // doesn't cover the struct's other fields.
+      if((t->embed_flags & PONY_EMBED_BESIDE_START) == 0)
+        return;
+      break;
 
     case HEAP_MARK_INTERIOR_FIRST:
       // The first visit to anything inside this allocation in this mark. A

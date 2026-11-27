@@ -798,33 +798,47 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
   return !ponyint_messageq_markempty(&actor->q);
 }
 
-// The memalign pool has no way to find where the allocation containing an
-// address starts, so an actor with an embedded field is recorded in the
-// pagemap instead, given a whole pagemap entry so no other allocation shares
-// it. Only builds that choose the memalign pool pay for the larger allocation.
+// Whether actors of this type are recorded in the pagemap, so that the address
+// of one of their embedded fields leads back to them. The memalign pool has no
+// way to find where the allocation containing an address starts. The arena
+// pool does, and recognises an actor by its descriptor, which is a constant in
+// the program image; a type whose descriptor isn't there is recorded instead.
+static bool type_in_pagemap(pony_type_t* type)
+{
+  if((type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) == 0)
+    return false;
+
+#ifdef POOL_USE_ARENA
+  return !ponyint_image_constant(type);
+#else
+  return true;
+#endif
+}
+
+// An actor recorded in the pagemap is given at least a whole pagemap entry, so
+// no other allocation shares it.
 static size_t actor_alloc_size(pony_type_t* type)
 {
-#ifdef POOL_USE_MEMALIGN
-  if(((type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) != 0) &&
-    (type->size < POOL_ALIGN))
+  if(type_in_pagemap(type) && (type->size < POOL_ALIGN))
     return POOL_ALIGN;
-#endif
+
   return type->size;
 }
 
-// Whether the actor's allocation is recorded in the pagemap so that an address
-// of one of its embedded fields leads back to it. The arena pool finds an
-// actor from its own records, except one too large for an arena, which has a
-// mapping of its own.
+// Whether this actor's allocation is recorded in the pagemap: its type is, or
+// it is too large for an arena and has a mapping of its own.
 static bool actor_in_pagemap(pony_actor_t* actor)
 {
   if((actor->type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) == 0)
     return false;
 
+  if(type_in_pagemap(actor->type))
+    return true;
+
 #ifdef POOL_USE_ARENA
   return ponyint_pool_base(actor) == NULL;
 #else
-  return true;
+  return false;
 #endif
 }
 
@@ -948,16 +962,16 @@ pony_actor_t* ponyint_actor_containing(void* p)
   if(base != NULL)
   {
     // Memory from the pool that isn't an actor can be handed to Pony through
-    // FFI. An actor starts with its descriptor, which is a constant in the
-    // program image; anything else isn't taken for an actor.
+    // FFI. An actor found here starts with its descriptor, which is a
+    // constant in the program image; anything else isn't taken for one.
     pony_type_t* t = *(pony_type_t**)base;
 
-    if(!ponyint_image_constant(t) || (t->dispatch == NULL) ||
-      ((t->embed_flags & PONY_EMBED_ACTOR_LOOKUP) == 0) ||
-      ((char*)p >= ((char*)base + t->size)))
-      return NULL;
-
-    return (pony_actor_t*)base;
+    if((((uintptr_t)t % sizeof(void*)) == 0) && ponyint_image_constant(t) &&
+      ponyint_image_constant((char*)t + sizeof(*t) - 1) &&
+      (t->dispatch != NULL) &&
+      ((t->embed_flags & PONY_EMBED_ACTOR_LOOKUP) != 0) &&
+      ((char*)p < ((char*)base + t->size)))
+      return (pony_actor_t*)base;
   }
 #endif
 

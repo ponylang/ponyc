@@ -846,9 +846,25 @@ static void compute_embed_flags(compile_t* c)
     if(t->underlying == TK_ACTOR)
       flag_embedded(t, PONY_EMBED_IN_ACTOR);
 
-    // A struct that shares its address with its first field.
-    if(gentype_first_embed(c, t) != NULL)
+    // A struct that shares its address with its first field. The struct's
+    // other embedded fields sit beside that field.
+    reach_type_t* first = gentype_first_embed(c, t);
+
+    if(first != NULL)
+    {
       c_t->embed_flags |= PONY_EMBED_ROUTED;
+
+      for(uint32_t f = 0; f < t->field_count; f++)
+      {
+        if(!t->fields[f].embed ||
+          (LLVMOffsetOfElement(c->target_data, c_t->structure, f) == 0))
+          continue;
+
+        compile_type_t* f_c_t = (compile_type_t*)t->fields[f].type->c_type;
+        f_c_t->embed_flags |= PONY_EMBED_BESIDE_START;
+        flag_embedded(t->fields[f].type, PONY_EMBED_BESIDE_START);
+      }
+    }
   }
 }
 

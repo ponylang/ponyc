@@ -192,8 +192,8 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
 gc_t* ponyint_actor_gc(pony_actor_t* actor);
 
 // The actor with an embedded field whose allocation contains p, or NULL.
-// Requires the program image's bounds (ponyint_image_init), which identify
-// an actor's descriptor.
+// pony_create and this lookup both read the image bounds (gc/image.h), so
+// those must not change while actors exist.
 pony_actor_t* ponyint_actor_containing(void* p);
 
 heap_t* ponyint_actor_heap(pony_actor_t* actor);
