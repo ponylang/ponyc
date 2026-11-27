@@ -459,8 +459,8 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 // own heap or its own allocation (no chunk). An allocation's mark means the
 // object that starts the allocation has been traced, and that trace covers the
 // objects embedded in it. An allocation whose start is shared, a struct that
-// starts with an embedded field, is never marked; its visits are recorded by
-// type instead.
+// starts with an embedded field, is marked only by a visit of its own type;
+// other visits there are recorded by type.
 static void mark_local_object_routed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
   pony_type_t* t, int mutability)
 {

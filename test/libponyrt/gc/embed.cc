@@ -510,13 +510,19 @@ TEST(HeapMarkObject, SharedStartLastsAsLongAsTheAllocation)
     chunk_t* keeper_chunk = ponyint_pagemap_get_chunk(keeper);
 
     // Each collection that visits its start keeps it, and it stays recorded.
+    // A visit of the allocation's own type marks it, and every later visit
+    // finds it marked.
     for(int i = 0; i < 2; i++)
     {
       start_gc(&actor);
       ponyint_heap_mark_object(keeper_chunk, keeper, false);
       EXPECT_EQ(HEAP_MARK_SHARED_START_FIRST,
         ponyint_heap_mark_object(chunk, p, false));
-      EXPECT_EQ(HEAP_MARK_SHARED_START, ponyint_heap_mark_object(chunk, p, false));
+      EXPECT_EQ(HEAP_MARK_SHARED_START,
+        ponyint_heap_mark_object(chunk, p, false));
+      EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p, true));
+      EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p, false));
+      EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p, true));
       end_gc(&actor);
     }
 

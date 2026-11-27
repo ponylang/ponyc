@@ -106,8 +106,9 @@ typedef enum
   HEAP_MARK_NEW,
   // p starts its allocation, which was already marked.
   HEAP_MARK_MARKED,
-  // p starts an allocation whose start is shared. This function never sets
-  // such an allocation's full mark: it is kept with a shallow mark.
+  // p starts an allocation whose start is shared, which isn't marked, and the
+  // object traced there may be only the field at the start. The allocation is
+  // kept with a shallow mark, which was already set.
   HEAP_MARK_SHARED_START,
   // As HEAP_MARK_SHARED_START, and this call set the allocation's shallow mark.
   HEAP_MARK_SHARED_START_FIRST,
@@ -123,15 +124,17 @@ typedef enum
 
 /**
  * Mark the allocation that p is in, if p starts it, and report what was found.
- * A pointer inside the allocation keeps it with a shallow mark.
+ * A pointer inside the allocation keeps it with a shallow mark. own_type says
+ * the object traced at p is of the allocation's own type, so at a shared start
+ * the allocation is marked; otherwise a shared start isn't marked.
  */
 heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type);
 
 /**
  * Records that the allocation p starts is a struct that starts with an
  * embedded field with a non-zero size, so an object traced at that address may
- * be only that field. ponyint_heap_mark_object never sets such an allocation's
- * full mark. The allocation must not have a finaliser.
+ * be only that field. ponyint_heap_mark_object marks such an allocation only
+ * for a visit of its own type. The allocation must not have a finaliser.
  */
 void ponyint_heap_set_shared_start(void* p);
 
