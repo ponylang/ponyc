@@ -1100,6 +1100,12 @@ void ponyint_heap_set_shared_start(void* p)
   }
 }
 
+// Programs built with clang link the runtime's bitcode and optimise it with
+// their own code, so this can be inlined into the GC's routed mark, where it
+// is called for every visit.
+#if defined(__clang__)
+__attribute__((always_inline))
+#endif
 heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type)
 {
   maybe_clear_chunk(chunk);

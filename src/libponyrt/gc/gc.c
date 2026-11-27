@@ -447,8 +447,10 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 // returns whether the visit is the first its allocation's mark and shallow
 // mark record, is covered by a trace already made, or must be recorded by
 // type.
-static void mark_local_object_routed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
-  pony_type_t* t, int mutability)
+// Kept out of its one caller: inlined into ponyint_gc_markrouted, it made each
+// routed mark visit slower.
+static PONY_NOINLINE void mark_local_object_routed(pony_ctx_t* ctx,
+  chunk_t* chunk, void* p, pony_type_t* t, int mutability)
 {
   // Every mark of this actor runs the actor's own trace, which traces its
   // embedded fields in place.
