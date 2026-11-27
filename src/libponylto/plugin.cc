@@ -15,8 +15,8 @@ using namespace llvm;
 namespace pony {
 
 // After HeapToStack has run, strip noinline from pony_alloc, pony_alloc_small
-// and pony_alloc_small_shared_start and inline the remaining call sites. These functions
-// carry noinline (actor.c) so HeapToStack can match them by name at
+// and pony_alloc_small_shared_start and inline the remaining call sites. These
+// functions carry noinline (actor.c) so HeapToStack can match them by name at
 // call sites.
 class InlineRemainingAllocPass
   : public PassInfoMixin<InlineRemainingAllocPass>

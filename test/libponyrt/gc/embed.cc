@@ -207,6 +207,10 @@ TEST_F(GcSharedAddress, MarkTracesStructAfterItsFirstField)
     // The struct's trace marked its field (ponyint_heap_mark reports a mark
     // that was already set).
     EXPECT_TRUE(ponyint_heap_mark(ponyint_pagemap_get_chunk(s->d), s->d));
+    // The visit as the struct's own type marked its allocation, so neither
+    // visit was recorded in the visit set.
+    EXPECT_TRUE(ponyint_heap_mark(ponyint_pagemap_get_chunk(s), s));
+    EXPECT_EQ(0u, ctx->visits.count);
     end_local_mark(&a);
   }
 }
@@ -222,22 +226,31 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
 
   start_local_mark(&a);
 
-  // Each struct's first field is visited twice before the struct, so the
-  // second visit to each is recorded in the set.
-  for(size_t round = 0; round < 2; round++)
+  // Each struct's first field is visited twice before the struct: the first
+  // visit traces it, and the second is recorded in the set, which grows.
+  for(size_t i = 0; i < count; i++)
   {
-    for(size_t i = 0; i < count; i++)
-    {
-      pony_traceknown_routed(ctx, objects[i], &c_type, PONY_TRACE_MUTABLE);
-      pony_traceknown_routed(ctx, objects[i], &c_type, PONY_TRACE_MUTABLE);
-      pony_traceknown_routed(ctx, objects[i], &s_type, PONY_TRACE_MUTABLE);
-    }
-
-    ponyint_gc_handlestack(ctx);
-    EXPECT_EQ(count, s_traced);
+    pony_traceknown_routed(ctx, objects[i], &c_type, PONY_TRACE_MUTABLE);
+    pony_traceknown_routed(ctx, objects[i], &c_type, PONY_TRACE_MUTABLE);
   }
 
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(count * 2, c_traced);
+  EXPECT_EQ(count, ctx->visits.count);
   EXPECT_GE(ctx->visits.capacity, count * 2);
+
+  // A third visit to each finds its record and doesn't trace again.
+  for(size_t i = 0; i < count; i++)
+    pony_traceknown_routed(ctx, objects[i], &c_type, PONY_TRACE_MUTABLE);
+
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(count * 2, c_traced);
+
+  for(size_t i = 0; i < count; i++)
+    pony_traceknown_routed(ctx, objects[i], &s_type, PONY_TRACE_MUTABLE);
+
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(count, s_traced);
   end_local_mark(&a);
   EXPECT_GE(ctx->visits.capacity, count * 2);
 
@@ -864,6 +877,35 @@ TEST(ActorContaining, FindsAnActorWhoseTypeIsNotInTheImage)
   pony_actor_t* in_pagemap = nullptr;
   EXPECT_EQ(nullptr, ponyint_pagemap_get(field, &in_pagemap));
   EXPECT_EQ(nullptr, in_pagemap);
+  ponyint_unregister_thread();
+}
+
+// An actor recorded in the pagemap has its pagemap entries to itself: pool
+// blocks of the same size, allocated just before and after it, aren't taken
+// for it.
+TEST(ActorContaining, PagemapActorSharesNoEntry)
+{
+  ponyint_register_thread();
+  ponyint_image_init();
+
+  size_t size = writable_actor_type.size;
+  char* blocks[8];
+  for(size_t i = 0; i < 4; i++)
+    blocks[i] = static_cast<char*>(ponyint_pool_alloc_size(size));
+  pony_actor_t* actor = pony_create(pony_ctx(), &writable_actor_type, true);
+  for(size_t i = 4; i < 8; i++)
+    blocks[i] = static_cast<char*>(ponyint_pool_alloc_size(size));
+
+  for(size_t i = 0; i < 8; i++)
+  {
+    SCOPED_TRACE(i);
+    memset(blocks[i], 0, size);
+    EXPECT_EQ(nullptr, ponyint_actor_containing(blocks[i] + 8));
+  }
+
+  ponyint_destroy(actor);
+  for(size_t i = 0; i < 8; i++)
+    ponyint_pool_free_size(size, blocks[i]);
   ponyint_unregister_thread();
 }
 

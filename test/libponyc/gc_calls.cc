@@ -26,6 +26,7 @@ protected:
       "@entries = constant [2 x ptr] [ptr @work, ptr @collect], "
       "!pony.gc.pairs !0\n!0 = !{}\n"
       "declare ptr @pony_alloc_small(ptr, i32)\n"
+      "declare ptr @pony_alloc_small_shared_start(ptr, i32)\n"
       "define i1 @ponyint_gc_has_small_room(ptr %actor) {\n"
       "  %room = load i1, ptr %actor\n  ret i1 %room\n}\n"
       "define ptr @work(ptr %a, ptr %b, i1 %base) {\n" + ordinary + "}\n"
@@ -84,6 +85,25 @@ TEST_F(GcCalls, AllocationOnUnwindCanRepeatAtEveryDepth)
       EXPECT_EQ(fn->getArg(i), call->getArgOperand(i));
   }
 }
+// The allocator for a struct that shares its start is a small allocation too,
+// so a call whose path holds only that allocation keeps the room check.
+TEST_F(GcCalls, SharedStartAllocationIsASmallAllocation)
+{
+  ASSERT_NO_FATAL_FAILURE(optimize(
+    "br i1 %base, label %leaf, label %descend\n"
+    "leaf:\n%p = call ptr @pony_alloc_small_shared_start(ptr %a, i32 0)\n"
+    "ret ptr %p\n"
+    "descend:\n%r = call ptr @work(ptr %b, ptr %a, i1 true)\nret ptr %r\n",
+    "ret ptr %b\n"));
+  auto* fn = module->getFunction("collect");
+  auto* branch = llvm::dyn_cast<llvm::CondBrInst>(
+    fn->getEntryBlock().getTerminator());
+  ASSERT_NE(nullptr, branch);
+  auto* room = llvm::dyn_cast<llvm::LoadInst>(branch->getCondition());
+  ASSERT_NE(nullptr, room);
+  EXPECT_EQ(fn->getArg(3), room->getPointerOperand());
+}
+
 TEST_F(GcCalls, PurePrefixCannotClearInheritedCollectionDebt)
 {
   llvm::SMDiagnostic diagnostic;

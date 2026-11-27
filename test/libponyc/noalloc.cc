@@ -9,8 +9,12 @@
 
 #include "llvm_config_begin.h"
 
+#include <llvm/AsmParser/Parser.h>
 #include <llvm/IR/Module.h>
+#include <llvm/Support/SourceMgr.h>
 #include <llvm/IR/DiagnosticInfo.h>
+#include <llvm/IR/DiagnosticPrinter.h>
+#include <llvm/Support/raw_ostream.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Analysis/AliasAnalysis.h>
 #include <llvm/Analysis/CGSCCPassManager.h>
@@ -312,17 +316,30 @@ TEST_F(NoAllocVirtualCallTest, NoAllocCallsNonNoAllocBeInterfaceError)
 
 // --- LTO pass tests ---
 
+struct noalloc_diagnostics_t
+{
+  size_t errors = 0;
+  std::string text;
+};
+
 static void noalloc_diag_handler(const llvm::DiagnosticInfo *DI, void *context)
 {
-  if(DI->getSeverity() == llvm::DS_Error)
-    (*static_cast<size_t*>(context))++;
+  if(DI->getSeverity() != llvm::DS_Error)
+    return;
+
+  auto* diagnostics = static_cast<noalloc_diagnostics_t*>(context);
+  diagnostics->errors++;
+  llvm::raw_string_ostream out(diagnostics->text);
+  llvm::DiagnosticPrinterRawOStream printer(out);
+  DI->print(printer);
+  out << "\n";
 }
 
 class NoAllocLTOTest : public PassTest
 {
 protected:
-  // Number of allocation violations the last run_noalloc_check diagnosed.
-  size_t error_count = 0;
+  // The allocation violations the last run_noalloc_check diagnosed.
+  noalloc_diagnostics_t diagnostics;
 
   // Run NoAllocCheck on the in-memory module. Returns true if any allocation
   // violation was diagnosed (i.e., the pass emitted a DS_Error).
@@ -336,9 +353,9 @@ protected:
         function.setLinkage(llvm::GlobalValue::ExternalLinkage);
     }
 
-    error_count = 0;
+    diagnostics = noalloc_diagnostics_t();
     auto &ctx = module->getContext();
-    ctx.setDiagnosticHandlerCallBack(noalloc_diag_handler, &error_count);
+    ctx.setDiagnosticHandlerCallBack(noalloc_diag_handler, &diagnostics);
 
     EXPECT_TRUE(pony_specific_opt(compile));
 
@@ -367,7 +384,7 @@ protected:
 
     ctx.setDiagnosticHandlerCallBack(nullptr, nullptr);
 
-    return error_count > 0;
+    return diagnostics.errors > 0;
   }
 };
 
@@ -401,6 +418,37 @@ TEST_F(NoAllocLTOTest, NoAllocWithAllocationFails)
   opt.release = true;
   TEST_COMPILE(src);
   ASSERT_TRUE(run_noalloc_check());
+}
+
+// A call to either allocator for a struct that starts with an embedded field
+// is reported as a heap allocation, not as a call into unknown code.
+TEST_F(NoAllocLTOTest, SharedStartAllocatorIsAHeapAllocation)
+{
+  for(const char* name :
+    {"pony_alloc_small_shared_start", "pony_alloc_large_shared_start"})
+  {
+    SCOPED_TRACE(name);
+    llvm::LLVMContext ctx;
+    llvm::SMDiagnostic error;
+    std::string ir = std::string("declare ptr @") + name + "(ptr, i64)\n"
+      "define ptr @make(ptr %ctx) #0 {\n"
+      "  %p = call ptr @" + name + "(ptr %ctx, i64 64)\n"
+      "  ret ptr %p\n"
+      "}\n"
+      "attributes #0 = { \"pony.noalloc\" }\n";
+    auto module = llvm::parseAssemblyString(ir, error, ctx);
+    ASSERT_NE(nullptr, module) << error.getMessage().str();
+
+    diagnostics = noalloc_diagnostics_t();
+    ctx.setDiagnosticHandlerCallBack(noalloc_diag_handler, &diagnostics);
+    llvm::ModuleAnalysisManager analyses;
+    pony::NoAllocCheck().run(*module, analyses);
+    ctx.setDiagnosticHandlerCallBack(nullptr, nullptr);
+
+    EXPECT_EQ(1u, diagnostics.errors);
+    EXPECT_NE(std::string::npos, diagnostics.text.find("a heap allocation"))
+      << diagnostics.text;
+  }
 }
 
 TEST_F(NoAllocLTOTest, NoAllocMatchingUnannotatedBodyFails)
@@ -449,7 +497,7 @@ TEST_F(NoAllocLTOTest, NoAllocCallingAllocatingNoAllocReportsCalleeOnly)
   opt.release = true;
   TEST_COMPILE(src);
   ASSERT_TRUE(run_noalloc_check());
-  ASSERT_EQ(1u, error_count);
+  ASSERT_EQ(1u, diagnostics.errors);
 }
 
 TEST_F(NoAllocLTOTest, NoAllocTransitiveAllocationFails)
