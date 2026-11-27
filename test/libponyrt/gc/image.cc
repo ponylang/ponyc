@@ -59,9 +59,10 @@ TEST(Image, WritableMemoryIsNotReadOnly)
 
 #if defined(__ELF__)
 // Protection is per page, so the read-only part ends at the start of the page
-// holding the first writable byte, even when the writable segment, or the
-// writable memory after the RELRO region, starts inside a page. It also ends
-// at the first gap between loaded segments.
+// holding a writable segment's start, even when that start is inside a page.
+// After a RELRO region it ends where the region ends: only relocation writes
+// the rest of that page's RELRO bytes. It also ends at the first gap between
+// loaded segments.
 TEST(Image, ReadOnlyPartEndsWhereItsPageIsWritable)
 {
   const uintptr_t page = 0x1000;
@@ -106,7 +107,7 @@ TEST(Image, ReadOnlyPartEndsWhereItsPageIsWritable)
   info.dlpi_phdr = relro;
   info.dlpi_phnum = 3;
   ASSERT_TRUE(ponyint_image_elf_bounds(&info, 0x400010, page, &start, &end));
-  EXPECT_EQ(0x402000u, end);
+  EXPECT_EQ(0x402a00u, end);
 
   // Code, then read-only data more than a page later, as a linker aligning
   // segments to a larger page than the system's leaves it: nothing is mapped

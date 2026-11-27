@@ -809,7 +809,7 @@ static bool pool_cannot_find_actor(pony_type_t* type)
     return false;
 
 #ifdef POOL_USE_ARENA
-  return !ponyint_image_constant(type);
+  return !ponyint_image_descriptor(type, sizeof(*type));
 #else
   return true;
 #endif
@@ -959,8 +959,8 @@ pony_actor_t* ponyint_actor_containing(void* p)
     // constant in the program image; anything else isn't taken for one.
     pony_type_t* t = *(pony_type_t**)base;
 
-    if((((uintptr_t)t % sizeof(void*)) == 0) && ponyint_image_constant(t) &&
-      ponyint_image_constant((char*)t + sizeof(*t) - 1) &&
+    if((((uintptr_t)t % sizeof(void*)) == 0) &&
+      ponyint_image_descriptor(t, sizeof(*t)) &&
       (t->dispatch != NULL) &&
       ((t->embed_flags & PONY_EMBED_ACTOR_LOOKUP) != 0) &&
       ((char*)p < ((char*)base + t->size)))

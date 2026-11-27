@@ -210,17 +210,21 @@ bool ponyint_image_elf_bounds(struct dl_phdr_info* info, uintptr_t self,
     uintptr_t end = start + (uintptr_t)info->dlpi_phdr[i].p_memsz;
 
     // The writable part of a segment that begins with the RELRO region
-    // starts where that region ends.
+    // starts where that region ends. The bytes of the RELRO region on the
+    // page holding its end stay writable, but only relocation writes them,
+    // before the program runs.
     if((start >= relro_start) && (start < relro_end))
+    {
       start = relro_end;
+    } else {
+      // Protection is per page, so the page holding a writable segment's start
+      // is writable from its first byte. A loader can hand the part of that
+      // page before the segment to malloc.
+      start &= ~(page_size - 1);
+    }
 
     if(start >= end)
       continue;
-
-    // Protection is per page, so the page holding the start of writable
-    // memory is writable from its first byte. A loader can hand the rest of
-    // that page to malloc.
-    start &= ~(page_size - 1);
 
     if(start < end_ro)
       end_ro = start;

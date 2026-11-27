@@ -41,6 +41,14 @@ static inline bool ponyint_image_constant(const void* p)
     (ponyint_image_ro_end - ponyint_image_ro_start);
 }
 
+// Whether all of a type descriptor is in that memory, so it can't change and
+// every field of it can be read.
+static inline bool ponyint_image_descriptor(const void* type, size_t size)
+{
+  return ponyint_image_constant(type) &&
+    ponyint_image_constant((const char*)type + size - 1);
+}
+
 PONY_EXTERN_C_END
 
 #endif

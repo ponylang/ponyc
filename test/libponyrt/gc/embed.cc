@@ -871,6 +871,29 @@ TEST(ActorContaining, PagemapActorSharesNoEntry)
   ponyint_unregister_thread();
 }
 
+// When the read-only part of the image ends inside an actor type's descriptor,
+// actors of that type are still found from their embedded fields: creation and
+// lookup agree that the descriptor isn't in the image.
+TEST(ActorContaining, DescriptorPartlyInTheImage)
+{
+  ponyint_register_thread();
+  ponyint_image_init();
+  uintptr_t ro_start = ponyint_image_ro_start;
+  uintptr_t ro_end = ponyint_image_ro_end;
+  ponyint_image_ro_start = (uintptr_t)&small_actor_type;
+  ponyint_image_ro_end =
+    (uintptr_t)&small_actor_type + (sizeof(_pony_type_t) / 2);
+
+  pony_actor_t* actor = pony_create(pony_ctx(), &small_actor_type, true);
+  char* field = reinterpret_cast<char*>(actor) + sizeof(pony_actor_t) + 8;
+  EXPECT_EQ(actor, ponyint_actor_containing(field));
+  ponyint_destroy(actor);
+
+  ponyint_image_ro_start = ro_start;
+  ponyint_image_ro_end = ro_end;
+  ponyint_unregister_thread();
+}
+
 // Pool memory handed to Pony through FFI isn't taken for an actor unless its
 // first word is an actor descriptor in the image whose type has
 // PONY_EMBED_ACTOR_LOOKUP and whose size reaches the address.
