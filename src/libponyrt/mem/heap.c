@@ -16,6 +16,10 @@ typedef struct chunk_t
   // used for pointer tagging
   // bit 0 (lowest bit) for keeping track of chunk type (1 = small; 0 = large)
   // bit 1 for keeping track of chunks to be cleared
+  // small chunk: bits 2-4 for the size class
+  // large chunk: bit 2 for the slot, bit 3 for the shallow mark, bit 4 for a
+  // finaliser, and bit 5 for an allocation whose start is shared (see
+  // ponyint_heap_set_shared_start)
   char* m;
   union
   {
@@ -26,6 +30,9 @@ typedef struct chunk_t
       uint32_t slots;
       uint32_t shallow;
       uint32_t finalisers;
+      // For a slot with a finaliser, its object is fully constructed. For a
+      // slot without one, its allocation's start is shared (see
+      // ponyint_heap_set_shared_start).
       uint32_t traceable;
     } small;
     struct
@@ -53,7 +60,9 @@ typedef struct chunk_t
 #define LARGE_CHUNK_SHALLOW_BITMASK ((uintptr_t)0x1 << LARGE_CHUNK_SHALLOW_BITMASK_SHIFT_AMOUNT)
 #define LARGE_CHUNK_FINALISER_BITMASK_SHIFT_AMOUNT (uintptr_t)4
 #define LARGE_CHUNK_FINALISER_BITMASK ((uintptr_t)0x1 << LARGE_CHUNK_FINALISER_BITMASK_SHIFT_AMOUNT)
-#define LARGE_CHUNK_SHARED_START_BITMASK ((uintptr_t)0x1 << 5)
+// A bit of m rather than large.traceable, which sweep_large overwrites.
+#define LARGE_CHUNK_SHARED_START_BITMASK_SHIFT_AMOUNT (uintptr_t)5
+#define LARGE_CHUNK_SHARED_START_BITMASK ((uintptr_t)0x1 << LARGE_CHUNK_SHARED_START_BITMASK_SHIFT_AMOUNT)
 #define CHUNK_M_BITMASK ~(CHUNK_TYPE_BITMASK | CHUNK_NEEDS_TO_BE_CLEARED_BITMASK | SMALL_CHUNK_SIZECLASS_BITMASK | LARGE_CHUNK_SLOT_BITMASK | LARGE_CHUNK_SHALLOW_BITMASK | LARGE_CHUNK_FINALISER_BITMASK | LARGE_CHUNK_SHARED_START_BITMASK)
 
 enum
@@ -247,6 +256,21 @@ static void set_large_chunk_finaliser(chunk_t* chunk, uint32_t finaliser)
   finaliser = finaliser << LARGE_CHUNK_FINALISER_BITMASK_SHIFT_AMOUNT;
   pony_assert(finaliser == LARGE_CHUNK_FINALISER_BITMASK || finaliser == 0);
   chunk->m = (char*)(((uintptr_t)chunk->m & ~LARGE_CHUNK_FINALISER_BITMASK) | finaliser);
+}
+
+static uint32_t get_large_chunk_shared_start(chunk_t* chunk)
+{
+  pony_assert(!get_chunk_is_small_chunk(chunk));
+  return ((uintptr_t)chunk->m & LARGE_CHUNK_SHARED_START_BITMASK) != 0;
+}
+
+static void set_large_chunk_shared_start(chunk_t* chunk, uint32_t shared)
+{
+  pony_assert(!get_chunk_is_small_chunk(chunk));
+  uintptr_t bit =
+    (uintptr_t)(!!shared) << LARGE_CHUNK_SHARED_START_BITMASK_SHIFT_AMOUNT;
+  chunk->m = (char*)
+    (((uintptr_t)chunk->m & ~LARGE_CHUNK_SHARED_START_BITMASK) | bit);
 }
 
 static size_t get_small_chunk_size(chunk_t* chunk)
@@ -945,7 +969,7 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
 
   // note if a finaliser needs to run or not
   set_large_chunk_finaliser(chunk, (track_finalisers_mask & 1));
-  chunk->m = (char*)((uintptr_t)chunk->m & ~LARGE_CHUNK_SHARED_START_BITMASK);
+  set_large_chunk_shared_start(chunk, 0);
   chunk->large.traceable = false;
   chunk->large.local_index = 0;
 
@@ -1065,12 +1089,14 @@ void ponyint_heap_set_shared_start(void* p)
   if(get_chunk_is_small_chunk(chunk))
   {
     // A struct has no finaliser, so the slot's traceable bit is free.
+    pony_assert(p == EXTERNAL_PTR(p, get_small_chunk_size(chunk)));
     uint32_t slot = FIND_SLOT(p, get_m(chunk));
     pony_assert((chunk->small.finalisers & slot) == 0);
     chunk->small.traceable |= slot;
   } else {
+    pony_assert(p == get_m(chunk));
     pony_assert(get_large_chunk_finaliser(chunk) == 0);
-    chunk->m = (char*)((uintptr_t)chunk->m | LARGE_CHUNK_SHARED_START_BITMASK);
+    set_large_chunk_shared_start(chunk, 1);
   }
 }
 
@@ -1121,7 +1147,7 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
     return first ? HEAP_MARK_INTERIOR_FIRST : HEAP_MARK_INTERIOR;
   }
 
-  if(((uintptr_t)chunk->m & LARGE_CHUNK_SHARED_START_BITMASK) != 0)
+  if(get_large_chunk_shared_start(chunk))
   {
     set_large_chunk_shallow(chunk, 0);
     return HEAP_MARK_SHARED_START;
