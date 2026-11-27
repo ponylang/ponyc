@@ -1,0 +1,6 @@
+main.pony:4:9: can't reuse name 'A'
+    main.pony:4:9: previous use of 'A'
+main.pony:7:7: can't reuse name 'g'
+    main.pony:7:7: previous use of 'g'
+main.pony:4:9: can't reuse name 'A'
+    main.pony:4:9: previous use of 'A'

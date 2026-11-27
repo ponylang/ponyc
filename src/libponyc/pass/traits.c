@@ -1589,11 +1589,17 @@ static void bind_written_names_in(ast_t** astp, literal_names_t* literal,
         (ast_id(ast_childidx(ast, 3)) == TK_NONE) &&
         written_iftype_subject(ast_child(ast), literal))
       {
+        // A condition that can't be narrowed is left as written, names and
+        // all: the scope pass narrows it again when the literal's class is
+        // made, and reports the error there, once for each class.
         errors_t* errors = opt->check.errors;
         opt->check.errors = errors_alloc();
-        scope_written_iftype(opt, ast);
+        bool narrowed = scope_written_iftype(opt, ast);
         errors_free(opt->check.errors);
         opt->check.errors = errors;
+
+        if(!narrowed)
+          return;
       }
       break;
     }
