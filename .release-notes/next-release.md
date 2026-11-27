@@ -1064,7 +1064,7 @@ actor Main
   new create(env: Env) => env.out.print(P.f(3).string())
 ```
 
-It now reports `default argument of parameter 'x' of 'f' uses itself through default arguments`.
+It now reports `default argument of parameter 'x' of 'P.f' uses itself through default arguments`.
 
 ## Name the inheriting type and trait in errors in inherited code
 

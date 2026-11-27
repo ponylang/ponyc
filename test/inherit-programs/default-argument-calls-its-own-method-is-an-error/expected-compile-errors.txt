@@ -1,2 +1,2 @@
-main.pony:5:18: default argument of parameter 'x' of 'f' uses itself through default arguments
-    main.pony:5:9: default argument is here
+main.pony:5:18: default argument of parameter 'x' of 'P.f' uses itself through default arguments
+    main.pony:5:9: default argument of parameter 'x' of 'P.f' is here

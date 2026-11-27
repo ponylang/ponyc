@@ -8,6 +8,7 @@
 #include "subtype.h"
 #include "../ast/token.h"
 #include "../ast/id.h"
+#include "../ast/printbuf.h"
 #include "../../libponyrt/mem/pool.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
@@ -866,6 +867,32 @@ static bool call_supplies_param(ast_t* from, size_t index, const char* name)
   return false;
 }
 
+// Append to `buf` the name of the method or lambda that declares `param`,
+// with the name of its type for a method: "T.m".
+static void print_param_owner(printbuf_t* buf, ast_t* param)
+{
+  ast_t* owner = ast_parent(ast_parent(param));
+
+  switch(ast_id(owner))
+  {
+    case TK_FUN:
+    case TK_BE:
+    case TK_NEW:
+    {
+      ast_t* entity = method_entity(owner);
+
+      if((entity != NULL) && (ast_id(ast_child(entity)) == TK_ID))
+        printbuf(buf, "%s.", ast_name(ast_child(entity)));
+
+      printbuf(buf, "%s", ast_name(ast_childidx(owner, 1)));
+      break;
+    }
+
+    default:
+      printbuf(buf, "a lambda");
+  }
+}
+
 // Check the default argument of `param`, a parameter of `method`, that a call
 // at `from` needs before the method's own check has reached it. It is checked
 // in the frames of the method that declares it. A default that needs itself
@@ -878,10 +905,12 @@ static bool check_default_param(pass_opt_t* opt, ast_t* from, ast_t* method,
 
   if((anchor != NULL) && program_default_check_in_progress(anchor, param))
   {
+    printbuf_t* owner = printbuf_new();
+    print_param_owner(owner, param);
     ast_error(opt->check.errors, from,
       "default argument of parameter '%s' of '%s' uses itself through "
-      "default arguments", ast_name(ast_child(param)),
-      ast_name(ast_childidx(method, 1)));
+      "default arguments", ast_name(ast_child(param)), owner->m);
+    printbuf_free(owner);
 
     // The parameters on the cycle, from the one re-entered to the latest.
     astlist_t* cycle = NULL;
@@ -894,8 +923,15 @@ static bool check_default_param(pass_opt_t* opt, ast_t* from, ast_t* method,
     }
 
     for(astlist_t* p = cycle; p != NULL; p = astlist_next(p))
-      ast_error_continue(opt->check.errors, ast_child(astlist_data(p)),
-        "default argument is here");
+    {
+      ast_t* on_cycle = astlist_data(p);
+      printbuf_t* its_owner = printbuf_new();
+      print_param_owner(its_owner, on_cycle);
+      ast_error_continue(opt->check.errors, ast_child(on_cycle),
+        "default argument of parameter '%s' of '%s' is here",
+        ast_name(ast_child(on_cycle)), its_owner->m);
+      printbuf_free(its_owner);
+    }
 
     astlist_free(cycle);
     return false;
