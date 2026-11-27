@@ -241,14 +241,14 @@ static bool compare_unordered_children(alias_pair_t* pairs, ast_t* a,
 
 // Append to `to` copies of the members of the union or intersection `type`,
 // taking the members of a member of the same kind instead of it, including
-// one an alias names.
-static void append_guard_members(ast_t* to, ast_t* type)
+// one an alias names. A member equal to one already appended is left out.
+static void append_guard_members(alias_pair_t* pairs, ast_t* to, ast_t* type)
 {
   for(ast_t* m = ast_child(type); m != NULL; m = ast_sibling(m))
   {
     if(ast_id(m) == ast_id(to))
     {
-      append_guard_members(to, m);
+      append_guard_members(pairs, to, m);
       continue;
     }
 
@@ -258,7 +258,7 @@ static void append_guard_members(ast_t* to, ast_t* type)
 
       if((unfolded != NULL) && (ast_id(unfolded) == ast_id(to)))
       {
-        append_guard_members(to, unfolded);
+        append_guard_members(pairs, to, unfolded);
         ast_free_unattached(unfolded);
         continue;
       }
@@ -267,7 +267,14 @@ static void append_guard_members(ast_t* to, ast_t* type)
         ast_free_unattached(unfolded);
     }
 
-    ast_append(to, ast_dup(m));
+    bool repeated = false;
+
+    for(ast_t* prev = ast_child(to); !repeated && (prev != NULL);
+      prev = ast_sibling(prev))
+      repeated = compare_nodes(pairs, prev, m, COMPARE_GUARDS);
+
+    if(!repeated)
+      ast_append(to, ast_dup(m));
   }
 }
 
@@ -389,8 +396,8 @@ static bool compare_nodes(alias_pair_t* pairs, ast_t* sig_a, ast_t* sig_b,
       {
         ast_t* flat_a = ast_from(sig_a, a_id);
         ast_t* flat_b = ast_from(sig_b, a_id);
-        append_guard_members(flat_a, sig_a);
-        append_guard_members(flat_b, sig_b);
+        append_guard_members(pairs, flat_a, sig_a);
+        append_guard_members(pairs, flat_b, sig_b);
         bool r = compare_unordered_children(pairs, flat_a, flat_b, comparison);
         ast_free_unattached(flat_a);
         ast_free_unattached(flat_b);
