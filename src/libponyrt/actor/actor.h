@@ -37,8 +37,6 @@ enum
   ACTOR_FLAG_CD_CONTACTED = 1 << 4,
   ACTOR_FLAG_RC_OVER_ZERO_SEEN = 1 << 5,
   ACTOR_FLAG_PINNED = 1 << 6,
-  // pony_create recorded the actor's allocation in the pagemap.
-  ACTOR_FLAG_IN_PAGEMAP = 1 << 7,
 };
 
 enum
@@ -193,9 +191,8 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
 
 gc_t* ponyint_actor_gc(pony_actor_t* actor);
 
-// The actor with an embedded field whose allocation contains p, or NULL.
-// pony_create and this lookup both read the image bounds (gc/image.h), so
-// those must not change while actors exist.
+// The actor whose allocation contains p, if its type has an embedded field;
+// otherwise NULL.
 pony_actor_t* ponyint_actor_containing(void* p);
 
 heap_t* ponyint_actor_heap(pony_actor_t* actor);

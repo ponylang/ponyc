@@ -4072,4 +4072,32 @@ TEST(Pool, BaseOfMemoryOutsideThePool)
   EXPECT_EQ(nullptr, ponyint_pool_base(oversized + 64));
   ponyint_pool_free_size(huge, oversized);
 }
+
+// ponyint_pool_size_in_arena says which sizes ponyint_pool_base finds the start
+// of, on both sides of the largest size an arena holds.
+TEST(Pool, SizeInArenaMatchesBase)
+{
+  std::vector<size_t> sizes = {32, 1024, 65536, (size_t)POOL_MAX * 2,
+    (size_t)16 * 1024 * 1024};
+
+  for(size_t k = 0; k < 4; k++)
+    sizes.push_back(TEST_ARENA_SIZE - (k * TEST_UNIT_SIZE));
+
+  bool saw_in = false;
+  bool saw_out = false;
+
+  for(size_t size : sizes)
+  {
+    SCOPED_TRACE(size);
+    char* p = static_cast<char*>(ponyint_pool_alloc_size(size));
+    bool in_arena = ponyint_pool_size_in_arena(size);
+    EXPECT_EQ(in_arena, ponyint_pool_base(p) != nullptr);
+    saw_in |= in_arena;
+    saw_out |= !in_arena;
+    ponyint_pool_free_size(size, p);
+  }
+
+  EXPECT_TRUE(saw_in);
+  EXPECT_TRUE(saw_out);
+}
 #endif

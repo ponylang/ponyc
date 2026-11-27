@@ -88,6 +88,12 @@ void ponyint_pool_suspend_flush();
  */
 void* ponyint_pool_base(void* p);
 
+/* Whether ponyint_pool_alloc_size puts an allocation of this size in an arena,
+ * so that ponyint_pool_base finds its start. Always false for the memalign
+ * backend.
+ */
+bool ponyint_pool_size_in_arena(size_t size);
+
 void ponyint_pool_drain();
 
 /* return_idle gives up this thread's held-but-free memory: the arena backend

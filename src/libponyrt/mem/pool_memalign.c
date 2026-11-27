@@ -147,6 +147,12 @@ void* ponyint_pool_base(void* p)
   return NULL;
 }
 
+bool ponyint_pool_size_in_arena(size_t size)
+{
+  (void)size;
+  return false;
+}
+
 void ponyint_pool_drain()
 {
 }

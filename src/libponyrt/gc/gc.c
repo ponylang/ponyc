@@ -741,12 +741,22 @@ static GC_INLINE void mark_remote_object(pony_ctx_t* ctx,
 }
 
 // An object with no heap chunk can be embedded in an actor. Only types with
-// PONY_EMBED_IN_ACTOR are looked up, so constants and memory from C of other
-// types cost nothing here.
-static pony_actor_t* actor_containing(void* p, pony_type_t* t)
+// PONY_EMBED_IN_ACTOR are looked up. in_pagemap is the actor the pagemap gave
+// for p, if any.
+static pony_actor_t* actor_containing(pony_ctx_t* ctx, void* p,
+  pony_type_t* t, pony_actor_t* in_pagemap)
 {
   if((t->embed_flags & PONY_EMBED_IN_ACTOR) == 0)
     return NULL;
+
+  if(in_pagemap != NULL)
+    return in_pagemap;
+
+  pony_actor_t* current = ctx->current;
+
+  if((current != NULL) &&
+    (((uintptr_t)p - (uintptr_t)current) < current->type->size))
+    return current;
 
   return ponyint_actor_containing(p);
 }
@@ -756,7 +766,7 @@ static pony_actor_t* actor_containing(void* p, pony_type_t* t)
 // actor owns it: such memory isn't collected, and for a non-opaque visit the
 // object is queued for tracing what it references, unless it is a constant.
 static GC_INLINE bool routed_owner(pony_ctx_t* ctx, void* p,
-  pony_type_t* t, int* mutability, pony_actor_t** actor, chunk_t** chunk)
+  pony_type_t* t, int mutability, pony_actor_t** actor, chunk_t** chunk)
 {
   *actor = NULL;
   *chunk = ponyint_pagemap_get(p, actor);
@@ -767,11 +777,11 @@ static GC_INLINE bool routed_owner(pony_ctx_t* ctx, void* p,
   if(ponyint_image_constant(p))
     return false;
 
-  *actor = actor_containing(p, t);
+  *actor = actor_containing(ctx, p, t, *actor);
   if(*actor != NULL)
     return true;
 
-  if(*mutability != PONY_TRACE_OPAQUE)
+  if(mutability != PONY_TRACE_OPAQUE)
     recurse(ctx, p, t->trace);
 
   return false;
@@ -804,7 +814,7 @@ void ponyint_gc_sendrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor;
   chunk_t* chunk;
 
-  if(!routed_owner(ctx, p, t, &mutability, &actor, &chunk))
+  if(!routed_owner(ctx, p, t, mutability, &actor, &chunk))
     return;
 
   if(actor == ctx->current)
@@ -840,7 +850,7 @@ void ponyint_gc_recvrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor;
   chunk_t* chunk;
 
-  if(!routed_owner(ctx, p, t, &mutability, &actor, &chunk))
+  if(!routed_owner(ctx, p, t, mutability, &actor, &chunk))
     return;
 
   if(actor == ctx->current)
@@ -876,7 +886,7 @@ void ponyint_gc_markrouted(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor;
   chunk_t* chunk;
 
-  if(!routed_owner(ctx, p, t, &mutability, &actor, &chunk))
+  if(!routed_owner(ctx, p, t, mutability, &actor, &chunk))
     return;
 
   if(actor == ctx->current)

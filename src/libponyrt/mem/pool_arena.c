@@ -1991,6 +1991,14 @@ static void oversized_free(void* p)
   ponyint_virt_free(over, over->reserved);
 }
 
+bool ponyint_pool_size_in_arena(size_t size)
+{
+  if(ponyint_pool_index(size) < POOL_COUNT)
+    return true;
+
+  return ponyint_pool_adjust_size(size) <= arena_capacity();
+}
+
 void* ponyint_pool_alloc_size(size_t size)
 {
   size_t index = ponyint_pool_index(size);
