@@ -368,11 +368,9 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
       if((stale != NULL) && (stale != typeparam))
         symtab_remove_def(symtab, stale);
 
-      // Re-install the stored node itself, never a copy. The AST_OK descent
-      // below visits typeparam_store and runs set_scope on these same nodes
-      // again, where set_scope no-ops because the name already maps to this
-      // exact node. A copy would be a different node and would error as a
-      // name clash there.
+      // Re-install the stored node itself, never a copy: set_scope runs on
+      // these nodes again when the descent below visits typeparam_store, and
+      // a copy is a different node, which it reports as a name clash.
       if(!set_scope(opt, ast, ast_child(typeparam), typeparam, true))
         return AST_ERROR;
     }

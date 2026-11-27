@@ -797,7 +797,7 @@ The program printed `WRAP (captured!)`. It now prints `helper`. Names in an inhe
 
 These programs crashed the compiler or were rejected with errors they should not have had:
 
-- When a type inherited two default bodies for one method and the first body declared a local, the compiler crashed or reported a wrong error. The type now gets the error asking it to choose a body, such as `multiple possible bodies for method m0, local disambiguation required`. This fixes issue #6722.
+- When a type inherited two default bodies for one method and the first body declared a local, the compiler crashed or reported a wrong error. The compiler now reports that the type has to give the method its own body: `multiple possible bodies for method m0, local disambiguation required`. This fixes issue #6722.
 - Overriding an inherited guarded specialization failed when the guard in the override was written differently from the guard in the trait, for example as a union with its members in the other order, or through a type alias. The compiler reported `specialization is unreachable because a previous guard matches all the same types`. The guards now compare as types. This fixes issue #6728.
 - The compiler failed an assertion when an object literal provided an intersection of traits or interfaces declared after the literal, including through an alias of the intersection. This now compiles. This fixes issue #6731.
 - Two traits that declared the same generic method with different type parameter names got a `clashing definitions` error. The type parameters now match by position. This fixes issue #6733.
@@ -961,7 +961,7 @@ trait Foo
 
 ## Object literals and lambdas in trait methods that capture nothing are one type
 
-An object literal or lambda written in a trait method that captures nothing is now one type wherever the method is inherited, and equal literals share a type. This changes the results of `is` and `digestof` for these objects.
+An object literal or lambda written in a trait method that captures nothing is now one type wherever the method is inherited. This changes the results of `is` and `digestof` for these objects.
 
 ```pony
 trait T
@@ -1029,7 +1029,7 @@ use l = "lib"
 actor Main
   new create(env: Env) =>
     env.out.print(Bar.make())
-    env.out.print(u.Thing.name() + " (leaked alias)")
+    env.out.print(u.Thing.name())
 
 class Bar is l.Foo
 ```
@@ -1044,7 +1044,7 @@ use u = "ua"
 actor Main
   new create(env: Env) =>
     env.out.print(Bar.make())
-    env.out.print(u.Thing.name() + " (leaked alias)")
+    env.out.print(u.Thing.name())
 
 class Bar is l.Foo
 ```

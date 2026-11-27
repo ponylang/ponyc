@@ -36,7 +36,9 @@ void own_collected_typeparams(ast_t* params);
  * type and the type arguments to use on the create() call. The parameters are
  * rooted at a TK_TYPEPARAMS node and the arguments at a TK_TYPEARGS node. If
  * there are no type parameters in scope, then both produced nodes will be
- * TK_NONEs, which keeps our AST consistent.
+ * TK_NONEs, which keeps our AST consistent. Each collected parameter's data
+ * points at the parameter it was made from until own_collected_typeparams is
+ * called on them.
  */
 void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args, pass_opt_t* opt);
 
