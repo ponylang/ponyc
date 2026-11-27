@@ -513,17 +513,17 @@ TEST(HeapMarkObject, SharedStartLastsAsLongAsTheAllocation)
     for(int i = 0; i < 2; i++)
     {
       start_gc(&actor);
-      ponyint_heap_mark_object(keeper_chunk, keeper);
+      ponyint_heap_mark_object(keeper_chunk, keeper, false);
       EXPECT_EQ(HEAP_MARK_SHARED_START_FIRST,
-        ponyint_heap_mark_object(chunk, p));
-      EXPECT_EQ(HEAP_MARK_SHARED_START, ponyint_heap_mark_object(chunk, p));
+        ponyint_heap_mark_object(chunk, p, false));
+      EXPECT_EQ(HEAP_MARK_SHARED_START, ponyint_heap_mark_object(chunk, p, false));
       end_gc(&actor);
     }
 
     // A collection that doesn't visit it frees it. An allocation that reuses
     // the memory is marked as usual.
     start_gc(&actor);
-    ponyint_heap_mark_object(keeper_chunk, keeper);
+    ponyint_heap_mark_object(keeper_chunk, keeper, false);
     end_gc(&actor);
 
     char* q = static_cast<char*>(ponyint_heap_alloc(&actor, &actor.heap,
@@ -531,7 +531,7 @@ TEST(HeapMarkObject, SharedStartLastsAsLongAsTheAllocation)
     ASSERT_EQ(p, q);
     chunk = ponyint_pagemap_get_chunk(q);
     start_gc(&actor);
-    EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, q));
+    EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, q, false));
     end_gc(&actor);
 
     ponyint_heap_destroy(&actor.heap);
@@ -552,7 +552,7 @@ TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
     TRACK_NO_FINALISERS));
   chunk_t* chunk = ponyint_pagemap_get_chunk(p);
   start_gc(&actor);
-  EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST, ponyint_heap_mark_object(chunk, p + 16));
+  EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST, ponyint_heap_mark_object(chunk, p + 16, false));
   end_gc(&actor);
   void* next = ponyint_heap_alloc(&actor, &actor.heap, 64, TRACK_NO_FINALISERS);
   EXPECT_NE(static_cast<void*>(p), next);
@@ -577,11 +577,11 @@ TEST(HeapMarkObject, ReportsInteriorPointers)
     chunk_t* chunk = ponyint_pagemap_get_chunk(p);
     start_gc(&actor);
     EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST,
-      ponyint_heap_mark_object(chunk, p + 16));
-    EXPECT_EQ(HEAP_MARK_INTERIOR, ponyint_heap_mark_object(chunk, p + 16));
-    EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p));
-    EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p));
-    EXPECT_EQ(HEAP_MARK_COVERED, ponyint_heap_mark_object(chunk, p + 16));
+      ponyint_heap_mark_object(chunk, p + 16, false));
+    EXPECT_EQ(HEAP_MARK_INTERIOR, ponyint_heap_mark_object(chunk, p + 16, false));
+    EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p, false));
+    EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p, false));
+    EXPECT_EQ(HEAP_MARK_COVERED, ponyint_heap_mark_object(chunk, p + 16, false));
     end_gc(&actor);
   }
 

@@ -1100,7 +1100,7 @@ void ponyint_heap_set_shared_start(void* p)
   }
 }
 
-heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
+heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type)
 {
   maybe_clear_chunk(chunk);
 
@@ -1126,6 +1126,12 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
     {
       if(marked)
         return HEAP_MARK_MARKED;
+
+      if(own_type)
+      {
+        chunk->small.slots &= ~slot;
+        return HEAP_MARK_NEW;
+      }
 
       bool first = (chunk->small.shallow & slot) != 0;
       chunk->small.shallow &= ~slot;
@@ -1155,6 +1161,12 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
   {
     if(marked)
       return HEAP_MARK_MARKED;
+
+    if(own_type)
+    {
+      set_large_chunk_slot(chunk, 0);
+      return HEAP_MARK_NEW;
+    }
 
     bool first = get_large_chunk_shallow(chunk) != 0;
     set_large_chunk_shallow(chunk, 0);

@@ -125,7 +125,7 @@ typedef enum
  * Mark the allocation that p is in, if p starts it, and report what was found.
  * A pointer inside the allocation keeps it with a shallow mark.
  */
-heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p);
+heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type);
 
 /**
  * Records that the allocation p starts is a struct that starts with an

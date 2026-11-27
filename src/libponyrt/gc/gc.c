@@ -477,7 +477,11 @@ static void mark_local_object_routed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
     return;
   }
 
-  heap_mark_t mark = ponyint_heap_mark_object(chunk, p);
+  // Only a type embedded at the start of a struct can be at the start of an
+  // allocation of another type, so a visit as any other type is a visit to the
+  // allocation's own type. Its trace covers what is embedded in it.
+  heap_mark_t mark = ponyint_heap_mark_object(chunk, p,
+    (t->embed_flags & PONY_EMBED_AT_START) == 0);
 
   switch(mark)
   {
@@ -491,16 +495,6 @@ static void mark_local_object_routed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 
     case HEAP_MARK_SHARED_START:
     case HEAP_MARK_SHARED_START_FIRST:
-      // Only a type embedded at the start of a struct can be at the start of
-      // an allocation of another type, so a visit as any other type is a visit
-      // to the allocation's own type. Its trace covers what is embedded in it.
-      if((t->embed_flags & PONY_EMBED_AT_START) == 0)
-      {
-        ponyint_heap_mark(chunk, p);
-        recurse(ctx, p, t->trace);
-        return;
-      }
-
       // The first visit to a field at the start traces it; repeats are
       // recorded, as for HEAP_MARK_INTERIOR_FIRST.
       if(mark == HEAP_MARK_SHARED_START_FIRST)
