@@ -1,5 +1,52 @@
 #
 
+## Declarations
+
+### Order doesn't change meaning
+
+The order things are written in doesn't change what a program means. That covers the order of declarations in a file or package, so a type can be used before it is declared. It also covers the order of types in a provides list or any other intersection: `(S1 & S2)` and `(S2 & S1)` are the same type. If reordering changes what a program does or whether it compiles, that's a bug.
+
+The two object literals below differ only in the order they list `S1` and `S2`. Both print "other":
+
+```pony
+primitive Name
+  fun apply[X](x: X): String =>
+    iftype X <: U64 then "u64" else "other" end
+
+trait T0
+  fun get(): (U64 | None)
+  fun label(): String => Name(get())
+
+trait S1 is T0
+  fun get(): U64
+
+trait S2 is T0
+
+trait M
+  fun first(): T0 val => object val is (S1 & S2) fun get(): U64 => 1 end
+  fun second(): T0 val => object val is (S2 & S1) fun get(): U64 => 1 end
+
+class val C is M
+  new val create() => None
+
+actor Main
+  new create(env: Env) =>
+    env.out.print(C.first().label())
+    env.out.print(C.second().label())
+```
+
+`label()` is written in `T0`, where `get()` returns `(U64 | None)`. That follows from the Traits principle below. The order `S1` and `S2` are listed in doesn't matter.
+
+A class may be declared before or after the trait it provides, with the same result. Here `Bar` comes before `Foo`, and `Bar.name()` returns "foo". With `Foo` declared first, it returns "foo" too.
+
+```pony
+class Bar is Foo
+  new create() => None
+
+trait Foo
+  fun name(): String => "foo"
+```
+
 ## Subtyping and method lookup
 
 ### A call is typed by the receiver's static type
