@@ -222,8 +222,8 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
 
   start_local_mark(&a);
 
-  // Each struct is visited after its first field has marked the allocation,
-  // so each struct visit is recorded in the set.
+  // Each struct's first field is visited twice before the struct, so the
+  // second visit to each is recorded in the set.
   for(size_t round = 0; round < 2; round++)
   {
     for(size_t i = 0; i < count; i++)
@@ -558,7 +558,8 @@ TEST(HeapMarkObject, InteriorVisitKeepsAllocation)
     TRACK_NO_FINALISERS));
   chunk_t* chunk = ponyint_pagemap_get_chunk(p);
   start_gc(&actor);
-  EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST, ponyint_heap_mark_object(chunk, p + 16, false));
+  EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST,
+    ponyint_heap_mark_object(chunk, p + 16, false));
   end_gc(&actor);
   void* next = ponyint_heap_alloc(&actor, &actor.heap, 64, TRACK_NO_FINALISERS);
   EXPECT_NE(static_cast<void*>(p), next);
@@ -584,10 +585,12 @@ TEST(HeapMarkObject, ReportsInteriorPointers)
     start_gc(&actor);
     EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST,
       ponyint_heap_mark_object(chunk, p + 16, false));
-    EXPECT_EQ(HEAP_MARK_INTERIOR, ponyint_heap_mark_object(chunk, p + 16, false));
+    EXPECT_EQ(HEAP_MARK_INTERIOR,
+      ponyint_heap_mark_object(chunk, p + 16, false));
     EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p, false));
     EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p, false));
-    EXPECT_EQ(HEAP_MARK_COVERED, ponyint_heap_mark_object(chunk, p + 16, false));
+    EXPECT_EQ(HEAP_MARK_COVERED,
+      ponyint_heap_mark_object(chunk, p + 16, false));
     end_gc(&actor);
   }
 

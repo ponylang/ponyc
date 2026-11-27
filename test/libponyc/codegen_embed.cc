@@ -442,3 +442,37 @@ TEST_F(CodegenEmbedTest, StructDescriptorNamesTheTypeAtItsStart)
       EXPECT_TRUE(instance->isNullValue());
   }
 }
+
+// The type of a struct's first embedded field with a size is flagged as
+// possibly at the start of another type's allocation, through every level of
+// nesting; a field embedded later in a struct isn't.
+TEST_F(CodegenEmbedTest, TypeEmbeddedAtAStructsStartIsFlagged)
+{
+  const char* src =
+    "class C\n"
+    "  var x: U64 = 0\n"
+
+    "class L\n"
+    "  var x: U64 = 0\n"
+
+    "struct S\n"
+    "  embed c: C = C\n"
+    "  embed l: L = L\n"
+    "  new create() => None\n"
+
+    "struct T\n"
+    "  embed s: S = S\n"
+    "  var y: U64 = 0\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let t = T";
+
+  TEST_COMPILE(src);
+
+  ASSERT_NE(0, flags_of("C") & PONY_EMBED_AT_START);
+  ASSERT_NE(0, flags_of("S") & PONY_EMBED_AT_START);
+  ASSERT_EQ(0, flags_of("L") & PONY_EMBED_AT_START);
+  ASSERT_EQ(0, flags_of("T") & PONY_EMBED_AT_START);
+}
