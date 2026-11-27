@@ -25,11 +25,12 @@ class val _CompileError
 class val _ExpectedErrors
   """
   The errors a must-fail test expects, read from its
-  `expected-compile-errors.txt`, in the order written.
+  `expected-compile-errors.txt`, in the order written. There is at least one.
   """
   let errors: Array[_CompileError] val
 
-  new val create(errors': Array[_CompileError] val) =>
+  new val create(errors': Array[_CompileError] val) ? =>
+    if errors'.size() == 0 then error end
     errors = errors'
 
 primitive _CompileErrors
@@ -78,11 +79,11 @@ primitive _CompileErrors
       errors.push(_CompileError(h, infos = recover iso Array[String] end))
     end
 
-    if errors.size() == 0 then
-      return "expected-compile-errors.txt lists no errors"
+    try
+      _ExpectedErrors(consume errors)?
+    else
+      "expected-compile-errors.txt lists no errors"
     end
-
-    _ExpectedErrors(consume errors)
 
   fun parse_actual(stderr: String, test_dir: String)
     : Array[_CompileError] val

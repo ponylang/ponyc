@@ -139,10 +139,10 @@ actor _Tester
 
   be building_exited(status: ProcessExitStatus) =>
     if _stage is _Building then
-      match \exhaustive\ _definition.expected_errors
+      match \exhaustive\ _definition.outcome
       | let expected: _ExpectedErrors =>
         _check_compile_errors(expected, status)
-      | None =>
+      | let _: _Runs =>
         match \exhaustive\ status
         | let exited: Exited =>
           if exited.exit_code() == 0 then
@@ -327,7 +327,10 @@ actor _Tester
     let use_debugger =
       (_options.debugger.size() > 0) and
       (_definition.stdin is _StdinClose) and
-      (_definition.expected_stdout is None)
+      match \exhaustive\ _definition.outcome
+      | let runs: _Runs => runs.stdout is None
+      | let _: _ExpectedErrors => true
+      end
 
     recover
       let debugger_args = Array[String]
@@ -443,24 +446,29 @@ actor _Tester
         end
       end
 
-      if exit_code' == _definition.expected_exit_code then
-        match \exhaustive\ _definition.expected_stdout
-        | let expected: String val =>
-          let actual: String val =
-            recover val _out_buf.clone() .> replace("\r\n", "\n") end
-          if actual == expected then
+      match \exhaustive\ _definition.outcome
+      | let runs: _Runs =>
+        if exit_code' == runs.exit_code then
+          match \exhaustive\ runs.stdout
+          | let expected: String val =>
+            let actual: String val =
+              recover val _out_buf.clone() .> replace("\r\n", "\n") end
+            if actual == expected then
+              _shutdown_succeeded()
+            else
+              _shutdown_failed("stdout differs from expected-stdout.txt\n" +
+                "expected:\n" + expected + "actual:\n" + actual)
+            end
+          | None =>
             _shutdown_succeeded()
-          else
-            _shutdown_failed("stdout differs from expected-stdout.txt\n" +
-              "expected:\n" + expected + "actual:\n" + actual)
           end
-        | None =>
-          _shutdown_succeeded()
+        else
+          _shutdown_failed("expected exit code " + runs.exit_code.string() +
+            "; actual was " + exit_code'.string())
         end
-      else
-        _shutdown_failed("expected exit code " +
-          _definition.expected_exit_code.string() + "; actual was " +
-          exit_code'.string())
+      | let _: _ExpectedErrors =>
+        // A test that expects compile errors stops after building.
+        _Unreachable()
       end
     end
 

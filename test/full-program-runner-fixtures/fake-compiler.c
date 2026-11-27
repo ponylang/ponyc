@@ -1,6 +1,6 @@
-// A stand-in for ponyc used by cmake/RunExpectationChecks.cmake to test the
-// full-program runner's handling of compiler output. The runner starts the
-// compiler with the test directory as its working directory.
+// A stand-in for ponyc, for testing the full-program runner's handling of
+// compiler output. The runner starts the compiler with the test directory as
+// its working directory.
 //
 // If the directory holds fake-stderr.txt, its bytes are written to stderr
 // unchanged and the program exits the way ponyc does when compilation fails

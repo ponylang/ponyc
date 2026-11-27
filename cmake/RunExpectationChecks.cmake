@@ -2,8 +2,7 @@
 # expected-stdout.txt and expected-compile-errors.txt correctly. Each case is a
 # generated test directory run on its own; the case passes when the runner's
 # exit status is the one expected and, for a run that must fail, its output
-# names the reason. Every comparison has a case where it must fail, so a
-# comparison that always passes fails this test.
+# names the reason. Give each comparison a case where it must fail.
 #
 # Fixtures are generated here rather than checked in, so programs whose
 # expectations are wrong on purpose never sit in a tree a real suite scans.
@@ -221,6 +220,15 @@ _put("${_fixture}/broken-exit/t/expected-exit-code.txt" "0\n")
 _put("${_fixture}/broken-exit/t/expected-compile-errors.txt" "${_undefined_error}\n")
 _check(broken-exit-and-errors "${_fixture}/broken-exit" "${COMPILER}" FAIL
     "could not be configured")
+_put("${_fixture}/broken-info-first/t/main.pony" "${_undefined}")
+_put("${_fixture}/broken-info-first/t/expected-compile-errors.txt"
+    "    main.pony:1:1: an Info line with no headline\n${_undefined_error}\n")
+_check(broken-info-before-headline "${_fixture}/broken-info-first" "${COMPILER}"
+    FAIL "an Info line comes before any headline")
+_put("${_fixture}/broken-no-errors/t/main.pony" "${_undefined}")
+_put("${_fixture}/broken-no-errors/t/expected-compile-errors.txt" "\n")
+_check(broken-errors-file-lists-none "${_fixture}/broken-no-errors"
+    "${COMPILER}" FAIL "lists no errors")
 
 if(NOT _failures STREQUAL "")
     message(FATAL_ERROR "full-program runner expectation checks failed:${_failures}")

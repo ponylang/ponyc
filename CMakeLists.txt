@@ -1025,7 +1025,7 @@ else()
             -P ${CMAKE_SOURCE_DIR}/cmake/RunFullPrograms.cmake)
 
     # Programs about inherited default methods; each checks its output or its
-    # compile errors. Always built with --checktree.
+    # compile errors.
     add_test(NAME inherit-programs
         COMMAND ${CMAKE_COMMAND}
             -DRUNNER=${_full_program_runner}

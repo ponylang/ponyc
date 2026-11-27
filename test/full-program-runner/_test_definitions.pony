@@ -40,31 +40,39 @@ class val _StdinDelay
 
 type _Stdin is (_StdinClose | _StdinWrite | _StdinDelay)
 
+class val _Runs
+  """
+  A test whose program compiles and runs: the exit code it must return, and
+  the stdout it must print when the test has an `expected-stdout.txt`.
+  """
+  let exit_code: I32
+  let stdout: (String val | None)
+
+  new val create(exit_code': I32, stdout': (String val | None)) =>
+    exit_code = exit_code'
+    stdout = stdout'
+
+type _Outcome is (_Runs | _ExpectedErrors)
+
 class val _TestDefinition
   let name: String
   let path: String
-  let expected_exit_code: I32
   let stdin: _Stdin
   let program_args: Array[String] val
-  let expected_stdout: (String val | None)
-  let expected_errors: (_ExpectedErrors | None)
+  let outcome: _Outcome
 
   new val create(
     name': String,
     path': String,
-    expected_exit_code': I32,
     stdin': _Stdin,
     program_args': Array[String] val,
-    expected_stdout': (String val | None),
-    expected_errors': (_ExpectedErrors | None))
+    outcome': _Outcome)
   =>
     name = name'
     path = path'
-    expected_exit_code = expected_exit_code'
     stdin = stdin'
     program_args = program_args'
-    expected_stdout = expected_stdout'
-    expected_errors = expected_errors'
+    outcome = outcome'
 
 class val _BrokenTest
   """
@@ -295,15 +303,20 @@ class _TestDefinitions
       end
     end
 
-    if expected_errors isnt None then
-      if expected_stdout isnt None then
-        config_error = "a test can't have both " + _str_expected_stdout() +
-          " and " + _str_expected_compile_errors()
-      elseif has_exit_code then
-        config_error = "a test can't have both " + _str_expected_exit_code() +
-          " and " + _str_expected_compile_errors()
+    let outcome: _Outcome =
+      match \exhaustive\ expected_errors
+      | let e: _ExpectedErrors =>
+        if expected_stdout isnt None then
+          config_error = "a test can't have both " + _str_expected_stdout() +
+            " and " + _str_expected_compile_errors()
+        elseif has_exit_code then
+          config_error = "a test can't have both " +
+            _str_expected_exit_code() + " and " +
+            _str_expected_compile_errors()
+        end
+        e
+      | None => _Runs(expected_exit_code, expected_stdout)
       end
-    end
 
     let stdin: _Stdin =
       match (delay_seconds, stdin_data)
@@ -320,14 +333,7 @@ class _TestDefinitions
       match \exhaustive\ config_error
       | let reason: String => _BrokenTest(child, reason)
       | None =>
-        _TestDefinition(
-          child,
-          dir_path,
-          expected_exit_code,
-          stdin,
-          program_args,
-          expected_stdout,
-          expected_errors)
+        _TestDefinition(child, dir_path, stdin, program_args, outcome)
       end
     end
 
