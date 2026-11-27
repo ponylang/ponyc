@@ -110,10 +110,14 @@ typedef void (*pony_final_fn)(void* p);
  * PONY_EMBED_IN_ACTOR: an object of the type can be inside an actor.
  * PONY_EMBED_ACTOR_LOOKUP: the type is an actor with an embedded field, so the
  * runtime must be able to find the actor from the address of that field.
+ * PONY_EMBED_AT_START: the type is embedded as the first field with a non-zero
+ * size of some struct, so it can share the start of an allocation of another
+ * type.
  */
 #define PONY_EMBED_ROUTED 0x01
 #define PONY_EMBED_IN_ACTOR 0x02
 #define PONY_EMBED_ACTOR_LOOKUP 0x04
+#define PONY_EMBED_AT_START 0x08
 
 /// Describes a type to the runtime.
 typedef const struct _pony_type_t

@@ -1124,6 +1124,9 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
 
     if((chunk->small.traceable & ~chunk->small.finalisers & slot) != 0)
     {
+      if(marked)
+        return HEAP_MARK_MARKED;
+
       chunk->small.shallow &= ~slot;
       return HEAP_MARK_SHARED_START;
     }
@@ -1149,6 +1152,9 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
 
   if(get_large_chunk_shared_start(chunk))
   {
+    if(marked)
+      return HEAP_MARK_MARKED;
+
     set_large_chunk_shallow(chunk, 0);
     return HEAP_MARK_SHARED_START;
   }

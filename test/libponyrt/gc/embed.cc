@@ -92,7 +92,7 @@ protected:
     c_type.trace = trace_c;
     c_type.might_reference_actor = true;
     // C is embedded at the start of S.
-    c_type.embed_flags = PONY_EMBED_ROUTED;
+    c_type.embed_flags = PONY_EMBED_ROUTED | PONY_EMBED_AT_START;
     s_type.size = sizeof(S);
     s_type.trace = trace_s;
     s_type.instance = &c_type;

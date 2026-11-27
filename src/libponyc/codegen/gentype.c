@@ -850,8 +850,13 @@ static void compute_embed_flags(compile_t* c)
     if(t->underlying == TK_ACTOR)
       flag_embedded(t, PONY_EMBED_IN_ACTOR);
 
-    if(gentype_first_embed(c, t) != NULL)
+    reach_type_t* first = gentype_first_embed(c, t);
+
+    if(first != NULL)
+    {
       c_t->embed_flags |= PONY_EMBED_ROUTED;
+      ((compile_type_t*)first->c_type)->embed_flags |= PONY_EMBED_AT_START;
+    }
   }
 }
 
