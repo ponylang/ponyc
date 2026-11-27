@@ -132,6 +132,13 @@ typedef enum
 heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type);
 
 /**
+ * As ponyint_heap_mark_object, for an object whose type can't share the start
+ * of an allocation with another type: never returns HEAP_MARK_SHARED_START or
+ * HEAP_MARK_SHARED_START_FIRST.
+ */
+heap_mark_t ponyint_heap_mark_plain(chunk_t* chunk, void* p);
+
+/**
  * Records that the allocation p starts is a struct that starts with an
  * embedded field with a non-zero size, so an object traced at that address may
  * be only that field. ponyint_heap_mark_object marks such an allocation only

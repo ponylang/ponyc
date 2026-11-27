@@ -1198,6 +1198,57 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type)
   return HEAP_MARK_NEW;
 }
 
+#if defined(__clang__)
+__attribute__((always_inline))
+#endif
+heap_mark_t ponyint_heap_mark_plain(chunk_t* chunk, void* p)
+{
+  maybe_clear_chunk(chunk);
+
+  if(get_chunk_is_small_chunk(chunk))
+  {
+    void* ext = EXTERNAL_PTR(p, get_small_chunk_size(chunk));
+    uint32_t slot = FIND_SLOT(ext, get_m(chunk));
+
+    // A clear bit is in-use, a set bit is available.
+    bool marked = (chunk->small.slots & slot) == 0;
+
+    if(p != ext)
+    {
+      if(marked)
+        return HEAP_MARK_COVERED;
+
+      bool first = (chunk->small.shallow & slot) != 0;
+      chunk->small.shallow &= ~slot;
+      return first ? HEAP_MARK_INTERIOR_FIRST : HEAP_MARK_INTERIOR;
+    }
+
+    if(marked)
+      return HEAP_MARK_MARKED;
+
+    chunk->small.slots &= ~slot;
+    return HEAP_MARK_NEW;
+  }
+
+  bool marked = get_large_chunk_slot(chunk) == 0;
+
+  if(p != get_m(chunk))
+  {
+    if(marked)
+      return HEAP_MARK_COVERED;
+
+    bool first = get_large_chunk_shallow(chunk) != 0;
+    set_large_chunk_shallow(chunk, 0);
+    return first ? HEAP_MARK_INTERIOR_FIRST : HEAP_MARK_INTERIOR;
+  }
+
+  if(marked)
+    return HEAP_MARK_MARKED;
+
+  set_large_chunk_slot(chunk, 0);
+  return HEAP_MARK_NEW;
+}
+
 bool ponyint_heap_mark(chunk_t* chunk, void* p)
 {
   // If it's an internal pointer, we shallow mark it instead. This will

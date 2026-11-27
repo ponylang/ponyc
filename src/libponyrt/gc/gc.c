@@ -436,9 +436,23 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 {
   if(mutability != PONY_TRACE_OPAQUE)
   {
-    // Mark in our heap and recurse if it wasn't already marked.
-    if(!ponyint_heap_mark(chunk, p))
-      recurse(ctx, p, t->trace);
+    switch(ponyint_heap_mark_plain(chunk, p))
+    {
+      case HEAP_MARK_NEW:
+      case HEAP_MARK_INTERIOR_FIRST:
+        recurse(ctx, p, t->trace);
+        return;
+
+      case HEAP_MARK_INTERIOR:
+        // A repeat visit inside an unmarked allocation, as through an object
+        // embedded in it, is recorded so a cycle through embedded objects
+        // ends.
+        mark_local_visit(ctx, p, t);
+        return;
+
+      default:
+        return;
+    }
   } else {
     // Do a shallow mark. If the same address is later marked as something that
     // is not opaque, it will recurse.
@@ -780,12 +794,11 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
-  // Don't gc memory that wasn't pony_allocated, but do recurse, unless it is a
-  // constant in the program image.
+  // Memory with no heap chunk is a constant, memory from C, or an object
+  // embedded in an actor, which the routed function tells apart.
   if(chunk == NULL)
   {
-    if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
-      recurse(ctx, p, t->trace);
+    ponyint_gc_sendrouted(ctx, p, t, mutability);
     return;
   }
 
@@ -816,12 +829,11 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
-  // Don't gc memory that wasn't pony_allocated, but do recurse, unless it is a
-  // constant in the program image.
+  // Memory with no heap chunk is a constant, memory from C, or an object
+  // embedded in an actor, which the routed function tells apart.
   if(chunk == NULL)
   {
-    if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
-      recurse(ctx, p, t->trace);
+    ponyint_gc_recvrouted(ctx, p, t, mutability);
     return;
   }
 
@@ -852,12 +864,11 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   pony_actor_t* actor = NULL;
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
-  // Don't gc memory that wasn't pony_allocated, but do recurse, unless it is a
-  // constant in the program image.
+  // Memory with no heap chunk is a constant, memory from C, or an object
+  // embedded in an actor, which the routed function tells apart.
   if(chunk == NULL)
   {
-    if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
-      recurse(ctx, p, t->trace);
+    ponyint_gc_markrouted(ctx, p, t, mutability);
     return;
   }
 

@@ -837,15 +837,18 @@ static void compute_embed_flags(compile_t* c)
         continue;
 
       compile_type_t* f_c_t = (compile_type_t*)t->fields[f].type->c_type;
-      f_c_t->embed_flags |= PONY_EMBED_ROUTED;
 
       if(t->underlying == TK_ACTOR)
         c_t->embed_flags |= PONY_EMBED_ACTOR_LOOKUP;
-      else if(embed_has_no_size(c, t, f))
+
+      if(embed_has_no_size(c, t, f))
       {
         // A field with no size has the address of the object that holds it
-        // (see gentype_embed_ptr), so the holder shares its address too.
-        c_t->embed_flags |= PONY_EMBED_ROUTED;
+        // (see gentype_embed_ptr), so the two share an address.
+        f_c_t->embed_flags |= PONY_EMBED_ROUTED;
+
+        if(t->underlying != TK_ACTOR)
+          c_t->embed_flags |= PONY_EMBED_ROUTED;
       }
     }
 
@@ -856,8 +859,10 @@ static void compute_embed_flags(compile_t* c)
 
     if(first != NULL)
     {
+      // The struct and its first embedded field share an address.
       c_t->embed_flags |= PONY_EMBED_ROUTED;
-      ((compile_type_t*)first->c_type)->embed_flags |= PONY_EMBED_AT_START;
+      ((compile_type_t*)first->c_type)->embed_flags |=
+        PONY_EMBED_ROUTED | PONY_EMBED_AT_START;
     }
   }
 }
