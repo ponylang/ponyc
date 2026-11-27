@@ -1,0 +1,8 @@
+main.pony:5:33: right side must be a subtype of left side
+    main.pony:5:35: String val is not a subtype of U8 val^
+main.pony:5:33: right side must be a subtype of left side
+    main.pony:5:35: String val is not a subtype of U8 val^
+    main.pony:6:13: in method 'm' inherited by C1 from T
+main.pony:5:33: right side must be a subtype of left side
+    main.pony:5:35: String val is not a subtype of U8 val^
+    main.pony:7:13: in method 'm' inherited by C2 from T

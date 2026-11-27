@@ -104,7 +104,8 @@ def validate(root, events):
         'source tool test binaries build')
     for role, arguments, debug in (
         ('core-tests', ['-L', 'ci-core'], '1'),
-        ('optimized-tests', ['-R', '^(stdlib|full-programs)$'], None),
+        ('optimized-tests', ['-R', '^(stdlib|full-programs|inherit-programs)$'],
+          None),
         ('tool-tests', ['-L', 'tools'], '1')):
         require(selected[role]['argv'] == ['--preset', 'x86-64-debug',
                 *arguments, '--output-on-failure'], role + ': suite selection')

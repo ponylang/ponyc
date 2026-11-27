@@ -92,7 +92,7 @@ jobs:
           export PONY_TEST_DEBUGGER
           export PONY_FULL_PROGRAM_TIMEOUT=120
           PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
-          ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
+          ctest --preset x86-64-debug -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Build Release Runtime
         run: |
           cmake --preset x86-64-release -DPONY_USES=${{ matrix.directives }}
@@ -102,7 +102,7 @@ jobs:
           PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh ${{ matrix.debugger }})"
           export PONY_TEST_DEBUGGER
           PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
-          ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+          ctest --preset x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -316,7 +316,7 @@ jobs:
           export PONY_TEST_DEBUGGER
           export PONY_FULL_PROGRAM_TIMEOUT=120
           PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
-          ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+          ctest --preset x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -366,7 +366,7 @@ jobs:
       - name: Test with Debug Runtime
         run: |
           ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PONY_FULL_PROGRAM_TIMEOUT=300 PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PONY_FULL_PROGRAM_TIMEOUT=300 PONY_THIN_LTO=1 ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PONY_FULL_PROGRAM_TIMEOUT=300 PONY_THIN_LTO=1 ctest --preset x86-64-debug -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Build Release Runtime
         run: |
           ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer cmake --preset x86-64-release -DPONY_USES=${{ matrix.directives }}
@@ -374,7 +374,7 @@ jobs:
       - name: Test with Release Runtime
         run: |
           ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PONY_FULL_PROGRAM_TIMEOUT=300 PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PONY_FULL_PROGRAM_TIMEOUT=300 PONY_THIN_LTO=1 ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PONY_FULL_PROGRAM_TIMEOUT=300 PONY_THIN_LTO=1 ctest --preset x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

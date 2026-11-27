@@ -1,0 +1,7 @@
+main.pony:11:5: type argument is outside its constraint
+    main.pony:11:10: argument: (P val | String val)
+    main.pony:7:13: constraint: Stringable val
+    main.pony:12:16: P val is not a subtype of Stringable val: it has no method 'string'
+    main.pony:12:16: not every element of (P val | String val) is a subtype of Stringable val
+    main.pony:11:10: 'T' was inferred as (P val | String val) from this argument
+    main.pony:12:12: in method 'f' inherited by C from Foo

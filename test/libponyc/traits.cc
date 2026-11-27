@@ -927,8 +927,11 @@ TEST_F(TraitsTest, MultiInheritGenericMethodClassTypeParamSameName)
   TEST_COMPILE(src);
 }
 
-TEST_F(TraitsTest, MultiInheritGenericMethodTypeParamNameFail)
+TEST_F(TraitsTest, MultiInheritGenericMethodTypeParamNameOnlyNoBody)
 {
+  // The two declarations differ only in the name of their type parameter, so
+  // they are one signature (#6733); with no body from either trait, the class
+  // has none.
   const char* src =
     "trait T1\n"
     "  fun f[T: Any val](x: T): T\n"
@@ -938,7 +941,7 @@ TEST_F(TraitsTest, MultiInheritGenericMethodTypeParamNameFail)
 
     "class C is (T1 & T2)";
 
-  const char* errs[] = {"clashing definitions for method 'f'", NULL};
+  const char* errs[] = {"no body found for method 'f'", NULL};
   DO(test_expected_errors(src, "expr", errs));
 }
 
@@ -1041,10 +1044,10 @@ TEST_F(TraitsTest, SpecializationGuardOnDifferentTypeParamIsNotSubtype)
   DO(test_expected_error_frames(src, "expr", errs, frames));
 }
 
-TEST_F(TraitsTest, InheritedMethodPackageQualifiedNameNotRenamed)
+TEST_F(TraitsTest, InheritedMethodPackageQualifiedNameKeepsMeaning)
 {
   // Inside f, `R` is the method's type parameter and `l.R` is lib's
-  // primitive. Only the former is renamed in C's copy.
+  // primitive. Both keep those meanings in C's copy, though C has its own `R`.
   add_module("lib",
     "primitive R\n"
     "  fun v(): U8 => 7");
@@ -1862,9 +1865,9 @@ TEST_F(TraitsTest, OverrideWithFewerGuardClausesDoesNotReplace)
 
 TEST_F(TraitsTest, InheritedMethodObjectLiteralTypeUsesSourceName)
 {
-  // The object literal's type names the type argument it is created with,
-  // which is the method's type parameter, in the trait's method and in C's
-  // copy of it.
+  // The object literal mentions the method's type parameter, so its type takes
+  // that parameter, named as written, in the trait's method and in C's copy
+  // of it. The error in C's copy also says where the method came from.
   const char* src =
     "interface Named\n"
     "  fun name(): U8\n"
@@ -1873,6 +1876,7 @@ TEST_F(TraitsTest, InheritedMethodObjectLiteralTypeUsesSourceName)
     "  fun make[R: Any val](r: R): U8 =>\n"
     "    let x: U8 = object is Named\n"
     "      fun name(): U8 => 0\n"
+    "      fun same(r': R): R => r'\n"
     "    end\n"
     "    x\n"
 
@@ -1886,7 +1890,12 @@ TEST_F(TraitsTest, InheritedMethodObjectLiteralTypeUsesSourceName)
   const char* frame0[] = {
     "object literal[R val] val^ is not a subtype of U8 val^", NULL
   };
-  const char** frames[] = {frame0, frame0, NULL};
+  const char* frame1[] = {
+    "object literal[R val] val^ is not a subtype of U8 val^",
+    "in method 'make' inherited by C from T",
+    NULL
+  };
+  const char** frames[] = {frame0, frame1, NULL};
 
   DO(test_expected_error_frames(src, "expr", errs, frames));
 }

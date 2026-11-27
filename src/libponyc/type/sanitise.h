@@ -8,6 +8,17 @@ typedef struct pass_opt_t pass_opt_t;
 
 PONY_EXTERN_C_BEGIN
 
+/** Point the type parameter references in `ast` whose parameter was collected
+ * into `params` (see collect_type_params) at the collected parameter.
+ */
+void remap_collected_typeparams(ast_t* ast, ast_t* params);
+
+/** Make each collected parameter its own type parameter, no longer bound to
+ * the one it was made from. Call this once every reference that should name
+ * a collected parameter has been pointed at it.
+ */
+void own_collected_typeparams(ast_t* params);
+
 
 /** Collect all type parameters that are in scope at the given node, for use in
  * an internally created anonymous type.
@@ -19,9 +30,7 @@ PONY_EXTERN_C_BEGIN
  *
  * To fix this we automatically add type parameters to the anonymous type
  * corresponding to all type parameters in scope at the object literal
- * definition. Clearly we won't always need all these type parameters, but it
- * is much easier to just add all of them, rather than trying to work out which
- * are needed.
+ * definition. The literal's class later drops the ones it doesn't mention.
  *
  * In this process we produce both the type parameters to add to the anonymous
  * type and the type arguments to use on the create() call. The parameters are
@@ -32,11 +41,10 @@ PONY_EXTERN_C_BEGIN
 void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args, pass_opt_t* opt);
 
 /** Produce a copy of the given type that is safe to use in an internally
-* created AST that will be run through passes again.
-*
-* If a type AST goes through the passes twice it is important to sanitise it
-* between goes. If this is not done type parameter references can point at the
-* wrong definitions.
+* created AST that will be run through passes again: the copy's pass flags are
+* cleared. Type parameter and type alias references keep the definitions they
+* refer to; an anonymous type that receives the copy points the type parameter
+* references at its own parameters.
 */
 ast_t* sanitise_type(ast_t* type, pass_opt_t* opt);
 

@@ -66,7 +66,7 @@ cd ../..
 
 # 1. Host-native tests: all of ci-core except the stdlib (cross-built below).
 PONY_DEBUG=1 ctest --preset "$preset" -L ci-core -E "stdlib|check-runtime-bitcode"
-ctest --preset "$preset" -R "^full-programs$"
+ctest --preset "$preset" -R "^(full-programs|inherit-programs)$"
 
 # 2. Cross-compile the stdlib with the host ponyc + the cross libponyrt, run it
 # under the emulator in both codegen modes. cross_args, cross_runner, and

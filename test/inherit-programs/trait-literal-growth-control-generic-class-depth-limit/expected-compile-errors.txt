@@ -1,0 +1,1 @@
+main.pony:4:1: reached the maximum type instantiation depth of 128 during reachability analysis. This usually means a generic function or type instantiates itself with an ever-growing type argument; infinitely recursive generic types are not supported

@@ -1,0 +1,3 @@
+main.pony:6:21: can't reference 'this' in a default argument
+main.pony:6:21: can't reference 'this' in a default argument
+    main.pony:7:12: in method 'f' inherited by C from T

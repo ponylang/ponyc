@@ -83,6 +83,109 @@ const char* program_lib_at(ast_t* program, size_t index);
 
 void program_dump(ast_t* program);
 
+/** Scheduling of anonymous classes made from literals in trait text.
+ *
+ * A trait or interface check is the expr pass on its entity. A class whose
+ * provides closure holds a trait being checked waits on a queue until no
+ * trait check is running, then takes the trait-view bodies of its inherited
+ * methods and its own expr pass.
+ */
+void program_trait_check_begin(ast_t* entity, size_t error_count);
+void program_trait_check_end(ast_t* entity, size_t error_count);
+
+/** Whether a trait's or interface's check reported errors. */
+bool program_trait_check_failed(ast_t* entity);
+
+/** Whether the error with the given index (in report order) gets no note
+ * naming an inherited method it was found in: it was reported by a trait's
+ * or interface's own check, or by a check of a default argument started on
+ * demand, neither of which is the inherited method's code.
+ */
+bool program_error_without_copy_note(ast_t* anchor, size_t index);
+
+/** Record that the errors with indexes from `start` up to `end` get no note
+ * naming an inherited method (see program_error_without_copy_note).
+ */
+void program_add_unnoted_range(ast_t* anchor, size_t start, size_t end);
+
+/** Whether the check of this trait or interface has begun and not ended. */
+bool program_trait_check_in_progress(ast_t* entity);
+
+/** Whether a trait check or a default argument check is running. */
+bool program_any_trait_check(ast_t* ast);
+
+/** Default argument checks, innermost first. `anchor` is any node of the
+ * program.
+ */
+void program_default_check_begin(ast_t* anchor, ast_t* param);
+bool program_default_check_end(ast_t* anchor, ast_t* param);
+bool program_default_check_in_progress(ast_t* anchor, ast_t* param);
+bool program_any_default_check(ast_t* anchor);
+astlist_t* program_default_checks(ast_t* anchor);
+
+/** The queue of classes waiting until no trait check is running (see above).
+ * program_next_deferred removes and returns the first class waiting, or NULL
+ * when none is. The draining flag is set while the waiting classes are being
+ * checked.
+ */
+void program_defer_class(ast_t* entity);
+bool program_is_deferred(ast_t* entity);
+ast_t* program_next_deferred(ast_t* ast);
+bool program_draining(ast_t* ast);
+void program_set_draining(ast_t* ast, bool draining);
+
+/** Inherited methods being checked, for the note added to errors in them.
+ * `anchor` is any node of the program.
+ */
+void program_push_copy_check(ast_t* anchor, ast_t* entity, ast_t* method,
+  size_t count);
+bool program_pop_copy_check(ast_t* anchor, ast_t* method, ast_t** entity,
+  size_t* count);
+
+/** The type and inherited method that held the literal an ANON_COPY class was
+ * made from, and the body in that method that holds the literal: the
+ * innermost iftype branch or method body around it.
+ */
+void program_set_anon_host(ast_t* anon, ast_t* entity, ast_t* method,
+  ast_t* site);
+bool program_anon_host(ast_t* anon, ast_t** entity, ast_t** method);
+ast_t* program_anon_site(ast_t* anon);
+
+/** Templates of trait and interface methods: closed copies taken when a
+ * trait's methods are complete and bound where written, before any check.
+ * Inherited copies for types checked after the trait are made from them.
+ */
+void program_set_template(ast_t* anchor, ast_t* method, ast_t* copy);
+ast_t* program_template(ast_t* anchor, ast_t* method);
+
+/** The class a literal written in trait text makes in its trait's own check,
+ * keyed by where the literal is written. `origins` lists, for each of the
+ * class's type parameters, the trait's or method's parameter it was made from
+ * (a TK_TYPEPARAMS of TK_TYPEPARAMREFs); the program owns it.
+ */
+void program_set_literal_link(ast_t* literal, ast_t* def, ast_t* origins);
+
+/** The class recorded by program_set_literal_link for the literal written
+ * where `literal` is, with its `origins`, or NULL if none is recorded.
+ */
+ast_t* program_literal_link(ast_t* anchor, ast_t* literal, ast_t** origins);
+
+/** Classes made from a literal in inherited copies, keyed by where the
+ * literal is written, that another copy of the literal may share, with the
+ * literal's members as they were written in that copy (the program owns
+ * them). program_next_copy_literal gives the next class after `after` (NULL
+ * for the first), or NULL.
+ */
+void program_add_copy_literal(ast_t* literal, ast_t* def, ast_t* text);
+ast_t* program_next_copy_literal(ast_t* anchor, ast_t* literal, ast_t* after);
+ast_t* program_copy_literal_text(ast_t* anchor, ast_t* def);
+
+/** The one renamed copy of a method's type parameter: a type parameter of its
+ * own, not in any tree, that the program owns. Made the first time it is
+ * asked for.
+ */
+ast_t* program_alpha_typeparam(ast_t* typeparam);
+
 PONY_EXTERN_C_END
 
 #endif

@@ -6,6 +6,7 @@
 #include "../ast/token.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
+#include "../pass/traits.h"
 #include "../pkg/ifdef.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
@@ -180,12 +181,32 @@ bool expr_iftype(pass_opt_t* opt, ast_t* ast)
 
   ast_t* type = NULL;
 
+  // Holds a then branch's type as the providing trait's check typed it, which
+  // `type` can refer to until the iftype's type is set.
+  ast_t* trait_view = NULL;
+
   if(!ast_checkflag(left, AST_FLAG_JUMPS_AWAY))
   {
     if(is_typecheck_error(ast_type(left)))
       return false;
 
-    type = control_type_add_branch(opt, type, left);
+    // In inherited code, a literal in the else branch is typed from the then
+    // branch as the trait's own check typed it when that branch can't run for
+    // the inheriting type.
+    ast_t* view = NULL;
+    if(!ast_checkflag(right, AST_FLAG_JUMPS_AWAY) &&
+      is_type_literal(ast_type(right)) && is_copy_context(opt) &&
+      is_decided_false_branch(left, opt))
+      view = provider_view_type(opt, left);
+
+    if(view != NULL)
+    {
+      trait_view = ast_from(left, TK_NONE);
+      ast_settype(trait_view, view);
+      type = control_type_add_branch(opt, type, trait_view);
+    } else {
+      type = control_type_add_branch(opt, type, left);
+    }
   }
 
   if(!ast_checkflag(right, AST_FLAG_JUMPS_AWAY))
@@ -193,6 +214,7 @@ bool expr_iftype(pass_opt_t* opt, ast_t* ast)
     if(is_typecheck_error(ast_type(right)))
     {
       ast_free_unattached(type);
+      ast_free(trait_view);
       return false;
     }
 
@@ -206,12 +228,14 @@ bool expr_iftype(pass_opt_t* opt, ast_t* ast)
       if(!is_trailing_none_ref(ast_sibling(ast)))
       {
         ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+        ast_free(trait_view);
         return false;
       }
     }
   }
 
   ast_settype(ast, type);
+  ast_free(trait_view);
   literal_unify_control(ast, opt);
 
   return true;
@@ -682,6 +706,10 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
 
           ast_free_unattached(narrowed);
         }
+
+        // In inherited code, as for an assignment or an argument.
+        if(!narrowed_ok && is_subtype_via_narrowing(opt, ast, body_type, type))
+          narrowed_ok = true;
 
         if(!narrowed_ok)
         {

@@ -1,4 +1,5 @@
 #include "verify.h"
+#include "traits.h"
 #include "../type/assemble.h"
 #include "../type/cap.h"
 #include "../type/compattype.h"
@@ -232,7 +233,13 @@ static ast_t* get_fun_def(pass_opt_t* opt, ast_t* ast)
   deferred_reification_t* method_def = lookup_try(opt, receiver,
     ast_type(receiver), ast_name(method), true);
 
-  pony_assert(method_def != NULL);
+  if(method_def == NULL)
+  {
+    ast_error(opt->check.errors, ast,
+      "internal error: the method '%s' referred to here does not resolve on "
+      "its receiver", ast_name(method));
+    return NULL;
+  }
 
   ast_t* method_ast = method_def->ast;
   deferred_reify_free(method_def);
@@ -683,7 +690,10 @@ static bool verify_not_disjoint_concrete(pass_opt_t* opt, ast_t* ast,
 
   bool ok = true;
 
-  if((l_def != NULL) && (r_def != NULL) && (l_def != r_def))
+  // In inherited code, a comparison the providing trait's check accepts is not
+  // reported as always false for the inheriting type.
+  if((l_def != NULL) && (r_def != NULL) && (l_def != r_def) &&
+    !is_copy_context(opt))
   {
     ast_error(opt->check.errors, ast,
       "identity comparison between disjoint concrete types %s and %s will"
@@ -717,7 +727,27 @@ static bool verify_is(pass_opt_t* opt, ast_t* ast)
   return verify_not_disjoint_concrete(opt, ast, left, right);
 }
 
-ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
+ast_result_t pass_pre_verify(ast_t** astp, pass_opt_t* options)
+{
+  // A branch of substituted code that can't run.
+  if(is_unverified_branch(*astp, options))
+    return AST_IGNORE;
+
+  switch(ast_id(*astp))
+  {
+    case TK_FUN:
+    case TK_BE:
+    case TK_NEW:
+      copy_check_enter(*astp, options);
+      break;
+
+    default: {}
+  }
+
+  return AST_OK;
+}
+
+static ast_result_t pass_verify_node(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
   bool r = true;
@@ -756,4 +786,19 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
   }
 
   return AST_OK;
+}
+
+ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
+{
+  // The method node, before the visit can replace it.
+  ast_t* method = *astp;
+  token_id id = ast_id(method);
+  ast_result_t r = pass_verify_node(astp, options);
+
+  // Errors a method's own checks report at the end of its visit are in the
+  // method too.
+  if((id == TK_FUN) || (id == TK_BE) || (id == TK_NEW))
+    copy_check_leave(method, options);
+
+  return r;
 }

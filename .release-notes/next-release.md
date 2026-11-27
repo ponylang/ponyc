@@ -730,8 +730,6 @@ The same kind of name clash caused other failures, which are also fixed:
 - The compiler could crash with an assertion failure in `is_nominal_sub_structural` when the type parameter was passed on through an intermediate trait.
 - The compiler could hang on an object literal inside a generic method when the object literal provided a trait whose generic method had a type parameter with the same name as the enclosing method's.
 
-In tools built on the `pony_compiler` library, some type parameters now have generated names that start with `$m$`: those of methods inherited from a trait or interface, those of methods and lambdas declared inside such a method, and the copies of these type parameters that an object literal written inside such a method gets. `AST.nice_name()` returns the name written in the source.
-
 Other problems with generic methods are also fixed:
 
 - An `iftype` condition or specialization guard in a trait's generic default method that mentions the method's own type parameter, such as `iftype B <: Comparable[B] val`, was rejected with `type argument is outside its constraint` in every type that inherited the method.

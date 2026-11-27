@@ -1,4 +1,5 @@
 #include "fun.h"
+#include "../pass/traits.h"
 #include "../type/alias.h"
 #include "../type/typealias.h"
 #include "../type/cap.h"
@@ -25,6 +26,15 @@ static bool verify_calls_runtime_override(pass_opt_t* opt, ast_t* ast)
     // Look up the original method definition for this method call.
     deferred_reification_t* method_def = lookup(opt, ast, ast_type(receiver),
       ast_name(method));
+
+    if(method_def == NULL)
+    {
+      ast_error(opt->check.errors, ast,
+        "internal error: the method '%s' referred to here does not resolve "
+        "on its receiver", ast_name(method));
+      return false;
+    }
+
     ast_t* method_ast = method_def->ast;
 
     // The deferred reification doesn't own the underlying AST so we can free it
@@ -558,8 +568,7 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
     bool is_trait =
       (ast_id(opt->check.frame->type) == TK_TRAIT) ||
       (ast_id(opt->check.frame->type) == TK_INTERFACE) ||
-      (ast_id((ast_t*)ast_data(ast)) == TK_TRAIT) ||
-      (ast_id((ast_t*)ast_data(ast)) == TK_INTERFACE);
+      is_copy_method(opt->check.frame->type, ast, opt);
 
     if(!is_trait &&
       !ast_canerror(body) &&
@@ -998,7 +1007,11 @@ bool verify_methodgroup(pass_opt_t* opt, ast_t* ast)
     {
       ast_t* l_guard = ast_childidx(later, 5);
 
-      if(guard_shadows(e_guard, l_guard, opt))
+      // Specializations that only shadow one another once a type inherits
+      // them are checked only by the providing trait's check.
+      if(guard_shadows(e_guard, l_guard, opt) &&
+        !(is_copy_method(opt->check.frame->type, earlier, opt) &&
+          is_copy_method(opt->check.frame->type, later, opt)))
       {
         ast_error(opt->check.errors, l_guard,
           "specialization is unreachable because a previous guard "

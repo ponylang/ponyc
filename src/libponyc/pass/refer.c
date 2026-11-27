@@ -1,4 +1,5 @@
 #include "refer.h"
+#include "traits.h"
 #include "../ast/id.h"
 #include "../pass/expr.h"
 #include "../type/typealias.h"
@@ -479,10 +480,12 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
     return true;
   }
 
-  sym_status_t status;
-  ast_t* def = ast_get(ast, name, &status);
+  // A name in a trait's text that means a type, a package or a type parameter
+  // was bound where the trait was written; a copy of that text keeps it.
+  sym_status_t status = SYM_DEFINED;
+  ast_t* def = (ast_t*)ast_data(ast);
   if(def == NULL)
-    def = ast_get_provided_symbol_definition(ast, name, &status);
+    def = ast_get(ast, name, &status);
 
   // If nothing was found, we fail, but also try to suggest an alternate name.
   if(def == NULL)
@@ -614,7 +617,9 @@ static bool refer_moduleref_dot(pass_opt_t* opt, ast_t* ast)
 
   // Must be a type in a module.
   const char* module_name = ast_name(ast_child(left));
-  ast_t* module = ast_get(left, module_name, NULL);
+  ast_t* module = (ast_t*)ast_data(left);
+  if(module == NULL)
+    module = ast_get(left, module_name, NULL);
 
   if(module == NULL)
   {
@@ -2493,6 +2498,21 @@ static bool refer_lambda(pass_opt_t* opt, ast_t* ast)
 ast_result_t pass_pre_refer(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
+
+  // A trait-view method holds a copy of a method its trait already checked.
+  if(is_trait_view_method(ast, options))
+    return AST_IGNORE;
+
+  switch(ast_id(ast))
+  {
+    case TK_FUN:
+    case TK_BE:
+    case TK_NEW:
+      copy_check_enter(ast, options);
+      break;
+
+    default: {}
+  }
   bool r = true;
 
   switch(ast_id(ast))
@@ -2513,7 +2533,7 @@ ast_result_t pass_pre_refer(ast_t** astp, pass_opt_t* options)
   return AST_OK;
 }
 
-ast_result_t pass_refer(ast_t** astp, pass_opt_t* options)
+static ast_result_t pass_refer_node(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
   bool r = true;
@@ -2564,4 +2584,19 @@ ast_result_t pass_refer(ast_t** astp, pass_opt_t* options)
   }
 
   return AST_OK;
+}
+
+ast_result_t pass_refer(ast_t** astp, pass_opt_t* options)
+{
+  // The method node, before the visit can replace it.
+  ast_t* method = *astp;
+  token_id id = ast_id(method);
+  ast_result_t r = pass_refer_node(astp, options);
+
+  // Errors a method's own checks report at the end of its visit are in the
+  // method too.
+  if((id == TK_FUN) || (id == TK_BE) || (id == TK_NEW))
+    copy_check_leave(method, options);
+
+  return r;
 }

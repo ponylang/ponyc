@@ -121,6 +121,9 @@ actor _Tester
       if _options.thin_lto then
         args.push("--thin-lto")
       end
+      if _options.checktree then
+        args.push("--checktree")
+      end
       if _options.test_lib.size() > 0 then
         args.push("--path=" + _options.test_lib)
       end
@@ -134,7 +137,73 @@ actor _Tester
       args
     end
 
-  be building_succeeded() =>
+  be building_exited(status: ProcessExitStatus) =>
+    if _stage is _Building then
+      match \exhaustive\ _definition.expected_errors
+      | let expected: _ExpectedErrors =>
+        _check_compile_errors(expected, status)
+      | None =>
+        match \exhaustive\ status
+        | let exited: Exited =>
+          if exited.exit_code() == 0 then
+            _start_testing()
+          else
+            _shutdown_failed("building failed: exited with code " +
+              exited.exit_code().string())
+          end
+        | let signaled: Signaled =>
+          _shutdown_failed("building failed: signal " +
+            signaled.signal().string())
+        end
+      end
+    end
+
+  fun ref _check_compile_errors(
+    expected: _ExpectedErrors,
+    status: ProcessExitStatus)
+  =>
+    """
+    Finish a test that must fail to compile. It passes when ponyc exits with
+    its error status and the errors on its stderr match the expected ones. Any
+    other exit is a failure: exit code 0 means the program compiled, and any
+    other code or a signal means the compiler crashed.
+    """
+    match \exhaustive\ status
+    | let exited: Exited =>
+      let code = exited.exit_code()
+      if code == 0 then
+        _shutdown_failed("the program compiled; expected compile errors")
+      elseif code != _ponyc_error_status() then
+        _shutdown_failed("compiler crashed: exited with code " +
+          code.string())
+      else
+        let test_dir =
+          try
+            Path.canonical(_definition.path)?
+          else
+            _definition.path
+          end
+        let stderr: String val = _err_buf.clone()
+        let actual = _CompileErrors.parse_actual(stderr, test_dir)
+        match \exhaustive\ _CompileErrors.compare(expected, actual)
+        | None => _shutdown_succeeded()
+        | let reason: String =>
+          _shutdown_failed("compile errors differ: " + reason)
+        end
+      end
+    | let signaled: Signaled =>
+      _shutdown_failed("compiler crashed: signal " +
+        signaled.signal().string())
+    end
+
+  fun _ponyc_error_status(): I32 =>
+    """
+    The exit code ponyc reports when compilation fails: main() returns -1,
+    which a POSIX parent sees as 255.
+    """
+    ifdef windows then -1 else 255 end
+
+  fun ref _start_testing() =>
     if _stage is _Building then
       let test_fname =
         recover val
@@ -252,8 +321,13 @@ actor _Tester
     // gives the program it launches a terminal for stdin, so the program reads
     // none of what the tester wrote, never reaches the end of stdin, and is not
     // handed the pipe. The cost is no backtrace if one of these tests crashes.
+    //
+    // A test with an expected-stdout.txt also runs without it: under lldb the
+    // captured stdout is lldb's transcript, not the program's output.
     let use_debugger =
-      (_options.debugger.size() > 0) and (_definition.stdin is _StdinClose)
+      (_options.debugger.size() > 0) and
+      (_definition.stdin is _StdinClose) and
+      (_definition.expected_stdout is None)
 
     recover
       let debugger_args = Array[String]
@@ -370,7 +444,19 @@ actor _Tester
       end
 
       if exit_code' == _definition.expected_exit_code then
-        _shutdown_succeeded()
+        match \exhaustive\ _definition.expected_stdout
+        | let expected: String val =>
+          let actual: String val =
+            recover val _out_buf.clone() .> replace("\r\n", "\n") end
+          if actual == expected then
+            _shutdown_succeeded()
+          else
+            _shutdown_failed("stdout differs from expected-stdout.txt\n" +
+              "expected:\n" + expected + "actual:\n" + actual)
+          end
+        | None =>
+          _shutdown_succeeded()
+        end
       else
         _shutdown_failed("expected exit code " +
           _definition.expected_exit_code.string() + "; actual was " +

@@ -1,0 +1,1 @@
+main.pony:9:5: Can't call an FFI function in a default method or behavior

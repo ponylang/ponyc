@@ -1,0 +1,4 @@
+C plain:     Hi default
+C narrowed:  Hi default
+G plain:     iface default
+G narrowed:  iface default

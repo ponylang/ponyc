@@ -1,0 +1,4 @@
+main.pony:10:7: this pattern can never match
+    main.pony:7:14: match type: S ref
+    main.pony:10:7: pattern type: String ref
+    main.pony:10:14: S ref cannot match String ref^: String isn't a subtype of S

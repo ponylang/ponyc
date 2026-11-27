@@ -171,6 +171,39 @@ static void make_signature(compile_t* c, reach_type_t* t,
   ponyint_pool_free_size(tparam_size, tparams);
 }
 
+// For a method whose body a trait or interface supplied, that trait's method
+// whose body is written at the same source position; NULL for a type's own
+// method.
+static ast_t* body_donor_method(ast_t* fun)
+{
+  ast_t* donor = (ast_t*)ast_data(fun);
+  ast_t* body = ast_childidx(fun, 7);
+
+  if((donor == NULL) || (ast_id(body) == TK_NONE) ||
+    ((ast_id(donor) != TK_TRAIT) && (ast_id(donor) != TK_INTERFACE)))
+    return NULL;
+
+  ast_t* members = ast_childidx(donor, 4);
+
+  for(ast_t* m = ast_child(members); m != NULL; m = ast_sibling(m))
+  {
+    ast_t* group = (ast_id(m) == TK_METHODGROUP) ? m : NULL;
+    ast_t* each = (group != NULL) ? ast_child(group) : m;
+
+    for(; each != NULL; each = (group != NULL) ? ast_sibling(each) : NULL)
+    {
+      ast_t* b = ast_childidx(each, 7);
+
+      if((b != NULL) && (ast_id(b) != TK_NONE) &&
+        (ast_source(b) == ast_source(body)) &&
+        (ast_line(b) == ast_line(body)) && (ast_pos(b) == ast_pos(body)))
+        return each;
+    }
+  }
+
+  return NULL;
+}
+
 static void make_function_debug(compile_t* c, reach_type_t* t,
   reach_method_t* m, LLVMValueRef func)
 {
@@ -195,7 +228,23 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
   for(size_t i = 0; i < m->param_count; i++)
     md[i + offset] = ((compile_type_t*)m->params[i].type->c_type)->di_type;
 
-  c_m->di_file = c_t->di_file;
+  // An inherited method's debug info names the file and line of the method
+  // whose body it has, which can differ from the trait that gave its
+  // signature.
+  ast_t* body_method = body_donor_method(m->fun->ast);
+  unsigned line = (unsigned)ast_line(m->fun->ast);
+
+  if(body_method != NULL)
+  {
+    const char* file = ast_source(body_method)->file;
+    if(file == NULL)
+      file = "";
+
+    c_m->di_file = LLVMDIBuilderCreateFile(c->di, file, strlen(file), "", 0);
+    line = (unsigned)ast_line(body_method);
+  } else {
+    c_m->di_file = c_t->di_file;
+  }
 
   LLVMMetadataRef subroutine = LLVMDIBuilderCreateSubroutineType(c->di,
     c_m->di_file, md, (unsigned int)count, LLVMDIFlagZero);
@@ -219,8 +268,8 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
   ast_t* id = ast_childidx(m->fun->ast, 1);
 
   c_m->di_method = LLVMDIBuilderCreateMethod(c->di, scope, ast_name(id),
-    LLVMGetValueName(func), c_m->di_file, (unsigned)ast_line(m->fun->ast),
-    subroutine, func, c->opt->release);
+    LLVMGetValueName(func), c_m->di_file, line, subroutine, func,
+    c->opt->release);
 
   ponyint_pool_free_size(md_size, md);
 }

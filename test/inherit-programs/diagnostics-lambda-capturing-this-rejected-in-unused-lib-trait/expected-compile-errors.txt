@@ -1,0 +1,2 @@
+lib/lib.pony:7:17: right side must be a subtype of left side
+    lib/lib.pony:6:14: T box is not a subtype of T ref^: box is not a subcap of ref^

@@ -84,7 +84,7 @@ jobs:
         run: PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
       - name: Test with Debug Runtime (release codegen)
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
+        run: ctest --preset x86-64-debug -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -95,7 +95,7 @@ jobs:
         run: PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
       - name: Test with Release Runtime (release codegen)
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+        run: ctest --preset x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset x86-64-debug -R pony-doc-tests
@@ -334,7 +334,7 @@ jobs:
           ssh ponyc-i386-vm <<'EOF'
           set -e
           cd /build/ponyc
-          PONY_DEBUG=1 ctest --preset debug -L ci-core -E "^stdlib$"
+          PONY_FULL_PROGRAM_PARALLEL=1 PONY_DEBUG=1 ctest --preset debug -L ci-core -E "^stdlib$"
           EOF
       - name: Per-package stdlib (debug codegen)
         if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
@@ -350,7 +350,7 @@ jobs:
           ssh ponyc-i386-vm <<'EOF'
           set -e
           cd /build/ponyc
-          ctest --preset debug -R "^full-programs$"
+          PONY_FULL_PROGRAM_PARALLEL=1 ctest --preset debug -R "^(full-programs|inherit-programs)$"
           EOF
       - name: Per-package stdlib (release codegen)
         if: ${{ !cancelled() && steps.build-debug.outcome == 'success' }}
@@ -380,7 +380,7 @@ jobs:
           ssh ponyc-i386-vm <<'EOF'
           set -e
           cd /build/ponyc
-          PONY_DEBUG=1 ctest --preset release -L ci-core -E "^stdlib$"
+          PONY_FULL_PROGRAM_PARALLEL=1 PONY_DEBUG=1 ctest --preset release -L ci-core -E "^stdlib$"
           EOF
       - name: Per-package stdlib (release runtime, debug codegen)
         if: ${{ !cancelled() && steps.build-release.outcome == 'success' }}
@@ -396,7 +396,7 @@ jobs:
           ssh ponyc-i386-vm <<'EOF'
           set -e
           cd /build/ponyc
-          ctest --preset release -R "^full-programs$"
+          PONY_FULL_PROGRAM_PARALLEL=1 ctest --preset release -R "^(full-programs|inherit-programs)$"
           EOF
       - name: Per-package stdlib (release runtime, release codegen)
         if: ${{ !cancelled() && steps.build-release.outcome == 'success' }}
@@ -626,7 +626,7 @@ jobs:
           file /home/freebsd/static-smoke/static-smoke | grep -q 'statically linked'
           /home/freebsd/static-smoke/static-smoke
           PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
-          ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
+          ctest --preset x86-64-debug -R "^(stdlib|full-programs|inherit-programs)$"
           ctest --preset x86-64-debug -R pony-doc-tests
           ctest --preset x86-64-debug -R pony-lint-tests
           ctest --preset x86-64-debug -R pony-lsp-tests
@@ -634,7 +634,7 @@ jobs:
           cmake --preset x86-64-release
           cmake --build --preset x86-64-release
           PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
-          ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+          ctest --preset x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
           # native sanitizer link smoke test — see the script for details.
           sh .ci-scripts/freebsd-sanitizer-smoke.sh
           # use=coverage smoke test — see the script for details. Both smokes
@@ -774,7 +774,7 @@ jobs:
           ! readelf -d /build/static-smoke/static-smoke | grep -q '(NEEDED)'
           /build/static-smoke/static-smoke | grep -q 'static ok'
           PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
-          ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
+          ctest --preset x86-64-debug -R "^(stdlib|full-programs|inherit-programs)$"
           ctest --preset x86-64-debug -R pony-doc-tests
           ctest --preset x86-64-debug -R pony-lint-tests
           ctest --preset x86-64-debug -R pony-lsp-tests
@@ -782,7 +782,7 @@ jobs:
           cmake --preset x86-64-release
           cmake --build --preset x86-64-release
           PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
-          ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+          ctest --preset x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
           EOF
       - name: Shutdown VM
         if: ${{ always() && hashFiles('.libs-cache-miss') == '' }}
@@ -901,7 +901,7 @@ jobs:
           file /build/static-smoke/static-smoke | grep -q 'statically linked'
           /build/static-smoke/static-smoke
           PONY_DEBUG=1 PONY_STDLIB_TEST_EXCLUDES=--sequential ctest --preset x86-64-debug -L ci-core
-          PONY_STDLIB_TEST_EXCLUDES=--sequential ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
+          PONY_STDLIB_TEST_EXCLUDES=--sequential ctest --preset x86-64-debug -R "^(stdlib|full-programs|inherit-programs)$"
           ctest --preset x86-64-debug -R pony-doc-tests
           ctest --preset x86-64-debug -R pony-lint-tests
           ctest --preset x86-64-debug -R pony-lsp-tests
@@ -909,7 +909,7 @@ jobs:
           cmake --preset x86-64-release -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"
           cmake --build --preset x86-64-release
           PONY_DEBUG=1 PONY_STDLIB_TEST_EXCLUDES=--sequential ctest --preset x86-64-release -L ci-core
-          PONY_STDLIB_TEST_EXCLUDES=--sequential ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
+          PONY_STDLIB_TEST_EXCLUDES=--sequential ctest --preset x86-64-release -R "^(stdlib|full-programs|inherit-programs)$"
           # gcc use=coverage smoke test — see the script for details. It does a
           # clean + reconfigure of the debug build with use=coverage, so it runs
           # last, after the release tests that depend on the prior builds.

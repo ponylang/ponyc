@@ -1,0 +1,2 @@
+C:    Hi default
+G[Hi]: iface default

@@ -1,0 +1,1 @@
+main.pony:9:19: can't find declaration of 'u'

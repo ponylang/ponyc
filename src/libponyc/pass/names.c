@@ -225,8 +225,6 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
   }
 
   ast_t* def = ast_get(r_scope, name, NULL);
-  if(def == NULL)
-    def = ast_get_provided_symbol_definition(ast, name, NULL);
 
   bool r = true;
 
@@ -244,34 +242,39 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
       r = false;
     }
 
-    switch(ast_id(def))
-    {
-      case TK_TYPE:
-        r = names_typealias(opt, astp, def, expr);
-        break;
-
-      case TK_TYPEPARAM:
-        r = names_typeparam(opt, astp, def);
-        break;
-
-      case TK_INTERFACE:
-      case TK_TRAIT:
-      case TK_PRIMITIVE:
-      case TK_STRUCT:
-      case TK_CLASS:
-      case TK_ACTOR:
-        r = names_type(opt, astp, def);
-        break;
-
-      default:
-        ast_error(opt->check.errors, type_id,
-          "definition of '%s' is not a type", name);
-        r = false;
-        break;
-    }
+    if(!names_nominal_def(opt, astp, def, expr))
+      r = false;
   }
 
   return r;
+}
+
+bool names_nominal_def(pass_opt_t* opt, ast_t** astp, ast_t* def, bool expr)
+{
+  switch(ast_id(def))
+  {
+    case TK_TYPE:
+      return names_typealias(opt, astp, def, expr);
+
+    case TK_TYPEPARAM:
+      return names_typeparam(opt, astp, def);
+
+    case TK_INTERFACE:
+    case TK_TRAIT:
+    case TK_PRIMITIVE:
+    case TK_STRUCT:
+    case TK_CLASS:
+    case TK_ACTOR:
+      return names_type(opt, astp, def);
+
+    default:
+    {
+      ast_t* type_id = ast_childidx(*astp, 1);
+      ast_error(opt->check.errors, type_id,
+        "definition of '%s' is not a type", ast_name(type_id));
+      return false;
+    }
+  }
 }
 
 ast_result_t pass_names(ast_t** astp, pass_opt_t* options)

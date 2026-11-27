@@ -1,0 +1,2 @@
+main.pony:9:7: right side must be a subtype of left side
+    main.pony:14:23: in method 'f' inherited by object literal from Foo

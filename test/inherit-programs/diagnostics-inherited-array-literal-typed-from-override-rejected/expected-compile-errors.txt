@@ -1,0 +1,3 @@
+main.pony:9:12: argument not assignable to parameter
+    main.pony:9:12: argument type is None val^
+    main.pony:11:12: in method 'f' inherited by C from Foo

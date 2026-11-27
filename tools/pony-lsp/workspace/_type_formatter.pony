@@ -137,7 +137,7 @@ primitive _TypeFormatter
       try
         let child = type_node(0)?
         if child.id() == TokenIds.tk_id() then
-          child.nice_name()
+          child.token_value() as String
         else
           type_node.token_value() as String
         end
@@ -200,7 +200,7 @@ primitive _TypeFormatter
       try
         let tp_id = type_param(0)?
         if tp_id.id() == TokenIds.tk_id() then
-          let tp_name = tp_id.nice_name()
+          let tp_name = tp_id.token_value() as String
           let constraint =
             try
               let constraint_node = type_param(1)?

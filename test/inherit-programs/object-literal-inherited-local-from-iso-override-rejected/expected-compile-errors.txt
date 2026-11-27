@@ -1,0 +1,4 @@
+main.pony:10:10: argument not assignable to parameter
+    main.pony:13:23: in method 'f' inherited by object literal from Foo
+main.pony:10:20: argument not assignable to parameter
+    main.pony:13:23: in method 'f' inherited by object literal from Foo

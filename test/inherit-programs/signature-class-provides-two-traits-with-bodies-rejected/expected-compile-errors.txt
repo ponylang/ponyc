@@ -1,0 +1,1 @@
+main.pony:11:1: multiple possible bodies for method m0, local disambiguation required

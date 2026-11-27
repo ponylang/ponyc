@@ -504,6 +504,9 @@ actor \nodoc\ Main is TestList
     test(_TestExhaustiveMatchNonExhaustive)
     test(_TestExhaustiveMatchExplicitElse)
     test(_TestExhaustiveMatchMetadata)
+    test(_TestExhaustiveMatchInheritedCopy)
+    test(_TestExhaustiveMatchInheritedLiteral)
+    test(_TestExhaustiveMatchOwnMethodBesideTrait)
 
     // TestListNodoc tests
     test(_TestTestListNodocFlagged)

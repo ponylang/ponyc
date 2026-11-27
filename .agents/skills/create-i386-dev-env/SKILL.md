@@ -501,7 +501,7 @@ VMDIR=~/vms/i386-alpine; SSH_PORT=2232
 SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ServerAliveInterval=60 -i $VMDIR/vm_key -p $SSH_PORT pony@127.0.0.1"
 $SSH /bin/sh <<'EOF'
 cd /build/ponyc || exit 1
-PONY_DEBUG=1 ctest --preset debug -L ci-core -E '^stdlib$'
+PONY_FULL_PROGRAM_PARALLEL=1 PONY_DEBUG=1 ctest --preset debug -L ci-core -E '^stdlib$'
 PONY_DEBUG=1 sh .ci-scripts/i386-stdlib-perpkg.sh debug
 EOF
 ```
@@ -511,15 +511,15 @@ re-run the build block above. For exact CI parity, the tier-3 `i386-linux` job
 (`.github/workflows/ponyc-tier3.yml`) runs more than this. After the debug build and the
 hello-world check, in order:
 
-- `PONY_DEBUG=1 ctest --preset debug -L ci-core -E '^stdlib$'` and
+- `PONY_FULL_PROGRAM_PARALLEL=1 PONY_DEBUG=1 ctest --preset debug -L ci-core -E '^stdlib$'` and
   `PONY_DEBUG=1 sh .ci-scripts/i386-stdlib-perpkg.sh debug` (debug runtime, debug codegen)
-- `ctest --preset debug -R "^full-programs$"` and
+- `PONY_FULL_PROGRAM_PARALLEL=1 ctest --preset debug -R "^(full-programs|inherit-programs)$"` and
   `sh .ci-scripts/i386-stdlib-perpkg.sh debug` (debug runtime, release codegen)
 - `cmake --preset release` and `cmake --build --preset release`
-- `PONY_DEBUG=1 ctest --preset release -L ci-core -E '^stdlib$'` and
+- `PONY_FULL_PROGRAM_PARALLEL=1 PONY_DEBUG=1 ctest --preset release -L ci-core -E '^stdlib$'` and
   `PONY_DEBUG=1 sh .ci-scripts/i386-stdlib-perpkg.sh release` (release runtime, debug
   codegen)
-- `ctest --preset release -R "^full-programs$"` and
+- `PONY_FULL_PROGRAM_PARALLEL=1 ctest --preset release -R "^(full-programs|inherit-programs)$"` and
   `sh .ci-scripts/i386-stdlib-perpkg.sh release` (release runtime, release codegen)
 - `ctest --preset debug -R pony-doc-tests`, `ctest --preset debug -R pony-lint-tests`
   and `ctest --preset debug -R pony-lsp-tests`

@@ -5,6 +5,8 @@
 #include <ast/symtab.h>
 #include <ast/stringtab.h>
 
+#include <stdio.h>
+
 class SymtabTest: public testing::Test
 {
 protected:
@@ -140,4 +142,48 @@ TEST_F(SymtabTest, StringtabTablesAreIndependent)
   ASSERT_EQ(stringtab(tab2, "foo"), stringtab(tab2, "foo"));
 
   stringtab_free(tab2);
+}
+
+
+TEST_F(SymtabTest, RemoveDefRemovesEveryName)
+{
+  // Many names share one definition, so removing them shifts entries into
+  // slots the removal has already passed. Every name must still go, and
+  // names with another definition must stay.
+  symtab_t* symtab = symtab_new();
+  char name[16];
+
+  for(int i = 0; i < 200; i++)
+  {
+    snprintf(name, sizeof(name), "n%d", i);
+    ASSERT_TRUE(symtab_add(symtab, stringtab(tab, name), (ast_t*)14, SYM_NONE,
+      tab));
+  }
+
+  for(int i = 0; i < 20; i++)
+  {
+    snprintf(name, sizeof(name), "k%d", i);
+    ASSERT_TRUE(symtab_add(symtab, stringtab(tab, name), (ast_t*)15, SYM_NONE,
+      tab));
+  }
+
+  symtab_remove_def(symtab, (ast_t*)14);
+
+  for(int i = 0; i < 200; i++)
+  {
+    snprintf(name, sizeof(name), "n%d", i);
+    ASSERT_EQ((ast_t*)NULL, symtab_find(symtab, stringtab(tab, name), NULL))
+      << name;
+    ASSERT_TRUE(symtab_add(symtab, stringtab(tab, name), (ast_t*)16, SYM_NONE,
+      tab)) << name;
+  }
+
+  for(int i = 0; i < 20; i++)
+  {
+    snprintf(name, sizeof(name), "k%d", i);
+    ASSERT_EQ((ast_t*)15, symtab_find(symtab, stringtab(tab, name), NULL))
+      << name;
+  }
+
+  symtab_free(symtab);
 }

@@ -5,6 +5,7 @@
 #include "../ast/astbuild.h"
 #include "../expr/literal.h"
 #include "../pass/names.h"
+#include "typeparam.h"
 #include "../pass/flatten.h"
 #include "../pass/expr.h"
 #include "ponyassert.h"
@@ -312,28 +313,47 @@ ast_t* type_for_class(pass_opt_t* opt, ast_t* def, ast_t* ast,
     ast_setid(typeargs, TK_TYPEARGS);
     ast_t* typeparam = ast_child(typeparams);
 
+    // Once names are resolved, each argument refers to the class's own
+    // parameter rather than naming it: at `ast`, a method's type parameter
+    // with the same name would hide the class's. Before then (the sugar pass)
+    // the names pass resolves the names where the class is written.
+    bool by_name = (pass_id)ast_checkflag(def, AST_FLAG_PASS_MASK) <
+      PASS_NAME_RESOLUTION;
+
     while(typeparam != NULL)
     {
       ast_t* typeparam_id = ast_child(typeparam);
-      ast_t* typearg = type_sugar(ast, NULL, ast_name(typeparam_id), opt);
-      ast_set_nice_name(ast_childidx(typearg, 1), ast_nice_name(typeparam_id),
-        opt->strtab);
+
+      if(by_name)
+      {
+        ast_t* typearg = type_sugar(ast, NULL, ast_name(typeparam_id), opt);
+        ast_set_nice_name(ast_childidx(typearg, 1),
+          ast_nice_name(typeparam_id), opt->strtab);
+        ast_append(typeargs, typearg);
+        typeparam = ast_sibling(typeparam);
+        continue;
+      }
+
+      BUILD(typearg, ast,
+        NODE(TK_TYPEPARAMREF,
+          NICE_ID(ast_name(typeparam_id), ast_nice_name(typeparam_id))
+          NONE
+          NONE));
+      ast_setdata(typearg, typeparam);
+
+      // Inside an iftype, refer to the narrowing of the parameter in scope.
+      ast_setdata(typearg, typeparam_resolve(typearg, ast, opt->strtab));
       ast_append(typeargs, typearg);
 
       if(expr)
-      {
-        names_nominal(opt, ast, &typearg, false);
-
-        if(ast_id(typearg) == TK_TYPEPARAMREF)
-          flatten_typeparamref(opt, typearg);
-      }
+        flatten_typeparamref(opt, typearg);
 
       typeparam = ast_sibling(typeparam);
     }
   }
 
   if(expr)
-    names_nominal(opt, ast, &type, false);
+    names_nominal_def(opt, &type, def, false);
 
   return type;
 }

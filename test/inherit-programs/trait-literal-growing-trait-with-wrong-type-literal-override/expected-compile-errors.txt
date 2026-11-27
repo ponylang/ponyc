@@ -1,0 +1,4 @@
+main.pony:15:167: function body isn't the result type
+    main.pony:15:121: function return type: T[Array[Array[Array[U8 val] val] val] val] val
+    main.pony:15:167: function body type: object literal val
+    main.pony:15:167: object literal val does not implement trait T[Array[Array[Array[U8 val] val] val] val] val

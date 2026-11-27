@@ -64,6 +64,13 @@ ast_t* ast_from_string(ast_t* ast, const char* name, strtable_t* strtab);
 ast_t* ast_from_int(ast_t* ast, uint64_t value);
 ast_t* ast_from_float(ast_t* ast, double value);
 ast_t* ast_dup(ast_t* ast);
+
+/** Copy a subtree so that the copy refers to its own nodes: every data pointer
+ * and symbol table entry that points at a node of the original subtree points
+ * at the corresponding node of the copy. Pointers that leave the subtree are
+ * kept. A plain ast_dup keeps them pointing into the original.
+ */
+ast_t* ast_dup_closed(ast_t* ast);
 ast_t* ast_dup_partial(ast_t* ast, bool* dup_child, bool dup_type,
   bool dup_annotation, bool dup_symtab);
 void ast_scope(ast_t* ast);
@@ -111,6 +118,11 @@ void ast_settype(ast_t* ast, ast_t* type);
 ast_t* ast_annotation(ast_t* ast);
 void ast_setannotation(ast_t* ast, ast_t* annotation);
 ast_t* ast_consumeannotation(ast_t* ast);
+/** Add an internal annotation (a name starting with "ponyint") to a node the
+ * compiler made or changed.
+ */
+void ast_add_internal_annotation(ast_t* ast, const char* name,
+  strtable_t* strtab);
 bool ast_has_annotation(ast_t* ast, const char* name, strtable_t* strtab);
 uint16_t ast_mutation_exclusions(ast_t* ast);
 void ast_exclude_mutations(ast_t* ast, uint16_t categories);
@@ -224,9 +236,6 @@ void ast_extract_children(ast_t* parent, size_t child_count,
     ast_extract_children(parent, (sizeof(children)/sizeof(ast_t**)) - 1, \
       children); \
   }
-
-ast_t* ast_get_provided_symbol_definition(ast_t* ast,
-  const char* name, sym_status_t* status);
 
 PONY_EXTERN_C_END
 #endif

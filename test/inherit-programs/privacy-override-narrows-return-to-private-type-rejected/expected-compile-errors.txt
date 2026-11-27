@@ -1,0 +1,3 @@
+lib/lib.pony:8:29: can't lookup fields or methods on private types from other modules
+    main.pony:5:12: in method 'bar' inherited by C from T
+    main.pony:7:14: '_H' is private to package 'lib' and reaches this code through the result type of C's method 'foo', written in package 'main'

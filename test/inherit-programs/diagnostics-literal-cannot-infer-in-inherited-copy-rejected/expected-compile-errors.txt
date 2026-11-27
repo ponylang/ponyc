@@ -1,0 +1,4 @@
+main.pony:8:33: could not infer literal type, no valid types found
+    main.pony:10:12: in method 'f' inherited by C from Foo
+main.pony:9:5: cannot infer type of x
+    main.pony:10:12: in method 'f' inherited by C from Foo

@@ -887,6 +887,9 @@ TEST_F(SugarExprTest, Location)
 
 TEST_F(SugarExprTest, LocationDefaultArg)
 {
+  // Log comes before Foo so its default is checked before the call's type is
+  // taken. A call that passes the argument doesn't check the default, so with
+  // Foo first only the short form's call type would hold a checked default.
   const char* short_form =
     "interface val SourceLoc\n"
     "  fun file(): String\n"
@@ -895,13 +898,13 @@ TEST_F(SugarExprTest, LocationDefaultArg)
     "  fun line(): USize\n"
     "  fun pos(): USize\n"
 
+    "primitive Log\n"
+    "  fun apply(x: SourceLoc = __loc) => None\n"
+
     "class Foo\n"
     "  var create: U32\n"
     "  fun bar() =>\n"
-    "    Log.apply()"
-
-    "primitive Log\n"
-    "  fun apply(x: SourceLoc = __loc) => None\n";
+    "    Log.apply()";
 
   const char* full_form =
     "interface val SourceLoc\n"
@@ -911,6 +914,9 @@ TEST_F(SugarExprTest, LocationDefaultArg)
     "  fun line(): USize\n"
     "  fun pos(): USize\n"
 
+    "primitive Log\n"
+    "  fun apply(x: SourceLoc = __loc) => None\n"
+
     "class Foo\n"
     "  var create: U32\n"
     "  fun bar() =>\n"
@@ -918,12 +924,9 @@ TEST_F(SugarExprTest, LocationDefaultArg)
     "      fun tag file(): String => \"\"\n"
     "      fun tag type_name(): String => \"Foo\"\n"
     "      fun tag method_name(): String => \"bar\"\n"
-    "      fun tag line(): USize => 10\n"
+    "      fun tag line(): USize => 12\n"
     "      fun tag pos(): USize => 14\n"
-    "    end)"
-
-    "primitive Log\n"
-    "  fun apply(x: SourceLoc = __loc) => None\n";
+    "    end)";
 
   TEST_EQUIV(short_form, full_form);
 }

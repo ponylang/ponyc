@@ -1,0 +1,2 @@
+main.pony:8:7: right side must be a subtype of left side
+    main.pony:10:12: in method 'f' inherited by C from Foo

@@ -1,4 +1,5 @@
 #include "call.h"
+#include "../pass/traits.h"
 #include "ffi.h"
 #include "infer.h"
 #include "postfix.h"
@@ -126,7 +127,7 @@ bool apply_typeargs(pass_opt_t* opt, ast_t** astp, ast_t* typeargs,
         {
           ast_error_continue(opt->check.errors, ta,
             "'%s' was inferred as %s from this argument",
-            ast_nice_name(ast_child(tp)),
+            ast_name(ast_child(tp)),
             ast_print_type(ta, opt->strtab));
         }
 
@@ -303,8 +304,12 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
   }
   else
   {
-    // Just use default argument.
+    // Just use default argument. The copy keeps a mark: it was checked where
+    // it was declared, and a branch of it that can't run for this call's
+    // types is not verified again.
     ast_replace(argp, def_arg);
+    ast_add_internal_annotation(*argp, COPIED_DEFAULT_ANNOTATION,
+      opt->strtab);
   }
 
   if(!ast_passes_subtree(argp, opt, PASS_EXPR))
@@ -429,7 +434,10 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
       return false;
     }
-    else if(!is_subtype(arg_type, wp_type, &info, opt) && (!is_bare || (!void_star_param(wp_type, arg_type))))
+    else if(!is_subtype(arg_type, wp_type, &info, opt) &&
+      (!is_bare || (!void_star_param(wp_type, arg_type))) &&
+      !(is_subtype_via_narrowing(opt, arg, arg_type, wp_type) &&
+        (errorframe_discard(&info), true)))
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not assignable to parameter");
@@ -545,6 +553,29 @@ static ast_t* method_receiver_type(ast_t* method)
   return r_type;
 }
 
+typedef struct
+{
+  pass_opt_t* opt;
+  ast_t* a_type;
+  token_id cap;
+} narrowed_receiver_t;
+
+// In inherited code, whether the receiver passes as the narrowed type the
+// trait's check saw it as.
+static bool narrowed_receiver_ok(ast_t* subject, ast_t* super,
+  ast_t* typeparams, void* ctx)
+{
+  (void)subject;
+  (void)typeparams;
+  narrowed_receiver_t* c = (narrowed_receiver_t*)ctx;
+  ast_t* narrowed = type_isect(c->opt, c->a_type, super);
+  ast_t* target = set_cap_and_ephemeral(super, c->cap, TK_EPHEMERAL);
+  bool ok = is_subtype(narrowed, target, NULL, c->opt);
+  ast_free_unattached(narrowed);
+  ast_free_unattached(target);
+  return ok;
+}
+
 static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
 {
   AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
@@ -600,7 +631,10 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
   }
 
   errorframe_t info = NULL;
-  bool ok = is_subtype(a_type, t_type, &info, opt);
+  narrowed_receiver_t nr = {opt, a_type, ast_id(cap)};
+  bool ok = is_subtype(a_type, t_type, &info, opt) ||
+    (visit_copy_narrowings(opt, ast, narrowed_receiver_ok, &nr) &&
+      (errorframe_discard(&info), true));
 
   if(!ok)
   {
@@ -1028,20 +1062,23 @@ static token_id partial_application_cap(pass_opt_t* opt, ast_t* ftype,
 }
 
 // Build the call receiver AST for partial application from a receiver type.
-// Handles TK_TYPEALIASREF (unfolds to the underlying nominal), TK_NOMINAL
-// (with or without type arguments), and TK_TYPEPARAMREF.
+// Handles TK_TYPEALIASREF (named as the alias, so the type arguments written
+// on it apply), TK_NOMINAL (with or without type arguments), and
+// TK_TYPEPARAMREF.
 // Returns false on error.
 static bool build_partial_call_receiver(ast_t** out, ast_t* receiver_type,
   ast_t* ast, ast_t* method, bool bare, pass_opt_t* opt)
 {
   ast_t* unfolded = NULL;
   const char* alias_name = NULL;
+  ast_t* alias_def = NULL;
   ast_t* alias_type_args = NULL;
 
   if(ast_id(receiver_type) == TK_TYPEALIASREF)
   {
-    // Save the alias name for the foreign-module fallback below.
+    // Save the alias, which the call names instead of what it unfolds to.
     alias_name = ast_name(ast_child(receiver_type));
+    alias_def = (ast_t*)ast_data(receiver_type);
 
     ast_t* alias_targs = ast_childidx(receiver_type, 1);
     if((ast_id(alias_targs) == TK_TYPEARGS)
@@ -1065,32 +1102,17 @@ static bool build_partial_call_receiver(ast_t** out, ast_t* receiver_type,
       AST_GET_CHILDREN(receiver_type, recv_type_module, recv_type_name,
         recv_type_args);
 
-      const char* recv_module_str = ast_name(recv_type_module);
       const char* recv_name_str = ast_name(recv_type_name);
+      ast_t* recv_def = (ast_t*)ast_data(receiver_type);
+      bool use_alias_name = (alias_name != NULL);
 
-      ast_t* file = ast_nearest(ast, TK_FILE);
-      ast_t* module = ast_parent(file);
-      ast_t* pkg_id = module_id(module, opt);
-      const char* pkg_str = ast_name(pkg_id);
-
-      const char* pkg_alias = NULL;
-      bool use_alias_name = false;
-
-      if(recv_module_str != pkg_str)
+      if(use_alias_name)
       {
-        if(alias_name != NULL)
-        {
-          // The unfolded type is from a foreign module the call site's
-          // file may not import. Use the alias name (which is in scope)
-          // rather than the unfolded nominal name (which may not be).
-          use_alias_name = true;
-          recv_name_str = alias_name;
-        } else {
-          pkg_alias = module_alias_from_id(file, recv_module_str, opt);
-        }
+        // Name the alias rather than the type it unfolds to, so the type
+        // arguments written on the alias apply.
+        recv_name_str = alias_name;
+        recv_def = alias_def;
       }
-
-      ast_free_unattached(pkg_id);
 
       bool has_typeargs;
       if(use_alias_name)
@@ -1099,26 +1121,20 @@ static bool build_partial_call_receiver(ast_t** out, ast_t* receiver_type,
         has_typeargs = (ast_id(recv_type_args) == TK_TYPEARGS)
           && (ast_childcount(recv_type_args) > 0);
 
+      // The reference names the receiver type's definition rather than
+      // looking it up by name: the call can be in code copied into a type
+      // whose file doesn't import the receiver's package, or that declares
+      // another type with the same name.
       ast_t* type_ref = NULL;
-
-      if(pkg_alias != NULL)
-      {
-        // `module.Type`
-        BUILD_NO_DECL(type_ref, ast,
-          NODE(TK_DOT,
-            NODE(TK_REFERENCE, ID(pkg_alias))
-            ID(recv_name_str)));
-      } else {
-        // `Type`
-        BUILD_NO_DECL(type_ref, ast,
-          NODE(TK_REFERENCE, ID(recv_name_str)));
-      }
+      BUILD_NO_DECL(type_ref, ast,
+        NODE(TK_REFERENCE, ID(recv_name_str)));
+      ast_setdata(type_ref, recv_def);
 
       if(has_typeargs)
       {
         ast_t* targs = use_alias_name ? alias_type_args : recv_type_args;
 
-        // `Type[Args].f` or `module.Type[Args].f`
+        // `Type[Args].f`
         BUILD_NO_DECL(*out, ast,
           NODE(TK_DOT,
             NODE(TK_QUALIFY,
@@ -1126,7 +1142,7 @@ static bool build_partial_call_receiver(ast_t** out, ast_t* receiver_type,
               TREE(ast_dup(targs)))
             TREE(method)));
       } else {
-        // `Type.f` or `module.Type.f`
+        // `Type.f`
         BUILD_NO_DECL(*out, ast,
           NODE(TK_DOT,
             TREE(type_ref)
@@ -1152,6 +1168,7 @@ static bool build_partial_call_receiver(ast_t** out, ast_t* receiver_type,
         NODE(TK_DOT,
           NODE(TK_REFERENCE, ID(param_name))
           TREE(method)));
+      ast_setdata(ast_child(*out), ast_data(receiver_type));
 
       break;
     }

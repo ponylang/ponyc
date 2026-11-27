@@ -1,0 +1,3 @@
+main.pony:6:18: default argument of parameter 'x' of 'f' uses itself through default arguments
+    main.pony:5:9: default argument is here
+    main.pony:6:9: default argument is here

@@ -1,0 +1,3 @@
+main.pony:10:7: right side must be a subtype of left side
+    main.pony:15:14: None val is not a subtype of P val^
+    main.pony:12:12: in method 'f' inherited by C from Foo

@@ -199,6 +199,50 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     """
     @ast_has_annotation(raw, name.cstring(), strtab)
 
+  fun box _is_per_type_copy(): Bool =>
+    """
+    Whether this node is a method a type inherited from a trait or interface:
+    its body was written in that trait or interface, not in the type that
+    holds it.
+    """
+    match id()
+    | TokenIds.tk_fun() | TokenIds.tk_be() | TokenIds.tk_new() =>
+      let donor = @ast_data[Pointer[_AST] val](raw)
+      if donor.is_null() then return false end
+
+      try
+        // A method in a group of guarded specializations is one level deeper.
+        var members = parent() as AST
+        if members.id() == TokenIds.tk_methodgroup() then
+          members = members.parent() as AST
+        end
+        let entity = members.parent() as AST
+        if donor.usize() == entity.raw.usize() then return false end
+
+        let donor_id = AST(donor, strtab).id()
+        (donor_id == TokenIds.tk_trait()) or
+          (donor_id == TokenIds.tk_interface())
+      else
+        false
+      end
+    else
+      false
+    end
+
+  fun box is_inherited_code(): Bool =>
+    """
+    Returns true if this node is where code a type inherited from a trait or
+    interface starts: a method the type inherited, a class the compiler made
+    from an object literal or lambda in such a method, or a method, holding
+    the trait's checked body, of a class made from a literal in a trait's own
+    method.
+    The nodes below it return false. `AST.visit` and `PositionIndex` skip such
+    a node and everything below it; its text is visited in the trait or
+    interface where it is written.
+    """
+    has_annotation("ponyint_anon_copy") or
+      has_annotation("ponyint_traitview") or _is_per_type_copy()
+
   fun box get_print(): String val =>
     """
     Returns the "print" representation of this AST node's token.
@@ -212,8 +256,8 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     """
     Returns a human-readable name for a TK_ID node. Use this rather than
     `token_value()` to show a name to a user: the compiler gives some IDs
-    generated names, such as the type parameters of methods inherited from
-    a trait.
+    generated names, such as the names of the types it makes for object
+    literals and lambdas, and of some of those types' type parameters.
     """
     recover val String.copy_cstring(@ast_nice_name(raw)) end
 
@@ -432,7 +476,9 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
 
   fun visit(visitor: ASTVisitor ref): VisitResult =>
     """
-    visit all the child nodes of this node, not this node itself
+    visit all the child nodes of this node, not this node itself. Nodes for
+    which `is_inherited_code()` is true are skipped, with everything below
+    them: their text is visited in the trait or interface where it is written.
     """
     let source' = source_file()
     // skip nodes not being set i.e. TK_NONE
@@ -455,9 +501,10 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       else
         false
       end
-    // regular iteration through all the children
+    // regular iteration through all the children, except inherited code
     for child' in children() do
-      if child'._from_same_source(source') then
+      if child'._from_same_source(source') and not child'.is_inherited_code()
+      then
         if filter_none and (child'.id() == TokenIds.tk_none()) then
           // filtered out
           None
@@ -677,13 +724,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       | TokenIds.tk_compile_error()
       => Position(l, col + 12)
       | TokenIds.tk_id() =>
-        let text = token_value() as String val
-        // The compiler renames some type parameters it copies from a trait to
-        // names that start with "$m$", and keeps the source name as the nice
-        // name. This "$m$" must match `method_typeparam_prefix` in
-        // src/libponyc/pass/traits.c, or end_pos() overshoots the name.
-        let source_text = if text.at("$m$") then nice_name() else text end
-        let size = source_text.size()
+        let size = (token_value() as String val).size()
         return Position(l, col + (if size > 0 then size - 1 else 0 end))
       | TokenIds.tk_string() =>
         // we need to do some complex parsing

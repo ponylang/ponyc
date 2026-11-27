@@ -1,0 +1,2 @@
+main.pony:8:19: can't find declaration of 'Bar'
+main.pony:9:19: can't find declaration of 'u'

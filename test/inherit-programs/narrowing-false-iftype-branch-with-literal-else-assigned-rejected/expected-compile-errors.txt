@@ -1,0 +1,4 @@
+main.pony:7:15: right side must be a subtype of left side
+    main.pony:9:18: String val is not a subtype of U8 val^
+    main.pony:9:18: not every element of (String val | U8 val) is a subtype of U8 val^
+    main.pony:9:14: in method 'f' inherited by Bar from Foo

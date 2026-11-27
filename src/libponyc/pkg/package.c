@@ -1311,6 +1311,16 @@ const char* module_hygienic_id(typecheck_t* t, pass_opt_t* opt)
 }
 
 
+const char* module_hygienic_id_in(ast_t* module, pass_opt_t* opt)
+{
+  pony_assert(ast_id(module) == TK_MODULE);
+  module_t* pkg = (module_t*)ast_data(module);
+  size_t id = pkg->next_hygienic_id++;
+
+  return id_to_string(pkg->id, id, opt);
+}
+
+
 bool module_allow_ffi(typecheck_t* t)
 {
   pony_assert(t->frame->module != NULL);
@@ -1519,39 +1529,6 @@ void module_set_needs_export_include(ast_t* module)
   pony_assert(pkg != NULL);
 
   pkg->needs_export_include = true;
-}
-
-
-const char* module_alias_from_id(ast_t* module, const char* id,
-  pass_opt_t* opt)
-{
-  pony_assert(ast_id(module) == TK_FILE);
-
-  const char* strtab_id = stringtab(opt->strtab, id);
-
-  ast_t* use = ast_child(module);
-  while(ast_id(use) == TK_USE)
-  {
-    ast_t* imported = (ast_t*)ast_data(use);
-    pony_assert((imported != NULL) && (ast_id(imported) == TK_MODULE));
-
-    module_t* pkg = (module_t*)ast_data(imported);
-    pony_assert(pkg != NULL);
-
-    if(pkg->id == strtab_id)
-    {
-      ast_t* alias = ast_child(use);
-      if(ast_id(alias) == TK_NONE)
-        return NULL;
-
-      return ast_name(alias);
-    }
-
-    use = ast_sibling(use);
-  }
-
-  pony_assert(false);
-  return NULL;
 }
 
 

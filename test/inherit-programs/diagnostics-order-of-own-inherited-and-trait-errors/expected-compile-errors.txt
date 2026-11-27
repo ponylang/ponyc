@@ -1,0 +1,13 @@
+main.pony:6:18: function body isn't the result type
+    main.pony:6:12: function return type: U8 val
+    main.pony:6:18: function body type: String val
+    main.pony:6:18: String val is not a subtype of U8 val
+lib/lib.pony:2:18: function body isn't the result type
+    lib/lib.pony:2:12: function return type: U8 val
+    lib/lib.pony:2:18: function body type: String val
+    lib/lib.pony:2:18: String val is not a subtype of U8 val
+    main.pony:5:14: in method 'f' inherited by Bar from Foo
+lib/lib.pony:2:18: function body isn't the result type
+    lib/lib.pony:2:12: function return type: U8 val
+    lib/lib.pony:2:18: function body type: String val
+    lib/lib.pony:2:18: String val is not a subtype of U8 val

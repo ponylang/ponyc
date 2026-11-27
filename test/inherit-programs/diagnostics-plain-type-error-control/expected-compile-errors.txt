@@ -1,0 +1,2 @@
+main.pony:5:15: right side must be a subtype of left side
+    main.pony:5:17: String val is not a subtype of U8 val^

@@ -96,8 +96,7 @@ primitive ScopeQuery
         if ast.has_scope() then
           match ast.symbol_table()
           | let st: SymbolTable =>
-            for (raw_name, def) in st.iter() do
-              let sym_name = _display_name(raw_name, def)
+            for (sym_name, def) in st.iter() do
               try if sym_name(0)? == '$' then continue end end
               if seen.contains(sym_name
                 where predicate = {(a, b) => a == b })
@@ -121,24 +120,6 @@ primitive ScopeQuery
     end
 
     ScopeResult(consume entries, in_recover)
-
-  fun _display_name(raw_name: String val, def: AST box): String val =>
-    """
-    The name to show for a symbol table entry. A type parameter of a method
-    inherited from a trait is stored under a compiler-generated name; show the
-    name its declaration had in the source instead. Other entries can also map
-    to a type parameter, such as the keys for iftype narrowings; their names
-    are not the parameter's own and are left as they are.
-    """
-    if def.id() == TokenIds.tk_typeparam() then
-      try
-        let id = def(0)?
-        if (id.token_value() as String val) == raw_name then
-          return id.nice_name()
-        end
-      end
-    end
-    raw_name
 
   fun _classify(def: AST box): String val =>
     match def.id()

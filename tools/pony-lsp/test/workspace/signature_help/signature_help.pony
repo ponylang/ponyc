@@ -149,7 +149,7 @@ class _InheritedGenericSigUser
   `_SigInheritedHolder[None].picked[U32](7)` and trigger signature help.
 
   Expected: `fun box picked[R: Any val](x: R): R`, with the name
-  written in the trait, not the compiler-generated name.
+  written in the trait.
   """
   fun apply() =>
     _SigInheritedHolder[None].picked[U32](7)

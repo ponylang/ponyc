@@ -1,4 +1,5 @@
 #include "sugar.h"
+#include "traits.h"
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
 #include "../ast/printbuf.h"
@@ -1450,6 +1451,7 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
   // Fetch the interface type parameters after we replace the ast, so that if
   // we are an interface type parameter, we get ourselves as the constraint.
   collect_type_params(ast, &interface_t_params, NULL, opt);
+  own_collected_typeparams(interface_t_params);
 
   if(drop_count > 0)
     filter_list(interface_t_params, drop_mask, drop_count);
@@ -1619,6 +1621,7 @@ ast_t* expand_location(ast_t* location, pass_opt_t* opt)
 
   // Find name of containing method.
   const char* method_name = "";
+  ast_t* containing_method = NULL;
   for(ast_t* method = location; method != NULL; method = ast_parent(method))
   {
     token_id variety = ast_id(method);
@@ -1626,6 +1629,7 @@ ast_t* expand_location(ast_t* location, pass_opt_t* opt)
     if(variety == TK_FUN || variety == TK_BE || variety == TK_NEW)
     {
       method_name = ast_name(ast_childidx(method, 1));
+      containing_method = method;
       break;
     }
   }
@@ -1641,6 +1645,17 @@ ast_t* expand_location(ast_t* location, pass_opt_t* opt)
       variety == TK_CLASS || variety == TK_ACTOR)
     {
       type_name = ast_name(ast_child(typ));
+
+      // In an anonymous type's copy of an inherited method, name the trait
+      // the method came from rather than the anonymous type's internal name.
+      if((type_name[0] == '$') && (containing_method != NULL))
+      {
+        const char* provider =
+          inherited_provider_name(typ, containing_method);
+
+        if(provider != NULL)
+          type_name = provider;
+      }
       break;
     }
   }

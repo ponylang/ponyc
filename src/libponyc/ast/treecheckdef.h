@@ -561,7 +561,8 @@ RULE(nominal,
   CHILD(type_args, none)
   CHILD(cap, gencap, none)
   CHILD(aliased, ephemeral, none)
-  OPTIONAL(id, none), // Original module specifier (for error reporting)
+  OPTIONAL(id, none) // Original module specifier (for error reporting)
+  OPTIONAL(none), // Where an alias that unfolded to this private type was named
   TK_NOMINAL);
 
 RULE(type_param_ref,

@@ -1,4 +1,5 @@
 #include "call.h"
+#include "../pass/traits.h"
 #include "../ast/id.h"
 #include "../pkg/package.h"
 #include "../type/lookup.h"
@@ -41,6 +42,15 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
   // Look up the original method definition for this method call.
   deferred_reification_t* method_def = lookup_try(opt, receiver, ast_type(receiver),
     ast_name(method), true); // allow private types
+
+  if(method_def == NULL)
+  {
+    ast_error(opt->check.errors, ast,
+      "internal error: the method '%s' called here does not resolve on its "
+      "receiver", ast_name(method));
+    return false;
+  }
+
   ast_t* method_ast = method_def->ast;
   deferred_reify_free(method_def);
 
@@ -55,13 +65,10 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
     )
     skip_partial_check = true;
 
-  // If the method definition containing the call site had its body inherited
-  // from a trait, we don't want to check partiality of the call site here -
-  // it should only be checked in the context of the original trait.
-  ast_t* body_donor = (ast_t*)ast_data(opt->check.frame->method);
-  if((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT)
-    && (opt->check.frame->type != body_donor))
-    skip_partial_check = true;
+  // In inherited code, a partial call to a method the inheriting type made
+  // not partial is not reported as redundant; only the providing trait's check
+  // reports it.
+  bool copy = is_copy_context(opt);
 
   // Verify that the call partiality matches that of the method.
   bool r = true;
@@ -79,7 +86,7 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
       r = false;
     }
   } else {
-    if((ast_id(call_error) == TK_QUESTION) && !skip_partial_check) {
+    if((ast_id(call_error) == TK_QUESTION) && !skip_partial_check && !copy) {
       ast_error(opt->check.errors, call_error,
         "call is partial but the method is not - " \
         "this question mark should be removed");

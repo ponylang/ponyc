@@ -358,11 +358,21 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
     for(ast_t* typeparam = ast_child(typeparam_store); typeparam != NULL;
       typeparam = ast_sibling(typeparam))
     {
-      // Re-install the stored node itself, never a copy. The symtab was just
-      // emptied, so this is a fresh add; but the AST_OK descent below visits
-      // typeparam_store and runs set_scope on these same nodes again, where
-      // set_scope no-ops because the name already maps to this exact node. A
-      // copy would be a different node and would error as a name clash there.
+      // A plain copy of the iftype, such as the one a lambda becomes, keeps
+      // a scope that maps the name to the node it was copied from, which can
+      // since have been freed. Drop that entry; only the stored node belongs
+      // under this name here.
+      symtab_t* symtab = ast_get_symtab(ast);
+      ast_t* stale = (symtab == NULL) ? NULL :
+        symtab_find(symtab, ast_name(ast_child(typeparam)), NULL);
+      if((stale != NULL) && (stale != typeparam))
+        symtab_remove_def(symtab, stale);
+
+      // Re-install the stored node itself, never a copy. The AST_OK descent
+      // below visits typeparam_store and runs set_scope on these same nodes
+      // again, where set_scope no-ops because the name already maps to this
+      // exact node. A copy would be a different node and would error as a
+      // name clash there.
       if(!set_scope(opt, ast, ast_child(typeparam), typeparam, true))
         return AST_ERROR;
     }
@@ -510,6 +520,11 @@ static bool set_scope_guard(pass_opt_t* opt, ast_t* method, ast_t* typeparam)
 
   ast_error(opt->check.errors, id, "can't reuse name '%s'", name);
   return false;
+}
+
+bool scope_written_iftype(pass_opt_t* opt, ast_t* ast)
+{
+  return scope_iftype(opt, ast) != AST_ERROR;
 }
 
 static ast_result_t scope_iftype_guard(pass_opt_t* opt, ast_t* ast)

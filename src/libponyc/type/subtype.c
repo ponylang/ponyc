@@ -398,27 +398,7 @@ static ast_t* reify_with_super_typeparams(ast_t* sub, ast_t* super,
   pony_assert(ast_childcount(sub_typeparams) ==
     ast_childcount(super_typeparams));
 
-  BUILD(typeargs, super_typeparams, NODE(TK_TYPEARGS));
-  ast_t* super_typeparam = ast_child(super_typeparams);
-
-  while(super_typeparam != NULL)
-  {
-    AST_GET_CHILDREN(super_typeparam, super_id, super_constraint);
-
-    BUILD(typearg, super_typeparam,
-      NODE(TK_TYPEPARAMREF, TREE(super_id) NONE NONE));
-
-    // `super` can be a reified copy, whose symbol table still binds each name
-    // to the original type parameter. The type argument must refer to that
-    // one, not to the copy.
-    ast_t* def = ast_get(super_typeparam, ast_name(super_id), NULL);
-    ast_setdata(typearg, def);
-    typeparam_set_cap(typearg);
-    ast_append(typeargs, typearg);
-
-    super_typeparam = ast_sibling(super_typeparam);
-  }
-
+  ast_t* typeargs = typeargs_naming_typeparams(super_typeparams);
   ast_t* r_sub = reify_method_def(sub, sub_typeparams, typeargs, opt);
   ast_free_unattached(typeargs);
   return r_sub;

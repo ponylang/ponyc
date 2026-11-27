@@ -1,0 +1,1 @@
+main.pony:10:12: no body found for method 'f'

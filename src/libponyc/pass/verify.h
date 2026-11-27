@@ -7,6 +7,8 @@
 
 PONY_EXTERN_C_BEGIN
 
+ast_result_t pass_pre_verify(ast_t** astp, pass_opt_t* options);
+
 ast_result_t pass_verify(ast_t** astp, pass_opt_t* options);
 
 PONY_EXTERN_C_END

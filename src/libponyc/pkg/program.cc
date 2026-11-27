@@ -6,6 +6,68 @@
 #include <string.h>
 
 
+// An inherited method being checked, and the error count when its check
+// began.
+typedef struct copy_check_t
+{
+  ast_t* entity;
+  ast_t* method;
+  size_t count;
+  struct copy_check_t* next;
+} copy_check_t;
+
+// The type and method whose inherited copy held the literal a class was made
+// from.
+typedef struct anon_host_t
+{
+  ast_t* anon;
+  ast_t* entity;
+  ast_t* method;
+  ast_t* site;
+  struct anon_host_t* next;
+} anon_host_t;
+
+// A trait method and its template: a closed copy taken when the trait's
+// methods were complete and bound where written, before any check of them.
+typedef struct template_t
+{
+  ast_t* method;
+  ast_t* copy;
+} template_t;
+
+static size_t template_hash(template_t* t)
+{
+  return ponyint_hash_ptr(t->method);
+}
+
+static bool template_cmp(template_t* a, template_t* b)
+{
+  return a->method == b->method;
+}
+
+static void template_free(template_t* t)
+{
+  ast_free(t->copy);
+  POOL_FREE(template_t, t);
+}
+
+DECLARE_HASHMAP(template_map, template_map_t, template_t);
+DEFINE_HASHMAP(template_map, template_map_t, template_t, template_hash,
+  template_cmp, template_free);
+
+// The class a literal written in trait text makes in its trait's own check,
+// keyed by where the literal is written, with the type parameters that class
+// was made from (the trait's and its method's), in its own parameters' order.
+typedef struct literal_link_t
+{
+  source_t* source;
+  size_t line;
+  size_t pos;
+  ast_t* def;
+  ast_t* origins;
+  struct literal_link_t* next;
+} literal_link_t;
+
 // Per program state.
 typedef struct program_t
 {
@@ -29,6 +91,42 @@ typedef struct program_t
   size_t embedded_path_count;
   const char** embedded_libs;
   size_t embedded_lib_count;
+
+  // Scheduling of anonymous classes made from literals in trait text: the
+  // traits and interfaces whose expr pass is running (innermost first), the
+  // classes waiting for those checks to finish, in the order they were made,
+  // and whether those classes are being finished now.
+  astlist_t* trait_checks;
+  astlist_t* deferred;
+  bool draining;
+
+  copy_check_t* copy_checks;
+  anon_host_t* anon_hosts;
+
+  // Parameters whose default argument is being checked, innermost first.
+  astlist_t* default_checks;
+
+  template_map_t templates;
+
+  // Error counts when the running trait checks began (innermost first), and
+  // the traits whose checks reported errors.
+  astlist_t* trait_check_counts;
+  astlist_t* failed_traits;
+
+  literal_link_t* literal_links;
+
+  // Classes made from literals in inherited copies that later copies of the
+  // same literal can share (no fields, no type parameters).
+  literal_link_t* copy_literals;
+
+  // One renamed copy of each method type parameter (reify.c).
+  literal_link_t* alpha_typeparams;
+
+  // Ranges [start, end) of error indexes that get no copy note (see
+  // program_error_without_copy_note), as start/end pairs.
+  size_t* check_ranges;
+  size_t check_range_count;
+  size_t check_range_alloc;
 } program_t;
 
 
@@ -73,6 +171,22 @@ program_t* program_create()
   p->embedded_libs = NULL;
   p->embedded_lib_count = 0;
 
+  p->trait_checks = NULL;
+  p->deferred = NULL;
+  p->draining = false;
+  p->copy_checks = NULL;
+  p->anon_hosts = NULL;
+  p->default_checks = NULL;
+  template_map_init(&p->templates, 64);
+  p->trait_check_counts = NULL;
+  p->failed_traits = NULL;
+  p->literal_links = NULL;
+  p->copy_literals = NULL;
+  p->alpha_typeparams = NULL;
+  p->check_ranges = NULL;
+  p->check_range_count = 0;
+  p->check_range_alloc = 0;
+
   return p;
 }
 
@@ -82,6 +196,54 @@ void program_free(program_t* program)
   pony_assert(program != NULL);
 
   module_group_list_free(program->module_groups);
+  astlist_free(program->trait_checks);
+  astlist_free(program->deferred);
+  astlist_free(program->default_checks);
+  template_map_destroy(&program->templates);
+  astlist_free(program->trait_check_counts);
+  astlist_free(program->failed_traits);
+
+  if(program->check_ranges != NULL)
+    ponyint_pool_free_size(program->check_range_alloc * sizeof(size_t),
+      program->check_ranges);
+
+  while(program->alpha_typeparams != NULL)
+  {
+    literal_link_t* next = program->alpha_typeparams->next;
+    ast_free(program->alpha_typeparams->def);
+    POOL_FREE(literal_link_t, program->alpha_typeparams);
+    program->alpha_typeparams = next;
+  }
+
+  while(program->copy_literals != NULL)
+  {
+    literal_link_t* next = program->copy_literals->next;
+    ast_free(program->copy_literals->origins);
+    POOL_FREE(literal_link_t, program->copy_literals);
+    program->copy_literals = next;
+  }
+
+  while(program->literal_links != NULL)
+  {
+    literal_link_t* next = program->literal_links->next;
+    ast_free(program->literal_links->origins);
+    POOL_FREE(literal_link_t, program->literal_links);
+    program->literal_links = next;
+  }
+
+  while(program->copy_checks != NULL)
+  {
+    copy_check_t* next = program->copy_checks->next;
+    POOL_FREE(copy_check_t, program->copy_checks);
+    program->copy_checks = next;
+  }
+
+  while(program->anon_hosts != NULL)
+  {
+    anon_host_t* next = program->anon_hosts->next;
+    POOL_FREE(anon_host_t, program->anon_hosts);
+    program->anon_hosts = next;
+  }
 
   strlist_free(program->libpaths);
   strlist_free(program->libs);
@@ -527,4 +689,387 @@ void program_dump(ast_t* program)
     iter = module_group_list_next(iter);
     i++;
   }
+}
+
+
+static program_t* program_of(ast_t* ast)
+{
+  ast_t* program = ast_nearest(ast, TK_PROGRAM);
+  pony_assert(program != NULL);
+  return (program_t*)ast_data(program);
+}
+
+
+void program_trait_check_begin(ast_t* entity, size_t error_count)
+{
+  program_t* p = program_of(entity);
+  p->trait_checks = astlist_push(p->trait_checks, entity);
+  // The list holds node pointers, so the count is stored cast to one.
+  p->trait_check_counts = astlist_push(p->trait_check_counts,
+    (ast_t*)(uintptr_t)error_count);
+}
+
+
+void program_trait_check_end(ast_t* entity, size_t error_count)
+{
+  program_t* p = program_of(entity);
+  ast_t* top = NULL;
+  p->trait_checks = astlist_pop(p->trait_checks, &top);
+  pony_assert(top == entity);
+  (void)top;
+
+  ast_t* count = NULL;
+  p->trait_check_counts = astlist_pop(p->trait_check_counts, &count);
+  size_t start = (size_t)(uintptr_t)count;
+
+  if(start != error_count)
+  {
+    p->failed_traits = astlist_push(p->failed_traits, entity);
+
+    program_add_unnoted_range(entity, start, error_count);
+  }
+}
+
+
+void program_add_unnoted_range(ast_t* anchor, size_t start, size_t end)
+{
+  program_t* p = program_of(anchor);
+
+  if(start == end)
+    return;
+
+  if(p->check_range_count + 2 > p->check_range_alloc)
+  {
+    size_t alloc = (p->check_range_alloc == 0) ? 16 :
+      p->check_range_alloc * 2;
+    size_t* ranges = (size_t*)ponyint_pool_alloc_size(alloc * sizeof(size_t));
+
+    if(p->check_ranges != NULL)
+    {
+      memcpy(ranges, p->check_ranges, p->check_range_count * sizeof(size_t));
+      ponyint_pool_free_size(p->check_range_alloc * sizeof(size_t),
+        p->check_ranges);
+    }
+
+    p->check_ranges = ranges;
+    p->check_range_alloc = alloc;
+  }
+
+  p->check_ranges[p->check_range_count++] = start;
+  p->check_ranges[p->check_range_count++] = end;
+}
+
+
+bool program_error_without_copy_note(ast_t* anchor, size_t index)
+{
+  program_t* p = program_of(anchor);
+
+  for(size_t i = 0; i < p->check_range_count; i += 2)
+  {
+    if((index >= p->check_ranges[i]) && (index < p->check_ranges[i + 1]))
+      return true;
+  }
+
+  return false;
+}
+
+
+bool program_trait_check_failed(ast_t* entity)
+{
+  return astlist_find(program_of(entity)->failed_traits, entity) != NULL;
+}
+
+
+bool program_trait_check_in_progress(ast_t* entity)
+{
+  program_t* p = program_of(entity);
+  return astlist_find(p->trait_checks, entity) != NULL;
+}
+
+
+bool program_any_trait_check(ast_t* ast)
+{
+  program_t* p = program_of(ast);
+  return (p->trait_checks != NULL) || (p->default_checks != NULL);
+}
+
+
+void program_default_check_begin(ast_t* anchor, ast_t* param)
+{
+  program_t* p = program_of(anchor);
+  p->default_checks = astlist_push(p->default_checks, param);
+}
+
+
+bool program_default_check_end(ast_t* anchor, ast_t* param)
+{
+  program_t* p = program_of(anchor);
+
+  if((p->default_checks == NULL) ||
+    (astlist_data(p->default_checks) != param))
+    return false;
+
+  ast_t* top = NULL;
+  p->default_checks = astlist_pop(p->default_checks, &top);
+  return true;
+}
+
+
+bool program_default_check_in_progress(ast_t* anchor, ast_t* param)
+{
+  return astlist_find(program_of(anchor)->default_checks, param) != NULL;
+}
+
+
+bool program_any_default_check(ast_t* anchor)
+{
+  return program_of(anchor)->default_checks != NULL;
+}
+
+
+astlist_t* program_default_checks(ast_t* anchor)
+{
+  return program_of(anchor)->default_checks;
+}
+
+
+void program_defer_class(ast_t* entity)
+{
+  program_t* p = program_of(entity);
+  p->deferred = astlist_append(p->deferred, entity);
+}
+
+
+bool program_is_deferred(ast_t* entity)
+{
+  return astlist_find(program_of(entity)->deferred, entity) != NULL;
+}
+
+
+ast_t* program_next_deferred(ast_t* ast)
+{
+  program_t* p = program_of(ast);
+
+  if(p->deferred == NULL)
+    return NULL;
+
+  ast_t* entity = NULL;
+  p->deferred = astlist_pop(p->deferred, &entity);
+  return entity;
+}
+
+
+bool program_draining(ast_t* ast)
+{
+  return program_of(ast)->draining;
+}
+
+
+void program_set_draining(ast_t* ast, bool draining)
+{
+  program_of(ast)->draining = draining;
+}
+
+
+void program_push_copy_check(ast_t* anchor, ast_t* entity, ast_t* method,
+  size_t count)
+{
+  program_t* p = program_of(anchor);
+  copy_check_t* c = POOL_ALLOC(copy_check_t);
+  c->entity = entity;
+  c->method = method;
+  c->count = count;
+  c->next = p->copy_checks;
+  p->copy_checks = c;
+}
+
+
+bool program_pop_copy_check(ast_t* anchor, ast_t* method, ast_t** entity,
+  size_t* count)
+{
+  program_t* p = program_of(anchor);
+  copy_check_t* c = p->copy_checks;
+
+  if((c == NULL) || (c->method != method))
+    return false;
+
+  *entity = c->entity;
+  *count = c->count;
+  p->copy_checks = c->next;
+  POOL_FREE(copy_check_t, c);
+  return true;
+}
+
+
+void program_set_anon_host(ast_t* anon, ast_t* entity, ast_t* method,
+  ast_t* site)
+{
+  program_t* p = program_of(anon);
+  anon_host_t* h = POOL_ALLOC(anon_host_t);
+  h->anon = anon;
+  h->entity = entity;
+  h->method = method;
+  h->site = site;
+  h->next = p->anon_hosts;
+  p->anon_hosts = h;
+}
+
+
+bool program_anon_host(ast_t* anon, ast_t** entity, ast_t** method)
+{
+  for(anon_host_t* h = program_of(anon)->anon_hosts; h != NULL; h = h->next)
+  {
+    if(h->anon == anon)
+    {
+      *entity = h->entity;
+      *method = h->method;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+ast_t* program_anon_site(ast_t* anon)
+{
+  for(anon_host_t* h = program_of(anon)->anon_hosts; h != NULL; h = h->next)
+  {
+    if(h->anon == anon)
+      return h->site;
+  }
+
+  return NULL;
+}
+
+
+void program_set_template(ast_t* anchor, ast_t* method, ast_t* copy)
+{
+  program_t* p = program_of(anchor);
+  template_t* t = POOL_ALLOC(template_t);
+  t->method = method;
+  t->copy = copy;
+  template_map_put(&p->templates, t);
+}
+
+
+ast_t* program_template(ast_t* anchor, ast_t* method)
+{
+  program_t* p = program_of(anchor);
+  template_t key;
+  key.method = method;
+  size_t index = HASHMAP_UNKNOWN;
+  template_t* t = template_map_get(&p->templates, &key, &index);
+  return (t == NULL) ? NULL : t->copy;
+}
+
+
+void program_set_literal_link(ast_t* literal, ast_t* def, ast_t* origins)
+{
+  program_t* p = program_of(def);
+
+  // A literal's class is linked once, when the trait's own check makes it.
+#ifndef PONY_NDEBUG
+  ast_t* unused;
+  pony_assert(program_literal_link(def, literal, &unused) == NULL);
+#endif
+  literal_link_t* l = POOL_ALLOC(literal_link_t);
+  l->source = ast_source(literal);
+  l->line = ast_line(literal);
+  l->pos = ast_pos(literal);
+  l->def = def;
+  l->origins = origins;
+  l->next = p->literal_links;
+  p->literal_links = l;
+}
+
+
+void program_add_copy_literal(ast_t* literal, ast_t* def, ast_t* text)
+{
+  program_t* p = program_of(def);
+  literal_link_t* l = POOL_ALLOC(literal_link_t);
+  l->source = ast_source(literal);
+  l->line = ast_line(literal);
+  l->pos = ast_pos(literal);
+  l->def = def;
+  l->origins = text;
+  l->next = p->copy_literals;
+  p->copy_literals = l;
+}
+
+
+ast_t* program_next_copy_literal(ast_t* anchor, ast_t* literal, ast_t* after)
+{
+  bool past = (after == NULL);
+
+  for(literal_link_t* l = program_of(anchor)->copy_literals; l != NULL;
+    l = l->next)
+  {
+    if((l->source != ast_source(literal)) || (l->line != ast_line(literal)) ||
+      (l->pos != ast_pos(literal)))
+      continue;
+
+    if(past)
+      return l->def;
+
+    if(l->def == after)
+      past = true;
+  }
+
+  return NULL;
+}
+
+
+ast_t* program_alpha_typeparam(ast_t* typeparam)
+{
+  program_t* p = program_of(typeparam);
+
+  for(literal_link_t* l = p->alpha_typeparams; l != NULL; l = l->next)
+  {
+    if(l->origins == typeparam)
+      return l->def;
+  }
+
+  ast_t* alpha = ast_dup(typeparam);
+  ast_setdata(alpha, alpha);
+
+  literal_link_t* l = POOL_ALLOC(literal_link_t);
+  l->source = NULL;
+  l->line = 0;
+  l->pos = 0;
+  l->def = alpha;
+  l->origins = typeparam;
+  l->next = p->alpha_typeparams;
+  p->alpha_typeparams = l;
+  return alpha;
+}
+
+
+ast_t* program_copy_literal_text(ast_t* anchor, ast_t* def)
+{
+  for(literal_link_t* l = program_of(anchor)->copy_literals; l != NULL;
+    l = l->next)
+  {
+    if(l->def == def)
+      return l->origins;
+  }
+
+  return NULL;
+}
+
+
+ast_t* program_literal_link(ast_t* anchor, ast_t* literal, ast_t** origins)
+{
+  for(literal_link_t* l = program_of(anchor)->literal_links; l != NULL;
+    l = l->next)
+  {
+    if((l->source == ast_source(literal)) && (l->line == ast_line(literal)) &&
+      (l->pos == ast_pos(literal)))
+    {
+      *origins = l->origins;
+      return l->def;
+    }
+  }
+
+  return NULL;
 }

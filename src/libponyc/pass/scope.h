@@ -16,6 +16,13 @@ PONY_EXTERN_C_BEGIN
 ast_result_t pass_scope(ast_t** astp, pass_opt_t* options);
 
 /**
+ * Build the narrowed type parameters of an iftype in the text of an object
+ * literal or lambda, where that text is written. The scope pass runs on that
+ * text again when the literal is expanded and keeps what this builds.
+ */
+bool scope_written_iftype(pass_opt_t* opt, ast_t* ast);
+
+/**
 * Import a module, either with a qualifying name or by merging it into the
 * current scope.
 */

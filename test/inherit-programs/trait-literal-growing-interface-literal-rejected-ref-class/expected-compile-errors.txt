@@ -1,0 +1,2 @@
+main.pony:6:35: function body isn't the result type
+main.pony:6:35: type does not implement its provides list

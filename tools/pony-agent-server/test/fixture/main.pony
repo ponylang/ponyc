@@ -230,3 +230,21 @@ class ScopeInheritedHolder[S: Any val] is ScopeInherited
 trait ScopeInherited
   fun pick[R: Any val](r: R): R =>
     r
+
+trait AgentLiteralMarker
+  fun mark(): String
+
+trait AgentLiteralSource
+  fun v(): (U8 | String)
+
+  fun mk(): AgentLiteralMarker val =>
+    let x = v()
+    object val is AgentLiteralMarker
+      fun mark(): String => x.string()
+    end
+
+class AgentLiteralHostU8 is AgentLiteralSource
+  fun v(): U8 => 1
+
+class AgentLiteralHostString is AgentLiteralSource
+  fun v(): String => "s"

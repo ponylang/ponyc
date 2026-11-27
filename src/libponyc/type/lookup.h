@@ -18,6 +18,11 @@ deferred_reification_t* lookup(pass_opt_t* opt, ast_t* from, ast_t* type,
 deferred_reification_t* lookup_try(pass_opt_t* opt, ast_t* from, ast_t* type,
   const char* name, bool allow_private);
 
+/** Whether a type names a private type in text written outside that type's
+ * package, directly or through a type alias named outside it.
+ */
+bool type_names_foreign_private(pass_opt_t* opt, ast_t* type);
+
 PONY_EXTERN_C_END
 
 #endif

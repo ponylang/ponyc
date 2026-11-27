@@ -331,7 +331,7 @@ primitive Extractor
     for tp in tparams_node.children() do
       if tp.id() == ast.TokenIds.tk_none() then continue end
       try
-        let tp_name = tp(0)?.nice_name()
+        let tp_name = (tp(0)?.token_value() as String)
         let constraint: (DocType | None) =
           try
             let c = tp(1)?

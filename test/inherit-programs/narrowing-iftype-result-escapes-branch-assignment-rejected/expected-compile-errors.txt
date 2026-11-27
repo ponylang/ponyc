@@ -1,0 +1,4 @@
+main.pony:9:27: right side must be a subtype of left side
+    main.pony:11:16: P val is not a subtype of Stringable val^: it has no method 'string'
+    main.pony:11:16: not every element of (P val | String val) is a subtype of Stringable val^
+    main.pony:11:12: in method 'f' inherited by C from Foo

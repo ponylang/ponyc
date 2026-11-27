@@ -1,4 +1,5 @@
 #include "literal.h"
+#include "../pass/traits.h"
 #include "reference.h"
 #include "../ast/astbuild.h"
 #include "../pass/expr.h"
@@ -249,8 +250,7 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
   BUILD(typeargs, type_param,
     NODE(TK_TYPEARGS,
       NODE(TK_TYPEPARAMREF, DATA(type_param)
-        NICE_ID(ast_name(ast_child(type_param)),
-          ast_nice_name(ast_child(type_param))) NODE(TK_VAL) NONE)));
+        ID(ast_name(ast_child(type_param))) NODE(TK_VAL) NONE)));
 
   ast_t* number = type_builtin(opt, type_param, "Number");
   ast_t* real = type_builtin_args(opt, type_param, "Real", typeargs);
@@ -497,8 +497,7 @@ static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
 
     BUILD(uif_type, type,
       NODE(TK_TYPEPARAMREF, DATA(chain_head->formal)
-      NICE_ID(chain_head->name, ast_nice_name(ast_child(chain_head->formal)))
-      NODE(TK_VAL) NONE));
+      ID(chain_head->name) NODE(TK_VAL) NONE));
 
     chain_head->cached_type = uif_type;
     chain_head->valid_for_float = ((r & UIF_INT_MASK) == 0);
@@ -548,9 +547,7 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
   {
     if(report_errors)
       ast_error(opt->check.errors, literal, "Inferred possibly integer type %s for float literal",
-        (ast_id(chain_head->cached_type) == TK_TYPEPARAMREF) ?
-          ast_nice_name(ast_child(chain_head->cached_type)) :
-          chain_head->name);
+        chain_head->name);
 
     return false;
   }
@@ -851,6 +848,20 @@ bool coerce_literals(ast_t** astp, ast_t* target_type, pass_opt_t* opt)
 
   lit_chain_t chain;
   chain_init_head(&chain);
+
+  // In inherited code that can't run for the inheriting type, a literal the
+  // trait typed as its target takes the target's substituted type.
+  if((target_type != NULL) && (ast_id(literal_expr) == TK_INT ||
+    ast_id(literal_expr) == TK_FLOAT) && is_copy_context(opt) &&
+    is_in_unrunnable_code(literal_expr, opt))
+  {
+    if(coerce_literal_to_type(astp, target_type, &chain, opt, false))
+      return true;
+
+    ast_settype(*astp, target_type);
+    return true;
+  }
+
   return coerce_literal_to_type(astp, target_type, &chain, opt, true);
 }
 

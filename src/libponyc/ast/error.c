@@ -423,3 +423,59 @@ void errorframe_discard(errorframe_t* frame)
   error_free(*frame);
   *frame = NULL;
 }
+
+
+static bool is_copy_note(errormsg_t* e)
+{
+  return (e->msg != NULL) &&
+    (strncmp(e->msg, COPY_NOTE_START, strlen(COPY_NOTE_START)) == 0) &&
+    (strstr(e->msg, COPY_NOTE_INHERITED) != NULL);
+}
+
+static bool is_blame_note(errormsg_t* e)
+{
+  return (e->msg != NULL) &&
+    (strstr(e->msg, BLAME_NOTE_REACHES) != NULL);
+}
+
+void errors_add_copy_note(errors_t* errors, size_t since,
+  bool (*skip)(size_t index, void* ctx), void* ctx, source_t* source,
+  size_t line, size_t pos, const char* fmt, ...)
+{
+  errormsg_t* e = errors->head;
+  size_t index = 0;
+  for(; (index < since) && (e != NULL); index++)
+    e = e->next;
+
+  for(; e != NULL; e = e->next, index++)
+  {
+    if((skip != NULL) && skip(index, ctx))
+      continue;
+
+    // An error gets one note, and it goes before the note saying how a
+    // private type reached the code.
+    errormsg_t* prev = e;
+    errormsg_t* f = e->frame;
+    bool noted = false;
+
+    while((f != NULL) && !is_blame_note(f))
+    {
+      if(is_copy_note(f))
+        noted = true;
+
+      prev = f;
+      f = f->frame;
+    }
+
+    if(noted)
+      continue;
+
+    va_list ap;
+    va_start(ap, fmt);
+    errormsg_t* note = make_errorv(source, line, pos, fmt, ap);
+    va_end(ap);
+
+    note->frame = prev->frame;
+    prev->frame = note;
+  }
+}

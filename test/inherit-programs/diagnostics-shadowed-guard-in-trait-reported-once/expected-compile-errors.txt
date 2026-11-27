@@ -1,0 +1,2 @@
+main.pony:7:22: specialization is unreachable because a previous guard matches all the same types
+    main.pony:6:22: this guard shadows the unreachable specialization

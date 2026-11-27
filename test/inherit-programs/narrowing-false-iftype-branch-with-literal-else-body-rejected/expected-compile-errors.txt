@@ -1,0 +1,6 @@
+main.pony:7:5: function body isn't the result type
+    main.pony:6:16: function return type: U8 val
+    main.pony:8:18: function body type: (String val^ | U8 val)
+    main.pony:8:18: String val^ is not a subtype of U8 val
+    main.pony:8:18: not every element of (String val^ | U8 val) is a subtype of U8 val
+    main.pony:8:14: in method 'f' inherited by Bar from Foo

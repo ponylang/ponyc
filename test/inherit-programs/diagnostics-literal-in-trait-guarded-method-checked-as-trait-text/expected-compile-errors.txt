@@ -1,0 +1,1 @@
+main.pony:13:13: try expression never results in an error
