@@ -1127,8 +1127,9 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
       if(marked)
         return HEAP_MARK_MARKED;
 
+      bool first = (chunk->small.shallow & slot) != 0;
       chunk->small.shallow &= ~slot;
-      return HEAP_MARK_SHARED_START;
+      return first ? HEAP_MARK_SHARED_START_FIRST : HEAP_MARK_SHARED_START;
     }
 
     if(marked)
@@ -1155,8 +1156,9 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p)
     if(marked)
       return HEAP_MARK_MARKED;
 
+    bool first = get_large_chunk_shallow(chunk) != 0;
     set_large_chunk_shallow(chunk, 0);
-    return HEAP_MARK_SHARED_START;
+    return first ? HEAP_MARK_SHARED_START_FIRST : HEAP_MARK_SHARED_START;
   }
 
   if(marked)

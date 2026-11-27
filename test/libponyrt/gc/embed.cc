@@ -229,6 +229,7 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
     for(size_t i = 0; i < count; i++)
     {
       pony_traceknown_routed(ctx, objects[i], &c_type, PONY_TRACE_MUTABLE);
+      pony_traceknown_routed(ctx, objects[i], &c_type, PONY_TRACE_MUTABLE);
       pony_traceknown_routed(ctx, objects[i], &s_type, PONY_TRACE_MUTABLE);
     }
 
@@ -513,7 +514,8 @@ TEST(HeapMarkObject, SharedStartLastsAsLongAsTheAllocation)
     {
       start_gc(&actor);
       ponyint_heap_mark_object(keeper_chunk, keeper);
-      EXPECT_EQ(HEAP_MARK_SHARED_START, ponyint_heap_mark_object(chunk, p));
+      EXPECT_EQ(HEAP_MARK_SHARED_START_FIRST,
+        ponyint_heap_mark_object(chunk, p));
       EXPECT_EQ(HEAP_MARK_SHARED_START, ponyint_heap_mark_object(chunk, p));
       end_gc(&actor);
     }

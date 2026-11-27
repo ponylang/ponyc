@@ -109,6 +109,8 @@ typedef enum
   // p starts an allocation whose start is shared. This function never sets
   // such an allocation's full mark: it is kept with a shallow mark.
   HEAP_MARK_SHARED_START,
+  // As HEAP_MARK_SHARED_START, and this call set the allocation's shallow mark.
+  HEAP_MARK_SHARED_START_FIRST,
   // p is inside its allocation, which isn't marked, and this call set the
   // allocation's shallow mark, which keeps it.
   HEAP_MARK_INTERIOR_FIRST,
