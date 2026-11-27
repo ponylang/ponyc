@@ -947,20 +947,13 @@ TEST(ActorContaining, PoolMemoryThatIsNotAnActor)
   ponyint_image_ro_end = (uintptr_t)&tiny_actor_type + sizeof(_pony_type_t) - 1;
   EXPECT_EQ(nullptr, ponyint_actor_containing(block + 8));
 
-  // A descriptor in the image that isn't aligned.
-#pragma pack(push, 1)
-  struct misaligned_t
-  {
-    char pad;
-    struct _pony_type_t type;
-  };
-#pragma pack(pop)
-  static misaligned_t misaligned = {0, {0, 16, 0, 0, nullptr, nullptr,
-    nullptr, nullptr, dispatch_nothing, nullptr, 0, true,
-    PONY_EMBED_ACTOR_LOOKUP, nullptr, nullptr, nullptr}};
-  ponyint_image_ro_start = (uintptr_t)&misaligned;
-  ponyint_image_ro_end = (uintptr_t)&misaligned + sizeof(misaligned);
-  *reinterpret_cast<struct _pony_type_t**>(block) = &misaligned.type;
+  // A descriptor in the image that isn't aligned: a copy of an actor
+  // descriptor one byte into a buffer.
+  alignas(16) static char misaligned[sizeof(_pony_type_t) + 1];
+  memcpy(misaligned + 1, &tiny_actor_type, sizeof(_pony_type_t));
+  ponyint_image_ro_start = (uintptr_t)misaligned;
+  ponyint_image_ro_end = (uintptr_t)misaligned + sizeof(misaligned);
+  *reinterpret_cast<char**>(block) = misaligned + 1;
   EXPECT_EQ(nullptr, ponyint_actor_containing(block + 8));
 
   ponyint_image_ro_start = ro_start;

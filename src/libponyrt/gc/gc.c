@@ -433,9 +433,8 @@ static GC_INLINE void recv_local_object(pony_ctx_t* ctx, void* p,
     recurse(ctx, p, t->trace);
 }
 
-// A visit the allocation's mark can't record: a repeat visit inside an
-// allocation, or a repeat visit at a shared start that may not be of the
-// allocation's own type. The visit is recorded by address and type.
+// A visit the allocation's marks can't record (HEAP_MARK_SHARED_START or
+// HEAP_MARK_INTERIOR). The visit is recorded by address and type.
 static PONY_NOINLINE void mark_local_visit(pony_ctx_t* ctx, void* p,
   pony_type_t* t)
 {
@@ -459,12 +458,9 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
 }
 
 // A visit to a type that can share memory with other objects, in this actor's
-// own heap or its own allocation (no chunk). An allocation's mark means the
-// object that starts the allocation has been traced, and that trace covers the
-// objects embedded in it. An allocation whose start is shared (a struct that
-// starts with an embedded field with a non-zero size) is marked only by a visit
-// as a type without PONY_EMBED_AT_START. The first other visit there traces
-// the object; later ones are recorded by type.
+// own heap or its own allocation (no chunk). ponyint_heap_mark_object (heap.h)
+// says whether the visit is the first its allocation's marks record, is
+// covered by a trace already made, or must be recorded by type.
 static void mark_local_object_routed(pony_ctx_t* ctx, chunk_t* chunk, void* p,
   pony_type_t* t, int mutability)
 {

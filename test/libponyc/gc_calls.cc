@@ -85,6 +85,7 @@ TEST_F(GcCalls, AllocationOnUnwindCanRepeatAtEveryDepth)
       EXPECT_EQ(fn->getArg(i), call->getArgOperand(i));
   }
 }
+
 // The allocator for a struct that shares its start is a small allocation too,
 // so a call whose path holds only that allocation keeps the room check.
 TEST_F(GcCalls, SharedStartAllocationIsASmallAllocation)
