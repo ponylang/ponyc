@@ -1,4 +1,0 @@
-./dbg: No such file or directory.
-No executable file specified.
-Use the "file" or "exec-file" command.
-The program is not being run.
