@@ -30,7 +30,22 @@ int32_t mutate_find_or_record(mutate_state_t* state, ast_t* owner, bool shared,
   const char* category, const char* original,
   const char* replacement, int32_t* out_coverage);
 
+// Writes the mutation info for bin_name to
+// <output_dir>/<bin_name>.mutants.json (a backslash separator on Windows).
+// Returns false if the file can't be written completely.
 bool mutate_write_info(mutate_state_t* state, const char* output_dir,
+  const char* bin_name);
+
+// Writes the mutation info for bin_name to path. On POSIX hosts, a file or
+// symlink at path is removed first and the file is created fresh.
+// Returns false if the file can't be written completely.
+bool mutate_write_info_to(mutate_state_t* state, const char* path,
+  const char* bin_name);
+
+// Formats the path <output_dir>/<bin_name>.mutants.json (a backslash separator
+// on Windows) into buf (at most size bytes, including the terminating NUL) and
+// returns its length without the NUL.
+size_t mutate_info_path(char* buf, size_t size, const char* output_dir,
   const char* bin_name);
 
 // One replacement variant for a binary operator mutation.

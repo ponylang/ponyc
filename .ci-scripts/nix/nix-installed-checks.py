@@ -283,7 +283,21 @@ def _installation(prefix):
         return _Failure('installation', 'SSL definition disagrees with pinned '
                         'OpenSSL version')
     value['sslDefine'] = define
+    failure = _versioned_binaries(prefix, value['version'])
+    if failure:
+        return failure
     return value
+
+
+def _versioned_binaries(prefix, version):
+    # bin/ponyc runs ponyc-compiler and ponylink from its own versioned
+    # directory, so all three must be installed there together.
+    directory = prefix / 'lib/pony' / version / 'bin'
+    for name in ('ponyc', 'ponyc-compiler', 'ponylink'):
+        executable = directory / name
+        if not executable.is_file() or not os.access(executable, os.X_OK):
+            return _Failure('installation', f'missing executable: {executable}')
+    return None
 
 
 def _scratch(base, prefix):

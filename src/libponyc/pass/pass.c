@@ -1,4 +1,5 @@
 #include "pass.h"
+#include "../ponyc.h"
 #include "syntax.h"
 #include "sugar.h"
 #include "scope.h"
@@ -117,6 +118,8 @@ void pass_opt_init(pass_opt_t* options)
 
 void pass_opt_done(pass_opt_t* options)
 {
+  ponyc_abandon_link(ponyc_take_pending_link(options));
+
   plugin_unload(options);
 
   // free userflags if any
@@ -145,8 +148,8 @@ void pass_opt_done(pass_opt_t* options)
 
   // Free the timing context if it survived to here. This covers the early-exit
   // option paths, which never start LLVM; reaching it after LLVM teardown would
-  // be a bug (timing.h gives the reason), and the ponyc driver frees it before
-  // then.
+  // be a bug (timing.h gives the reason), and the compiler's main frees it
+  // before then.
   if(options->timers != NULL)
   {
     pass_timers_free(options->timers);

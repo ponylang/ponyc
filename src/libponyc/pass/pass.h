@@ -274,6 +274,7 @@ typedef enum pass_id
 typedef struct magic_module_t magic_module_t;
 typedef struct plugins_t plugins_t;
 typedef struct pass_timers_t pass_timers_t;
+typedef struct link_job_t link_job_t;
 
 /** Pass options.
  *
@@ -356,6 +357,14 @@ typedef struct pass_opt_t
 
   size_t mutate_scope_count;
   struct mutate_scope_t* mutate_scopes;
+
+  // When true, genexe stores the prepared link in pending_link instead of
+  // running it (POSIX only: on Windows the link always runs). Take it with
+  // ponyc_take_pending_link before another package links, and before
+  // pass_opt_done, which abandons a link still left here; a second deferred
+  // link while one is pending is an internal error.
+  bool defer_link;
+  link_job_t* pending_link;
 } pass_opt_t;
 
 #define MUTATE_OP_AOR  (1 << 0)

@@ -6,6 +6,7 @@ add_executable(ponylink main.cc)
 
 target_include_directories(ponylink
     PRIVATE ../../build/libs/include
+    PRIVATE ../common
 )
 
 target_link_directories(ponylink

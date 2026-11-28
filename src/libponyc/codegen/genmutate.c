@@ -15,8 +15,14 @@
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
+#include <platform.h>
 #include <stdio.h>
 #include <string.h>
+
+#ifdef PLATFORM_IS_POSIX_BASED
+#  include <fcntl.h>
+#  include <unistd.h>
+#endif
 
 #define INITIAL_ALLOC 64
 
@@ -219,21 +225,43 @@ static void write_escaped(FILE* f, const char* str)
   ponyint_pool_free_size(buf_size, buf);
 }
 
+size_t mutate_info_path(char* buf, size_t size, const char* output_dir,
+  const char* bin_name)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  int n = snprintf(buf, size, "%s\\%s.mutants.json", output_dir, bin_name);
+#else
+  int n = snprintf(buf, size, "%s/%s.mutants.json", output_dir, bin_name);
+#endif
+  return (n < 0) ? 0 : (size_t)n;
+}
+
 bool mutate_write_info(mutate_state_t* state, const char* output_dir,
   const char* bin_name)
 {
-  size_t dir_len = strlen(output_dir);
-  size_t name_len = strlen(bin_name);
-  size_t path_len = dir_len + 1 + name_len + 14;
+  size_t path_len = mutate_info_path(NULL, 0, output_dir, bin_name);
   char* path = (char*)ponyint_pool_alloc_size(path_len + 1);
-#ifdef PLATFORM_IS_WINDOWS
-  snprintf(path, path_len + 1, "%s\\%s.mutants.json", output_dir, bin_name);
-#else
-  snprintf(path, path_len + 1, "%s/%s.mutants.json", output_dir, bin_name);
-#endif
-
-  FILE* f = fopen(path, "w");
+  mutate_info_path(path, path_len + 1, output_dir, bin_name);
+  bool ok = mutate_write_info_to(state, path, bin_name);
   ponyint_pool_free_size(path_len + 1, path);
+  return ok;
+}
+
+bool mutate_write_info_to(mutate_state_t* state, const char* path,
+  const char* bin_name)
+{
+#ifdef PLATFORM_IS_POSIX_BASED
+  // O_EXCL|O_NOFOLLOW makes the open fail rather than follow a symlink
+  // created after the unlink.
+  unlink(path);
+  int fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0666);
+  FILE* f = (fd == -1) ? NULL : fdopen(fd, "w");
+
+  if((f == NULL) && (fd != -1))
+    close(fd);
+#else
+  FILE* f = fopen(path, "w");
+#endif
 
   if(f == NULL)
     return false;
@@ -287,8 +315,8 @@ bool mutate_write_info(mutate_state_t* state, const char* output_dir,
     fprintf(f, "\n  ");
   fprintf(f, "]\n}\n");
 
-  fclose(f);
-  return true;
+  bool ok = (ferror(f) == 0);
+  return (fclose(f) == 0) && ok;
 }
 
 static bool scope_file_matches(const char* scope_file, size_t scope_len,

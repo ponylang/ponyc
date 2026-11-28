@@ -293,6 +293,65 @@ def invalid_installation(root):
     require(not prefix.exists(), 'invalid installation prefix created')
 
 
+def versioned_binaries(root):
+    prefix = root / 'versioned-installation'
+    directory = prefix / 'lib/pony/1.2.3/bin'
+    directory.mkdir(parents=True)
+    names = ('ponyc', 'ponyc-compiler', 'ponylink')
+    for name in names:
+        executable = directory / name
+        executable.write_bytes(b'#!/bin/sh\n')
+        executable.chmod(0o755)
+    result = checks._versioned_binaries(prefix, '1.2.3')
+    require(result is None, f'complete versioned binaries rejected: {result}')
+    for name in names:
+        executable = directory / name
+        executable.chmod(0o644)
+        result = checks._versioned_binaries(prefix, '1.2.3')
+        require(isinstance(result, checks._Failure)
+                and result.phase == 'installation'
+                and str(executable) in result.detail,
+                f'non-executable {name} accepted: {result}')
+        executable.unlink()
+        result = checks._versioned_binaries(prefix, '1.2.3')
+        require(isinstance(result, checks._Failure)
+                and str(executable) in result.detail,
+                f'missing {name} accepted: {result}')
+        executable.write_bytes(b'#!/bin/sh\n')
+        executable.chmod(0o755)
+
+
+def installation_versioned_binaries(root):
+    prefix = (root / 'installation-versioned').resolve()
+    for name in ('ponyc', 'pony-lsp', 'pony-lint', 'pony-doc', 'pony-dep',
+                 'pony-agent-server'):
+        executable = prefix / 'bin' / name
+        executable.parent.mkdir(parents=True, exist_ok=True)
+        executable.write_bytes(b'#!/bin/sh\n')
+        executable.chmod(0o755)
+    metadata = prefix / 'nix-support/installed-toolchain.json'
+    metadata.parent.mkdir(parents=True)
+    metadata.write_text(json.dumps({
+        'version': '1.2.3', 'opensslVersion': '3.0.13',
+        'cmakeSslDefine': '-Dopenssl_3.0.x', 'compiler': '/cc', 'ar': '/ar',
+        'interpreter': '/ld.so', 'includeDirectories': ['/include'],
+        'libraryDirectories': ['/lib']}))
+    directory = prefix / 'lib/pony/1.2.3/bin'
+    directory.mkdir(parents=True)
+    for name in ('ponyc', 'ponyc-compiler', 'ponylink'):
+        executable = directory / name
+        executable.write_bytes(b'#!/bin/sh\n')
+        executable.chmod(0o755)
+    result = checks._installation(prefix)
+    require(isinstance(result, dict), f'complete installation rejected: {result}')
+    (directory / 'ponyc-compiler').unlink()
+    result = checks._installation(prefix)
+    require(isinstance(result, checks._Failure)
+            and result.phase == 'installation'
+            and str(directory / 'ponyc-compiler') in result.detail,
+            f'installation without ponyc-compiler accepted: {result}')
+
+
 def scratch_ownership(root):
     prefix = root / 'installation'
     prefix.mkdir()
@@ -626,6 +685,8 @@ def main():
         root = pathlib.Path(temporary)
         environment_and_commands(root)
         invalid_installation(root)
+        versioned_binaries(root)
+        installation_versioned_binaries(root)
         with contextlib.redirect_stdout(io.StringIO()):
             scratch_ownership(root)
         if os.name == 'posix':

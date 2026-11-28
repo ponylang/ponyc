@@ -34,6 +34,8 @@ cmake --build --preset debug
 
 The output goes in `build/debug`. Use `--preset release` for a release build. The vendored LLVM libraries must be built first with `cmake -P lib/build-libs.cmake` — this only needs to run once (or when the LLVM submodule changes).
 
+To run the compiler under a debugger, valgrind, or a profiler, run `build/<config>/ponyc-compiler` with the same arguments, not `ponyc`: `ponyc` is a small driver that runs `ponyc-compiler` as a child process. Run directly, `ponyc-compiler` links every package itself. To run the path `ponyc` takes for the last package, where the compiler writes a link job for the driver instead of linking, give `--link-handoff=3` as the first argument with fd 3 a pipe, for example `3> >(tr '\0' '\n' > job.txt)` in bash.
+
 ### Nix and NixOS
 
 Use `nix develop --no-update-lock-file`, then build as an unprivileged user. Use GCC overrides for both build stages; the Unix preset's default Clang cannot find static `libstdc++.a` in this environment:
@@ -52,7 +54,7 @@ Use `x86-64-debug` for the test commands below, or `x86-64-release` for release 
 
 Tests are registered with ctest and grouped by label. Two labels matter:
 
-- **`ci-core`** — built by a normal `cmake --build --preset debug`. The C/C++ compiler tests (`libponyc.tests`), the runtime tests (`libponyrt.tests`), the stdlib suite, full-program integration tests, and grammar validation.
+- **`ci-core`** — built by a normal `cmake --build --preset debug`.
 - **`tools`** — **not** built by a normal `cmake --build --preset debug`. The self-hosted tool test suites: pony-compiler, pony-lsp, pony-lint, pony-doc, pony-dep, and pony-agent-server.
 
 ### Core tests (ci-core)
@@ -78,6 +80,8 @@ Run individual tests by name:
 - `ctest --preset debug -R stdlib` — stdlib test suite
 - `ctest --preset debug -R full-programs` — compile-and-run integration tests
 - `ctest --preset debug -R validate-grammar` — checks `pony.g` against the compiler
+- `ctest --preset debug -R link-handoff` — how each package's link reaches ponylink (from the compiler or the driver), and ponylink's cleanup (POSIX)
+- `ctest --preset debug -R ponyc-driver` — the `ponyc` driver program
 - `ctest --preset debug -R examples` — compiles all examples (not part of `ci-core`; runs locally and in the weekly `build-examples.yml` workflow)
 - `ctest --preset debug -R mutation-runtime` — compiles a test program with `--mutate`, runs baseline and mutant execution
 - `ctest --preset debug -R mutation-monomorphization` — checks generic mutant sharing, replacement coverage, and inherited method isolation

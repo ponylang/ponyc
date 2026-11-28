@@ -118,7 +118,7 @@ in common.stdenv.mkDerivation {
     PY
     includes=${pkgs.lib.escapeShellArg (pkgs.lib.concatMapStringsSep " " (directory: "-isystem ${directory}") includeDirectories)}
     libraries=${pkgs.lib.escapeShellArg (pkgs.lib.concatMapStringsSep " " (directory: "-L${directory}") libraryDirectories)}
-    for tool in ponyc pony-lsp pony-lint pony-doc pony-dep pony-agent-server; do
+    for tool in ponyc-compiler pony-lsp pony-lint pony-doc pony-dep pony-agent-server; do
       mv "$versioned/bin/$tool" "$versioned/bin/.$tool-real"
       cat > "$versioned/bin/$tool" <<WRAPPER
     #!${pkgs.runtimeShell}

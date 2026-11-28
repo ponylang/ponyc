@@ -1,20 +1,8 @@
 #include <platform.h>
+#include "../../common/exe_path.h"
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <stdio.h>
-
-#if defined(PLATFORM_IS_LINUX)
-#include <unistd.h>
-#elif defined(PLATFORM_IS_MACOSX)
-#include <mach-o/dyld.h>
-#elif defined(PLATFORM_IS_BSD)
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
-#include <sys/stat.h>
-#endif
-
-# define PATH_SLASH '/'
 
 PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 {
@@ -61,24 +49,7 @@ PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 
 char* pony_realpath(const char* path, char* resolved)
 {
-#ifdef PLATFORM_IS_WINDOWS
-  if(GetFullPathName(path, FILENAME_MAX, resolved, NULL) == 0 ||
-    GetFileAttributes(resolved) == INVALID_FILE_ATTRIBUTES)
-    return NULL;
-
-  // Normalize backslashes to forward slashes
-  for(size_t i = 0; resolved[i] != '\0'; i++)
-    if(resolved[i] == '\\')
-      resolved[i] = '/';
-
-  // Strip any trailing slashes
-  for(size_t len = strlen(resolved); len > 0 && resolved[len - 1] == '/'; --len)
-    resolved[len - 1] = '\0';
-
-  return resolved;
-#elif defined(PLATFORM_IS_POSIX_BASED)
-  return realpath(path, resolved);
-#endif
+  return pony_exe_path_realpath(path, resolved);
 }
 
 char* pony_dir_info_name(PONY_DIRINFO* info)
@@ -216,103 +187,10 @@ char* remove_ext(const char* path, char dot, char sep, size_t* allocated_size)
 
 bool get_compiler_exe_path(char* output_path, const char* argv0)
 {
-  bool success = false;
-  success = (argv0 == NULL) ? success : success; // hush compiler warning
-#ifdef PLATFORM_IS_WINDOWS
-  // Specified size *includes* nul terminator
-  GetModuleFileName(NULL, output_path, FILENAME_MAX);
-  success = (GetLastError() == ERROR_SUCCESS);
-
-  if(success)
-  {
-    for(size_t i = 0; output_path[i] != '\0'; i++)
-      if(output_path[i] == '\\')
-        output_path[i] = '/';
-  }
-#elif defined PLATFORM_IS_LINUX
-  // Specified size *excludes* nul terminator
-  ssize_t r = readlink("/proc/self/exe", output_path, FILENAME_MAX - 1);
-  success = (r >= 0);
-
-  if(success)
-    output_path[r] = '\0';
-#elif defined PLATFORM_IS_OPENBSD
-  if (argv0 != NULL && (*argv0 == '/' || *argv0 == '.'))
-  {
-    if (pony_realpath(argv0, output_path) != NULL)
-    {
-      return true;
-    } else {
-      return false;
-    }
-  }
-  else {
-    char *env_path = getenv("PATH");
-    char *token, *string, *tofree;
-    char try_path[FILENAME_MAX];
-    struct stat sb;
-
-    if (env_path == NULL)
-    {
-      return false;
-    }
-    tofree = string = strdup(env_path);
-    while ((token = strsep(&string, ":")) != NULL)
-    {
-      snprintf(try_path, sizeof(try_path), "%s/%s", token, argv0);
-      if (access(try_path, X_OK) == 0 &&
-        stat(try_path, &sb) == 0 &&
-        (sb.st_mode & S_IFREG) == S_IFREG)
-      {
-        if (pony_realpath(try_path, output_path) != NULL)
-        {
-          success = true;
-          break;
-        }
-      }
-    }
-    free(tofree);
-  }
-#elif defined PLATFORM_IS_BSD
-  int mib[4];
-  mib[0] = CTL_KERN;
-  mib[1] = KERN_PROC;
-  mib[2] = KERN_PROC_PATHNAME;
-  mib[3] = -1;
-
-  size_t len = FILENAME_MAX;
-  int r = sysctl(mib, 4, output_path, &len, NULL, 0);
-  success = (r == 0);
-#elif defined PLATFORM_IS_MACOSX
-  char exec_path[FILENAME_MAX];
-  uint32_t size = sizeof(exec_path);
-  int r = _NSGetExecutablePath(exec_path, &size);
-  success = (r == 0);
-
-  if(success)
-  {
-    pony_realpath(exec_path, output_path);
-  }
-#else
-#  error Unsupported platform for exec_path()
-#endif
-  return success;
+  return pony_exe_path_get(output_path, argv0);
 }
 
 bool get_compiler_exe_directory(char* output_path, const char* argv0)
 {
-  bool can_get_compiler_path = get_compiler_exe_path(output_path, argv0);
-  if (can_get_compiler_path)
-  {
-    char *p = strrchr(output_path, PATH_SLASH);
-    if(p == NULL)
-    {
-      return false;
-    }
-    p++;
-    *p = '\0';
-    return true;
-  } else {
-    return false;
-  }
+  return pony_exe_path_directory(output_path, argv0);
 }

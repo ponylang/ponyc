@@ -168,8 +168,8 @@ jobs:
         run: |
           out=$(mktemp -d "$PWD/build/riscv-ffi.XXXXXX")
           # Keep host runtime bitcode out of the RISC-V IR.
-          cp build/debug/ponyc "$out/ponyc"
-          "$out/ponyc" -d --pass=ir --path=packages --output="$out" \
+          cp build/debug/ponyc-compiler "$out/ponyc-compiler"
+          "$out/ponyc-compiler" -d --pass=ir --path=packages --output="$out" \
             --triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 \
             --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c \
             test/full-program-tests/ffi-struct-by-value

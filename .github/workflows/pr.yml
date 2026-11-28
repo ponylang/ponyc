@@ -455,7 +455,7 @@ jobs:
           name: ssl-backends-ponyc
           path: ponyc-installed/
       - name: Make ponyc executable
-        run: chmod +x ponyc-installed/lib/pony/*/bin/ponyc
+        run: chmod +x ponyc-installed/lib/pony/*/bin/*
       - name: Compile net tests
         run: |
           PONYC="$(find ponyc-installed/lib/pony -name ponyc -type f)"
