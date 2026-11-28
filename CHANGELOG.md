@@ -82,6 +82,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix type parameter bugs in generic methods ([PR #6721](https://github.com/ponylang/ponyc/pull/6721))
 - Reduce memory use, build time, and binary size of optimized builds ([PR #6747](https://github.com/ponylang/ponyc/pull/6747))
 - Use less memory while linking ([PR #6748](https://github.com/ponylang/ponyc/pull/6748))
+- Fix ponyc requiring the macOS version it was built on ([PR #6769](https://github.com/ponylang/ponyc/pull/6769))
 
 ### Added
 
