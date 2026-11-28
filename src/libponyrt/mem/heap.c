@@ -547,12 +547,10 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full, chunk
 
     maybe_clear_chunk(chunk);
 
-    // For a slot with a finaliser, traceable says its object is fully
-    // constructed. A deep mark comes from a readable reference to the object
-    // itself, which can't exist until every field is defined, or from keeping
-    // a finaliser that was already traceable. For a slot without one, it says
-    // the allocation's start is shared (see ponyint_heap_set_shared_start),
-    // which lasts while the slot is in use.
+    // A deep mark comes from a readable reference to the object itself,
+    // which can't exist until every field is defined, or from keeping a
+    // finaliser that was already traceable. A shared start lasts while the
+    // slot is in use.
     uint32_t shared = chunk->small.traceable & ~chunk->small.finalisers;
     uint32_t traceable = chunk->small.finalisers & ~chunk->small.slots;
     chunk->small.slots &= chunk->small.shallow;
@@ -1112,13 +1110,18 @@ void ponyint_heap_set_shared_start(void* p)
   }
 }
 
-// When the runtime's bitcode is linked into a program and optimised with it,
-// this can be inlined into the GC's mark path, where it runs once per routed
-// visit.
-#if defined(__clang__)
-__attribute__((always_inline))
+// Both callers pass may_share_start as a constant, and inlining each call
+// drops the checks that the constant rules out.
+#ifdef _MSC_VER
+#  define HEAP_MARK_INLINE static __forceinline
+#else
+#  define HEAP_MARK_INLINE static inline __attribute__((always_inline))
 #endif
-heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type)
+
+// may_share_start is whether the visit's type can be embedded at the start of
+// a struct, so the allocation at p can be a struct of another type.
+HEAP_MARK_INLINE heap_mark_t heap_mark_visit(chunk_t* chunk, void* p,
+  bool may_share_start, bool own_type)
 {
   maybe_clear_chunk(chunk);
 
@@ -1140,24 +1143,16 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type)
       return first ? HEAP_MARK_INTERIOR_FIRST : HEAP_MARK_INTERIOR;
     }
 
-    if(get_small_slot_shared_start(chunk, slot))
+    if(marked)
+      return HEAP_MARK_MARKED;
+
+    if(may_share_start && !own_type &&
+      get_small_slot_shared_start(chunk, slot))
     {
-      if(marked)
-        return HEAP_MARK_MARKED;
-
-      if(own_type)
-      {
-        chunk->small.slots &= ~slot;
-        return HEAP_MARK_NEW;
-      }
-
       bool first = (chunk->small.shallow & slot) != 0;
       chunk->small.shallow &= ~slot;
       return first ? HEAP_MARK_SHARED_START_FIRST : HEAP_MARK_SHARED_START;
     }
-
-    if(marked)
-      return HEAP_MARK_MARKED;
 
     chunk->small.slots &= ~slot;
     return HEAP_MARK_NEW;
@@ -1175,27 +1170,28 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type)
     return first ? HEAP_MARK_INTERIOR_FIRST : HEAP_MARK_INTERIOR;
   }
 
-  if(get_large_chunk_shared_start(chunk))
+  if(marked)
+    return HEAP_MARK_MARKED;
+
+  if(may_share_start && !own_type && get_large_chunk_shared_start(chunk))
   {
-    if(marked)
-      return HEAP_MARK_MARKED;
-
-    if(own_type)
-    {
-      set_large_chunk_slot(chunk, 0);
-      return HEAP_MARK_NEW;
-    }
-
     bool first = get_large_chunk_shallow(chunk) != 0;
     set_large_chunk_shallow(chunk, 0);
     return first ? HEAP_MARK_SHARED_START_FIRST : HEAP_MARK_SHARED_START;
   }
 
-  if(marked)
-    return HEAP_MARK_MARKED;
-
   set_large_chunk_slot(chunk, 0);
   return HEAP_MARK_NEW;
+}
+
+// When the runtime's bitcode is linked into a program and optimised with it,
+// these can be inlined into the GC's mark path, where they run once per visit.
+#if defined(__clang__)
+__attribute__((always_inline))
+#endif
+heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type)
+{
+  return heap_mark_visit(chunk, p, true, own_type);
 }
 
 #if defined(__clang__)
@@ -1203,50 +1199,7 @@ __attribute__((always_inline))
 #endif
 heap_mark_t ponyint_heap_mark_plain(chunk_t* chunk, void* p)
 {
-  maybe_clear_chunk(chunk);
-
-  if(get_chunk_is_small_chunk(chunk))
-  {
-    void* ext = EXTERNAL_PTR(p, get_small_chunk_size(chunk));
-    uint32_t slot = FIND_SLOT(ext, get_m(chunk));
-
-    // A clear bit is in-use, a set bit is available.
-    bool marked = (chunk->small.slots & slot) == 0;
-
-    if(p != ext)
-    {
-      if(marked)
-        return HEAP_MARK_COVERED;
-
-      bool first = (chunk->small.shallow & slot) != 0;
-      chunk->small.shallow &= ~slot;
-      return first ? HEAP_MARK_INTERIOR_FIRST : HEAP_MARK_INTERIOR;
-    }
-
-    if(marked)
-      return HEAP_MARK_MARKED;
-
-    chunk->small.slots &= ~slot;
-    return HEAP_MARK_NEW;
-  }
-
-  bool marked = get_large_chunk_slot(chunk) == 0;
-
-  if(p != get_m(chunk))
-  {
-    if(marked)
-      return HEAP_MARK_COVERED;
-
-    bool first = get_large_chunk_shallow(chunk) != 0;
-    set_large_chunk_shallow(chunk, 0);
-    return first ? HEAP_MARK_INTERIOR_FIRST : HEAP_MARK_INTERIOR;
-  }
-
-  if(marked)
-    return HEAP_MARK_MARKED;
-
-  set_large_chunk_slot(chunk, 0);
-  return HEAP_MARK_NEW;
+  return heap_mark_visit(chunk, p, false, true);
 }
 
 bool ponyint_heap_mark(chunk_t* chunk, void* p)

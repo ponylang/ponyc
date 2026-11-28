@@ -526,8 +526,6 @@ void gentrace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   args[2] = codegen_resolve_global(c, c_t->desc);
   args[3] = LLVMConstInt(c->i32, mutability, false);
 
-  // Only a type that can share memory with other objects needs the runtime to
-  // work out what the address belongs to.
   if((c_t->embed_flags & PONY_EMBED_ROUTED) != 0)
     gencall_runtime(c, "pony_traceknown_routed", args, 4, "");
   else
@@ -577,7 +575,7 @@ static bool type_may_be_routed(reach_type_t* t, int depth)
 
 // True if an object traced through a value of this static type can be of a
 // type that shares memory with other objects (PONY_EMBED_ROUTED). A NULL
-// type, or one the check can't resolve, counts as true.
+// type, or one reach_type doesn't find, counts as true.
 static bool may_be_routed(compile_t* c, ast_t* type)
 {
   if(type == NULL)

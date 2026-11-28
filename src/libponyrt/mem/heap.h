@@ -139,7 +139,7 @@ heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type);
 heap_mark_t ponyint_heap_mark_plain(chunk_t* chunk, void* p);
 
 /**
- * Records that the allocation p starts is a struct that starts with an
+ * Records that the allocation starting at p holds a struct that starts with an
  * embedded field with a non-zero size, so an object traced at that address may
  * be only that field. ponyint_heap_mark_object marks such an allocation only
  * for a visit of its own type. The allocation must not have a finaliser.
@@ -152,8 +152,9 @@ void ponyint_heap_mark_slots(chunk_t* chunk, uint32_t slots, bool shallow);
 
 /**
  * Marks an address, but does not affect the return value of ponyint_heap_mark()
- * or ponyint_heap_mark_object() for the same address, nor does it indicate
- * previous mark status.
+ * for the same address, nor does it indicate previous mark status. After it,
+ * ponyint_heap_mark_object() and ponyint_heap_mark_plain() report a visit
+ * inside the allocation, or at a shared start, as not the first.
  */
 void ponyint_heap_mark_shallow(chunk_t* chunk, void* p);
 

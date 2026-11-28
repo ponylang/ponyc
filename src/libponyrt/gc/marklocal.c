@@ -118,7 +118,7 @@ static bool queue_object(pony_ctx_t* ctx, void* p, pony_type_t* type, int mode)
   if(owner != ctx->current)
     chunk = NULL;
 
-  // Constants in the program image aren't traced (see image.h).
+  // Constants in the read-only image aren't traced (see image.h).
   if((chunk == NULL) && ponyint_image_constant(p))
     return false;
 

@@ -104,10 +104,11 @@ typedef void (*pony_final_fn)(void* p);
 /** Facts the compiler records about how a type's objects can share memory.
  *
  * PONY_EMBED_ROUTED: an object of the type can share its address with an
- * object of another type: the type is a struct's first embedded field with a
- * non-zero size, a struct that starts with one, a field with no size (which
- * has its holder's address), or a class or struct that embeds one. Traces of
- * it go through pony_traceknown_routed or pony_traceunknown_routed.
+ * object of another type: the type is embedded at the start of a struct, it is
+ * a struct that starts with an embedded field, it is a field with no size
+ * (which has its holder's address), or it is a class or struct that embeds a
+ * field with no size. Traces of it go through pony_traceknown_routed or
+ * pony_traceunknown_routed.
  * PONY_EMBED_IN_ACTOR: an object of the type can be inside an actor.
  * PONY_EMBED_ACTOR_LOOKUP: the type is an actor with an embedded field, so the
  * runtime must be able to find the actor from the address of that field.
@@ -121,11 +122,6 @@ typedef void (*pony_final_fn)(void* p);
 #define PONY_EMBED_AT_START 0x08
 
 /// Describes a type to the runtime.
-///
-/// The compiler emits descriptors with this layout, indexing its fields by the
-/// DESC_* constants in src/libponyc/codegen/gendesc.h; a field added or moved
-/// here must be added or moved there, or the runtime reads descriptors at the
-/// wrong offsets.
 typedef const struct _pony_type_t
 {
   uint32_t id;
@@ -229,7 +225,8 @@ PONY_API ATTRIBUTE_MALLOC void* pony_alloc_large(pony_ctx_t* ctx, size_t size);
 /** Allocate a struct that starts with an embedded field with a non-zero size.
  *
  * Use these in place of pony_alloc_small and pony_alloc_large for such a
- * struct. The struct must not need a finaliser.
+ * struct. The struct must not need a finaliser. A struct allocated any other
+ * way can have its other fields freed while still reachable.
  */
 PONY_API ATTRIBUTE_MALLOC void* pony_alloc_small_shared_start(pony_ctx_t* ctx,
   uint32_t sizeclass);
@@ -331,7 +328,9 @@ PONY_API void pony_trace(pony_ctx_t* ctx, void* p);
  *
  * This should be called for every pointer field in an object when the object's
  * trace function is invoked, unless the field's type has PONY_EMBED_ROUTED: use
- * pony_traceknown_routed for that.
+ * pony_traceknown_routed for that. Called with a routed type, it can mark a
+ * struct when only the field at its start was traced, and the struct's other
+ * fields can be freed while still reachable.
  *
  * @param ctx The current context.
  * @param p The pointer being traced.
@@ -359,7 +358,8 @@ PONY_API void pony_traceknown_routed(pony_ctx_t* ctx, void* p,
  *
  * This should be called for fields in an object with an unknown type, unless
  * one of the types the field can hold has PONY_EMBED_ROUTED: use
- * pony_traceunknown_routed for that.
+ * pony_traceunknown_routed for that. Otherwise, memory still reachable can be
+ * freed, as with pony_traceknown.
  *
  * @param ctx The current context.
  * @param p The pointer being traced.

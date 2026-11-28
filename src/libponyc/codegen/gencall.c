@@ -2100,6 +2100,7 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   // recorded in the heap as sharing its start (see
   // ponyint_heap_set_shared_start). A struct has no finaliser.
   bool shared_start = gentype_first_embed(c, t) != NULL;
+  pony_assert(!shared_start || (c_t->final_fn == NULL));
 
   if(size <= HEAP_MAX)
   {

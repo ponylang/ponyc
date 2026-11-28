@@ -955,7 +955,7 @@ pony_actor_t* ponyint_actor_containing(void* p)
   {
     // Memory from the pool that isn't an actor can be handed to Pony through
     // FFI. An actor found here starts with its descriptor, which is a
-    // constant in the program image; anything else isn't taken for one.
+    // constant in the read-only image; anything else isn't taken for one.
     pony_type_t* t = *(pony_type_t**)base;
 
     if((((uintptr_t)t % sizeof(void*)) == 0) &&

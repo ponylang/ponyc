@@ -11,10 +11,10 @@
 #include <stdlib.h>
 #endif
 
-// The object functions below take routed: whether the type can share
-// memory with other objects (PONY_EMBED_ROUTED). Every caller passes a
-// constant, and inlining each call drops the checks that the constant rules
-// out, so the plain and routed dispatchers each get their own version.
+// The send, receive and remote mark functions below take routed: whether the
+// type can share memory with other objects (PONY_EMBED_ROUTED). Pass it as a
+// constant: inlining each call drops the checks that the constant rules out,
+// so the plain and routed dispatchers each get their own version.
 #ifdef _MSC_VER
 #  define GC_INLINE __forceinline
 #else
@@ -26,8 +26,7 @@
 DEFINE_STACK(ponyint_gcstack, gcstack_t, void);
 
 // Whether every holder of an object of this type traces its fields, so it is
-// never an immutable root: true for a type that might reference an actor, and
-// for a routed type. An owner traces an immutable root as the type its object
+// never an immutable root. An owner traces an immutable root as the type its object
 // map records, and for an address shared by a struct and the field at its
 // start, that can be the field's type from an earlier epoch.
 static bool traced_by_holders(pony_type_t* t)
@@ -227,12 +226,11 @@ static bool acquire_immutable(pony_ctx_t* ctx, pony_actor_t* actor,
 }
 
 // True when u is embedded at the start of t, directly or through other
-// embedded objects, so the two share an address and t's trace covers u. t's
-// instance slot must hold a type or NULL, as a struct's or a class's does; a
-// primitive's holds its instance.
+// embedded objects, so the two share an address and t's trace covers u. t must
+// be routed: only classes and structs are, and their instance slots hold a
+// type or NULL. A primitive's holds its instance.
 static bool embeds_at_start(pony_type_t* t, pony_type_t* u)
 {
-  // A primitive's instance slot holds its instance, not a type.
   pony_assert((t->embed_flags & PONY_EMBED_ROUTED) != 0);
 
   for(pony_type_t* x = (pony_type_t*)t->instance; x != NULL;
@@ -450,7 +448,13 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
         mark_local_visit(ctx, p, t);
         return;
 
-      default:
+      case HEAP_MARK_MARKED:
+      case HEAP_MARK_COVERED:
+        return;
+
+      case HEAP_MARK_SHARED_START_FIRST:
+      case HEAP_MARK_SHARED_START:
+        pony_assert(0);
         return;
     }
   } else {
@@ -639,7 +643,7 @@ static GC_INLINE void recv_remote_object(pony_ctx_t* ctx,
     {
       // Increase apparent used memory to provoke GC.
       ponyint_heap_used(ponyint_actor_heap(ctx->current),
-        routed ? foreign_size(chunk, t) : ponyint_heap_size(chunk));
+        foreign_size(chunk, t));
 
       if(mutability == PONY_TRACE_IMMUTABLE && !traced_by_holders(t))
         ponyint_heap_used(ponyint_actor_heap(ctx->current),
@@ -700,7 +704,7 @@ static GC_INLINE void mark_remote_object(pony_ctx_t* ctx,
   {
     // Increase apparent used memory to provoke GC.
     ponyint_heap_used(ponyint_actor_heap(ctx->current),
-      routed ? foreign_size(chunk, t) : ponyint_heap_size(chunk));
+      foreign_size(chunk, t));
 
     // Implicitly mark the owner.
     mark_remote_actor(ctx, gc, aref);
@@ -761,11 +765,27 @@ static pony_actor_t* embedded_field_owner(pony_ctx_t* ctx, void* p,
   return ponyint_actor_containing(p);
 }
 
-// Finds the actor that owns an object of a type that can share memory with
-// other objects, and the heap chunk the object is in, if any. False if no
-// actor owns it: such memory isn't collected, and for a non-opaque visit the
-// object is queued for tracing what it references, unless it is a constant in
-// the program image.
+// The actor that owns an object with no heap chunk, or NULL if no actor owns
+// it: such memory isn't collected, and for a non-opaque visit the object is
+// queued for tracing what it references, unless it is a constant in the
+// read-only image. in_pagemap is the actor the pagemap gave for p, if any. A
+// raw trace (pony_trace) has no type and is opaque.
+static GC_INLINE pony_actor_t* chunkless_owner(pony_ctx_t* ctx, void* p,
+  pony_type_t* t, int mutability, pony_actor_t* in_pagemap)
+{
+  if((t == NULL) || ponyint_image_constant(p))
+    return NULL;
+
+  pony_actor_t* actor = embedded_field_owner(ctx, p, t, in_pagemap);
+
+  if((actor == NULL) && (mutability != PONY_TRACE_OPAQUE))
+    recurse(ctx, p, t->trace);
+
+  return actor;
+}
+
+// Finds the actor that owns an object, and the heap chunk the object is in, if
+// any. False if no actor owns it.
 static GC_INLINE bool routed_owner(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int mutability, pony_actor_t** actor, chunk_t** chunk)
 {
@@ -775,17 +795,8 @@ static GC_INLINE bool routed_owner(pony_ctx_t* ctx, void* p,
   if(*chunk != NULL)
     return true;
 
-  if(ponyint_image_constant(p))
-    return false;
-
-  *actor = embedded_field_owner(ctx, p, t, *actor);
-  if(*actor != NULL)
-    return true;
-
-  if(mutability != PONY_TRACE_OPAQUE)
-    recurse(ctx, p, t->trace);
-
-  return false;
+  *actor = chunkless_owner(ctx, p, t, mutability, *actor);
+  return *actor != NULL;
 }
 
 void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -795,14 +806,19 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
   // Memory with no heap chunk is a constant, memory from C, or an object
-  // embedded in an actor. Only the last has an owner to find. A raw trace
-  // (pony_trace) has no type.
+  // embedded in an actor. Only the last has an owner.
   if(chunk == NULL)
   {
-    if((t != NULL) && ((t->embed_flags & PONY_EMBED_IN_ACTOR) != 0))
-      ponyint_gc_sendrouted(ctx, p, t, mutability);
-    else if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
-      recurse(ctx, p, t->trace);
+    actor = chunkless_owner(ctx, p, t, mutability, actor);
+
+    if(actor == NULL)
+      return;
+
+    if(actor == ctx->current)
+      send_local_object(ctx, p, t, mutability, false);
+    else
+      send_remote_object(ctx, actor, p, t, mutability, false);
+
     return;
   }
 
@@ -834,14 +850,19 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
   // Memory with no heap chunk is a constant, memory from C, or an object
-  // embedded in an actor. Only the last has an owner to find. A raw trace
-  // (pony_trace) has no type.
+  // embedded in an actor. Only the last has an owner.
   if(chunk == NULL)
   {
-    if((t != NULL) && ((t->embed_flags & PONY_EMBED_IN_ACTOR) != 0))
-      ponyint_gc_recvrouted(ctx, p, t, mutability);
-    else if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
-      recurse(ctx, p, t->trace);
+    actor = chunkless_owner(ctx, p, t, mutability, actor);
+
+    if(actor == NULL)
+      return;
+
+    if(actor == ctx->current)
+      recv_local_object(ctx, p, t, mutability, false);
+    else
+      recv_remote_object(ctx, actor, p, t, mutability, NULL, false);
+
     return;
   }
 
@@ -873,14 +894,16 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
   // Memory with no heap chunk is a constant, memory from C, or an object
-  // embedded in an actor. Only the last has an owner to find. A raw trace
-  // (pony_trace) has no type.
+  // embedded in an actor. Only the last has an owner.
   if(chunk == NULL)
   {
-    if((t != NULL) && ((t->embed_flags & PONY_EMBED_IN_ACTOR) != 0))
-      ponyint_gc_markrouted(ctx, p, t, mutability);
-    else if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
-      recurse(ctx, p, t->trace);
+    actor = chunkless_owner(ctx, p, t, mutability, actor);
+
+    // Every mark of this actor runs the actor's own trace, which traces its
+    // embedded fields in place.
+    if((actor != NULL) && (actor != ctx->current))
+      mark_remote_object(ctx, actor, p, t, mutability, NULL, false);
+
     return;
   }
 

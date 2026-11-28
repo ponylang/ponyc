@@ -103,6 +103,7 @@ protected:
 
     c_traced = 0;
     s_traced = 0;
+    field_mutability = PONY_TRACE_MUTABLE;
   }
 
   void TearDown() override
@@ -204,8 +205,8 @@ TEST_F(GcSharedAddress, MarkTracesStructAfterItsFirstField)
     start_local_mark(&a);
     visit(s, c_first, PONY_TRACE_MUTABLE);
     EXPECT_EQ(1u, s_traced);
-    // The struct's trace marked its field (ponyint_heap_mark reports a mark
-    // that was already set).
+    // The struct's trace marked d (ponyint_heap_mark reports a mark that was
+    // already set).
     EXPECT_TRUE(ponyint_heap_mark(ponyint_pagemap_get_chunk(s->d), s->d));
     // The visit as the struct's own type marked its allocation, so neither
     // visit was recorded in the visit set.
@@ -578,21 +579,55 @@ TEST(HeapMarkObject, ReportsInteriorPointers)
   actor.type = &type;
   ponyint_heap_init(&actor.heap);
 
+  // The plain mark reports interior pointers the same way.
+  for(bool plain : {false, true})
+  {
+    for(size_t size : {(size_t)64, (size_t)HEAP_MAX * 2})
+    {
+      SCOPED_TRACE(plain ? "plain" : "object");
+      SCOPED_TRACE(size);
+      char* p = static_cast<char*>(ponyint_heap_alloc(&actor, &actor.heap,
+        size, TRACK_NO_FINALISERS));
+      chunk_t* chunk = ponyint_pagemap_get_chunk(p);
+      auto mark = [&](char* q)
+      {
+        return plain ? ponyint_heap_mark_plain(chunk, q) :
+          ponyint_heap_mark_object(chunk, q, false);
+      };
+      start_gc(&actor);
+      EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST, mark(p + 16));
+      EXPECT_EQ(HEAP_MARK_INTERIOR, mark(p + 16));
+      EXPECT_EQ(HEAP_MARK_NEW, mark(p));
+      EXPECT_EQ(HEAP_MARK_MARKED, mark(p));
+      EXPECT_EQ(HEAP_MARK_COVERED, mark(p + 16));
+      end_gc(&actor);
+    }
+  }
+
+  ponyint_heap_destroy(&actor.heap);
+  ponyint_unregister_thread();
+}
+
+// The plain mark is for types that can't be at a shared start, so it marks
+// such an allocation on the first visit to its start.
+TEST(HeapMarkObject, PlainMarkMarksASharedStart)
+{
+  ponyint_register_thread();
+  pony_actor_t actor{};
+  _pony_type_t type{};
+  actor.type = &type;
+  ponyint_heap_init(&actor.heap);
+
   for(size_t size : {(size_t)64, (size_t)HEAP_MAX * 2})
   {
     SCOPED_TRACE(size);
     char* p = static_cast<char*>(ponyint_heap_alloc(&actor, &actor.heap, size,
       TRACK_NO_FINALISERS));
+    ponyint_heap_set_shared_start(p);
     chunk_t* chunk = ponyint_pagemap_get_chunk(p);
     start_gc(&actor);
-    EXPECT_EQ(HEAP_MARK_INTERIOR_FIRST,
-      ponyint_heap_mark_object(chunk, p + 16, false));
-    EXPECT_EQ(HEAP_MARK_INTERIOR,
-      ponyint_heap_mark_object(chunk, p + 16, false));
-    EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_object(chunk, p, false));
-    EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_object(chunk, p, false));
-    EXPECT_EQ(HEAP_MARK_COVERED,
-      ponyint_heap_mark_object(chunk, p + 16, false));
+    EXPECT_EQ(HEAP_MARK_NEW, ponyint_heap_mark_plain(chunk, p));
+    EXPECT_EQ(HEAP_MARK_MARKED, ponyint_heap_mark_plain(chunk, p));
     end_gc(&actor);
   }
 
@@ -600,9 +635,93 @@ TEST(HeapMarkObject, ReportsInteriorPointers)
   ponyint_unregister_thread();
 }
 
+// A trace of an interface-typed reference reads the descriptor at run time.
+// Finding C routed, it doesn't mark S's allocation when it reaches C at S's
+// address, so a visit as S still traces S's other field.
+TEST_F(GcSharedAddress, UnknownTraceOfTheFirstFieldLeavesTheStructToTrace)
+{
+  S* s = alloc_s(&a);
+  start_local_mark(&a);
+  pony_traceunknown_routed(ctx, s, PONY_TRACE_MUTABLE);
+  pony_traceknown_routed(ctx, s, &s_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, s_traced);
+  EXPECT_TRUE(ponyint_heap_mark(ponyint_pagemap_get_chunk(s->d), s->d));
+  end_local_mark(&a);
+}
+
+// The object map can record a struct's address as the type of its first field.
+// If the owner marked that entry as an immutable root, it would trace only the
+// field and mark the struct's allocation, and the struct's other field would
+// be freed.
+TEST_F(GcSharedAddress, ImmutableEntryAsTheFirstFieldLeavesTheStructToTrace)
+{
+  _pony_type_t routed_c = c_type;
+  routed_c.might_reference_actor = false;
+  S* s = alloc_s(&a);
+  object_t* obj = ponyint_objectmap_getorput(&a.gc.local, s, &routed_c);
+  obj->immutable = true;
+  obj->rc = 1;
+
+  start_local_mark(&a);
+  ponyint_gc_markimmutable(ctx, &a.gc);
+  pony_traceknown_routed(ctx, s, &s_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, s_traced);
+  EXPECT_TRUE(ponyint_heap_mark(ponyint_pagemap_get_chunk(s->d), s->d));
+  end_local_mark(&a);
+}
+
+// Another actor's struct sent as its first field, mutable, and then as the
+// struct, immutable: the second visit traces the struct but borrows nothing
+// more and doesn't make the object immutable.
+TEST_F(GcSharedAddress, SendRepeatAsTheStructBorrowsNothingMore)
+{
+  S* s = alloc_s(&b);
+  actorref_t* aref = ponyint_actormap_getorput(&a.gc.foreign, &b);
+  aref->rc = GC_INC_MORE;
+  object_t* obj = ponyint_actorref_getorput(aref, s, &c_type);
+  obj->rc = GC_INC_MORE;
+  object_t* d = ponyint_actorref_getorput(aref, s->d, &child_type);
+  d->rc = GC_INC_MORE;
+
+  ctx->current = &a;
+  pony_gc_send(ctx, &b);
+  pony_traceknown_routed(ctx, s, &c_type, PONY_TRACE_MUTABLE);
+  pony_traceknown_routed(ctx, s, &s_type, PONY_TRACE_IMMUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, s_traced);
+  EXPECT_EQ(GC_INC_MORE - 1, obj->rc);
+  EXPECT_FALSE(obj->immutable);
+  end_epoch(&a);
+}
+
+// The same visits in a mark of another actor's struct acquire nothing more.
+TEST_F(GcSharedAddress, RemoteMarkRepeatAsTheStructAcquiresNothingMore)
+{
+  S* s = alloc_s(&b);
+  actorref_t* aref = ponyint_actormap_getorput(&a.gc.foreign, &b);
+  aref->rc = GC_INC_MORE;
+  object_t* obj = ponyint_actorref_getorput(aref, s, &c_type);
+  obj->rc = GC_INC_MORE;
+  object_t* d = ponyint_actorref_getorput(aref, s->d, &child_type);
+  d->rc = GC_INC_MORE;
+
+  ctx->current = &a;
+  ponyint_gc_mark(ctx);
+  pony_traceknown_routed(ctx, s, &c_type, PONY_TRACE_MUTABLE);
+  pony_traceknown_routed(ctx, s, &s_type, PONY_TRACE_IMMUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, s_traced);
+  EXPECT_EQ(GC_INC_MORE, obj->rc);
+  EXPECT_FALSE(obj->immutable);
+  end_epoch(&a);
+}
+
 namespace
 {
-// A class embedded in a class, and in nothing else.
+// A class embedded in a class. b_type is routed, as it is when B is also
+// embedded at the start of a struct elsewhere in the program.
 struct B
 {
   pony_type_t* type;
@@ -797,20 +916,6 @@ TEST_F(GcEmbeddedInClass, InteriorVisitAfterTheClassIsCovered)
   end_mark();
 }
 
-// A trace of an interface-typed reference that can reach B reads the descriptor
-// at run time and, finding B routed, traces it as a known trace of B would:
-// visits end after the recorded repeat.
-TEST_F(GcEmbeddedInClass, UnknownTraceFollowsTheDescriptorFlag)
-{
-  A* obj = alloc_a();
-  start_mark();
-  for(int i = 0; i < 3; i++)
-    pony_traceunknown_routed(ctx, &obj->b, PONY_TRACE_MUTABLE);
-  ponyint_gc_handlestack(ctx);
-  EXPECT_EQ(2u, b_traced);
-  end_mark();
-}
-
 namespace
 {
 void dispatch_nothing(pony_ctx_t* ctx, pony_actor_t* self, pony_msg_t* msg)
@@ -821,7 +926,7 @@ void dispatch_nothing(pony_ctx_t* ctx, pony_actor_t* self, pony_msg_t* msg)
 }
 }
 
-// Actor descriptors are constants in the program image, as compiled ones are.
+// Actor descriptors are constants in the read-only image, as compiled ones are.
 const _pony_type_t small_actor_type = {0,
   (uint32_t)(sizeof(pony_actor_t) + 64), 0, 0, nullptr, nullptr, nullptr,
   nullptr, dispatch_nothing, nullptr, 0, true, PONY_EMBED_ACTOR_LOOKUP,
@@ -861,6 +966,44 @@ TEST(ActorContaining, FindsTheActorFromAnInteriorAddress)
   EXPECT_EQ(nullptr, ponyint_actor_containing(&local));
 
   ponyint_destroy(actor);
+  ponyint_unregister_thread();
+}
+
+// An actor that marks a field embedded in another actor adds the field's size
+// to its own heap use, as it adds a heap object's size.
+TEST(ActorContaining, RemoteMarkOfAnEmbeddedFieldCountsItsSize)
+{
+  ponyint_register_thread();
+  ponyint_image_init();
+  pony_ctx_t* ctx = pony_ctx();
+
+  pony_actor_t* owner = pony_create(ctx, &small_actor_type, true);
+  char* field = reinterpret_cast<char*>(owner) + sizeof(pony_actor_t) + 8;
+  _pony_type_t field_type{};
+  field_type.size = 24;
+  field_type.embed_flags = PONY_EMBED_IN_ACTOR;
+
+  pony_actor_t holder{};
+  _pony_type_t holder_type{};
+  holder.type = &holder_type;
+  ponyint_heap_init(&holder.heap);
+  ponyint_gc_done(&holder.gc);
+  ctx->current = &holder;
+
+  ponyint_gc_mark(ctx);
+  // Marking the owner charges for the actor; measure the field alone.
+  ponyint_gc_markactor(ctx, owner);
+  size_t before = holder.heap.used;
+  pony_traceknown(ctx, field, &field_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(before + field_type.size, holder.heap.used);
+
+  ponyint_actormap_destroy(&ctx->acquire);
+  ponyint_gc_done(&holder.gc);
+  ctx->current = NULL;
+  ponyint_gc_destroy(&holder.gc);
+  ponyint_heap_destroy(&holder.heap);
+  ponyint_destroy(owner);
   ponyint_unregister_thread();
 }
 
