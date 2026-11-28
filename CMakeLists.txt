@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.25 FATAL_ERROR)
 
 file(STRINGS "VERSION" PONYC_PROJECT_VERSION)
+
+# The minimum macOS version for Pony's own macOS binaries and, by default, for
+# programs that ponyc compiles. CMake reads CMAKE_OSX_DEPLOYMENT_TARGET when
+# project() sets up the toolchain, so it has to be set first; subdirectories
+# inherit it.
+set(PONY_OSX_PLATFORM 13.0.0)
+set(CMAKE_OSX_DEPLOYMENT_TARGET ${PONY_OSX_PLATFORM})
+
 project(Pony VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
 # Grab the PonyC version number from the "VERSION" source file. When building in
@@ -543,8 +551,6 @@ if(NOT MSVC)
         set(PONY_PIC_FLAG "-fpic")
     endif()
 endif()
-
-set(PONY_OSX_PLATFORM 13.0.0)
 
 # LLVM component setup
 if(NOT PONY_CROSS_LIBPONYRT)
