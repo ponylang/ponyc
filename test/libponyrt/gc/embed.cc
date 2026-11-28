@@ -1148,6 +1148,37 @@ TEST(ActorContaining, OwnEmbeddedFieldIsALocalObject)
   }
 }
 
+// Memory just past the current actor, inside the pool block that holds it, is
+// not one of the actor's fields: a visit there is traced as memory no actor
+// owns.
+TEST(ActorContaining, AddressPastTheCurrentActorIsNotItsField)
+{
+  ponyint_register_thread();
+  ponyint_image_init();
+  pony_ctx_t* ctx = pony_ctx();
+
+  pony_actor_t* owner = pony_create(ctx, &small_actor_type, true);
+  ASSERT_GT(ponyint_pool_used_size(small_actor_type.size),
+    (size_t)small_actor_type.size);
+  char* past = reinterpret_cast<char*>(owner) + small_actor_type.size;
+  _pony_type_t field_type{};
+  field_type.size = 8;
+  field_type.trace = trace_own_field;
+  field_type.embed_flags = PONY_EMBED_IN_ACTOR;
+  ctx->current = owner;
+
+  own_field_traced = 0;
+  ponyint_gc_mark(ctx);
+  pony_traceknown(ctx, past, &field_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, own_field_traced);
+  end_own_epoch(ctx, owner);
+
+  ctx->current = NULL;
+  ponyint_destroy(owner);
+  ponyint_unregister_thread();
+}
+
 // A destroyed actor's freed block, taken from the pool again as plain memory,
 // isn't taken for that actor.
 TEST(ActorContaining, DestroyedActorsBlockIsNotAnActor)
