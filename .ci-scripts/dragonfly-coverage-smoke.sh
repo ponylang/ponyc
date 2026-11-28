@@ -8,10 +8,10 @@
 # records which parts of the compiler each run exercises. DragonFly builds ponyc
 # only with gcc (the -fprofile-arcs path). gcc's -fprofile-arcs instruments
 # libponyrt with gcov constructors referencing __gcov_init/__gcov_exit from
-# libgcov; ponyc links Pony programs via embedded LLD (not the driver), so libgcov
-# is spliced onto the link line (#5434; see the coverage capture in the top-level
-# CMakeLists.txt and the PONY_COVERAGE block in genexe.cc) — without it the build
-# can't link the self-hosted tools at all.
+# libgcov; ponyc links Pony programs via embedded LLD (not the C compiler
+# driver), so libgcov is spliced onto the link line (#5434; see the coverage
+# capture in the top-level CMakeLists.txt and the PONY_COVERAGE block in
+# genexe.cc) — without it the build can't link the self-hosted tools at all.
 #
 # This smoke guards two things:
 #   1. use=coverage still builds and links on gcc — `cmake --build` (which links the
@@ -19,8 +19,11 @@
 #      died with undefined __gcov_init. Compiling and running a standalone program
 #      then confirms the spliced libgcov satisfies the gcov constructors at
 #      runtime, not just at link time.
-#   2. the coverage-instrumented ponyc emits profile data when it runs (.gcda) —
-#      the point of use=coverage, measuring ponyc's own coverage.
+#   2. the coverage-instrumented compiler (ponyc-compiler) emits profile data when
+#      it runs (.gcda) — the point of use=coverage, measuring the compiler's own
+#      coverage. It is run directly so the profile data checked comes only
+#      from the compiler: ponyc is instrumented too, and its data alone would
+#      satisfy the check.
 set -eu
 
 # Configure the debug build from scratch with coverage (remove the cmake build dir
@@ -36,7 +39,7 @@ cmake --build --preset x86-64-debug
 # build/debug-coverage. Derive it rather than hardcoding (the suffix is
 # CMake-determined and could grow more segments in a combined build).
 out=$(find build -maxdepth 1 -type d -name 'debug-coverage' | head -1)
-if [ -z "$out" ] || [ ! -x "$out/ponyc" ]; then
+if [ -z "$out" ] || [ ! -x "$out/ponyc" ] || [ ! -x "$out/ponyc-compiler" ]; then
   echo "FAIL: coverage build output directory not found"
   exit 1
 fi
@@ -50,32 +53,32 @@ actor Main
     env.out.print("coverage smoke ok")
 PONY
 
-# Compile a program (link via embedded LLD — the captured -lgcov fragment is
-# spliced here; a broken splice fails at link time with undefined __gcov_init) and
-# run it. The same ponyc invocation is real work for the instrumented compiler, so
-# capture its .gcda with a per-invocation GCOV_PREFIX (not exported) to assert
-# ponyc's own coverage below.
-gcov_dir="$smoke/gcov"
-rm -rf "$gcov_dir"
-mkdir -p "$gcov_dir"
-PONYPATH="$PWD/packages" GCOV_PREFIX="$gcov_dir" "$out/ponyc" --debug -o "$smoke" "$smoke"
+# Compile a program through ponyc and run it. The final link (ponylink,
+# embedded LLD) splices in the captured -lgcov fragment; a broken splice fails
+# with undefined __gcov_init.
 # Run from $smoke so any stray profile file the program might drop lands in the
 # scratch dir, not the source tree. We don't assert on it — this is the
 # build/link/run check.
-out_text=$(cd "$smoke" && "$smoke/coverage-smoke")
+PONYPATH="$PWD/packages" "$out/ponyc" --debug -o "$smoke/via-ponyc" "$smoke"
+out_text=$(cd "$smoke" && "$smoke/via-ponyc/coverage-smoke")
 echo "$out_text"
 echo "$out_text" | grep -q "coverage smoke ok"
 
-# The point of use=coverage: the instrumented ponyc emits profile data when it
-# runs. gcc writes a .gcda per instrumented TU at exit, redirected above into
-# $gcov_dir, so a real compile must have written some. Assert at least one landed;
-# none means coverage isn't actually capturing data.
+# The point of use=coverage: the instrumented compiler emits profile data when it
+# runs. Run the same compile with ponyc-compiler directly and a per-invocation
+# GCOV_PREFIX (not exported). gcc writes a .gcda per instrumented TU at exit,
+# redirected into $gcov_dir, so a real compile must have written some. Assert at
+# least one landed; none means coverage isn't actually capturing data.
+gcov_dir="$smoke/gcov"
+rm -rf "$gcov_dir"
+mkdir -p "$gcov_dir"
+PONYPATH="$PWD/packages" GCOV_PREFIX="$gcov_dir" "$out/ponyc-compiler" --debug -o "$smoke" "$smoke"
 gcda_count=$(find "$gcov_dir" -name '*.gcda' | wc -l | tr -dc '0-9')
 if [ "$gcda_count" -eq 0 ]; then
-  echo "FAIL: coverage-instrumented ponyc produced no .gcda profile data"
+  echo "FAIL: coverage-instrumented ponyc-compiler produced no .gcda profile data"
   exit 1
 fi
-echo "ponyc dropped profile data: $gcda_count .gcda files"
+echo "ponyc-compiler dropped profile data: $gcda_count .gcda files"
 
 # The self-hosted tools are themselves Pony programs the coverage ponyc linked
 # during `cmake --build`; confirm one runs, proving the tool link path works under

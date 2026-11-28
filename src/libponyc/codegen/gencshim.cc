@@ -827,11 +827,11 @@ bool gencshim(ast_t* program, pass_opt_t* opt)
   if(opt->verbosity >= VERBOSITY_MINIMAL)
     fprintf(stderr, "Compiling C shims\n");
 
-  // In-tree drivers (ponyc's main, the test harness) register the LLVM
-  // target backends at process startup via codegen_llvm_init, before gencshim
-  // can run. These idempotent calls are defensive coverage for libponyc
-  // embedders that skip that init; clang needs the backends registered to
-  // emit objects.
+  // In-tree programs (ponyc-compiler's main, the test harness) register the
+  // LLVM target backends at process startup via codegen_llvm_init, before
+  // gencshim can run. These idempotent calls are defensive coverage for
+  // libponyc embedders that skip that init; clang needs the backends
+  // registered to emit objects.
   llvm::InitializeAllTargetInfos();
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();

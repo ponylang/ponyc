@@ -22,5 +22,6 @@ add_custom_command(OUTPUT ${RUNNER_EXECUTABLE}
     _tester.pony
     _tester_notify.pony
     $<TARGET_FILE:ponyc>
+    $<TARGET_FILE:ponyc-compiler>
     $<TARGET_FILE:ponylink>
 )

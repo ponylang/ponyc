@@ -286,10 +286,10 @@ endif()
 # same directory by POST_BUILD commands, and install() reads it. One definition
 # keeps all of those pointing at the same place.
 #
-# The depth matters: a ponyc run out of the build tree finds the standard library
-# by adding ../../packages to its own executable's path (see
-# add_pony_installation_dir in src/libponyc/pkg/package.c), so build/<config>/ponyc
-# sits two directories below the source root.
+# The depth matters: a ponyc-compiler run out of the build tree finds the
+# standard library by adding ../../packages to its own executable's path (see
+# add_pony_installation_dir in src/libponyc/pkg/package.c), so
+# build/<config>/ponyc-compiler sits two directories below the source root.
 #
 # Both names hold a $<CONFIG> generator expression, usable only where CMake
 # evaluates one (add_custom_command, add_test, target properties, install()); a
@@ -823,7 +823,7 @@ else()
     add_subdirectory(src/libponyc)
     add_subdirectory(src/libponylto)
     add_subdirectory(src/libponyrt)
-    add_subdirectory(src/ponyc)
+    add_subdirectory(src/ponyc-compiler)
     add_subdirectory(src/ponylink)
 
     add_subdirectory(test/libponyc)
@@ -836,6 +836,16 @@ else()
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_subdirectory(src/crt)
+    endif()
+
+    add_subdirectory(src/ponyc)
+    # ponyc starts ponyc-compiler, and both run ponylink (ponyc only on POSIX),
+    # so a rebuilt ponyc needs the compiler and ponylink built from the same
+    # source.
+    add_dependencies(ponyc ponyc-compiler ponylink)
+
+    if(NOT WIN32)
+        add_subdirectory(test/ponyc-driver)
     endif()
 
     # The Windows stable-entry-point shim (Unix uses symlinks instead).
@@ -1039,6 +1049,38 @@ else()
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunBrokenConfig.cmake)
 
+    if(WIN32)
+        add_test(NAME ponyc-driver
+            COMMAND ${CMAKE_COMMAND}
+                -DPONYC=$<TARGET_FILE:ponyc>
+                -DPONYC_COMPILER=$<TARGET_FILE:ponyc-compiler>
+                -DWORKDIR=${PONY_OUTPUT_DIR}
+                -P ${CMAKE_SOURCE_DIR}/cmake/RunPonycDriverWindows.cmake)
+    else()
+        add_test(NAME link-handoff
+            COMMAND ${CMAKE_COMMAND}
+                -DPONYC=$<TARGET_FILE:ponyc>
+                -DPONYC_COMPILER=$<TARGET_FILE:ponyc-compiler>
+                -DPONYLINK=$<TARGET_FILE:ponylink>
+                -DLAUNCHER=$<TARGET_FILE:ponyc-driver-launcher>
+                -DSTUB=$<TARGET_FILE:ponyc-driver-stub>
+                -DWORKDIR=${PONY_OUTPUT_DIR}
+                -DAPPLE=${APPLE}
+                -DLINUX=${LINUX}
+                -P ${CMAKE_SOURCE_DIR}/cmake/RunLinkHandoff.cmake)
+        set_tests_properties(link-handoff PROPERTIES LABELS ci-core)
+
+        add_test(NAME ponyc-driver
+            COMMAND ${CMAKE_COMMAND}
+                -DPONYC=$<TARGET_FILE:ponyc>
+                -DSTUB=$<TARGET_FILE:ponyc-driver-stub>
+                -DLAUNCHER=$<TARGET_FILE:ponyc-driver-launcher>
+                -DPONYC_COMPILER_NAME=$<TARGET_FILE_NAME:ponyc-compiler>
+                -DWORKDIR=${PONY_OUTPUT_DIR}
+                -P ${CMAKE_SOURCE_DIR}/cmake/RunPonycDriver.cmake)
+    endif()
+    set_tests_properties(ponyc-driver PROPERTIES LABELS ci-core)
+
     add_test(NAME stdlib
         COMMAND ${CMAKE_COMMAND}
             -DPONYC=$<TARGET_FILE:ponyc>
@@ -1154,10 +1196,14 @@ else()
     set_tests_properties(stdlib
         PROPERTIES TIMEOUT 1800)
 
-    # Binaries. ponyc is the only real executable target; the tools are custom
-    # targets producing a file next to ponyc, so they install by path as
-    # PROGRAMS. Test and benchmark binaries are not installed.
-    install(TARGETS ponyc ponylink DESTINATION ${PONY_VERSIONED_DIR}/bin)
+    # Binaries. ponyc, ponyc-compiler and ponylink are executable targets and
+    # must be installed together: ponyc starts ponyc-compiler from its own
+    # directory, and ponyc-compiler looks for ponylink in its own directory.
+    # The tools are custom targets producing a file next to ponyc, so they
+    # install by path as PROGRAMS. Test and benchmark binaries are not
+    # installed.
+    install(TARGETS ponyc ponyc-compiler ponylink
+        DESTINATION ${PONY_VERSIONED_DIR}/bin)
     install(PROGRAMS
         ${PONY_OUTPUT_DIR}/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
         ${PONY_OUTPUT_DIR}/pony-lint${CMAKE_EXECUTABLE_SUFFIX}

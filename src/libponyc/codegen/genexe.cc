@@ -22,7 +22,12 @@
 #include "../type/lookup.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
+#include "../../common/link_options.h"
 #include "../../common/paths.h"
+#include "../../common/ponylink_job.h"
+#include "../../common/remove_tree.h"
+#include "../../common/run_command.h"
+#include "../ponyc.h"
 #include "ponyassert.h"
 #include <string.h>
 #if defined(__GLIBC__)
@@ -36,6 +41,7 @@
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
 #  include <errno.h>
+#  include <fcntl.h>
 #  include <sys/stat.h>
 #  include <sys/wait.h>
 #  include <dirent.h>
@@ -284,6 +290,38 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   LLVMSetLinkage(func, LLVMExternalLinkage);
 
   return func;
+}
+
+// The input files of one executable's link and what happens to them once the
+// linker finishes. On POSIX hosts ponylink does that work (see
+// src/common/ponylink_job.h), so the compiler can be gone by then.
+struct link_inputs_t
+{
+  const char** bc_files = NULL;
+  size_t bc_count = 0;
+  // The program's C shim objects are removed after a successful link.
+  ast_t* program = NULL;
+  // POSIX with --mutate: the mutation info is written to mutate_tmp before
+  // the link and renamed to mutate_final after a successful one. NULL
+  // otherwise.
+  const char* mutate_tmp = NULL;
+  const char* mutate_final = NULL;
+};
+
+// A link ponylink will run with `--ponyc-job`, either now as the compiler's
+// child or, handed off, as a child of ponyc (the driver).
+struct link_job_t
+{
+  // ponylink's path.
+  std::string ponylink;
+  pony_link_options_t options;
+};
+
+// The lld args file holds one argument per line, so an argument containing a
+// line break would read back as extra arguments.
+static bool has_line_break(const char* s)
+{
+  return strpbrk(s, "\r\n") != NULL;
 }
 
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -1064,94 +1102,174 @@ static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
   return find_cross_toolchain_sysroot(c->opt, errors);
 }
 
-static int run_command(const char* const argv[]);
+// Write one entry per line to a file the compiler creates fresh: an existing
+// file or symlink at the path is removed first, and the open fails rather than
+// following a symlink that appears in between.
+static bool write_lines(const std::string& path,
+  const std::vector<std::string>& lines)
+{
+  unlink(path.c_str());
 
-// Write lld arguments to a file, spawn ponylink as a subprocess, and report
-// the result. Running lld out-of-process avoids OOM from ponyc's accumulated
-// allocations.
-static bool spawn_ponylink(compile_t* c, const char* file_exe,
-  std::vector<const char*>& args)
+  int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+  if(fd == -1)
+    return false;
+
+  FILE* f = fdopen(fd, "w");
+  if(f == NULL)
+  {
+    close(fd);
+    return false;
+  }
+
+  for(const std::string& line : lines)
+    fprintf(f, "%s\n", line.c_str());
+
+  bool ok = (ferror(f) == 0);
+  return (fclose(f) == 0) && ok;
+}
+
+// Run ponylink for the link and wait for it or, when opt->defer_link is set,
+// store the job in opt->pending_link for the caller to run. lto_objects is
+// the directory lld writes LTO objects to (macOS with debug info kept), or
+// NULL; with dsym, the executable's dSYM bundle is rebuilt (macOS).
+static bool run_link(compile_t* c, const char* file_exe,
+  std::vector<const char*>& args, const link_inputs_t* inputs,
+  const char* lto_objects, bool dsym)
 {
   errors_t* errors = c->opt->check.errors;
-
-  std::string args_path = std::string(file_exe) + ".lldargs";
-  FILE* args_file = fopen(args_path.c_str(), "w");
-  if(args_file == NULL)
-  {
-    errorf(errors, NULL, "unable to create linker args file: %s",
-      args_path.c_str());
-    return false;
-  }
-
-  for(size_t i = 0; i < args.size(); i++)
-    fprintf(args_file, "%s\n", args[i]);
-
-  bool write_ok = (ferror(args_file) == 0) && (fclose(args_file) == 0);
-  if(!write_ok)
-  {
-    errorf(errors, NULL, "failed to write linker args file: %s",
-      args_path.c_str());
-    unlink(args_path.c_str());
-    return false;
-  }
 
   char exe_dir[PATH_MAX];
   if(!get_compiler_exe_directory(exe_dir, c->opt->argv0))
   {
     errorf(errors, NULL, "unable to locate ponyc directory for ponylink");
-    unlink(args_path.c_str());
     return false;
   }
 
-  char ponylink_path[PATH_MAX];
-  snprintf(ponylink_path, sizeof(ponylink_path), "%sponylink", exe_dir);
+  link_job_t* job = new link_job_t();
+  job->ponylink = std::string(exe_dir) + "ponylink";
+  bool verbose = c->opt->verbosity >= VERBOSITY_TOOL_INFO;
 
-  if(access(ponylink_path, X_OK) != 0)
+  if(access(job->ponylink.c_str(), X_OK) != 0)
   {
-    errorf(errors, NULL,
-      "ponylink not found at %s", ponylink_path);
-    unlink(args_path.c_str());
+    errorf(errors, NULL, "ponylink not found at %s", job->ponylink.c_str());
+    delete job;
     return false;
   }
 
-  const char* spawn_argv[] = {ponylink_path, args_path.c_str(), NULL};
-  int exit_status = run_command(spawn_argv);
-
-  unlink(args_path.c_str());
-
-  if(exit_status != 0)
+  std::vector<std::string> arg_lines(args.begin(), args.end());
+  for(const std::string& arg : arg_lines)
   {
-    if(exit_status == -1)
-    {
-      errorf(errors, NULL, "unable to start ponylink at %s", ponylink_path);
-    }
-    else if(exit_status < -1)
-    {
-      int sig = -exit_status - 1;
-
-      if(sig == SIGKILL)
-        errorf(errors, NULL,
-          "ponylink was killed by signal %d (%s);"
-          " the system may be out of memory", sig, strsignal(sig));
-      else
-        errorf(errors, NULL,
-          "ponylink was killed by signal %d (%s)", sig, strsignal(sig));
-    }
-    else
+    if(has_line_break(arg.c_str()))
     {
       errorf(errors, NULL,
-        "ponylink failed (exit %d); check linker errors above", exit_status);
+        "can't link: a linker argument contains a line break: %s",
+        arg.c_str());
+      delete job;
+      return false;
     }
+  }
 
+  std::string args_path = std::string(file_exe) + ".lldargs";
+
+  if(!write_lines(args_path, arg_lines))
+  {
+    errorf(errors, NULL, "failed to write linker args file: %s",
+      args_path.c_str());
+    unlink(args_path.c_str());
+    delete job;
     return false;
   }
 
-  return true;
+  job->options.args_file = args_path;
+  job->options.verbose = verbose;
+
+  for(size_t i = 0; i < inputs->bc_count; i++)
+    job->options.remove.push_back(inputs->bc_files[i]);
+
+  job->options.remove.push_back(args_path);
+
+  if(lto_objects != NULL)
+    job->options.remove_tree.push_back(lto_objects);
+
+  if(inputs->mutate_tmp != NULL)
+  {
+    job->options.mutate_tmp = inputs->mutate_tmp;
+    job->options.mutate_final = inputs->mutate_final;
+  }
+
+  size_t c_object_count = program_c_object_count(inputs->program);
+  for(size_t i = 0; i < c_object_count; i++)
+    job->options.remove_on_success.push_back(
+      program_c_object_at(inputs->program, i));
+
+  if(dsym)
+    job->options.dsym = file_exe;
+
+  if(c->opt->defer_link)
+  {
+    if(c->opt->pending_link != NULL)
+    {
+      errorf(errors, NULL,
+        "internal error: a deferred link is already pending");
+      ponyc_abandon_link(job);
+      return false;
+    }
+
+    if(verbose)
+      fprintf(stderr, "Handing the link of %s to ponyc\n", file_exe);
+
+    c->opt->pending_link = job;
+    return true;
+  }
+
+  if(verbose)
+    fprintf(stderr, "Linking %s in the compiler\n", file_exe);
+
+  std::vector<const char*> spawn_argv =
+    pony_link_job_argv(job->ponylink, job->options);
+  pony_command_result_t result = pony_run_command(spawn_argv.data());
+
+  if(result.succeeded())
+  {
+    delete job;
+    return true;
+  }
+
+  bool link_exited = (result.kind == pony_command_result_t::EXITED);
+
+  if(link_exited && (result.value == PONYLINK_EXIT_MUTATE_INFO))
+  {
+    // The executable is linked and ponylink has finished its cleanup; it has
+    // already printed why the mutation info is missing.
+    errorf(errors, NULL, "linked %s without its mutation info", file_exe);
+    delete job;
+    return false;
+  }
+
+  if(link_exited && ponylink_printed_why(result.value))
+  {
+    // This error still has to be recorded: a build that fails with no
+    // recorded error reports an internal failure.
+    errorf(errors, NULL, "linking %s failed", file_exe);
+  } else if(link_exited && (result.value == PONYLINK_EXIT_USAGE)) {
+    // ponylink printed which option it rejected and removed nothing; the
+    // compiler removes the link's files below.
+    errorf(errors, NULL, "internal error: ponylink rejected its options");
+  } else {
+    errorf(errors, NULL, "%s",
+      pony_describe_link_status(result, job->ponylink.c_str()).c_str());
+  }
+
+  pony_link_remove_temporaries(job->options);
+  delete job;
+  return false;
 }
 
-static bool link_exe_lld_elf(compile_t* c, ast_t* program,
-  const char** bc_files, size_t bc_count)
+static bool link_exe_lld_elf(compile_t* c, const link_inputs_t* inputs)
 {
+  ast_t* program = inputs->program;
+  const char** bc_files = inputs->bc_files;
+  size_t bc_count = inputs->bc_count;
   errors_t* errors = c->opt->check.errors;
 
   const char* file_exe =
@@ -1908,7 +2026,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     fprintf(stderr, "%s\n", cmd.c_str());
   }
 
-  return spawn_ponylink(c, file_exe, args);
+  return run_link(c, file_exe, args, inputs, NULL, false);
 }
 
 // gencshim.cc's find_macos_sdk_include resolves the SDK's include directory the
@@ -2002,99 +2120,11 @@ static const char* macho_platform_version(compile_t* c)
   return stringtab(c->opt->strtab, buf);
 }
 
-// Run a command and wait for it to finish. The executable is looked up on
-// PATH (like the shell did) and the arguments are passed as an explicit argv
-// terminated by a NULL element, so no shell is involved and nothing in the
-// argument list — including the user-controlled output path — is subject to
-// shell parsing.
-//
-// Returns:
-//   >= 0:  normal exit status
-//   -1:    spawn failed or waitpid failed
-//   < -1:  killed by signal; signal number is -(return_value) - 1
-static int run_command(const char* const argv[])
+static bool link_exe_lld_macho(compile_t* c, const link_inputs_t* inputs)
 {
-  extern char** environ;
-
-  pid_t pid;
-  int err = posix_spawnp(&pid, argv[0], NULL, NULL,
-    (char* const*)argv, environ);
-  if(err != 0)
-    return -1;
-
-  // Retry on EINTR so a signal delivered while we wait doesn't masquerade as
-  // a tool failure. system(), which this replaces, did the same internally.
-  int status;
-  int wait_result;
-  do
-  {
-    wait_result = waitpid(pid, &status, 0);
-  } while((wait_result == -1) && (errno == EINTR));
-
-  if(wait_result == -1)
-    return -1;
-
-  if(WIFSIGNALED(status))
-    return -(WTERMSIG(status) + 1);
-
-  if(!WIFEXITED(status))
-    return -1;
-
-  return WEXITSTATUS(status);
-}
-
-// Recursively delete a directory tree using direct filesystem calls — no
-// shell, no external `rm`, so the path is only ever a syscall argument and
-// can carry no injection. Symlinks are removed as links, never followed
-// (lstat reports a symlink as a non-directory, so it is unlinked rather than
-// descended into). Best effort: errors are ignored, matching the `rm -rf`
-// this replaces — a missing bundle is not an error, and dsymutil overwrites
-// whatever remains.
-static void remove_directory_tree(const char* path)
-{
-  DIR* dir = opendir(path);
-  if(dir == NULL)
-  {
-    // Not an openable directory: either the path is absent (nothing to do)
-    // or a plain file sits where the bundle should be. unlink removes the
-    // file case and harmlessly no-ops when the path is absent.
-    unlink(path);
-    return;
-  }
-
-  // Each entry is removed as readdir returns it. Deleting the just-returned
-  // entry and continuing to iterate is the standard recursive-delete idiom
-  // (glibc, macOS, and the BSDs all tolerate it); don't "fix" this into a
-  // collect-then-delete pass.
-  struct dirent* entry;
-  while((entry = readdir(dir)) != NULL)
-  {
-    if((strcmp(entry->d_name, ".") == 0) ||
-      (strcmp(entry->d_name, "..") == 0))
-      continue;
-
-    char child[PATH_MAX];
-    int n = snprintf(child, sizeof(child), "%s/%s", path, entry->d_name);
-
-    // Skip rather than act on a truncated path: a shortened path could name a
-    // different filesystem object, and this code deletes.
-    if((n < 0) || ((size_t)n >= sizeof(child)))
-      continue;
-
-    struct stat st;
-    if((lstat(child, &st) == 0) && S_ISDIR(st.st_mode))
-      remove_directory_tree(child);
-    else
-      unlink(child);
-  }
-
-  closedir(dir);
-  rmdir(path);
-}
-
-static bool link_exe_lld_macho(compile_t* c, ast_t* program,
-  const char** bc_files, size_t bc_count)
-{
+  ast_t* program = inputs->program;
+  const char** bc_files = inputs->bc_files;
+  size_t bc_count = inputs->bc_count;
   errors_t* errors = c->opt->check.errors;
 
   const char* file_exe =
@@ -2297,49 +2327,8 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
     fprintf(stderr, "%s\n", cmd.c_str());
   }
 
-  if(!spawn_ponylink(c, file_exe, args))
-  {
-    if(have_lto_obj_path)
-      remove_directory_tree(lto_obj_path);
-    return false;
-  }
-
-  // Run dsymutil unless stripping debug info.
-  if(!c->opt->strip_debug)
-  {
-    // Remove any stale dSYM bundle, then regenerate it. The bundle is removed
-    // in-process with direct filesystem calls (no shell, no external rm), and
-    // dsymutil is invoked via run_command with an explicit argv rather than
-    // system(). Either way the user-controlled output path is only ever a
-    // syscall or single-argument value, never interpreted by a shell.
-    size_t dsym_path_len = strlen(file_exe) + 6; // ".dSYM" + NUL
-    char* dsym_path = (char*)ponyint_pool_alloc_size(dsym_path_len);
-    snprintf(dsym_path, dsym_path_len, "%s.dSYM", file_exe);
-
-    remove_directory_tree(dsym_path);
-
-    const char* dsymutil_argv[] = {"dsymutil", file_exe, NULL};
-    int dsym_status = run_command(dsymutil_argv);
-
-    if(dsym_status != 0)
-    {
-      if(dsym_status < -1)
-      {
-        int sig = -dsym_status - 1;
-        errorf(errors, NULL, "dsymutil was killed by signal %d (%s)",
-          sig, strsignal(sig));
-      }
-      else
-        errorf(errors, NULL, "unable to create dsym");
-    }
-
-    ponyint_pool_free_size(dsym_path_len, dsym_path);
-
-    if(have_lto_obj_path)
-      remove_directory_tree(lto_obj_path);
-  }
-
-  return true;
+  return run_link(c, file_exe, args, inputs,
+    have_lto_obj_path ? lto_obj_path : NULL, !c->opt->strip_debug);
 }
 #endif
 
@@ -2348,6 +2337,16 @@ static bool spawn_ponylink(compile_t* c, const char* file_exe,
   std::vector<const char*>& args)
 {
   errors_t* errors = c->opt->check.errors;
+
+  for(const char* arg : args)
+  {
+    if(has_line_break(arg))
+    {
+      errorf(errors, NULL,
+        "can't link: a linker argument contains a line break: %s", arg);
+      return false;
+    }
+  }
 
   std::string args_path = std::string(file_exe) + ".lldargs";
   FILE* args_file = fopen(args_path.c_str(), "w");
@@ -2568,8 +2567,7 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
 }
 #endif
 
-static bool link_exe(compile_t* c, ast_t* program,
-  const char** bc_files, size_t bc_count)
+static bool link_exe(compile_t* c, const link_inputs_t* inputs)
 {
   // Link via ponylink, selecting the LLD driver by target triple. On Linux,
   // FreeBSD, and macOS, native sanitizer builds splice the sanitizer runtime
@@ -2580,10 +2578,10 @@ static bool link_exe(compile_t* c, ast_t* program,
   // Cross-compilation always uses LLD.
 #ifdef PLATFORM_IS_POSIX_BASED
   if(target_is_linux(c->opt->triple))
-    return link_exe_lld_elf(c, program, bc_files, bc_count);
+    return link_exe_lld_elf(c, inputs);
 
   if(target_is_macosx(c->opt->triple))
-    return link_exe_lld_macho(c, program, bc_files, bc_count);
+    return link_exe_lld_macho(c, inputs);
 
   // In a sanitizer build, native FreeBSD also routes here: link_exe_lld_elf
   // splices in the captured sanitizer fragment, verified against FreeBSD base
@@ -2600,14 +2598,15 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
     )
   {
-    return link_exe_lld_elf(c, program, bc_files, bc_count);
+    return link_exe_lld_elf(c, inputs);
   }
 
   errorf(c->opt->check.errors, NULL,
     "ponyc has no linker support for target %s", c->opt->triple);
   return false;
 #elif defined(PLATFORM_IS_WINDOWS)
-  return link_exe_lld_coff(c, program, bc_files, bc_count);
+  return link_exe_lld_coff(c, inputs->program, inputs->bc_files,
+    inputs->bc_count);
 #else
   errorf(c->opt->check.errors, NULL,
     "ponyc has no linker support for target %s", c->opt->triple);
@@ -3352,13 +3351,61 @@ bool genexe(compile_t* c, ast_t* program)
 
 #if defined(__GLIBC__)
   // glibc does not return most freed memory to the operating system on its
-  // own. Return it before linking: ponyc waits while the linker runs as a
-  // separate process, and memory glibc still holds counts against the machine
-  // during that time.
-  malloc_trim(0);
+  // own. Return it before linking: a compiler that runs the link itself waits
+  // while the linker runs as a separate process, and memory glibc still holds
+  // counts against the machine during that time. A compiler that hands the
+  // link off exits before it runs, which returns everything.
+  if(!c->opt->defer_link)
+    malloc_trim(0);
 #endif
 
-  if(!link_exe(c, program, bc_files, bc_count))
+  link_inputs_t inputs;
+  inputs.bc_files = bc_files;
+  inputs.bc_count = bc_count;
+  inputs.program = program;
+
+#ifdef PLATFORM_IS_POSIX_BASED
+  std::string mutate_final;
+  std::string mutate_tmp;
+
+  if(c->opt->mutate)
+  {
+    size_t len = mutate_info_path(NULL, 0, c->opt->output, c->filename);
+    mutate_final.resize(len + 1);
+    mutate_info_path(&mutate_final[0], len + 1, c->opt->output, c->filename);
+    mutate_final.resize(len);
+    mutate_tmp = mutate_final + ".tmp";
+
+    if(!mutate_write_info_to(&c->mutate, mutate_tmp.c_str(), c->filename))
+    {
+      errorf(errors, NULL, "couldn't write mutation info file %s",
+        mutate_tmp.c_str());
+      unlink(mutate_tmp.c_str());
+      cleanup_bc_files(bc_files, bc_count);
+      return false;
+    }
+
+    inputs.mutate_tmp = mutate_tmp.c_str();
+    inputs.mutate_final = mutate_final.c_str();
+  }
+
+  if(!link_exe(c, &inputs))
+  {
+    // ponylink or run_link may have removed these already; a link that
+    // failed before run_link built its job leaves them here. The LTO object
+    // directory exists only once lld has run, and run_link's job names it.
+    if(inputs.mutate_tmp != NULL)
+      unlink(inputs.mutate_tmp);
+
+    cleanup_bc_files(bc_files, bc_count);
+    return false;
+  }
+
+  // The files are ponylink's to remove; only the list is the compiler's.
+  ponyint_pool_free_size(bc_count * sizeof(const char*), (void*)bc_files);
+  return true;
+#else
+  if(!link_exe(c, &inputs))
   {
     cleanup_bc_files(bc_files, bc_count);
     return false;
@@ -3373,20 +3420,94 @@ bool genexe(compile_t* c, ast_t* program)
     }
   }
 
-  // Shim objects are removed only here, after a successful PASS_ALL link.
+  // Shim objects are removed here, after a successful PASS_ALL link.
   // Under --pass levels below PASS_ALL they persist, and a failed link
   // leaves them too.
   size_t c_object_count = program_c_object_count(program);
 
-#ifdef PLATFORM_IS_WINDOWS
   for(size_t i = 0; i < c_object_count; i++)
     _unlink(program_c_object_at(program, i));
-#else
-  for(size_t i = 0; i < c_object_count; i++)
-    unlink(program_c_object_at(program, i));
-#endif
 
   cleanup_bc_files(bc_files, bc_count);
 
   return true;
+#endif
+}
+
+link_job_t* ponyc_take_pending_link(pass_opt_t* options)
+{
+  link_job_t* job = options->pending_link;
+  options->pending_link = NULL;
+  return job;
+}
+
+#ifdef PLATFORM_IS_POSIX_BASED
+bool ponyc_write_link_job(link_job_t* job, int fd)
+{
+  std::string data;
+
+  for(const char* arg : pony_link_job_argv(job->ponylink, job->options))
+  {
+    if(arg == NULL)
+      break;
+
+    data += arg;
+    data.push_back('\0');
+  }
+
+  data += PONYC_JOB_END;
+  data.push_back('\0');
+
+  // A reader that has gone away must fail the write with EPIPE rather than
+  // kill the compiler, which still has the job's files to remove.
+  struct sigaction ignore;
+  struct sigaction old_action;
+  memset(&ignore, 0, sizeof(ignore));
+  ignore.sa_handler = SIG_IGN;
+  sigemptyset(&ignore.sa_mask);
+  sigaction(SIGPIPE, &ignore, &old_action);
+
+  size_t written = 0;
+  bool ok = true;
+
+  while(written < data.size())
+  {
+    ssize_t n = write(fd, data.data() + written, data.size() - written);
+
+    if(n < 0)
+    {
+      if(errno == EINTR)
+        continue;
+
+      ok = false;
+      break;
+    }
+
+    written += (size_t)n;
+  }
+
+  int write_errno = errno;
+  sigaction(SIGPIPE, &old_action, NULL);
+
+  if(ok)
+  {
+    delete job;
+    return true;
+  }
+
+  ponyc_abandon_link(job);
+  errno = write_errno;
+  return false;
+}
+#endif
+
+void ponyc_abandon_link(link_job_t* job)
+{
+  if(job == NULL)
+    return;
+
+#ifdef PLATFORM_IS_POSIX_BASED
+  pony_link_remove_temporaries(job->options);
+#endif
+  delete job;
 }

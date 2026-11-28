@@ -15,7 +15,7 @@
 # configure time.
 #
 # Rebuilds when any watched .pony source changes, when the shared tool libraries
-# change (TOOLS_LIB_STAMP), or when ponyc itself is rebuilt.
+# change (TOOLS_LIB_STAMP), or when ponyc, ponyc-compiler or ponylink is rebuilt.
 
 # Provides pony_prereq_glob.
 include(${CMAKE_CURRENT_LIST_DIR}/PonyGlob.cmake)
@@ -61,6 +61,7 @@ function(add_pony_binary _target)
             ${_watch_srcs}
             ${TOOLS_LIB_STAMP}
             $<TARGET_FILE:ponyc>
+            $<TARGET_FILE:ponyc-compiler>
             $<TARGET_FILE:ponylink>
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )

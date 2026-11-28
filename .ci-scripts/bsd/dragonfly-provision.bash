@@ -129,10 +129,8 @@ echo "::group::Mount build disk and enable swap"
 # console on each configure attempt, where a retype could newfs an already-mounted
 # disk.
 #
-# The third disk (vbd2) is a 4GB raw image used as swap. The mid-behavior GC
-# change roughly doubled the stdlib IR, so the optimized stdlib link (ponyc
-# holding freed-but-not-returned allocations while ponylink runs LLD) can
-# spike past physical RAM. Swap absorbs the spike.
+# The third disk (vbd2) is a 4GB raw image used as swap, headroom for the
+# optimized stdlib build's memory peak.
 ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 root@localhost /bin/sh <<'EOF'
 set -e
 newfs /dev/vbd1

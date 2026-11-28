@@ -1,0 +1,76 @@
+cmake_minimum_required(VERSION 3.25 FATAL_ERROR)
+
+project(ponyc-compiler VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
+
+add_executable(ponyc-compiler main.c)
+
+target_include_directories(ponyc-compiler
+    PRIVATE ../../src/common
+    PRIVATE ../../src/libponyc
+    PRIVATE ../../build/libs/include
+)
+
+target_link_directories(ponyc-compiler
+    PRIVATE ../../build/libs/lib
+)
+
+if (MSVC)
+    target_link_libraries(ponyc-compiler
+        PRIVATE libponyc
+        PRIVATE libponyrt
+        PRIVATE dbghelp
+        PRIVATE ucrt
+        PRIVATE Ws2_32
+        PRIVATE Shlwapi
+        PRIVATE ntdll
+    )
+
+    set_source_files_properties(main.c PROPERTIES LANGUAGE CXX)
+else()
+    target_link_libraries(ponyc-compiler PRIVATE
+        libponyc
+        libponyrt
+    )
+
+    if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+        target_link_libraries(ponyc-compiler PRIVATE dl)
+    elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD")
+        target_link_libraries(ponyc-compiler PRIVATE execinfo)
+    elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
+        target_link_libraries(ponyc-compiler PRIVATE execinfo atomic)
+    else()
+        execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libstdc++.a
+            OUTPUT_VARIABLE LIBSTDCXX_PATH
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+        target_link_libraries(ponyc-compiler PRIVATE atomic dl)
+
+        if(LIBSTDCXX_PATH STREQUAL "libstdc++.a")
+            execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libc++.a
+                OUTPUT_VARIABLE LIBCXX_PATH
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+            if(LIBCXX_PATH STREQUAL "libc++.a")
+                message(FATAL_ERROR "Cannot find C++ implementation, looked for libstdc++ and libc++")
+            else()
+                target_link_options(ponyc-compiler PRIVATE "-static-libc++")
+            endif()
+        else()
+            target_link_options(ponyc-compiler PRIVATE "-static-libstdc++")
+        endif()
+    endif()
+
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libgcc.a
+            OUTPUT_VARIABLE LIBGCC_PATH
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+        if(NOT LIBGCC_PATH STREQUAL "libgcc.a")
+            target_link_options(ponyc-compiler PRIVATE "-static-libgcc")
+        endif()
+    endif()
+endif (MSVC)
+
+if(NOT PONY_CROSS_LIBPONYRT)
+    target_link_libraries(ponyc-compiler PRIVATE ${PONYC_CLANG_LIBS} ${PONYC_LLVM_LIBS} ${PONYC_EXTRA_LIBS} "$<LINK_LIBRARY:WHOLE_ARCHIVE,libponylto>")
+endif()

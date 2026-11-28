@@ -242,5 +242,7 @@ struct _PassOpt
   var mutate_operators: U8 = 0xFF
   var mutate_scope_count: USize = 0
   var mutate_scopes: Pointer[None] ref = mutate_scopes.create()
+  var defer_link: Bool = false
+  var pending_link: Pointer[None] ref = pending_link.create()
 
   new ref create() => None
