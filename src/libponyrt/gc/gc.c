@@ -976,6 +976,12 @@ void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
   while((obj = ponyint_gc_next_immutable_root(gc, &i)) != NULL)
   {
     chunk_t* chunk = ponyint_pagemap_get_chunk(obj->address);
+
+    // An object embedded in this actor has no heap chunk, and every mark of
+    // the actor runs its own trace, which traces the object in place.
+    if(chunk == NULL)
+      continue;
+
     mark_local_object(ctx, chunk, obj->address, obj->type,
       PONY_TRACE_IMMUTABLE);
   }

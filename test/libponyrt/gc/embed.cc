@@ -265,6 +265,26 @@ TEST_F(GcSharedAddress, VisitSetGrowsAndShrinks)
   EXPECT_EQ(0u, ctx->visits.capacity);
 }
 
+// An immutable root embedded in the actor that owns it has no heap chunk. The
+// owner's mark leaves it to the actor's own trace.
+TEST_F(GcSharedAddress, ImmutableRootWithoutAChunk)
+{
+  _pony_type_t root_type = c_type;
+  root_type.might_reference_actor = false;
+  root_type.embed_flags = PONY_EMBED_IN_ACTOR;
+  C inside{};
+  inside.type = &root_type;
+  object_t* obj = ponyint_objectmap_getorput(&a.gc.local, &inside, &root_type);
+  obj->immutable = true;
+  obj->rc = 1;
+
+  start_local_mark(&a);
+  ponyint_gc_markimmutable(ctx, &a.gc);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(0u, c_traced);
+  end_local_mark(&a);
+}
+
 // A routed type is never an immutable root, even without
 // might_reference_actor: the type the object map records for its address can
 // be the field at a struct's start rather than the struct.
