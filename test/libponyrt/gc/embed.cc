@@ -969,81 +969,104 @@ TEST(ActorContaining, FindsTheActorFromAnInteriorAddress)
   ponyint_unregister_thread();
 }
 
+namespace
+{
+// A field embedded in an actor is traced by the call compiled code uses for its
+// type: a type that can share an address with another object is routed.
+void trace_field(pony_ctx_t* ctx, void* field, pony_type_t* t, bool routed)
+{
+  if(routed)
+    pony_traceknown_routed(ctx, field, t, PONY_TRACE_MUTABLE);
+  else
+    pony_traceknown(ctx, field, t, PONY_TRACE_MUTABLE);
+}
+}
+
 // An actor that marks a field embedded in another actor adds the field's size
 // to its own heap use, as it adds a heap object's size.
 TEST(ActorContaining, RemoteMarkOfAnEmbeddedFieldCountsItsSize)
 {
-  ponyint_register_thread();
-  ponyint_image_init();
-  pony_ctx_t* ctx = pony_ctx();
+  for(bool routed : {false, true})
+  {
+    SCOPED_TRACE(routed ? "routed" : "plain");
+    ponyint_register_thread();
+    ponyint_image_init();
+    pony_ctx_t* ctx = pony_ctx();
 
-  pony_actor_t* owner = pony_create(ctx, &small_actor_type, true);
-  char* field = reinterpret_cast<char*>(owner) + sizeof(pony_actor_t) + 8;
-  _pony_type_t field_type{};
-  field_type.size = 24;
-  field_type.embed_flags = PONY_EMBED_IN_ACTOR;
+    pony_actor_t* owner = pony_create(ctx, &small_actor_type, true);
+    char* field = reinterpret_cast<char*>(owner) + sizeof(pony_actor_t) + 8;
+    _pony_type_t field_type{};
+    field_type.size = 24;
+    field_type.embed_flags = PONY_EMBED_IN_ACTOR |
+      (routed ? PONY_EMBED_ROUTED : 0);
 
-  pony_actor_t holder{};
-  _pony_type_t holder_type{};
-  holder.type = &holder_type;
-  ponyint_heap_init(&holder.heap);
-  ponyint_gc_done(&holder.gc);
-  ctx->current = &holder;
+    pony_actor_t holder{};
+    _pony_type_t holder_type{};
+    holder.type = &holder_type;
+    ponyint_heap_init(&holder.heap);
+    ponyint_gc_done(&holder.gc);
+    ctx->current = &holder;
 
-  ponyint_gc_mark(ctx);
-  // Marking the owner charges for the actor; measure the field alone.
-  ponyint_gc_markactor(ctx, owner);
-  size_t before = holder.heap.used;
-  pony_traceknown(ctx, field, &field_type, PONY_TRACE_MUTABLE);
-  ponyint_gc_handlestack(ctx);
-  EXPECT_EQ(before + field_type.size, holder.heap.used);
+    ponyint_gc_mark(ctx);
+    // Marking the owner charges for the actor; measure the field alone.
+    ponyint_gc_markactor(ctx, owner);
+    size_t before = holder.heap.used;
+    trace_field(ctx, field, &field_type, routed);
+    ponyint_gc_handlestack(ctx);
+    EXPECT_EQ(before + field_type.size, holder.heap.used);
 
-  ponyint_actormap_destroy(&ctx->acquire);
-  ponyint_gc_done(&holder.gc);
-  ctx->current = NULL;
-  ponyint_gc_destroy(&holder.gc);
-  ponyint_heap_destroy(&holder.heap);
-  ponyint_destroy(owner);
-  ponyint_unregister_thread();
+    ponyint_actormap_destroy(&ctx->acquire);
+    ponyint_gc_done(&holder.gc);
+    ctx->current = NULL;
+    ponyint_gc_destroy(&holder.gc);
+    ponyint_heap_destroy(&holder.heap);
+    ponyint_destroy(owner);
+    ponyint_unregister_thread();
+  }
 }
 
 // An actor that receives a field embedded in another actor adds the field's
 // size to its own heap use.
 TEST(ActorContaining, ReceiveOfAnEmbeddedFieldCountsItsSize)
 {
-  ponyint_register_thread();
-  ponyint_image_init();
-  pony_ctx_t* ctx = pony_ctx();
+  for(bool routed : {false, true})
+  {
+    SCOPED_TRACE(routed ? "routed" : "plain");
+    ponyint_register_thread();
+    ponyint_image_init();
+    pony_ctx_t* ctx = pony_ctx();
 
-  pony_actor_t* owner = pony_create(ctx, &small_actor_type, true);
-  char* field = reinterpret_cast<char*>(owner) + sizeof(pony_actor_t) + 8;
-  _pony_type_t field_type{};
-  field_type.size = 24;
-  field_type.embed_flags = PONY_EMBED_IN_ACTOR;
+    pony_actor_t* owner = pony_create(ctx, &small_actor_type, true);
+    char* field = reinterpret_cast<char*>(owner) + sizeof(pony_actor_t) + 8;
+    _pony_type_t field_type{};
+    field_type.size = 24;
+    field_type.embed_flags = PONY_EMBED_IN_ACTOR |
+      (routed ? PONY_EMBED_ROUTED : 0);
 
-  pony_actor_t holder{};
-  _pony_type_t holder_type{};
-  holder.type = &holder_type;
-  ponyint_heap_init(&holder.heap);
-  ponyint_gc_done(&holder.gc);
-  ctx->current = &holder;
+    pony_actor_t holder{};
+    _pony_type_t holder_type{};
+    holder.type = &holder_type;
+    ponyint_heap_init(&holder.heap);
+    ponyint_gc_done(&holder.gc);
+    ctx->current = &holder;
 
-  pony_gc_recv(ctx);
-  // Receiving the owner charges for the actor; measure the field alone.
-  ponyint_gc_recvactor(ctx, owner);
-  size_t before = holder.heap.used;
-  pony_traceknown(ctx, field, &field_type, PONY_TRACE_MUTABLE);
-  ponyint_gc_handlestack(ctx);
-  EXPECT_EQ(before + field_type.size, holder.heap.used);
+    pony_gc_recv(ctx);
+    // Receiving the owner charges for the actor; measure the field alone.
+    ponyint_gc_recvactor(ctx, owner);
+    size_t before = holder.heap.used;
+    trace_field(ctx, field, &field_type, routed);
+    ponyint_gc_handlestack(ctx);
+    EXPECT_EQ(before + field_type.size, holder.heap.used);
 
-  ponyint_gc_end_visits(ctx);
-  ponyint_actormap_destroy(&ctx->acquire);
-  ponyint_gc_done(&holder.gc);
-  ctx->current = NULL;
-  ponyint_gc_destroy(&holder.gc);
-  ponyint_heap_destroy(&holder.heap);
-  ponyint_destroy(owner);
-  ponyint_unregister_thread();
+    ponyint_gc_end_visits(ctx);
+    ponyint_actormap_destroy(&ctx->acquire);
+    ponyint_gc_done(&holder.gc);
+    ctx->current = NULL;
+    ponyint_gc_destroy(&holder.gc);
+    ponyint_heap_destroy(&holder.heap);
+    ponyint_destroy(owner);
+    ponyint_unregister_thread();
+  }
 }
 
 namespace
@@ -1071,52 +1094,58 @@ void end_own_epoch(pony_ctx_t* ctx, pony_actor_t* actor)
 // holds or acquires itself. Its own mark leaves the field to its own trace.
 TEST(ActorContaining, OwnEmbeddedFieldIsALocalObject)
 {
-  ponyint_register_thread();
-  ponyint_image_init();
-  pony_ctx_t* ctx = pony_ctx();
+  for(bool routed : {false, true})
+  {
+    SCOPED_TRACE(routed ? "routed" : "plain");
+    ponyint_register_thread();
+    ponyint_image_init();
+    pony_ctx_t* ctx = pony_ctx();
 
-  pony_actor_t* owner = pony_create(ctx, &small_actor_type, true);
-  char* field = reinterpret_cast<char*>(owner) + sizeof(pony_actor_t) + 8;
-  _pony_type_t field_type{};
-  field_type.size = 24;
-  field_type.trace = trace_own_field;
-  field_type.embed_flags = PONY_EMBED_IN_ACTOR;
-  pony_actor_t target{};
-  ctx->current = owner;
-  size_t rc_before = owner->gc.rc;
-  size_t index = HASHMAP_UNKNOWN;
+    pony_actor_t* owner = pony_create(ctx, &small_actor_type, true);
+    char* field = reinterpret_cast<char*>(owner) + sizeof(pony_actor_t) + 8;
+    _pony_type_t field_type{};
+    field_type.size = 24;
+    field_type.trace = trace_own_field;
+    field_type.embed_flags = PONY_EMBED_IN_ACTOR |
+      (routed ? PONY_EMBED_ROUTED : 0);
+    pony_actor_t target{};
+    ctx->current = owner;
+    size_t rc_before = owner->gc.rc;
+    size_t index = HASHMAP_UNKNOWN;
 
-  pony_gc_send(ctx, &target);
-  pony_traceknown(ctx, field, &field_type, PONY_TRACE_MUTABLE);
-  ponyint_gc_handlestack(ctx);
-  object_t* obj = ponyint_objectmap_getobject(&owner->gc.local, field, &index);
-  ASSERT_NE(nullptr, obj);
-  EXPECT_EQ(1u, obj->rc);
-  EXPECT_EQ(rc_before + 1, owner->gc.rc);
-  EXPECT_EQ(0u, ponyint_actormap_size(&owner->gc.foreign));
-  EXPECT_EQ(0u, ponyint_actormap_size(&ctx->acquire));
-  end_own_epoch(ctx, owner);
+    pony_gc_send(ctx, &target);
+    trace_field(ctx, field, &field_type, routed);
+    ponyint_gc_handlestack(ctx);
+    object_t* obj = ponyint_objectmap_getobject(&owner->gc.local, field,
+      &index);
+    ASSERT_NE(nullptr, obj);
+    EXPECT_EQ(1u, obj->rc);
+    EXPECT_EQ(rc_before + 1, owner->gc.rc);
+    EXPECT_EQ(0u, ponyint_actormap_size(&owner->gc.foreign));
+    EXPECT_EQ(0u, ponyint_actormap_size(&ctx->acquire));
+    end_own_epoch(ctx, owner);
 
-  pony_gc_recv(ctx);
-  pony_traceknown(ctx, field, &field_type, PONY_TRACE_MUTABLE);
-  ponyint_gc_handlestack(ctx);
-  EXPECT_EQ(0u, obj->rc);
-  EXPECT_EQ(rc_before, owner->gc.rc);
-  EXPECT_EQ(0u, ponyint_actormap_size(&owner->gc.foreign));
-  end_own_epoch(ctx, owner);
+    pony_gc_recv(ctx);
+    trace_field(ctx, field, &field_type, routed);
+    ponyint_gc_handlestack(ctx);
+    EXPECT_EQ(0u, obj->rc);
+    EXPECT_EQ(rc_before, owner->gc.rc);
+    EXPECT_EQ(0u, ponyint_actormap_size(&owner->gc.foreign));
+    end_own_epoch(ctx, owner);
 
-  own_field_traced = 0;
-  ponyint_gc_mark(ctx);
-  pony_traceknown(ctx, field, &field_type, PONY_TRACE_MUTABLE);
-  ponyint_gc_handlestack(ctx);
-  EXPECT_EQ(0u, own_field_traced);
-  EXPECT_EQ(0u, ponyint_actormap_size(&owner->gc.foreign));
-  EXPECT_EQ(0u, ponyint_actormap_size(&ctx->acquire));
-  end_own_epoch(ctx, owner);
+    own_field_traced = 0;
+    ponyint_gc_mark(ctx);
+    trace_field(ctx, field, &field_type, routed);
+    ponyint_gc_handlestack(ctx);
+    EXPECT_EQ(0u, own_field_traced);
+    EXPECT_EQ(0u, ponyint_actormap_size(&owner->gc.foreign));
+    EXPECT_EQ(0u, ponyint_actormap_size(&ctx->acquire));
+    end_own_epoch(ctx, owner);
 
-  ctx->current = NULL;
-  ponyint_destroy(owner);
-  ponyint_unregister_thread();
+    ctx->current = NULL;
+    ponyint_destroy(owner);
+    ponyint_unregister_thread();
+  }
 }
 
 // A destroyed actor's freed block, taken from the pool again as plain memory,
