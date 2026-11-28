@@ -25,10 +25,11 @@
 
 DEFINE_STACK(ponyint_gcstack, gcstack_t, void);
 
-// Whether every holder of an object of this type traces its fields, so it is
-// never an immutable root. An owner traces an immutable root as the type its
-// object map records, and for an address shared by a struct and the field at
-// its start, that can be the field's type from an earlier epoch.
+// Whether every holder of an object of this type traces the object's fields
+// itself, so it is never an immutable root. An owner traces an immutable root
+// as the type its object map records, and for an address shared by a struct
+// and the field at its start, that can be the field's type from an earlier
+// epoch.
 static bool traced_by_holders(pony_type_t* t)
 {
   return (t != NULL) && (t->might_reference_actor ||
@@ -766,10 +767,10 @@ static pony_actor_t* embedded_field_owner(pony_ctx_t* ctx, void* p,
 }
 
 // The actor that owns an object with no heap chunk, or NULL if no actor owns
-// it: such memory isn't collected, and for a non-opaque visit the object is
-// queued for tracing what it references, unless it is a constant in the
-// read-only image. in_pagemap is the actor the pagemap gave for p, if any. A
-// raw trace (pony_trace) has no type and is opaque.
+// it. An unowned object isn't collected; a non-opaque visit traces what it
+// references unless it is a constant in the read-only image. in_pagemap is the
+// actor the pagemap gave for p, if any. A raw trace (pony_trace) has no type
+// and is opaque.
 static GC_INLINE pony_actor_t* chunkless_owner(pony_ctx_t* ctx, void* p,
   pony_type_t* t, int mutability, pony_actor_t* in_pagemap)
 {

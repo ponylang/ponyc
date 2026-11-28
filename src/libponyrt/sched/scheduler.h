@@ -103,8 +103,7 @@ typedef struct pony_ctx_t
   uint64_t last_tsc;
   schedulerstats_t schedulerstats;
 #endif
-  // The visits a mark recorded by address and type.
-  // Empty between marks.
+  // The visits a mark recorded, by address and type. Empty between marks.
   gc_visitset_t visits;
 } pony_ctx_t;
 

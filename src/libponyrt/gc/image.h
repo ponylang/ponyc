@@ -7,8 +7,8 @@
 
 PONY_EXTERN_C_BEGIN
 
-// The part of the image holding the runtime that is read-only once the
-// program is loaded. Both are 0 until ponyint_image_init runs.
+// The bounds of the part of the image holding the runtime that is read-only
+// once the program is loaded. Both are 0 until ponyint_image_init runs.
 extern uintptr_t ponyint_image_ro_start;
 extern uintptr_t ponyint_image_ro_end;
 
@@ -33,8 +33,8 @@ bool ponyint_image_elf_bounds(struct dl_phdr_info* info, uintptr_t self,
 // Whether p is in the runtime's image, in memory that is read-only once the
 // program is loaded. When the runtime is linked into the program, the
 // compiler's constants, such as string literals, are there. That memory can't
-// hold a pointer written at run time, so the GC doesn't trace an object there. An object there that points to writable
-// memory holding Pony references isn't traced through either.
+// hold a pointer written at run time, so the GC doesn't trace an object there,
+// nor through it to writable memory holding Pony references.
 static inline bool ponyint_image_constant(const void* p)
 {
   return ((uintptr_t)p - ponyint_image_ro_start) <

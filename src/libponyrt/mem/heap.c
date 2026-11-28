@@ -1110,8 +1110,8 @@ void ponyint_heap_set_shared_start(void* p)
   }
 }
 
-// Callers pass may_be_start_field as a constant, and inlining each call drops
-// the checks that the constant rules out.
+// ponyint_heap_mark_plain passes may_be_start_field as a constant, and inlining
+// that call drops the checks that the constant rules out.
 #ifdef _MSC_VER
 #  define HEAP_MARK_INLINE static __forceinline
 #else

@@ -226,8 +226,6 @@ static LLVMValueRef make_field_offset(compile_t* c, reach_type_t* t)
     LLVMOffsetOfElement(c->target_data, c_t->structure, index), false);
 }
 
-// For a struct that starts with an embedded field with a non-zero size, that
-// field's descriptor: the two objects share an address.
 static LLVMValueRef make_first_embed(compile_t* c, reach_type_t* t)
 {
   reach_type_t* f = gentype_first_embed(c, t);

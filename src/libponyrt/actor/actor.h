@@ -192,9 +192,10 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
 gc_t* ponyint_actor_gc(pony_actor_t* actor);
 
 // The actor whose allocation contains p, if its type has an embedded field;
-// otherwise NULL. p must point into a live allocation or outside the pool. Returns pool memory that isn't an actor only if its first
-// word points to an aligned actor descriptor, wholly in the read-only image,
-// whose type has PONY_EMBED_ACTOR_LOOKUP, and p is within that type's size.
+// otherwise NULL. p must point into a live allocation or outside the pool. A
+// pool block that isn't an actor is returned only when its first word points
+// to an aligned actor descriptor, wholly in the read-only image, whose type
+// has PONY_EMBED_ACTOR_LOOKUP, and p is within that type's size.
 pony_actor_t* ponyint_actor_containing(void* p);
 
 heap_t* ponyint_actor_heap(pony_actor_t* actor);

@@ -341,7 +341,8 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m);
 
 /** Trace an object whose type can share memory with other objects.
  *
- * Use this in place of pony_traceknown when t has PONY_EMBED_ROUTED.
+ * Use this in place of pony_traceknown when t has PONY_EMBED_ROUTED, and only
+ * then.
  *
  * @param ctx The current context.
  * @param p The pointer being traced.

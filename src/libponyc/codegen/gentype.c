@@ -488,8 +488,8 @@ static bool make_struct(compile_t* c, reach_type_t* t)
   return true;
 }
 
-// Whether field i of t is embedded and has no size. Such a field has the
-// address of the object that holds it (see gentype_embed_ptr).
+// An embedded field with no size has the address of the object that holds it
+// (see gentype_embed_ptr).
 static bool embed_has_no_size(compile_t* c, reach_type_t* t, uint32_t i)
 {
   if(!t->fields[i].embed)
