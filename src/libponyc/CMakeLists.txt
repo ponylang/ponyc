@@ -121,10 +121,6 @@ target_include_directories(libponyc
 
 add_dependencies(libponyc pony_version)
 
-if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
-    set(CMAKE_OSX_DEPLOYMENT_TARGET ${PONY_OSX_PLATFORM})
-endif()
-
 if (MSVC)
     file(GLOB_RECURSE CFILES "${PROJECT_SOURCE_DIR}/*.c")
     set_source_files_properties(${CFILES} PROPERTIES LANGUAGE CXX)

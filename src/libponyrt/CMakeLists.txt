@@ -51,10 +51,6 @@ set(_c_src
     tracing/tracing.c
 )
 
-if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
-    set(CMAKE_OSX_DEPLOYMENT_TARGET ${PONY_OSX_PLATFORM})
-endif()
-
 add_library(libponyrt STATIC
     ${_c_src}
 )
