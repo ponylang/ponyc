@@ -82,7 +82,7 @@ void ponyint_pool_suspend_flush();
 
 /* The start of the pool allocation that contains p, or NULL if p is not in
  * an allocation from an arena: memory from elsewhere, an allocation too large
- * for an arena, or a unit not in use. p must point into a live allocation or
+ * for an arena, or memory in an arena that isn't allocated. p must point into a live allocation or
  * outside the pool; a pointer into freed pool memory can give any answer. The
  * memalign backend has no arenas and always returns NULL.
  */

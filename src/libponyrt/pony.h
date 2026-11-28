@@ -341,8 +341,7 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m);
 
 /** Trace an object whose type can share memory with other objects.
  *
- * Use this in place of pony_traceknown when t has PONY_EMBED_ROUTED. It also
- * accepts any other type except an actor's.
+ * Use this in place of pony_traceknown when t has PONY_EMBED_ROUTED.
  *
  * @param ctx The current context.
  * @param p The pointer being traced.
@@ -358,8 +357,8 @@ PONY_API void pony_traceknown_routed(pony_ctx_t* ctx, void* p,
  *
  * This should be called for fields in an object with an unknown type, unless
  * one of the types the field can hold has PONY_EMBED_ROUTED: use
- * pony_traceunknown_routed for that. Otherwise, memory still reachable can be
- * freed, as with pony_traceknown.
+ * pony_traceunknown_routed for that. Called where such a type can be traced,
+ * it can free memory that is still reachable, as pony_traceknown can.
  *
  * @param ctx The current context.
  * @param p The pointer being traced.

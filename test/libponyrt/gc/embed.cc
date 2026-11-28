@@ -1007,6 +1007,140 @@ TEST(ActorContaining, RemoteMarkOfAnEmbeddedFieldCountsItsSize)
   ponyint_unregister_thread();
 }
 
+// An actor that receives a field embedded in another actor adds the field's
+// size to its own heap use.
+TEST(ActorContaining, ReceiveOfAnEmbeddedFieldCountsItsSize)
+{
+  ponyint_register_thread();
+  ponyint_image_init();
+  pony_ctx_t* ctx = pony_ctx();
+
+  pony_actor_t* owner = pony_create(ctx, &small_actor_type, true);
+  char* field = reinterpret_cast<char*>(owner) + sizeof(pony_actor_t) + 8;
+  _pony_type_t field_type{};
+  field_type.size = 24;
+  field_type.embed_flags = PONY_EMBED_IN_ACTOR;
+
+  pony_actor_t holder{};
+  _pony_type_t holder_type{};
+  holder.type = &holder_type;
+  ponyint_heap_init(&holder.heap);
+  ponyint_gc_done(&holder.gc);
+  ctx->current = &holder;
+
+  pony_gc_recv(ctx);
+  // Receiving the owner charges for the actor; measure the field alone.
+  ponyint_gc_recvactor(ctx, owner);
+  size_t before = holder.heap.used;
+  pony_traceknown(ctx, field, &field_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(before + field_type.size, holder.heap.used);
+
+  ponyint_gc_end_visits(ctx);
+  ponyint_actormap_destroy(&ctx->acquire);
+  ponyint_gc_done(&holder.gc);
+  ctx->current = NULL;
+  ponyint_gc_destroy(&holder.gc);
+  ponyint_heap_destroy(&holder.heap);
+  ponyint_destroy(owner);
+  ponyint_unregister_thread();
+}
+
+namespace
+{
+size_t own_field_traced;
+
+void trace_own_field(pony_ctx_t* ctx, void* p)
+{
+  (void)ctx;
+  (void)p;
+  own_field_traced++;
+}
+
+void end_own_epoch(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  ponyint_gc_end_visits(ctx);
+  ponyint_actormap_destroy(&ctx->acquire);
+  ponyint_gc_done(&actor->gc);
+  ctx->msg_target = NULL;
+}
+}
+
+// An actor that sends a field embedded in itself, and gets it back, counts it
+// as its own object: the counts return to where they started, and it never
+// holds or acquires itself. Its own mark leaves the field to its own trace.
+TEST(ActorContaining, OwnEmbeddedFieldIsALocalObject)
+{
+  ponyint_register_thread();
+  ponyint_image_init();
+  pony_ctx_t* ctx = pony_ctx();
+
+  pony_actor_t* owner = pony_create(ctx, &small_actor_type, true);
+  char* field = reinterpret_cast<char*>(owner) + sizeof(pony_actor_t) + 8;
+  _pony_type_t field_type{};
+  field_type.size = 24;
+  field_type.trace = trace_own_field;
+  field_type.embed_flags = PONY_EMBED_IN_ACTOR;
+  pony_actor_t target{};
+  ctx->current = owner;
+  size_t rc_before = owner->gc.rc;
+  size_t index = HASHMAP_UNKNOWN;
+
+  pony_gc_send(ctx, &target);
+  pony_traceknown(ctx, field, &field_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  object_t* obj = ponyint_objectmap_getobject(&owner->gc.local, field, &index);
+  ASSERT_NE(nullptr, obj);
+  EXPECT_EQ(1u, obj->rc);
+  EXPECT_EQ(rc_before + 1, owner->gc.rc);
+  EXPECT_EQ(0u, ponyint_actormap_size(&owner->gc.foreign));
+  EXPECT_EQ(0u, ponyint_actormap_size(&ctx->acquire));
+  end_own_epoch(ctx, owner);
+
+  pony_gc_recv(ctx);
+  pony_traceknown(ctx, field, &field_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(0u, obj->rc);
+  EXPECT_EQ(rc_before, owner->gc.rc);
+  EXPECT_EQ(0u, ponyint_actormap_size(&owner->gc.foreign));
+  end_own_epoch(ctx, owner);
+
+  own_field_traced = 0;
+  ponyint_gc_mark(ctx);
+  pony_traceknown(ctx, field, &field_type, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(0u, own_field_traced);
+  EXPECT_EQ(0u, ponyint_actormap_size(&owner->gc.foreign));
+  EXPECT_EQ(0u, ponyint_actormap_size(&ctx->acquire));
+  end_own_epoch(ctx, owner);
+
+  ctx->current = NULL;
+  ponyint_destroy(owner);
+  ponyint_unregister_thread();
+}
+
+// A destroyed actor's freed block, taken from the pool again as plain memory,
+// isn't taken for that actor.
+TEST(ActorContaining, DestroyedActorsBlockIsNotAnActor)
+{
+  ponyint_register_thread();
+  ponyint_image_init();
+  pony_ctx_t* ctx = pony_ctx();
+
+  pony_actor_t* actor = pony_create(ctx, &small_actor_type, true);
+  char* field = reinterpret_cast<char*>(actor) + sizeof(pony_actor_t) + 8;
+  ASSERT_EQ(actor, ponyint_actor_containing(field));
+  ponyint_destroy(actor);
+
+  // The pool hands the block that was just freed back for the same size.
+  void* block = ponyint_pool_alloc_size(small_actor_type.size);
+  ASSERT_EQ(static_cast<void*>(actor), block);
+  EXPECT_EQ(nullptr, ponyint_actor_containing(field));
+
+  ponyint_pool_free_size(small_actor_type.size, block);
+  ponyint_unregister_thread();
+}
+
 // An actor too large for an arena is found too.
 TEST(ActorContaining, FindsAnActorTooLargeForAnArena)
 {

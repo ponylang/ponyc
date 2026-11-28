@@ -798,10 +798,10 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
   return !ponyint_messageq_markempty(&actor->q);
 }
 
-// Whether ponyint_actor_containing can't find an actor of this type from the
-// address of one of its embedded fields by pool lookup: the memalign pool
-// can't find an allocation's start, and the arena pool needs the type's
-// descriptor in the read-only image.
+// True for an actor type with an embedded field when ponyint_actor_containing
+// can't find its actors by pool lookup: the memalign pool can't find an
+// allocation's start, and the arena pool needs the type's descriptor in the
+// read-only image.
 static bool pool_cannot_find_actor(pony_type_t* type)
 {
   if((type->embed_flags & PONY_EMBED_ACTOR_LOOKUP) == 0)
@@ -879,6 +879,10 @@ void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
     ponyint_pagemap_set_bulk(actor, NULL, NULL,
       ponyint_pool_used_size(alloc_size));
 
+  // The pool lookup in ponyint_actor_containing takes a block whose first word
+  // is an actor descriptor for an actor, so the freed block mustn't keep it.
+  actor->type = NULL;
+
   // Free variable sized actors correctly.
   ponyint_pool_free_size(alloc_size, actor);
 }
@@ -955,7 +959,8 @@ pony_actor_t* ponyint_actor_containing(void* p)
   {
     // Memory from the pool that isn't an actor can be handed to Pony through
     // FFI. An actor found here starts with its descriptor, which is a
-    // constant in the read-only image; anything else isn't taken for one.
+    // constant in the read-only image; anything else isn't taken for one. A
+    // destroyed actor's block has its descriptor cleared.
     pony_type_t* t = *(pony_type_t**)base;
 
     if((((uintptr_t)t % sizeof(void*)) == 0) &&

@@ -1110,18 +1110,18 @@ void ponyint_heap_set_shared_start(void* p)
   }
 }
 
-// Both callers pass may_share_start as a constant, and inlining each call
-// drops the checks that the constant rules out.
+// Callers pass may_be_start_field as a constant, and inlining each call drops
+// the checks that the constant rules out.
 #ifdef _MSC_VER
 #  define HEAP_MARK_INLINE static __forceinline
 #else
 #  define HEAP_MARK_INLINE static inline __attribute__((always_inline))
 #endif
 
-// may_share_start is whether the visit's type can be embedded at the start of
-// a struct, so the allocation at p can be a struct of another type.
+// may_be_start_field is whether the object visited at p may be the field
+// embedded at the start of a struct, rather than the allocation's own type.
 HEAP_MARK_INLINE heap_mark_t heap_mark_visit(chunk_t* chunk, void* p,
-  bool may_share_start, bool own_type)
+  bool may_be_start_field)
 {
   maybe_clear_chunk(chunk);
 
@@ -1146,8 +1146,7 @@ HEAP_MARK_INLINE heap_mark_t heap_mark_visit(chunk_t* chunk, void* p,
     if(marked)
       return HEAP_MARK_MARKED;
 
-    if(may_share_start && !own_type &&
-      get_small_slot_shared_start(chunk, slot))
+    if(may_be_start_field && get_small_slot_shared_start(chunk, slot))
     {
       bool first = (chunk->small.shallow & slot) != 0;
       chunk->small.shallow &= ~slot;
@@ -1173,7 +1172,7 @@ HEAP_MARK_INLINE heap_mark_t heap_mark_visit(chunk_t* chunk, void* p,
   if(marked)
     return HEAP_MARK_MARKED;
 
-  if(may_share_start && !own_type && get_large_chunk_shared_start(chunk))
+  if(may_be_start_field && get_large_chunk_shared_start(chunk))
   {
     bool first = get_large_chunk_shallow(chunk) != 0;
     set_large_chunk_shallow(chunk, 0);
@@ -1191,7 +1190,7 @@ __attribute__((always_inline))
 #endif
 heap_mark_t ponyint_heap_mark_object(chunk_t* chunk, void* p, bool own_type)
 {
-  return heap_mark_visit(chunk, p, true, own_type);
+  return heap_mark_visit(chunk, p, !own_type);
 }
 
 #if defined(__clang__)
@@ -1199,7 +1198,7 @@ __attribute__((always_inline))
 #endif
 heap_mark_t ponyint_heap_mark_plain(chunk_t* chunk, void* p)
 {
-  return heap_mark_visit(chunk, p, false, true);
+  return heap_mark_visit(chunk, p, false);
 }
 
 bool ponyint_heap_mark(chunk_t* chunk, void* p)

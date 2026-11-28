@@ -26,9 +26,9 @@
 DEFINE_STACK(ponyint_gcstack, gcstack_t, void);
 
 // Whether every holder of an object of this type traces its fields, so it is
-// never an immutable root. An owner traces an immutable root as the type its object
-// map records, and for an address shared by a struct and the field at its
-// start, that can be the field's type from an earlier epoch.
+// never an immutable root. An owner traces an immutable root as the type its
+// object map records, and for an address shared by a struct and the field at
+// its start, that can be the field's type from an earlier epoch.
 static bool traced_by_holders(pony_type_t* t)
 {
   return (t != NULL) && (t->might_reference_actor ||

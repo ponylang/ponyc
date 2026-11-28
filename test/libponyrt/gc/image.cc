@@ -109,9 +109,9 @@ TEST(Image, ReadOnlyPartEndsWhereItsPageIsWritable)
   ASSERT_TRUE(ponyint_image_elf_bounds(&info, 0x400010, page, &start, &end));
   EXPECT_EQ(0x402a00u, end);
 
-  // Code, then read-only data more than a page later, as a linker aligning
-  // segments to a larger page than the system's leaves it: nothing is mapped
-  // in between, so the read-only part ends before the gap.
+  // Code, then read-only data more than a page later, as when a linker aligns
+  // segments to a page larger than the system's: nothing is mapped in
+  // between, so the read-only part ends before the gap.
   phdr_t gap[3] = {};
   gap[0] = plain[0];
   gap[1].p_type = PT_LOAD;
@@ -194,6 +194,11 @@ TEST(Image, RawTraceOfMemoryOutsideTheHeap)
     pony_trace(ctx, from_c);
     pony_trace(ctx, nullptr);
     ponyint_gc_handlestack(ctx);
+    size_t index = HASHMAP_UNKNOWN;
+    EXPECT_EQ(nullptr,
+      ponyint_objectmap_getobject(&actor.gc.local, from_c, &index));
+    EXPECT_EQ(0u, ponyint_actormap_size(&ctx->acquire));
+    EXPECT_EQ(0u, ponyint_actormap_size(&actor.gc.foreign));
 
     ponyint_gc_end_visits(ctx);
     ponyint_actormap_destroy(&ctx->acquire);

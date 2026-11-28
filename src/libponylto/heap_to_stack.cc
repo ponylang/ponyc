@@ -26,8 +26,8 @@ static constexpr unsigned HEAP_MINBITS = 5;
 
 // The alloca's alignment must match the runtime's heap guarantee. The
 // `align` attribute on pony_alloc, pony_alloc_small and
-// pony_alloc_small_shared_start carries that value;
-// it is set in init_runtime_decls (codegen.c).
+// pony_alloc_small_shared_start carries that value; it is set in
+// set_runtime_attrs (codegen.c).
 
 static void printTransform(Instruction *i, const char *s)
 {
