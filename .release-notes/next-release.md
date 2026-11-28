@@ -766,3 +766,7 @@ In a debugger or profiler, one of these functions can appear under the name of a
 
 ponyc now releases the memory it used for code generation before the linker starts, so ponyc and the linker no longer hold that memory at the same time. Building the standard library's test program with optimizations, the peak memory of ponyc and the linker together dropped from about 8.9 GB to 7.3 GB on glibc-based Linux x86-64 and from about 7.3 GB to 6.7 GB on Windows x86-64. On macOS the peak didn't change. Builds on Linux distributions that use musl, such as Alpine, weren't measured.
 
+## Fix ponyc requiring the macOS version it was built on
+
+On macOS, the `ponyc` binary was built for the macOS version of the machine that built it, instead of macOS 13 like the rest of Pony's macOS binaries. Recent releases, including 0.78.2, require macOS 26 on Apple silicon and macOS 15 on Intel. `ponyc` is now built for macOS 13.
+
