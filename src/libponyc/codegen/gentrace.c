@@ -781,7 +781,9 @@ static void trace_dynamic_union_or_isect(compile_t* c, LLVMValueRef ctx,
     trace_dynamic(c, ctx, object, child, orig, tuple, next_block);
   }
 
-  // No type matched. This may be a boxed primitive: trace it here.
+  // No type matched. This may be a boxed primitive: trace it here. The value
+  // can be any type the original allows, so route by that type, not by this
+  // level's.
   if(gentagged_has_any_taggable(c))
   {
     // A tagged pointer has no heap object — skip tracing.
@@ -791,7 +793,7 @@ static void trace_dynamic_union_or_isect(compile_t* c, LLVMValueRef ctx,
     LLVMBuildCondBr(c->builder, is_tagged, skip_block, trace_block);
 
     LLVMPositionBuilderAtEnd(c->builder, trace_block);
-    trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE, type);
+    trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE, orig);
     LLVMBuildBr(c->builder, skip_block);
 
     LLVMMoveBasicBlockAfter(skip_block, LLVMGetInsertBlock(c->builder));
@@ -799,7 +801,7 @@ static void trace_dynamic_union_or_isect(compile_t* c, LLVMValueRef ctx,
   }
   else
   {
-    trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE, type);
+    trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE, orig);
   }
 }
 
