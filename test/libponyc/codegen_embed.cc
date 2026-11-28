@@ -86,16 +86,18 @@ TEST_F(CodegenEmbedTest, ProgramWithoutEmbedUsesPlainTraces)
   ASSERT_EQ(0u, calls_to("pony_traceunknown_routed"));
 }
 
-// A union of a tuple and a routed class: the trace that checks for a
-// boxed tuple can also receive a C, so it must be routed.
+// A union of a tuple and a routed class (embedded at a struct's start): the
+// trace that checks for a boxed tuple can also receive a C, so it must be
+// routed.
 TEST_F(CodegenEmbedTest, UnionWithTupleAndEmbeddedTypeIsRouted)
 {
   const char* src =
     "class C\n"
     "  var x: U64 = 7\n"
 
-    "class A\n"
+    "struct A\n"
     "  embed c: C = C\n"
+    "  new create() => None\n"
 
     "actor Keeper\n"
     "  var _v: ((String, String) | C val) = (\"a\", \"b\")\n"
@@ -145,12 +147,14 @@ TEST_F(CodegenEmbedTest, ZeroSizeFieldBeforeTheFirstRealField)
   ASSERT_NE(0, flags_of("S") & PONY_EMBED_ROUTED);
 }
 
-// Each reification is its own type: embedding one doesn't route another.
+// Each reification is its own type: embedding one at a struct's start doesn't
+// route another.
 TEST_F(CodegenEmbedTest, OnlyTheEmbeddedReificationIsRouted)
 {
   const char* src =
-    "class H\n"
+    "struct H\n"
     "  embed a: Array[U8] = Array[U8]\n"
+    "  new create() => None\n"
 
     "actor Main\n"
     "  var _h: H = H\n"
@@ -200,7 +204,7 @@ TEST_F(CodegenEmbedTest, EmbeddedInAnActor)
 }
 
 // A trace through an interface or trait reaches every class that provides it,
-// so it is routed when one of them is embedded somewhere.
+// so it is routed when one of them is embedded at a struct's start.
 TEST_F(CodegenEmbedTest, InterfaceAndTraitReachingAnEmbeddedClassAreRouted)
 {
   const char* src =
@@ -215,8 +219,9 @@ TEST_F(CodegenEmbedTest, InterfaceAndTraitReachingAnEmbeddedClassAreRouted)
     "  fun i(): U64 => x\n"
     "  fun t(): U64 => x\n"
 
-    "class A\n"
+    "struct A\n"
     "  embed c: C = C\n"
+    "  new create() => None\n"
 
     "actor Keeper\n"
     "  var _i: (I val | None) = None\n"
@@ -296,15 +301,16 @@ TEST_F(CodegenEmbedTest, StructSharingItsStartIsAllocatedAsSuch)
   ASSERT_GT(calls_to("pony_alloc_small", "Main_ref_make_plain"), 0u);
 }
 
-// A trace of a field whose type is embedded somewhere is routed.
+// A trace of a field whose type is embedded at a struct's start is routed.
 TEST_F(CodegenEmbedTest, KnownTraceOfAnEmbeddedTypeIsRouted)
 {
   const char* src =
     "class C\n"
     "  var x: U64 = 7\n"
 
-    "class A\n"
+    "struct A\n"
     "  embed c: C = C\n"
+    "  new create() => None\n"
 
     "actor Keeper\n"
     "  var _c: C val = recover C end\n"
@@ -547,4 +553,44 @@ TEST_F(CodegenEmbedTest, DescriptorLayoutMatchesTheRuntime)
   EXPECT_EQ(offsetof(_pony_type_t, traits), offset(DESC_TRAITS));
   EXPECT_EQ(offsetof(_pony_type_t, fields), offset(DESC_FIELDS));
   EXPECT_EQ(offsetof(_pony_type_t, vtable), offset(DESC_VTABLE));
+}
+
+// A type embedded only where it shares no address with another object, inside
+// a class or an actor or after a struct's first field, takes the plain trace.
+TEST_F(CodegenEmbedTest, TypeEmbeddedWithoutASharedAddressIsNotRouted)
+{
+  const char* src =
+    "class C\n"
+    "  var x: U64 = 0\n"
+
+    "class D\n"
+    "  var x: U64 = 0\n"
+
+    "class E\n"
+    "  var x: U64 = 0\n"
+
+    "class F\n"
+    "  var x: U64 = 0\n"
+
+    "class H\n"
+    "  embed c: C = C\n"
+
+    "struct S\n"
+    "  embed f: F = F\n"
+    "  embed e: E = E\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  embed d: D = D\n"
+    "  var _h: H = H\n"
+    "  var _s: S = S\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(0, flags_of("C") & PONY_EMBED_ROUTED);
+  ASSERT_EQ(0, flags_of("D") & PONY_EMBED_ROUTED);
+  ASSERT_EQ(0, flags_of("E") & PONY_EMBED_ROUTED);
+  ASSERT_NE(0, flags_of("F") & PONY_EMBED_ROUTED);
+  ASSERT_NE(0, flags_of("D") & PONY_EMBED_IN_ACTOR);
 }

@@ -165,6 +165,49 @@ Object writable_routed_object = {&counted_routed_type, 1};
 
 // A send or a mark doesn't trace an object in read-only image memory, on the
 // plain or the routed path; a writable object outside every heap is traced.
+// A raw trace (pony_trace) has no type. When its memory has no heap chunk, as
+// for memory from C, a send, receive or mark leaves it alone.
+TEST(Image, RawTraceOfMemoryOutsideTheHeap)
+{
+  ponyint_register_thread();
+  ponyint_image_init();
+  pony_ctx_t* ctx = pony_ctx();
+  _pony_type_t actor_type{};
+  pony_actor_t actor{};
+  actor.type = &actor_type;
+  ponyint_heap_init(&actor.heap);
+  ponyint_gc_done(&actor.gc);
+  ctx->current = &actor;
+  void* from_c = malloc(64);
+
+  for(const char* mode : {"mark", "send", "receive"})
+  {
+    SCOPED_TRACE(mode);
+
+    if(strcmp(mode, "send") == 0)
+      pony_gc_send(ctx, &actor);
+    else if(strcmp(mode, "receive") == 0)
+      pony_gc_recv(ctx);
+    else
+      ponyint_gc_mark(ctx);
+
+    pony_trace(ctx, from_c);
+    pony_trace(ctx, nullptr);
+    ponyint_gc_handlestack(ctx);
+
+    ponyint_gc_end_visits(ctx);
+    ponyint_actormap_destroy(&ctx->acquire);
+    ponyint_gc_done(&actor.gc);
+    ctx->msg_target = NULL;
+  }
+
+  free(from_c);
+  ctx->current = NULL;
+  ponyint_gc_destroy(&actor.gc);
+  ponyint_heap_destroy(&actor.heap);
+  ponyint_unregister_thread();
+}
+
 TEST(Image, GcDoesNotTraceConstants)
 {
   ponyint_register_thread();

@@ -717,6 +717,30 @@ TEST_F(GcEmbeddedInClass, InteriorVisitsEndAndAreCoveredByTheClass)
   end_mark();
 }
 
+// A type embedded in a class shares no address, so it takes the plain trace.
+// The plain mark bounds repeat visits through a pointer into the allocation the
+// same way: B is traced on the first visit and on the first repeat, which is
+// recorded; later visits stop, and once A is traced a pointer to B needs
+// nothing more.
+TEST_F(GcEmbeddedInClass, PlainInteriorVisitsEnd)
+{
+  _pony_type_t plain_b = b_type;
+  plain_b.embed_flags = 0;
+  A* obj = alloc_a();
+  start_mark();
+  for(int i = 0; i < 3; i++)
+    pony_traceknown(ctx, &obj->b, &plain_b, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(2u, b_traced);
+
+  pony_traceknown(ctx, obj, &a_type, PONY_TRACE_MUTABLE);
+  pony_traceknown(ctx, &obj->b, &plain_b, PONY_TRACE_MUTABLE);
+  ponyint_gc_handlestack(ctx);
+  EXPECT_EQ(1u, a_traced);
+  EXPECT_EQ(3u, b_traced);
+  end_mark();
+}
+
 // An opaque visit to B, as for a tag reference to it, keeps the allocation that
 // holds it through the sweep without tracing B.
 TEST_F(GcEmbeddedInClass, OpaqueInteriorVisitKeepsTheAllocation)

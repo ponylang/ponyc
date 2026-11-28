@@ -795,10 +795,14 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
   // Memory with no heap chunk is a constant, memory from C, or an object
-  // embedded in an actor, which the routed function tells apart.
+  // embedded in an actor. Only the last has an owner to find. A raw trace
+  // (pony_trace) has no type.
   if(chunk == NULL)
   {
-    ponyint_gc_sendrouted(ctx, p, t, mutability);
+    if((t != NULL) && ((t->embed_flags & PONY_EMBED_IN_ACTOR) != 0))
+      ponyint_gc_sendrouted(ctx, p, t, mutability);
+    else if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
+      recurse(ctx, p, t->trace);
     return;
   }
 
@@ -830,10 +834,14 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
   // Memory with no heap chunk is a constant, memory from C, or an object
-  // embedded in an actor, which the routed function tells apart.
+  // embedded in an actor. Only the last has an owner to find. A raw trace
+  // (pony_trace) has no type.
   if(chunk == NULL)
   {
-    ponyint_gc_recvrouted(ctx, p, t, mutability);
+    if((t != NULL) && ((t->embed_flags & PONY_EMBED_IN_ACTOR) != 0))
+      ponyint_gc_recvrouted(ctx, p, t, mutability);
+    else if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
+      recurse(ctx, p, t->trace);
     return;
   }
 
@@ -865,10 +873,14 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
   // Memory with no heap chunk is a constant, memory from C, or an object
-  // embedded in an actor, which the routed function tells apart.
+  // embedded in an actor. Only the last has an owner to find. A raw trace
+  // (pony_trace) has no type.
   if(chunk == NULL)
   {
-    ponyint_gc_markrouted(ctx, p, t, mutability);
+    if((t != NULL) && ((t->embed_flags & PONY_EMBED_IN_ACTOR) != 0))
+      ponyint_gc_markrouted(ctx, p, t, mutability);
+    else if((mutability != PONY_TRACE_OPAQUE) && !ponyint_image_constant(p))
+      recurse(ctx, p, t->trace);
     return;
   }
 
